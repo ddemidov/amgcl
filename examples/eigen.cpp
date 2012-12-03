@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
             n, n, row.back(), row.data(), col.data(), val.data()
             );
 
-    // Wrap the matrix into amg::sparse::amp and build the preconditioner:
+    // Wrap the matrix into amg::sparse::map and build the preconditioner:
     prof.tic("setup");
     amg_precond amg(amg::sparse::map(n, n, row.data(), col.data(), val.data()));
     prof.toc("setup");

@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
     pfile.read((char*)val.data(), val.size() * sizeof(double));
     pfile.read((char*)rhs.data(), rhs.size() * sizeof(double));
 
-    // Wrap the matrix into amg::sparse::amp:
+    // Wrap the matrix into amg::sparse::map:
     amg::sparse::matrix_map<double, int> A(
             n, n, row.data(), col.data(), val.data()
             );
