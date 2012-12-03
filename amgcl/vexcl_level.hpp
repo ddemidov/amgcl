@@ -24,8 +24,7 @@ class vexcl {
             : A(new matrix(vex::StaticContext<>::get().queue(), a.rows, a.cols, a.row.data(), a.col.data(), a.val.data())),
               P(new matrix(vex::StaticContext<>::get().queue(), p.rows, p.cols, p.row.data(), p.col.data(), p.val.data())),
               R(new matrix(vex::StaticContext<>::get().queue(), r.rows, r.cols, r.row.data(), r.col.data(), r.val.data())),
-              t(a.rows), d(a.rows),
-              sum(vex::StaticContext<>::get().queue())
+              t(a.rows), d(a.rows)
         {
             if (parent) {
                 u.resize(a.rows);
@@ -40,8 +39,7 @@ class vexcl {
         vexcl(cpu_matrix &&a, cpu_matrix &&ai)
             : A(new matrix(vex::StaticContext<>::get().queue(), a.rows, a.cols, a.row.data(), a.col.data(), a.val.data())),
               Ainv(new matrix(vex::StaticContext<>::get().queue(), ai.rows, ai.cols, ai.row.data(), ai.col.data(), ai.val.data())),
-              u(a.rows), f(a.rows), t(a.rows), d(a.rows),
-              sum(vex::StaticContext<>::get().queue())
+              u(a.rows), f(a.rows), t(a.rows), d(a.rows)
         {
             extract_diagonal(a);
         }
@@ -56,6 +54,10 @@ class vexcl {
 
         // Compute residual value.
         value_t resid(const vector &rhs, vector &x) const {
+	    static vex::Reductor<value_t, vex::SUM> sum(
+		    vex::StaticContext<>::get().queue()
+		    );
+
             t = rhs - (*A) * x;
 
             return sqrt(sum(t * t));
@@ -98,8 +100,6 @@ class vexcl {
         vector t;
 
         vector d;
-
-        vex::Reductor<value_t, vex::SUM> sum;
 
         void extract_diagonal(const cpu_matrix &a) {
             std::vector<value_t> diag(a.rows);
