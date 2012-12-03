@@ -22,30 +22,30 @@ class profiler {
             root.start_time = clock::now();
         }
 
-	void tic(const std::string &name) {
-	    assert(!stack.empty());
+        void tic(const std::string &name) {
+            assert(!stack.empty());
 
-	    auto top = stack.top();
+            auto top = stack.top();
 
-	    top->children[name].start_time = clock::now();
+            top->children[name].start_time = clock::now();
 
-	    stack.push(&top->children[name]);
-	}
+            stack.push(&top->children[name]);
+        }
 
-	double toc(const std::string &name) {
-	    assert(!stack.empty());
-	    assert(stack.top() != &root);
+        double toc(const std::string &name) {
+            assert(!stack.empty());
+            assert(stack.top() != &root);
 
-	    profile_unit *top = stack.top();
-	    stack.pop();
+            profile_unit *top = stack.top();
+            stack.pop();
 
-	    double delta = std::chrono::duration<double>(
-		    clock::now() - top->start_time).count();
+            double delta = std::chrono::duration<double>(
+                    clock::now() - top->start_time).count();
 
-	    top->length += delta;
+            top->length += delta;
 
-	    return delta;
-	}
+            return delta;
+        }
 
     private:
         struct profile_unit {
@@ -107,9 +107,9 @@ class profiler {
             std::map<std::string, profile_unit> children;
         };
 
-	std::string name;
-	profile_unit root;
-	std::stack<profile_unit*> stack;
+        std::string name;
+        profile_unit root;
+        std::stack<profile_unit*> stack;
 
         void print(std::ostream &out) {
             if (stack.top() != &root)
@@ -121,7 +121,7 @@ class profiler {
             root.print(out, name, 0, root.length, root.total_width(name, 0));
         }
 
-	friend std::ostream& operator<<(std::ostream &out, profiler &prof) {
+        friend std::ostream& operator<<(std::ostream &out, profiler &prof) {
             out << std::endl;
             prof.print(out);
             return out << std::endl;

@@ -27,10 +27,10 @@ connect(const spmat &A, const params &prm, std::vector<char> &cf) {
     const index_t n = sparse::matrix_rows(A);
 
     std::tuple<
-	std::vector<index_t>,
-	std::vector<index_t>,
-	std::vector<char>
-	> S;
+        std::vector<index_t>,
+        std::vector<index_t>,
+        std::vector<char>
+        > S;
 
     auto &Srow = std::get<0>(S);
     auto &Scol = std::get<1>(S);
@@ -61,15 +61,15 @@ connect(const spmat &A, const params &prm, std::vector<char> &cf) {
     }
 
     for(index_t i = 0, nnz = Arow[n]; i < nnz; ++i)
-	if (Sval[i]) Srow[Acol[i] + 1]++;
+        if (Sval[i]) Srow[Acol[i] + 1]++;
 
     std::partial_sum(Srow.begin(), Srow.end(), Srow.begin());
 
     Scol.resize(Srow.back());
 
     for(index_t i = 0; i < n; ++i)
-	for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
-	    if (Sval[j]) Scol[ Srow[ Acol[j] ]++ ] = i;
+        for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
+            if (Sval[j]) Scol[ Srow[ Acol[j] ]++ ] = i;
 
     for(index_t i = n; i > 0; --i) Srow[i] = Srow[i-1];
 
@@ -81,10 +81,10 @@ template < class spmat >
 void cfsplit(
         const spmat &A,
         const std::tuple<
-		    std::vector<typename sparse::matrix_index<spmat>::type>,
-		    std::vector<typename sparse::matrix_index<spmat>::type>,
-		    std::vector<char>
-		    > &S,
+                    std::vector<typename sparse::matrix_index<spmat>::type>,
+                    std::vector<typename sparse::matrix_index<spmat>::type>,
+                    std::vector<char>
+                    > &S,
         std::vector<char> &cf
         )
 {
@@ -104,8 +104,8 @@ void cfsplit(
     // Initialize lambdas:
     for(index_t i = 0; i < n; ++i) {
         index_t temp = 0;
-	for(index_t j = Srow[i], e = Srow[i + 1]; j < e; ++j)
-	    temp += (cf[Scol[j]] == 'U' ? 1 : 2);
+        for(index_t j = Srow[i], e = Srow[i + 1]; j < e; ++j)
+            temp += (cf[Scol[j]] == 'U' ? 1 : 2);
         lambda[i] = temp;
     }
 
@@ -189,7 +189,7 @@ void cfsplit(
 
         // Decrease lambdas of the newly create C's neighbours.
         for(index_t j = Arow[i], e = Arow[i + 1]; j < e; j++) {
-	    if (!Sval[j]) continue;
+            if (!Sval[j]) continue;
 
             index_t c = Acol[j];
             index_t lam = lambda[c];
@@ -202,7 +202,7 @@ void cfsplit(
             n2i[i2n[old_pos]] = new_pos;
             n2i[i2n[new_pos]] = old_pos;
 
-	    std::swap(i2n[old_pos], i2n[new_pos]);
+            std::swap(i2n[old_pos], i2n[new_pos]);
 
             --cnt[lam];
             ++cnt[lam - 1];

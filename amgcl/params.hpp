@@ -5,9 +5,9 @@ namespace amg {
 
 // Minimal set af AMG parameters.
 struct params {
-    unsigned npre          = 1;	    // Number of pre-relaxations.
-    unsigned npost         = 1;	    // Number of post-relaxations.
-    unsigned ncycle        = 1;	    // Number of cycles (1 for V-cycle, 2 for W-cycle, etc.).
+    unsigned npre          = 1;     // Number of pre-relaxations.
+    unsigned npost         = 1;     // Number of post-relaxations.
+    unsigned ncycle        = 1;     // Number of cycles (1 for V-cycle, 2 for W-cycle, etc.).
     unsigned maxiter       = 100;   // Maximum number of iterations in standalone solver.
     unsigned coarse_enough = 300;   // When level is coarse enough to be solved directly.
 

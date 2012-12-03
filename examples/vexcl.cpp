@@ -28,8 +28,8 @@ struct amg_precond {
 
     // Build VexCL-based hierarchy:
     mutable amg::solver<
-	double, int, amg::level::vexcl<double, int>
-	> amg;
+        double, int, amg::level::vexcl<double, int>
+        > amg;
     mutable vex::vector<double> r;
 };
 
@@ -64,16 +64,16 @@ int main(int argc, char *argv[]) {
     vex::Context ctx( vex::Filter::Env && vex::Filter::DoublePrecision );
 
     if (!ctx.size()) {
-	std::cerr << "No GPUs" << std::endl;
-	return 1;
+        std::cerr << "No GPUs" << std::endl;
+        return 1;
     }
 
     std::cout << ctx << std::endl;
 
     // Copy matrix and rhs to GPU(s).
     vex::SpMat<double, int, int> Agpu(
-	    ctx.queue(), n, n, row.data(), col.data(), val.data()
-	    );
+            ctx.queue(), n, n, row.data(), col.data(), val.data()
+            );
 
     vex::vector<double> f(ctx.queue(), rhs);
 

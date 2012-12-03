@@ -15,9 +15,9 @@ class cpu {
     public:
         typedef sparse::matrix<value_t, index_t> matrix;
 
-	// Construct complete multigrid level from system matrix (a),
-	// prolongation (p) and restriction (r) operators.
-	// The matrices are moved into the local members.
+        // Construct complete multigrid level from system matrix (a),
+        // prolongation (p) and restriction (r) operators.
+        // The matrices are moved into the local members.
         cpu(matrix &&a, matrix &&p, matrix &&r, bool has_parent = true)
             : A(a), P(p), R(r)
         {
@@ -29,13 +29,13 @@ class cpu {
             t.resize(A.rows);
         }
 
-	// Construct the coarsest hierarchy level from system matrix (a) and
-	// its inverse (ai).
+        // Construct the coarsest hierarchy level from system matrix (a) and
+        // its inverse (ai).
         cpu(matrix &&a, matrix &&ai)
             : A(a), Ai(ai), u(A.rows), f(A.rows), t(A.rows)
         { }
 
-	// Perform one relaxation (smoothing) step.
+        // Perform one relaxation (smoothing) step.
         template <class vector1, class vector2>
         void relax(const vector1 &rhs, vector2 &x) {
             const index_t n = A.rows;
@@ -59,7 +59,7 @@ class cpu {
             vector_copy(t, x);
         }
 
-	// Compute residual value.
+        // Compute residual value.
         template <class vector1, class vector2>
         value_t resid(const vector1 &rhs, vector2 &x) const {
             const index_t n = A.rows;
@@ -77,8 +77,8 @@ class cpu {
             return sqrt(norm);
         }
 
-	// Perform one V-cycle. Coarser levels are cycled recursively. The
-	// coarsest level is solved directly.
+        // Perform one V-cycle. Coarser levels are cycled recursively. The
+        // coarsest level is solved directly.
         template <class Iterator, class vector1, class vector2>
         static void cycle(Iterator lvl, Iterator end, const amg::params &prm,
                 const vector1 &rhs, vector2 &x)

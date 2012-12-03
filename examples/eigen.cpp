@@ -15,8 +15,8 @@ namespace viennacl { namespace traits {
 template <class T>
 struct tag_of<T,
     typename std::enable_if<
-	    std::is_base_of<Eigen::EigenBase<T>, T>::value
-	>::type
+            std::is_base_of<Eigen::EigenBase<T>, T>::value
+        >::type
     >
 {
   typedef viennacl::tag_eigen  type;
