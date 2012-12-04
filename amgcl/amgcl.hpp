@@ -44,7 +44,6 @@ class solver {
 
                 value_t r = hier.front().resid(rhs, x);
 
-                std::cout << iter << ": " << r << std::endl;
                 if (r <= prm.tol) return true;
             }
             return false;
@@ -59,7 +58,6 @@ class solver {
     private:
         void build_level(matrix &&A, const params &prm, bool parent = false)
         {
-            std::cout << std::setw(10) << A.rows << std::endl;
             if (A.rows <= prm.coarse_enough) {
                 hier.emplace_back(std::move(A), std::move(sparse::inverse(A)));
             } else {
