@@ -12,8 +12,8 @@ namespace amg {
 
 #ifdef AMGCL_PROFILING
 extern amg::profiler<> prof;
-#  define TIC(what) TIC(what);
-#  define TOC(what) TOC(what);
+#  define TIC(what) prof.tic(what);
+#  define TOC(what) prof.tic(what);
 #else
 #  define TIC(what)
 #  define TOC(what)
@@ -49,7 +49,7 @@ connect(const spmat &A, const params &prm, std::vector<char> &cf) {
     auto Acol = sparse::matrix_inner_index(A);
     auto Aval = sparse::matrix_values(A);
 
-#pragma omp parallel for schedule(static, 1024)
+#pragma omp parallel for schedule(dynamic, 1024)
     for(index_t i = 0; i < n; ++i) {
         value_t a_min = 0;
 
@@ -255,23 +255,51 @@ sparse::matrix<value_t, index_t> interp(
     sparse::matrix<value_t, index_t> P(n, nc);
     std::fill(P.row.begin(), P.row.end(), static_cast<index_t>(0));
 
-#pragma omp parallel for schedule(static, 1024)
+    std::vector<value_t> Amin, Amax;
+
+    if (prm.trunc_int) {
+        Amin.resize(n);
+        Amax.resize(n);
+    }
+
+#pragma omp parallel for schedule(dynamic, 1024)
     for(index_t i = 0; i < n; ++i) {
         if (cf[i] == 'C') {
             ++P.row[i + 1];
             continue;
         }
 
-        for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
-            if (Sval[j] && cf[Acol[j]] == 'C')
-                ++P.row[i + 1];
+        if (prm.trunc_int) {
+            value_t amin = 0, amax = 0;
+
+            for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
+                if (!Sval[j] || cf[Acol[j]] != 'C') continue;
+
+                amin = std::min(amin, Aval[j]);
+                amax = std::max(amax, Aval[j]);
+            }
+
+            Amin[i] = amin = amin * prm.eps_tr;
+            Amax[i] = amax = amax * prm.eps_tr;
+
+            for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
+                if (!Sval[j] || cf[Acol[j]] != 'C') continue;
+
+                if (Aval[j] <= amin || Aval[j] >= amax)
+                    ++P.row[i + 1];
+            }
+        } else {
+            for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
+                if (Sval[j] && cf[Acol[j]] == 'C')
+                    ++P.row[i + 1];
+        }
     }
 
     std::partial_sum(P.row.begin(), P.row.end(), P.row.begin());
 
     P.reserve(P.row.back());
 
-#pragma omp parallel for schedule(static, 1024)
+#pragma omp parallel for schedule(dynamic, 1024)
     for(index_t i = 0; i < n; ++i) {
         index_t row_head = P.row[i];
 
@@ -284,35 +312,54 @@ sparse::matrix<value_t, index_t> interp(
         value_t diag  = 0;
         value_t a_num = 0, a_den = 0;
         value_t b_num = 0, b_den = 0;
+        value_t d_neg = 0, d_pos = 0;
 
         for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
-            if (Acol[j] == i) {
-                diag = Aval[j];
+            index_t c = Acol[j];
+            value_t v = Aval[j];
+
+            if (c == i) {
+                diag = v;
                 continue;
             }
 
-            if (Aval[j] < 0) {
-                a_num += Aval[j];
-                if (Sval[j] && cf[Acol[j]] == 'C')
-                    a_den += Aval[j];
+            if (v < 0) {
+                a_num += v;
+                if (Sval[j] && cf[c] == 'C') {
+                    a_den += v;
+                    if (prm.trunc_int && v > Amin[i]) d_neg += v;
+                }
             } else {
-                b_num += Aval[j];
-                if (Sval[j] && cf[Acol[j]] == 'C')
-                    b_den += Aval[j];
+                b_num += v;
+                if (Sval[j] && cf[c] == 'C') {
+                    b_den += v;
+                    if (prm.trunc_int && v < Amax[i]) d_pos += v;
+                }
             }
+        }
+
+        value_t cf_neg = 1;
+        value_t cf_pos = 1;
+
+        if (prm.trunc_int) {
+            if (fabs(a_den - d_neg) > 1e-32) cf_neg = a_den / (a_den - d_neg);
+            if (fabs(b_den - d_pos) > 1e-32) cf_pos = b_den / (b_den - d_pos);
         }
 
         if (b_num > 0 && fabs(b_den) < 1e-32) diag += b_num;
 
-        value_t alpha = 0, beta = 0;
-        if (fabs(a_den) > 1e-32) alpha = -a_num / (diag * a_den);
-        if (b_den > 1e-32) beta = -b_num / (diag * b_den);
+        value_t alpha = fabs(a_den) > 1e-32 ? -cf_neg * a_num / (diag * a_den) : 0;
+        value_t beta  = fabs(b_den) > 1e-32 ? -cf_pos * b_num / (diag * b_den) : 0;
 
         for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
-            if (!Sval[j] || cf[Acol[j]] != 'C') continue;
+            index_t c = Acol[j];
+            value_t v = Aval[j];
 
-            P.col[row_head] = cidx[Acol[j]];
-            P.val[row_head] = (Aval[j] < 0 ? alpha : beta) * Aval[j];
+            if (!Sval[j] || cf[c] != 'C') continue;
+            if (prm.trunc_int && v > Amin[i] && v < Amax[i]) continue;
+
+            P.col[row_head] = cidx[c];
+            P.val[row_head] = (v < 0 ? alpha : beta) * v;
             ++row_head;
         }
     }
