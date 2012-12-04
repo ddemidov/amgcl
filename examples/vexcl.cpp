@@ -8,6 +8,7 @@
 #include <amgcl/vexcl_level.hpp>
 #include <amgcl/vexcl_operations.hpp>
 #include <amgcl/cg.hpp>
+#include <amgcl/bicgstab.hpp>
 
 namespace amg {
 amg::profiler<> prof;
@@ -64,20 +65,26 @@ int main(int argc, char *argv[]) {
     prof.toc("setup");
 
     // Solve the problem with CG method. Use AMG as a preconditioner:
-    prof.tic("solve");
     vex::vector<double> x(ctx.queue(), n);
     x = 0;
-    auto cnv = amg::cg(Agpu, f, amg, x);
-    prof.toc("solve");
+
+    prof.tic("solve (cg)");
+    auto cnv = amg::solve(Agpu, f, amg, x, amg::cg_tag());
+    prof.toc("solve (cg)");
 
     std::cout << "Iterations: " << std::get<0>(cnv) << std::endl
-              << "Error:      " << std::get<1>(cnv) << std::endl;
+              << "Error:      " << std::get<1>(cnv) << std::endl
+              << std::endl;
 
-    vex::Reductor<double, vex::SUM> sum(ctx.queue());
+    // Solve the problem with BiCGStab method. Use AMG as a preconditioner:
+    x = 0;
+    prof.tic("solve (bicg)");
+    cnv = amg::solve(Agpu, f, amg, x, amg::bicg_tag());
+    prof.toc("solve (bicg)");
 
-    double norm_f = sum(f * f);
-    f -= Agpu * x;
-    std::cout << "Real error: " << sqrt(sum(f * f) / norm_f) << std::endl;
+    std::cout << "Iterations: " << std::get<0>(cnv) << std::endl
+              << "Error:      " << std::get<1>(cnv) << std::endl
+              << std::endl;
 
     std::cout << prof;
 }

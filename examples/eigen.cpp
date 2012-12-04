@@ -8,6 +8,7 @@
 #include <amgcl/amgcl.hpp>
 #include <amgcl/eigen_operations.hpp>
 #include <amgcl/cg.hpp>
+#include <amgcl/bicgstab.hpp>
 
 namespace amg {
 amg::profiler<> prof;
@@ -48,15 +49,26 @@ int main(int argc, char *argv[]) {
             n, n, row.back(), row.data(), col.data(), val.data()
             );
 
+
     // Solve the problem with CG method. Use AMG as a preconditioner:
-    prof.tic("solve");
     Eigen::VectorXd x = Eigen::VectorXd::Zero(n);
-    auto cnv = amg::cg(A, rhs, amg, x);
-    prof.toc("solve");
+    prof.tic("solve (cg)");
+    auto cnv = amg::solve(A, rhs, amg, x, amg::cg_tag());
+    prof.toc("solve (cg)");
 
     std::cout << "Iterations: " << std::get<0>(cnv) << std::endl
               << "Error:      " << std::get<1>(cnv) << std::endl
-              << "Real error: " << (rhs - A * x).norm() / rhs.norm() << std::endl;
+              << std::endl;
+
+    // Solve the problem with BiCGStab method. Use AMG as a preconditioner:
+    x.setZero();
+    prof.tic("solve (bicg)");
+    cnv = amg::solve(A, rhs, amg, x, amg::bicg_tag());
+    prof.toc("solve (bicg)");
+
+    std::cout << "Iterations: " << std::get<0>(cnv) << std::endl
+              << "Error:      " << std::get<1>(cnv) << std::endl
+              << std::endl;
 
     std::cout << prof;
 }
