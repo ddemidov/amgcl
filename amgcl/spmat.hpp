@@ -299,29 +299,31 @@ void gaussj(index_t n, value_t *a) {
 
     std::vector<index_t> idxc(n);
     std::vector<index_t> idxr(n);
-    std::vector<index_t> ipiv(n, 0);
+    std::vector<char>    ipiv(n, false);
 
     for(index_t i = 0; i < n; ++i) {
         index_t irow, icol;
 
         value_t big = zero;
         for(index_t j = 0; j < n; ++j) {
-            if (ipiv[j] != 1) {
-                for(index_t k = 0; k < n; ++k) {
-                    if (ipiv[k] == 0 && fabs(a[j * n + k]) > big) {
-                        big = fabs(a[j * n + k]);
-                        irow = j;
-                        icol = k;
-                    }
+            if (ipiv[j]) continue;
+
+            for(index_t k = 0; k < n; ++k) {
+                if (!ipiv[k] && std::abs(a[j * n + k]) > big) {
+                    big  = std::abs(a[j * n + k]);
+                    irow = j;
+                    icol = k;
                 }
             }
         }
 
-        ++ipiv[icol];
+        ipiv[icol] = true;
 
         if (irow != icol)
-            for(index_t k = 0; k < n; ++k)
-                std::swap(a[irow * n + k], a[icol * n + k]);
+            std::swap_ranges(
+                    a + n * irow, a + n * (irow + 1),
+                    a + n * icol
+                    );
 
         idxr[i] = irow;
         idxc[i] = icol;
@@ -332,13 +334,22 @@ void gaussj(index_t n, value_t *a) {
         value_t pivinv = one / a[icol * n + icol];
         a[icol * n + icol] = one;
 
-        for(index_t k = 0; k < n; ++k) a[icol * n + k] *= pivinv;
+        std::transform(a + icol * n, a + (icol + 1) * n, a + icol * n,
+                [pivinv](value_t e) {
+                    return e * pivinv;
+                });
+
         for(index_t k = 0; k < n; ++k) {
             if (k != icol) {
                 value_t dum = a[k * n + icol];
                 a[k * n + icol] = zero;
-                for(index_t l = 0; l < n; ++l)
-                    a[k * n + l] -= a[icol * n + l] * dum;
+                std::transform(
+                        a + n * k, a + n * (k + 1),
+                        a + n * icol,
+                        a + n * k,
+                        [dum](value_t v1, value_t v2) {
+                            return v1 - v2 * dum;
+                        });
             }
         }
     }
