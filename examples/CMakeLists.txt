@@ -1,19 +1,10 @@
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
-endif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+find_package(OpenMP)
 
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -stdlib=libc++")
-endif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} -std=c++0x")
 
-find_path(EIGEN_INCLUDE Eigen/SparseCore
-    PATH_SUFFIXES eigen3
-    )
+find_path(EIGEN_INCLUDE Eigen/SparseCore PATH_SUFFIXES eigen3)
 
-include_directories(
-    ${EIGEN_INCLUDE}
-    ${CMAKE_SOURCE_DIR}
-    )
+include_directories(${EIGEN_INCLUDE} ${CMAKE_SOURCE_DIR})
 
 add_executable(eigen eigen.cpp)
 

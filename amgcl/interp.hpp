@@ -43,6 +43,7 @@ connect(const spmat &A, const params &prm, std::vector<char> &cf) {
     auto Acol = sparse::matrix_inner_index(A);
     auto Aval = sparse::matrix_values(A);
 
+#pragma omp parallel for schedule(static, 1024)
     for(index_t i = 0; i < n; ++i) {
         value_t a_min = 0;
 
@@ -248,6 +249,7 @@ sparse::matrix<value_t, index_t> interp(
     sparse::matrix<value_t, index_t> P(n, nc);
     std::fill(P.row.begin(), P.row.end(), static_cast<index_t>(0));
 
+#pragma omp parallel for schedule(static, 1024)
     for(index_t i = 0; i < n; ++i) {
         if (cf[i] == 'C') {
             ++P.row[i + 1];
@@ -263,6 +265,7 @@ sparse::matrix<value_t, index_t> interp(
 
     P.reserve(P.row.back());
 
+#pragma omp parallel for schedule(static, 1024)
     for(index_t i = 0; i < n; ++i) {
         index_t row_head = P.row[i];
 

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <cassert>
+#include <omp.h>
 
 // Local implementation of a sparse matrix. Use amg::sparse::map with
 // externally-defined matrices in CRS format.
@@ -225,50 +226,63 @@ prod(const spmat1 &A, const spmat2 &B) {
 
     std::fill(C.row.begin(), C.row.end(), static_cast<index_t>(0));
 
-    static_assert(std::is_signed<index_t>::value,
-            "Matrix index type should be signed"
-            );
+#pragma omp parallel
+    {
+        static_assert(std::is_signed<index_t>::value,
+                "Matrix index type should be signed");
 
-    std::vector<index_t> marker(m, static_cast<index_t>(-1));
+        std::vector<index_t> marker(m, static_cast<index_t>(-1));
 
-    for(index_t ia = 0; ia < n; ++ia) {
-        for(index_t ja = Arow[ia], ea = Arow[ia + 1]; ja < ea; ++ja) {
-            index_t ca = Acol[ja];
-            for(index_t jb = Brow[ca], eb = Brow[ca + 1]; jb < eb; ++jb) {
-                index_t cb = Bcol[jb];
+	int nt  = omp_get_num_threads();
+	int tid = omp_get_thread_num();
 
-                if (marker[cb] != ia) {
-                    marker[cb] = ia;
-                    ++( C.row[ia + 1] );
+	index_t chunk_size  = (n + nt - 1) / nt;
+	index_t chunk_start = tid * chunk_size;
+	index_t chunk_end   = std::min(n, chunk_start + chunk_size);
+
+        for(index_t ia = chunk_start; ia < chunk_end; ++ia) {
+            for(index_t ja = Arow[ia], ea = Arow[ia + 1]; ja < ea; ++ja) {
+                index_t ca = Acol[ja];
+                for(index_t jb = Brow[ca], eb = Brow[ca + 1]; jb < eb; ++jb) {
+                    index_t cb = Bcol[jb];
+
+                    if (marker[cb] != ia) {
+                        marker[cb] = ia;
+                        ++( C.row[ia + 1] );
+                    }
                 }
             }
         }
-    }
 
-    std::partial_sum(C.row.begin(), C.row.end(), C.row.begin());
-    C.reserve(C.row.back());
+        std::fill(marker.begin(), marker.end(), static_cast<index_t>(-1));
 
-    std::fill(marker.begin(), marker.end(), static_cast<index_t>(-1));
+#pragma omp barrier
+#pragma omp single
+        {
+            std::partial_sum(C.row.begin(), C.row.end(), C.row.begin());
+            C.reserve(C.row.back());
+        }
 
-    for(index_t ia = 0; ia < n; ++ia) {
-        index_t row_beg = C.row[ia];
-        index_t row_end = row_beg;
+        for(index_t ia = chunk_start; ia < chunk_end; ++ia) {
+            index_t row_beg = C.row[ia];
+            index_t row_end = row_beg;
 
-        for(index_t ja = Arow[ia], ea = Arow[ia + 1]; ja < ea; ++ja) {
-            index_t ca = Acol[ja];
-            value_t va = Aval[ja];
+            for(index_t ja = Arow[ia], ea = Arow[ia + 1]; ja < ea; ++ja) {
+                index_t ca = Acol[ja];
+                value_t va = Aval[ja];
 
-            for(index_t jb = Brow[ca], eb = Brow[ca + 1]; jb < eb; ++jb) {
-                index_t cb = Bcol[jb];
-                value_t vb = Bval[jb];
+                for(index_t jb = Brow[ca], eb = Brow[ca + 1]; jb < eb; ++jb) {
+                    index_t cb = Bcol[jb];
+                    value_t vb = Bval[jb];
 
-                if (marker[cb] < row_beg) {
-                    marker[cb] = row_end;
-                    C.col[row_end] = cb;
-                    C.val[row_end] = va * vb;
-                    ++row_end;
-                } else {
-                    C.val[marker[cb]] += va * vb;
+                    if (marker[cb] < row_beg) {
+                        marker[cb] = row_end;
+                        C.col[row_end] = cb;
+                        C.val[row_end] = va * vb;
+                        ++row_end;
+                    } else {
+                        C.val[marker[cb]] += va * vb;
+                    }
                 }
             }
         }
@@ -329,7 +343,8 @@ void gaussj(index_t n, value_t *a) {
         }
     }
 
-    static_assert(std::is_signed<index_t>::value, "Matrix index type should be signed");
+    static_assert(std::is_signed<index_t>::value,
+            "Matrix index type should be signed");
 
     for(index_t i = n - 1; i >= 0; --i) {
         if (idxr[i] != idxc[i]) {
