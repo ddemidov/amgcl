@@ -10,8 +10,10 @@ namespace level {
 
 // CPU-based AMG hierarchy. vex::StaticContext is used for the VexCL types
 // construction.
+struct vexcl {
+
 template <typename value_t, typename index_t = long long>
-class vexcl {
+class instance {
     public:
         typedef sparse::matrix<value_t, index_t>      cpu_matrix;
         typedef vex::SpMat<value_t, index_t, index_t> matrix;
@@ -20,7 +22,7 @@ class vexcl {
         // Construct complete multigrid level from system matrix (a),
         // prolongation (p) and restriction (r) operators.
         // The matrices are moved into the local members.
-        vexcl(cpu_matrix &&a, cpu_matrix &&p, cpu_matrix &&r, bool parent = true)
+        instance(cpu_matrix &&a, cpu_matrix &&p, cpu_matrix &&r, bool parent = true)
             : A(new matrix(vex::StaticContext<>::get().queue(), a.rows, a.cols, a.row.data(), a.col.data(), a.val.data())),
               P(new matrix(vex::StaticContext<>::get().queue(), p.rows, p.cols, p.row.data(), p.col.data(), p.val.data())),
               R(new matrix(vex::StaticContext<>::get().queue(), r.rows, r.cols, r.row.data(), r.col.data(), r.val.data())),
@@ -40,7 +42,7 @@ class vexcl {
 
         // Construct the coarsest hierarchy level from system matrix (a) and
         // its inverse (ai).
-        vexcl(cpu_matrix &&a, cpu_matrix &&ai)
+        instance(cpu_matrix &&a, cpu_matrix &&ai)
             : A(new matrix(vex::StaticContext<>::get().queue(), a.rows, a.cols, a.row.data(), a.col.data(), a.val.data())),
               Ainv(new matrix(vex::StaticContext<>::get().queue(), ai.rows, ai.cols, ai.row.data(), ai.col.data(), ai.val.data())),
               u(a.rows), f(a.rows), t(a.rows), d(a.rows)
@@ -122,6 +124,8 @@ class vexcl {
 
             vex::copy(diag, d);
         }
+};
+
 };
 
 } // namespace level

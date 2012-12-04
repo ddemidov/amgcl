@@ -29,11 +29,12 @@ extern amg::profiler<> prof;
 template <
     typename value_t,
     typename index_t = long long,
-    class level_t = level::cpu<value_t, index_t> // Where to build the hierarchy (on a CPU by default)
+    class level_t = level::cpu // Where to build the hierarchy (on a CPU by default)
     >
 class solver {
     public:
         typedef sparse::matrix<value_t, index_t> matrix;
+        typedef typename level_t::template instance<value_t, index_t> level_type;
 
         // The input matrix is copied here and may be freed afterwards.
         solver(matrix A, const params &prm = params()) : prm(prm)
@@ -42,7 +43,7 @@ class solver {
         }
 
         // Use the AMG hierarchy as a standalone solver. The vector types should
-        // be compatible with level_t.
+        // be compatible with level_type.
         // 1. Any type with operator[] should work on a CPU.
         // 2. vex::vector<value_t> should be used with VexCL-based hierarchy.
         template <class vector1, class vector2>
@@ -60,7 +61,7 @@ class solver {
         // Perform 1 V-cycle. May be used as a preconditioning step.
         template <class vector1, class vector2>
         void cycle(const vector1 &rhs, vector2 &x) {
-            level_t::cycle(hier.begin(), hier.end(), prm, rhs, x);
+            level_type::cycle(hier.begin(), hier.end(), prm, rhs, x);
         }
 
         template <class vector1, class vector2>
@@ -93,7 +94,7 @@ class solver {
         }
 
         params prm;
-        std::list< level_t > hier;
+        std::list< level_type > hier;
 };
 
 } // namespace amg

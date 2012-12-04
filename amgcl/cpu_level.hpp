@@ -10,15 +10,17 @@ namespace amg {
 namespace level {
 
 // CPU-based AMG hierarchy.
+struct cpu {
+
 template <typename value_t, typename index_t>
-class cpu {
+class instance {
     public:
         typedef sparse::matrix<value_t, index_t> matrix;
 
         // Construct complete multigrid level from system matrix (a),
         // prolongation (p) and restriction (r) operators.
         // The matrices are moved into the local members.
-        cpu(matrix &&a, matrix &&p, matrix &&r, bool has_parent = true)
+        instance(matrix &&a, matrix &&p, matrix &&r, bool has_parent = true)
             : A(std::move(a)), P(std::move(p)), R(std::move(r))
         {
             if (has_parent) {
@@ -31,7 +33,7 @@ class cpu {
 
         // Construct the coarsest hierarchy level from system matrix (a) and
         // its inverse (ai).
-        cpu(matrix &&a, matrix &&ai)
+        instance(matrix &&a, matrix &&ai)
             : A(std::move(a)), Ai(std::move(ai)), u(A.rows), f(A.rows), t(A.rows)
         { }
 
@@ -162,6 +164,8 @@ class cpu {
         inline void vector_copy(U &u, V &v) {
             std::copy(u.begin(), u.end(), &v[0]);
         }
+};
+
 };
 
 } // namespace level
