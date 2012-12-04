@@ -8,7 +8,10 @@
 #include <vexcl/external/viennacl.hpp>
 #include <viennacl/linalg/cg.hpp>
 
+namespace amg {
 amg::profiler<> prof;
+}
+using amg::prof;
 
 // Simple wrapper around amg::solver that provides ViennaCL's preconditioner
 // interface.

@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <list>
 #include <memory>
 
 #include <amgcl/spmat.hpp>
@@ -11,9 +12,16 @@
 #include <amgcl/cpu_level.hpp>
 #include <amgcl/profiler.hpp>
 
-extern amg::profiler<> prof;
-
 namespace amg {
+
+#ifdef AMGCL_PROFILING
+extern amg::profiler<> prof;
+#  define TIC(what) prof.tic(what);
+#  define TOC(what) prof.toc(what);
+#else
+#  define TIC(what)
+#  define TOC(what)
+#endif
 
 // Algebraic multigrid method. The hierarchy by default is built for a CPU. The
 // other possibility is VexCL-based representation
@@ -61,17 +69,17 @@ class solver {
             if (A.rows <= prm.coarse_enough) {
                 hier.emplace_back(std::move(A), std::move(sparse::inverse(A)));
             } else {
-                prof.tic("interp");
+                TIC("interp");
                 matrix P = interp(A, prm);
-                prof.toc("interp");
+                TOC("interp");
 
-                prof.tic("transp");
+                TIC("transp");
                 matrix R = sparse::transpose(P);
-                prof.toc("transp");
+                TOC("transp");
 
-                prof.tic("prod");
+                TIC("prod");
                 matrix a = sparse::prod(sparse::prod(R, A), P);
-                prof.toc("prod");
+                TOC("prod");
 
                 hier.emplace_back(std::move(A), std::move(P), std::move(R), parent);
 

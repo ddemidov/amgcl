@@ -4,14 +4,20 @@
 #include <vector>
 #include <tuple>
 #include <algorithm>
-#include <boost/heap/d_ary_heap.hpp>
 #include <amgcl/spmat.hpp>
 #include <amgcl/params.hpp>
 #include <amgcl/profiler.hpp>
 
-extern amg::profiler<> prof;
-
 namespace amg {
+
+#ifdef AMGCL_PROFILING
+extern amg::profiler<> prof;
+#  define TIC(what) TIC(what);
+#  define TOC(what) TOC(what);
+#else
+#  define TIC(what)
+#  define TOC(what)
+#endif
 
 // Extract strong connections from a system matrix.
 template < class spmat >
@@ -225,15 +231,15 @@ sparse::matrix<value_t, index_t> interp(
 
     std::vector<char> cf(n, 'U');
 
-    prof.tic("conn");
+    TIC("conn");
     auto S = connect(A, prm, cf);
-    prof.toc("conn");
+    TOC("conn");
 
-    prof.tic("split");
+    TIC("split");
     cfsplit(A, S, cf);
-    prof.toc("split");
+    TOC("split");
 
-    prof.tic("interpolation");
+    TIC("interpolation");
     index_t nc = 0;
     std::vector<index_t> cidx(n);
 
@@ -310,7 +316,7 @@ sparse::matrix<value_t, index_t> interp(
             ++row_head;
         }
     }
-    prof.toc("interpolation");
+    TOC("interpolation");
 
     return P;
 }

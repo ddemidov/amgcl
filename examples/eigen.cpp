@@ -24,7 +24,10 @@ struct tag_of<T,
 
 } }
 
+namespace amg {
 amg::profiler<> prof;
+}
+using amg::prof;
 
 // Simple wrapper around amg::solver that provides ViennaCL's preconditioner
 // interface.
