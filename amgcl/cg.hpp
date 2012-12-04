@@ -6,8 +6,12 @@
 namespace amg {
 
 struct cg_tag {
-    int maxiter = 100;
-    double tol = 1e-8;
+    int maxiter;
+    double tol;
+
+    cg_tag(int maxiter = 100, double tol = 1e-8)
+        : maxiter(maxiter), tol(tol)
+    {}
 };
 
 template <class matrix, class vector, class precond>
@@ -31,14 +35,19 @@ cg(const matrix &A, const vector &rhs, precond &P, vector &x, cg_tag prm = cg_ta
 
     int     iter;
     value_t res;
-    for(iter = 0; iter < prm.maxiter; ++iter) {
+    for(
+            iter = 0;
+            (res = norm(r) / norm_of_rhs) > prm.tol && iter < prm.maxiter;
+            ++iter
+       )
+    {
         clear(s);
         P.apply(r, s);
 
         rho2 = rho1;
         rho1 = inner_prod(r, s);
 
-        if (iter) 
+        if (iter)
             p = s + (rho1 / rho2) * p;
         else
             p = s;
@@ -49,11 +58,9 @@ cg(const matrix &A, const vector &rhs, precond &P, vector &x, cg_tag prm = cg_ta
 
         x += alpha * p;
         r -= alpha * q;
-
-        if ((res = norm(r) / norm_of_rhs) < prm.tol) break;
     }
 
-    return std::make_tuple(iter + 1, res);
+    return std::make_tuple(iter, res);
 }
 
 } // namespace amg
