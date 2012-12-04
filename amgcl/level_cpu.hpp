@@ -26,8 +26,6 @@ THE SOFTWARE.
 */
 
 #include <vector>
-#include <memory>
-#include <type_traits>
 #include <amgcl/spmat.hpp>
 
 namespace amg {

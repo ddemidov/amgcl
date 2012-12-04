@@ -25,10 +25,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-#include <iostream>
-#include <iomanip>
 #include <list>
-#include <memory>
 
 #include <amgcl/spmat.hpp>
 #include <amgcl/params.hpp>
@@ -64,6 +61,9 @@ class solver {
         // The input matrix is copied here and may be freed afterwards.
         solver(matrix A, const params &prm = params()) : prm(prm)
         {
+            static_assert(std::is_signed<index_t>::value,
+                    "Matrix index type should be signed");
+
             build_level(std::move(A), prm);
         }
 

@@ -28,6 +28,7 @@ THE SOFTWARE.
 #include <vector>
 #include <tuple>
 #include <algorithm>
+
 #include <amgcl/spmat.hpp>
 #include <amgcl/params.hpp>
 #include <amgcl/profiler.hpp>
@@ -166,8 +167,6 @@ static void cfsplit(
         i2n[idx] = i;
         n2i[i] = idx;
     }
-
-    static_assert(std::is_signed<index_t>::value, "Matrix index type should be signed");
 
     // Process variables by decreasing lambda value.
     // 1. The vaiable with maximum value of lambda becomes next C-variable.

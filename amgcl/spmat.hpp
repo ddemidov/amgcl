@@ -252,9 +252,6 @@ prod(const spmat1 &A, const spmat2 &B) {
 
 #pragma omp parallel
     {
-        static_assert(std::is_signed<index_t>::value,
-                "Matrix index type should be signed");
-
         std::vector<index_t> marker(m, static_cast<index_t>(-1));
 
 	int nt  = omp_get_num_threads();
@@ -378,9 +375,6 @@ void gaussj(index_t n, value_t *a) {
         }
     }
 
-    static_assert(std::is_signed<index_t>::value,
-            "Matrix index type should be signed");
-
     for(index_t i = n - 1; i >= 0; --i) {
         if (idxr[i] != idxc[i]) {
             for(index_t j = 0; j < n; ++j)
@@ -401,6 +395,7 @@ inverse(const spmat &A) {
 
     const index_t n = sparse::matrix_rows(A);
     const index_t m = sparse::matrix_cols(A);
+
     assert(n == m && "Inverse of a non-square matrix does not make sense");
 
     auto Arow = matrix_outer_index(A);

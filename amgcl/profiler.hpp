@@ -26,11 +26,11 @@ THE SOFTWARE.
 */
 
 #include <iostream>
+#include <iomanip>
 #include <map>
 #include <string>
 #include <stack>
 #include <chrono>
-#include <cassert>
 
 namespace amg {
 
@@ -47,8 +47,6 @@ class profiler {
         }
 
         void tic(const std::string &name) {
-            assert(!stack.empty());
-
             auto top = stack.top();
 
             top->children[name].start_time = clock::now();
@@ -57,9 +55,6 @@ class profiler {
         }
 
         double toc(const std::string &name) {
-            assert(!stack.empty());
-            assert(stack.top() != &root);
-
             profile_unit *top = stack.top();
             stack.pop();
 
