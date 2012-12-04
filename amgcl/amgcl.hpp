@@ -32,8 +32,8 @@ THE SOFTWARE.
 
 #include <amgcl/spmat.hpp>
 #include <amgcl/params.hpp>
-#include <amgcl/interp.hpp>
-#include <amgcl/cpu_level.hpp>
+#include <amgcl/interp_classic.hpp>
+#include <amgcl/level_cpu.hpp>
 #include <amgcl/profiler.hpp>
 
 namespace amg {

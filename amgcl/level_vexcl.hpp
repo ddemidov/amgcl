@@ -1,5 +1,5 @@
-#ifndef AMGCL_VEXCL_LEVEL_HPP
-#define AMGCL_VEXCL_LEVEL_HPP
+#ifndef AMGCL_LEVEL_VEXCL_HPP
+#define AMGCL_LEVEL_VEXCL_HPP
 
 /*
 The MIT License

@@ -6,7 +6,7 @@
 #include <Eigen/SparseCore>
 
 #include <amgcl/amgcl.hpp>
-#include <amgcl/eigen_operations.hpp>
+#include <amgcl/operations_eigen.hpp>
 #include <amgcl/cg.hpp>
 #include <amgcl/bicgstab.hpp>
 

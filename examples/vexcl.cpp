@@ -5,8 +5,9 @@
 #include <vexcl/vexcl.hpp>
 
 #include <amgcl/amgcl.hpp>
-#include <amgcl/vexcl_level.hpp>
-#include <amgcl/vexcl_operations.hpp>
+#include <amgcl/interp_classic.hpp>
+#include <amgcl/level_vexcl.hpp>
+#include <amgcl/operations_vexcl.hpp>
 #include <amgcl/cg.hpp>
 #include <amgcl/bicgstab.hpp>
 

@@ -1,5 +1,5 @@
-#ifndef AMGCL_EIGEN_OPERATIONS_HPP
-#define AMGCL_EIGEN_OPERATIONS_HPP
+#ifndef AMGCL_OPERATIONS_VEXCL_HPP
+#define AMGCL_OPERATIONS_VEXCL_HPP
 
 /*
 The MIT License
@@ -29,22 +29,23 @@ namespace amg {
 
 template <typename T>
 struct value_type {
-    typedef typename T::Scalar type;
+    typedef typename T::value_type type;
 };
 
-template <typename T1, typename T2>
-typename T1::Scalar inner_prod(const Eigen::MatrixBase<T1> &x, const Eigen::MatrixBase<T2> &y) {
-    return x.dot(y);
+template <typename T>
+T inner_prod(const vex::vector<T> &x, const vex::vector<T> &y) {
+    static vex::Reductor<T, vex::SUM> sum(vex::StaticContext<>::get().queue());
+    return sum(x * y);
 }
 
 template <typename T>
-typename T::Scalar norm(const Eigen::MatrixBase<T> &x) {
-    return x.norm();
+T norm(const vex::vector<T> &x) {
+    return sqrt( inner_prod(x, x) );
 }
 
 template <typename T>
-void clear(Eigen::MatrixBase<T> &x) {
-    x.setZero();
+void clear(vex::vector<T> &x) {
+    x = 0;
 }
 
 }

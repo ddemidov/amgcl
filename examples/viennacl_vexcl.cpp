@@ -3,7 +3,8 @@
 #include <chrono>
 #include <cstdlib>
 #include <amgcl/amgcl.hpp>
-#include <amgcl/vexcl_level.hpp>
+#include <amgcl/interp_classic.hpp>
+#include <amgcl/level_vexcl.hpp>
 #include <vexcl/vexcl.hpp>
 #include <vexcl/external/viennacl.hpp>
 #include <viennacl/linalg/cg.hpp>

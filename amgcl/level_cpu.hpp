@@ -1,5 +1,5 @@
-#ifndef AMGCL_CPU_LEVEL_HPP
-#define AMGCL_CPU_LEVEL_HPP
+#ifndef AMGCL_LEVEL_CPU_HPP
+#define AMGCL_LEVEL_CPU_HPP
 
 /*
 The MIT License

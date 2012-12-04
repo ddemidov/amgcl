@@ -1,5 +1,5 @@
-#ifndef AMGCL_INTERP_HPP
-#define AMGCL_INTERP_HPP
+#ifndef AMGCL_INTERP_CLASSIC_HPP
+#define AMGCL_INTERP_CLASSIC_HPP
 
 /*
 The MIT License
