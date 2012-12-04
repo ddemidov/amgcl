@@ -54,8 +54,9 @@ int main(int argc, char *argv[]) {
     auto cnv = amg::cg(A, rhs, amg, x);
     prof.toc("solve");
 
-    std::cout << "  Iterations: " << std::get<0>(cnv) << std::endl
-              << "  Error:      " << std::get<1>(cnv) << std::endl;
+    std::cout << "Iterations: " << std::get<0>(cnv) << std::endl
+              << "Error:      " << std::get<1>(cnv) << std::endl
+              << "Real error: " << (rhs - A * x).norm() / rhs.norm() << std::endl;
 
     std::cout << prof;
 }

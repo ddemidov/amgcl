@@ -70,8 +70,14 @@ int main(int argc, char *argv[]) {
     auto cnv = amg::cg(Agpu, f, amg, x);
     prof.toc("solve");
 
-    std::cout << "  Iterations: " << std::get<0>(cnv) << std::endl
-              << "  Error:      " << std::get<1>(cnv) << std::endl;
+    std::cout << "Iterations: " << std::get<0>(cnv) << std::endl
+              << "Error:      " << std::get<1>(cnv) << std::endl;
+
+    vex::Reductor<double, vex::SUM> sum(ctx.queue());
+
+    double norm_f = sum(f * f);
+    f -= Agpu * x;
+    std::cout << "Real error: " << sqrt(sum(f * f) / norm_f) << std::endl;
 
     std::cout << prof;
 }

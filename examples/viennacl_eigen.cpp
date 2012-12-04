@@ -89,8 +89,9 @@ int main(int argc, char *argv[]) {
     Eigen::VectorXd x = viennacl::linalg::solve(A, rhs, tag, amg);
     prof.toc("solve");
 
-    std::cout << "  Iterations: " << tag.iters() << std::endl
-              << "  Error:      " << tag.error() << std::endl;
+    std::cout << "Iterations: " << tag.iters() << std::endl
+              << "Error:      " << tag.error() << std::endl
+              << "Real error: " << (rhs - A * x).norm() / rhs.norm() << std::endl;
 
     std::cout << prof;
 }

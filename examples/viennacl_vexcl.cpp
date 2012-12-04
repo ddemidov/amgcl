@@ -92,8 +92,13 @@ int main(int argc, char *argv[]) {
     vex::vector<double> x = viennacl::linalg::solve(Agpu, f, tag, amg);
     prof.toc("solve");
 
-    std::cout << "  Iterations: " << tag.iters() << std::endl
-              << "  Error:      " << tag.error() << std::endl;
+    std::cout << "Iterations: " << tag.iters() << std::endl
+              << "Error:      " << tag.error() << std::endl;
 
+    vex::Reductor<double, vex::SUM> sum(ctx.queue());
+
+    double norm_f = sum(f * f);
+    f -= Agpu * x;
+    std::cout << "Real error: " << sqrt(sum(f * f) / norm_f) << std::endl;
     std::cout << prof;
 }

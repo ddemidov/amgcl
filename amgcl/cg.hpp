@@ -22,7 +22,7 @@ cg(const matrix &A, const vector &rhs, precond &P, vector &x, cg_tag prm = cg_ta
     r = rhs - A * x;
 
     value_t rho1 = 0, rho2 = 0;
-    value_t norm_of_rhs = inner_prod(rhs, rhs);
+    value_t norm_of_rhs = norm(rhs);
 
     if (norm_of_rhs == 0) {
         clear(x);
@@ -38,8 +38,6 @@ cg(const matrix &A, const vector &rhs, precond &P, vector &x, cg_tag prm = cg_ta
         rho2 = rho1;
         rho1 = inner_prod(r, s);
 
-        if ((res = sqrt(rho1 / norm_of_rhs)) < prm.tol) break;
-
         if (iter) 
             p = s + (rho1 / rho2) * p;
         else
@@ -51,9 +49,11 @@ cg(const matrix &A, const vector &rhs, precond &P, vector &x, cg_tag prm = cg_ta
 
         x += alpha * p;
         r -= alpha * q;
+
+        if ((res = norm(r) / norm_of_rhs) < prm.tol) break;
     }
 
-    return std::make_tuple(iter, res);
+    return std::make_tuple(iter + 1, res);
 }
 
 } // namespace amg
