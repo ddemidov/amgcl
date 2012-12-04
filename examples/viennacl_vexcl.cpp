@@ -2,17 +2,39 @@
 #include <fstream>
 #include <chrono>
 #include <cstdlib>
-#include <vexcl/vexcl.hpp>
-
 #include <amgcl/amgcl.hpp>
 #include <amgcl/vexcl_level.hpp>
-#include <amgcl/vexcl_operations.hpp>
-#include <amgcl/cg.hpp>
+#include <vexcl/vexcl.hpp>
+#include <vexcl/external/viennacl.hpp>
+#include <viennacl/linalg/cg.hpp>
 
 namespace amg {
 amg::profiler<> prof;
 }
 using amg::prof;
+
+// Simple wrapper around amg::solver that provides ViennaCL's preconditioner
+// interface.
+struct amg_precond {
+    // Build AMG hierarchy.
+    template <class matrix>
+    amg_precond(const matrix &A, const amg::params &prm = amg::params())
+        : amg(A, prm), r(amg::sparse::matrix_rows(A))
+    { }
+
+    // Use one V-cycle with zero initial approximation as a preconditioning step.
+    void apply(vex::vector<double> &x) const {
+        r = 0;
+        r.swap(x);
+        amg.cycle(r, x);
+    }
+
+    // Build VexCL-based hierarchy:
+    mutable amg::solver<
+        double, int, amg::level::vexcl<double, int>
+        > amg;
+    mutable vex::vector<double> r;
+};
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
@@ -60,18 +82,18 @@ int main(int argc, char *argv[]) {
 
     // Build the preconditioner.
     prof.tic("setup");
-    amg::solver<double, int, amg::level::vexcl<double, int>> amg(A);
+    amg_precond amg(A);
     prof.toc("setup");
 
-    // Solve the problem with CG method. Use AMG as a preconditioner:
+    // Solve the problem with CG method from ViennaCL. Use AMG as a
+    // preconditioner:
     prof.tic("solve");
-    vex::vector<double> x(ctx.queue(), n);
-    x = 0;
-    auto cnv = amg::cg(Agpu, f, amg, x);
+    viennacl::linalg::cg_tag tag(1e-8, n);
+    vex::vector<double> x = viennacl::linalg::solve(Agpu, f, tag, amg);
     prof.toc("solve");
 
-    std::cout << "  Iterations: " << std::get<0>(cnv) << std::endl
-              << "  Error:      " << std::get<1>(cnv) << std::endl;
+    std::cout << "  Iterations: " << tag.iters() << std::endl
+              << "  Error:      " << tag.error() << std::endl;
 
     std::cout << prof;
 }

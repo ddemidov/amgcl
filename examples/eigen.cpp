@@ -51,8 +51,11 @@ int main(int argc, char *argv[]) {
     // Solve the problem with CG method. Use AMG as a preconditioner:
     prof.tic("solve");
     Eigen::VectorXd x = Eigen::VectorXd::Zero(n);
-    amg::cg(A, rhs, amg, x);
+    auto cnv = amg::cg(A, rhs, amg, x);
     prof.toc("solve");
+
+    std::cout << "  Iterations: " << std::get<0>(cnv) << std::endl
+              << "  Error:      " << std::get<1>(cnv) << std::endl;
 
     std::cout << prof;
 }

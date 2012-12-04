@@ -1,29 +1,44 @@
 #ifndef AMGCL_CG_HPP
 #define AMGCL_CG_HPP
 
+#include <tuple>
+
 namespace amg {
 
+struct cg_tag {
+    int maxiter = 100;
+    double tol = 1e-8;
+};
+
 template <class matrix, class vector, class precond>
-void cg(const matrix &A, const vector &f, precond &P,
-        vector &x)
+std::tuple< int, typename value_type<vector>::type >
+cg(const matrix &A, const vector &rhs, precond &P, vector &x, cg_tag prm = cg_tag())
 {
     typedef typename value_type<vector>::type value_t;
 
     const auto n = x.size();
 
     vector r(n), s(n), p(n), q(n);
-    r = f - A * x;
+    r = rhs - A * x;
 
     value_t rho1 = 0, rho2 = 0;
+    value_t norm_of_rhs = inner_prod(rhs, rhs);
+
+    if (norm_of_rhs == 0) {
+        clear(x);
+        return std::make_tuple(0, norm_of_rhs);
+    }
 
     int     iter;
     value_t res;
-    for(iter = 0; iter < 11 && (res = norm(r)) > 1e-8; ++iter) {
+    for(iter = 0; iter < prm.maxiter; ++iter) {
         clear(s);
         P.apply(r, s);
 
         rho2 = rho1;
         rho1 = inner_prod(r, s);
+
+        if ((res = sqrt(rho1 / norm_of_rhs)) < prm.tol) break;
 
         if (iter) 
             p = s + (rho1 / rho2) * p;
@@ -38,7 +53,7 @@ void cg(const matrix &A, const vector &f, precond &P,
         r -= alpha * q;
     }
 
-    std::cout << iter << " " << res << std::endl;
+    return std::make_tuple(iter, res);
 }
 
 } // namespace amg
