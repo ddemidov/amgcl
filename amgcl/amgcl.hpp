@@ -63,6 +63,11 @@ class solver {
             level_t::cycle(hier.begin(), hier.end(), prm, rhs, x);
         }
 
+        template <class vector1, class vector2>
+        void apply(const vector1 &rhs, vector2 &x) {
+            cycle(rhs, x);
+        }
+
     private:
         void build_level(matrix &&A, const params &prm, bool parent = false)
         {
