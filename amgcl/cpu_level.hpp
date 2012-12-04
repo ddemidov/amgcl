@@ -19,7 +19,7 @@ class cpu {
         // prolongation (p) and restriction (r) operators.
         // The matrices are moved into the local members.
         cpu(matrix &&a, matrix &&p, matrix &&r, bool has_parent = true)
-            : A(a), P(p), R(r)
+            : A(std::move(a)), P(std::move(p)), R(std::move(r))
         {
             if (has_parent) {
                 u.resize(A.rows);
@@ -32,7 +32,7 @@ class cpu {
         // Construct the coarsest hierarchy level from system matrix (a) and
         // its inverse (ai).
         cpu(matrix &&a, matrix &&ai)
-            : A(a), Ai(ai), u(A.rows), f(A.rows), t(A.rows)
+            : A(std::move(a)), Ai(std::move(ai)), u(A.rows), f(A.rows), t(A.rows)
         { }
 
         // Perform one relaxation (smoothing) step.

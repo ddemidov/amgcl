@@ -32,6 +32,10 @@ class vexcl {
             }
 
             extract_diagonal(a);
+
+            a.clear();
+            p.clear();
+            r.clear();
         }
 
         // Construct the coarsest hierarchy level from system matrix (a) and
@@ -42,6 +46,9 @@ class vexcl {
               u(a.rows), f(a.rows), t(a.rows), d(a.rows)
         {
             extract_diagonal(a);
+
+            a.clear();
+            ai.clear();
         }
 
         // Perform one relaxation (smoothing) step.

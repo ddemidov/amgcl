@@ -116,6 +116,13 @@ struct matrix {
         val.resize(nnz);
     }
 
+    void clear() {
+        rows = cols = 0;
+        std::vector<index_t>().swap(row);
+        std::vector<index_t>().swap(col);
+        std::vector<value_t>().swap(val);
+    }
+
     index_t rows, cols;
 
     std::vector<index_t> row;
