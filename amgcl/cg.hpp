@@ -1,26 +1,13 @@
 #ifndef AMGCL_CG_HPP
 #define AMGCL_CG_HPP
 
-#include <vexcl/vexcl.hpp>
-
 namespace amg {
-
-template <typename T>
-T inner_prod(const vex::vector<T> &x, const vex::vector<T> &y) {
-    static vex::Reductor<T, vex::SUM> sum(vex::StaticContext<>::get().queue());
-    return sum(x * y);
-}
-
-template <typename T>
-T norm(const vex::vector<T> &x) {
-    return sqrt( inner_prod(x, x) );
-}
 
 template <class matrix, class vector, class precond>
 void cg(const matrix &A, const vector &f, precond &P,
         vector &x)
 {
-    typedef typename vector::value_type value_t;
+    typedef typename value_type<vector>::type value_t;
 
     const auto n = x.size();
 
@@ -32,7 +19,7 @@ void cg(const matrix &A, const vector &f, precond &P,
     int     iter;
     value_t res;
     for(iter = 0; iter < 11 && (res = norm(r)) > 1e-8; ++iter) {
-        s = 0;
+        clear(s);
         P.apply(r, s);
 
         rho2 = rho1;

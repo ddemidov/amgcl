@@ -10,6 +10,3 @@ add_executable(eigen eigen.cpp)
 
 add_executable(vexcl vexcl.cpp)
 target_link_libraries(vexcl OpenCL)
-
-add_executable(owncg owncg.cpp)
-target_link_libraries(owncg OpenCL)
