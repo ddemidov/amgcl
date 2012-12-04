@@ -30,7 +30,11 @@ struct amg_precond {
     }
 
     // Build VexCL-based hierarchy:
-    mutable amg::solver<double, int, amg::level::vexcl> amg;
+    mutable amg::solver<
+        double, int,
+        amg::interp::classic,
+        amg::level::vexcl
+        > amg;
     mutable vex::vector<double> r;
 };
 

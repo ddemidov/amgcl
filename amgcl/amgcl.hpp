@@ -53,7 +53,8 @@ extern amg::profiler<> prof;
 template <
     typename value_t,
     typename index_t = long long,
-    class level_t = level::cpu // Where to build the hierarchy (on a CPU by default)
+    class interp_t = interp::classic,   // Interpolation scheme.
+    class level_t = level::cpu          // Where to build the hierarchy
     >
 class solver {
     public:
@@ -100,7 +101,7 @@ class solver {
                 hier.emplace_back(std::move(A), std::move(sparse::inverse(A)));
             } else {
                 TIC("interp");
-                matrix P = interp(A, prm);
+                matrix P = interp_t::interp(A, prm);
                 TOC("interp");
 
                 TIC("transp");

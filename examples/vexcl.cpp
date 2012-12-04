@@ -61,7 +61,11 @@ int main(int argc, char *argv[]) {
 
     // Build the preconditioner.
     prof.tic("setup");
-    amg::solver<double, int, amg::level::vexcl> amg(A);
+    amg::solver<
+        double, int,
+        amg::interp::classic,
+        amg::level::vexcl
+        > amg(A);
     prof.toc("setup");
 
     // Solve the problem with CG method. Use AMG as a preconditioner:

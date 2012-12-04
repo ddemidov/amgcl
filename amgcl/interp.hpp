@@ -43,9 +43,15 @@ extern amg::profiler<> prof;
 #  define TOC(what)
 #endif
 
+namespace interp {
+
+// Classic (direct) interpolation based on [1].
+// [1] K. Stuben, "AMG: Introduction with applications", GMD Report 70, 1999.
+struct classic {
+
 // Extract strong connections from a system matrix.
 template < class spmat >
-std::tuple<
+static std::tuple<
     std::vector<typename sparse::matrix_index<spmat>::type>,
     std::vector<typename sparse::matrix_index<spmat>::type>,
     std::vector<char>
@@ -109,7 +115,7 @@ connect(const spmat &A, const params &prm, std::vector<char> &cf) {
 
 // Split variables into C(oarse) and F(ine) sets.
 template < class spmat >
-void cfsplit(
+static void cfsplit(
         const spmat &A,
         const std::tuple<
                     std::vector<typename sparse::matrix_index<spmat>::type>,
@@ -247,7 +253,7 @@ void cfsplit(
 
 // Compute prolongation operator from a system matrix.
 template < class value_t, class index_t >
-sparse::matrix<value_t, index_t> interp(
+static sparse::matrix<value_t, index_t> interp(
         const sparse::matrix<value_t, index_t> &A, const params &prm
         )
 {
@@ -391,6 +397,10 @@ sparse::matrix<value_t, index_t> interp(
 
     return P;
 }
+
+};
+
+} // namespace interp
 
 } // namespace amg
 

@@ -39,7 +39,10 @@ int main(int argc, char *argv[]) {
 
     // Wrap the matrix into amg::sparse::map and build the preconditioner:
     prof.tic("setup");
-    amg::solver<double, int, amg::level::cpu> amg(
+    amg::solver<
+        double, int,
+        amg::interp::classic, amg::level::cpu
+        > amg(
             amg::sparse::map(n, n, row.data(), col.data(), val.data())
             );
     prof.toc("setup");

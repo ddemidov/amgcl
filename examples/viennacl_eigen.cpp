@@ -46,7 +46,11 @@ struct amg_precond {
         std::copy(r.begin(), r.end(), &x[0]);
     }
 
-    mutable amg::solver<double, int, amg::level::cpu> amg;
+    mutable amg::solver<
+        double, int,
+        amg::interp::classic,
+        amg::level::cpu
+        > amg;
     mutable std::vector<double> r;
 };
 
