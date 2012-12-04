@@ -153,15 +153,13 @@ class cpu {
         std::vector<value_t> f;
         std::vector<value_t> t;
 
-        template <class U, class V>
-        typename std::enable_if<std::is_same<U, V>::value, void>::type
-        vector_copy(U &u, V &v) {
+        template <class U>
+        inline void vector_copy(U &u, U &v) {
             std::swap(u, v);
         }
 
         template <class U, class V>
-        typename std::enable_if<!std::is_same<U, V>::value, void>::type
-        vector_copy(U &u, V &v) {
+        inline void vector_copy(U &u, V &v) {
             std::copy(u.begin(), u.end(), &v[0]);
         }
 };
