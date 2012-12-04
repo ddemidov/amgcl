@@ -40,7 +40,7 @@ class cpu {
         void relax(const vector1 &rhs, vector2 &x) {
             const index_t n = A.rows;
 
-#pragma omp parallel for schedule(static, 1024)
+#pragma omp parallel for schedule(dynamic, 1024)
             for(index_t i = 0; i < n; ++i) {
                 value_t temp = rhs[i];
                 value_t diag = 1;
@@ -66,7 +66,7 @@ class cpu {
             const index_t n = A.rows;
             value_t norm = 0;
 
-#pragma omp parallel for reduction(+:norm) schedule(static, 1024)
+#pragma omp parallel for reduction(+:norm) schedule(dynamic, 1024)
             for(index_t i = 0; i < n; ++i) {
                 value_t temp = rhs[i];
 
@@ -95,7 +95,7 @@ class cpu {
                     for(unsigned i = 0; i < prm.npre; ++i) lvl->relax(rhs, x);
 
                     //lvl->t = rhs - lvl->A * x;
-#pragma omp parallel for schedule(static, 1024)
+#pragma omp parallel for schedule(dynamic, 1024)
                     for(index_t i = 0; i < n; ++i) {
                         value_t temp = rhs[i];
 
@@ -106,7 +106,7 @@ class cpu {
                     }
 
                     //nxt->f = lvl->R * lvl->t;
-#pragma omp parallel for schedule(static, 1024)
+#pragma omp parallel for schedule(dynamic, 1024)
                     for(index_t i = 0; i < nc; ++i) {
                         value_t temp = 0;
 
@@ -121,7 +121,7 @@ class cpu {
                     cycle(nxt, end, prm, nxt->f, nxt->u);
 
                     //x += lvl->P * nxt->u;
-#pragma omp parallel for schedule(static, 1024)
+#pragma omp parallel for schedule(dynamic, 1024)
                     for(index_t i = 0; i < n; ++i) {
                         value_t temp = 0;
 
