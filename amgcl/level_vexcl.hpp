@@ -49,14 +49,14 @@ class instance {
             : A(new matrix(vex::StaticContext<>::get().queue(), a.rows, a.cols, a.row.data(), a.col.data(), a.val.data())),
               P(new matrix(vex::StaticContext<>::get().queue(), p.rows, p.cols, p.row.data(), p.col.data(), p.val.data())),
               R(new matrix(vex::StaticContext<>::get().queue(), r.rows, r.cols, r.row.data(), r.col.data(), r.val.data())),
-              t(a.rows), d(a.rows)
+              d(a.rows), t(a.rows)
         {
+            vex::copy(diagonal(a), d);
+
             if (parent) {
                 u.resize(a.rows);
                 f.resize(a.rows);
             }
-
-            vex::copy(diagonal(a), d);
 
             a.clear();
             p.clear();
@@ -68,7 +68,7 @@ class instance {
         instance(cpu_matrix &&a, cpu_matrix &&ai)
             : A(new matrix(vex::StaticContext<>::get().queue(), a.rows, a.cols, a.row.data(), a.col.data(), a.val.data())),
               Ainv(new matrix(vex::StaticContext<>::get().queue(), ai.rows, ai.cols, ai.row.data(), ai.col.data(), ai.val.data())),
-              u(a.rows), f(a.rows), t(a.rows), d(a.rows)
+              d(a.rows), u(a.rows), f(a.rows), t(a.rows)
         {
             vex::copy(diagonal(a), d);
 
@@ -77,7 +77,7 @@ class instance {
         }
 
         // Perform one relaxation (smoothing) step.
-        void relax(const vector &rhs, vector &x) {
+        void relax(const vector &rhs, vector &x) const {
             const index_t n = x.size();
 
             t = rhs - (*A) * x;
@@ -127,11 +127,11 @@ class instance {
         std::unique_ptr<matrix> R;
         std::unique_ptr<matrix> Ainv;
 
-        vector u;
-        vector f;
-        vector t;
-
         vector d;
+
+        mutable vector u;
+        mutable vector f;
+        mutable vector t;
 };
 
 };

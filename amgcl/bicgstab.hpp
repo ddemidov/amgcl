@@ -41,7 +41,7 @@ struct bicg_tag {
 
 template <class matrix, class vector, class precond>
 std::tuple< int, typename value_type<vector>::type >
-solve(const matrix &A, const vector &rhs, precond &P, vector &x, bicg_tag prm = bicg_tag())
+solve(const matrix &A, const vector &rhs, const precond &P, vector &x, bicg_tag prm = bicg_tag())
 {
     typedef typename value_type<vector>::type value_t;
 

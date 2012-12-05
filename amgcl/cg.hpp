@@ -40,7 +40,7 @@ struct cg_tag {
 
 template <class matrix, class vector, class precond>
 std::tuple< int, typename value_type<vector>::type >
-solve(const matrix &A, const vector &rhs, precond &P, vector &x, cg_tag prm = cg_tag())
+solve(const matrix &A, const vector &rhs, const precond &P, vector &x, cg_tag prm = cg_tag())
 {
     typedef typename value_type<vector>::type value_t;
 

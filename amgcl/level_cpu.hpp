@@ -61,7 +61,7 @@ class instance {
 
         // Perform one relaxation (smoothing) step.
         template <class vector1, class vector2>
-        void relax(const vector1 &rhs, vector2 &x) {
+        void relax(const vector1 &rhs, vector2 &x) const {
             const index_t n = A.rows;
 
 #pragma omp parallel for schedule(dynamic, 1024)
@@ -173,17 +173,17 @@ class instance {
 
         matrix Ai;
 
-        std::vector<value_t> u;
-        std::vector<value_t> f;
-        std::vector<value_t> t;
+        mutable std::vector<value_t> u;
+        mutable std::vector<value_t> f;
+        mutable std::vector<value_t> t;
 
         template <class U>
-        inline void vector_copy(U &u, U &v) {
+        inline static void vector_copy(U &u, U &v) {
             std::swap(u, v);
         }
 
         template <class U, class V>
-        inline void vector_copy(U &u, V &v) {
+        inline static void vector_copy(U &u, V &v) {
             std::copy(u.begin(), u.end(), &v[0]);
         }
 };

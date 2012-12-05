@@ -72,7 +72,7 @@ class solver {
         // 1. Any type with operator[] should work on a CPU.
         // 2. vex::vector<value_t> should be used with VexCL-based hierarchy.
         template <class vector1, class vector2>
-        bool solve(const vector1 &rhs, vector2 &x) {
+        bool solve(const vector1 &rhs, vector2 &x) const {
             for(size_t iter = 0; iter < prm.maxiter; iter++) {
                 cycle(rhs, x);
 
@@ -85,13 +85,35 @@ class solver {
 
         // Perform 1 V-cycle. May be used as a preconditioning step.
         template <class vector1, class vector2>
-        void cycle(const vector1 &rhs, vector2 &x) {
+        void cycle(const vector1 &rhs, vector2 &x) const {
             level_type::cycle(hier.begin(), hier.end(), prm, rhs, x);
         }
 
-        template <class vector1, class vector2>
-        void apply(const vector1 &rhs, vector2 &x) {
-            cycle(rhs, x);
+        class preconditioner {
+            public:
+                template <class vector1, class vector2>
+                void apply(const vector1 &rhs, vector2 &x) const {
+                    level_type::cycle(begin, end, prm, rhs, x);
+                }
+            private:
+                typedef typename std::list< level_type >::const_iterator level_iterator;
+
+                preconditioner(
+                        const amg::params &prm,
+                        level_iterator begin, level_iterator end
+                        )
+                    : prm(prm), begin(begin), end(end)
+                {}
+
+                const amg::params &prm;
+                level_iterator begin;
+                level_iterator end;
+
+                friend class solver;
+        };
+
+        const preconditioner precond() const {
+            return preconditioner(prm, hier.begin(), hier.end());
         }
 
     private:

@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
     // Solve the problem with CG method. Use AMG as a preconditioner:
     Eigen::VectorXd x = Eigen::VectorXd::Zero(n);
     prof.tic("solve (cg)");
-    auto cnv = amg::solve(A, rhs, amg, x, amg::cg_tag());
+    auto cnv = amg::solve(A, rhs, amg.precond(), x, amg::cg_tag());
     prof.toc("solve (cg)");
 
     std::cout << "Iterations: " << std::get<0>(cnv) << std::endl
@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
     // Solve the problem with BiCGStab method. Use AMG as a preconditioner:
     x.setZero();
     prof.tic("solve (bicg)");
-    cnv = amg::solve(A, rhs, amg, x, amg::bicg_tag());
+    cnv = amg::solve(A, rhs, amg.precond(), x, amg::bicg_tag());
     prof.toc("solve (bicg)");
 
     std::cout << "Iterations: " << std::get<0>(cnv) << std::endl
