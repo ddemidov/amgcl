@@ -394,9 +394,9 @@ inverse(const spmat &A) {
     typedef typename matrix_value<spmat>::type value_t;
 
     const index_t n = sparse::matrix_rows(A);
-    const index_t m = sparse::matrix_cols(A);
 
-    assert(n == m && "Inverse of a non-square matrix does not make sense");
+    assert(n == sparse::matrix_cols(A)
+            && "Inverse of a non-square matrix does not make sense");
 
     auto Arow = matrix_outer_index(A);
     auto Acol = matrix_inner_index(A);
@@ -425,6 +425,37 @@ inverse(const spmat &A) {
     return Ainv;
 }
 
+//---------------------------------------------------------------------------
+template <class spmat>
+std::vector< typename matrix_value<spmat>::type >
+diagonal(const spmat &A) {
+    typedef typename matrix_index<spmat>::type index_t;
+    typedef typename matrix_value<spmat>::type value_t;
+
+    const index_t n = sparse::matrix_rows(A);
+
+    assert(n == sparse::matrix_cols(A)
+            && "Diagonal of a non-square matrix is not well-defined");
+
+    auto Arow = matrix_outer_index(A);
+    auto Acol = matrix_inner_index(A);
+    auto Aval = matrix_values(A);
+
+    std::vector<value_t> dia(n);
+
+    for(index_t i = 0; i < n; ++i) {
+        value_t d = 0;
+        for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
+            if (Acol[j] == i) {
+                d = Aval[j];
+                break;
+            }
+        }
+        dia[i] = d;
+    }
+
+    return dia;
+}
 
 } // namespace sparse
 } // namespace amg

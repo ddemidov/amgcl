@@ -56,7 +56,7 @@ class instance {
                 f.resize(a.rows);
             }
 
-            extract_diagonal(a);
+            vex::copy(diagonal(a), d);
 
             a.clear();
             p.clear();
@@ -70,7 +70,7 @@ class instance {
               Ainv(new matrix(vex::StaticContext<>::get().queue(), ai.rows, ai.cols, ai.row.data(), ai.col.data(), ai.val.data())),
               u(a.rows), f(a.rows), t(a.rows), d(a.rows)
         {
-            extract_diagonal(a);
+            vex::copy(diagonal(a), d);
 
             a.clear();
             ai.clear();
@@ -132,21 +132,6 @@ class instance {
         vector t;
 
         vector d;
-
-        void extract_diagonal(const cpu_matrix &a) {
-            std::vector<value_t> diag(a.rows);
-
-            for(index_t i = 0; i < a.rows; ++i) {
-                for(index_t j = a.row[i], e = a.row[i + 1]; j < e; ++j) {
-                    if (a.col[j] == i) {
-                        diag[i] = a.val[j];
-                        break;
-                    }
-                }
-            }
-
-            vex::copy(diag, d);
-        }
 };
 
 };
