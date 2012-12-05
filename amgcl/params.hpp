@@ -34,6 +34,7 @@ struct params {
 
     bool     trunc_int;     // Truncate prolongation operator.
     float    eps_tr;        // Truncation parameter.
+    float    over_interp;   // Over-interpolation factor.
 
     unsigned npre;          // Number of pre-relaxations.
     unsigned npost;         // Number of post-relaxations.
@@ -46,6 +47,7 @@ struct params {
         coarse_enough = 300;
         trunc_int     = true;
         eps_tr        = 0.2f;
+        over_interp   = 1.0f;
         npre          = 1;
         npost         = 1;
         ncycle        = 1;

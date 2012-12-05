@@ -110,6 +110,9 @@ class solver {
 
                 TIC("prod");
                 matrix a = sparse::prod(sparse::prod(R, A), P);
+                if (prm.over_interp > 1.0f)
+                    std::transform(a.val.begin(), a.val.end(), a.val.begin(),
+                            [&prm](value_t v) { return v / prm.over_interp; });
                 TOC("prod");
 
                 hier.emplace_back(std::move(A), std::move(P), std::move(R), parent);
