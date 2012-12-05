@@ -5,7 +5,7 @@
 #include <vexcl/vexcl.hpp>
 
 #include <amgcl/amgcl.hpp>
-#include <amgcl/aggr_plain.hpp>
+#include <amgcl/aggregation.hpp>
 #include <amgcl/level_vexcl.hpp>
 #include <amgcl/operations_vexcl.hpp>
 #include <amgcl/cg.hpp>
@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
     prof.tic("setup");
     amg::solver<
         double, int,
-        amg::interp::aggr_plain,
+        amg::interp::aggregation<amg::aggr::plain>,
         amg::level::vexcl
         > amg(A, prm);
     prof.toc("setup");

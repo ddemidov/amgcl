@@ -20,11 +20,9 @@ namespace amg {
 #  define TOC(what)
 #endif
 
-namespace interp {
+namespace aggr {
 
-// Constructs corse level by agregation technique. Maximal independent sets
-// method is used to build the aggregates.
-struct aggr_plain {
+struct plain {
 
 template <class spmat>
 static std::vector< typename sparse::matrix_index<spmat>::type >
@@ -99,6 +97,15 @@ aggregates( const spmat &A, const params &prm ) {
     return agg;
 }
 
+};
+
+} // namespace aggr
+
+namespace interp {
+
+// Constructs corse level by agregation.
+template <class aggr_type>
+struct aggregation {
 
 template < class value_t, class index_t >
 static sparse::matrix<value_t, index_t> interp(
@@ -108,7 +115,7 @@ static sparse::matrix<value_t, index_t> interp(
     const index_t n = sparse::matrix_rows(A);
 
     TIC("aggregates");
-    auto aggr = aggregates(A, prm);
+    auto aggr = aggr_type::aggregates(A, prm);
     TOC("aggregates");
 
     index_t nc = *std::max_element(aggr.begin(), aggr.end()) + 1;
