@@ -111,11 +111,53 @@ class instance {
                     nxt->f = (*lvl->R) * lvl->t;
                     nxt->u = 0;
 
-                    cycle(nxt, end, prm, nxt->f, nxt->u);
+                    kcycle(nxt, end, prm, nxt->f, nxt->u);
 
                     x += (*lvl->P) * nxt->u;
 
                     for(unsigned i = 0; i < prm.npost; ++i) lvl->relax(rhs, x);
+                }
+            } else {
+                x = (*lvl->Ainv) * rhs;
+            }
+        }
+
+        template <class Iterator>
+        static void kcycle(Iterator lvl, Iterator end, const amg::params &prm,
+                const vector &rhs, vector &x)
+        {
+	    static vex::Reductor<value_t, vex::SUM> sum(
+		    vex::StaticContext<>::get().queue()
+		    );
+
+            Iterator nxt = lvl; ++nxt;
+
+            if (nxt != end) {
+                const auto n = x.size();
+
+                vector r = rhs;
+                vector s(n), p(n), q(n);
+
+                value_t rho1 = 0, rho2 = 0;
+
+                for(int iter = 0; iter < 2; ++iter) {
+                    s = 0;
+                    cycle(lvl, end, prm, r, s);
+
+                    rho2 = rho1;
+                    rho1 = sum(r * s);
+
+                    if (iter)
+                        p = s + (rho1 / rho2) * p;
+                    else
+                        p = s;
+
+                    q = (*lvl->A) * p;
+
+                    value_t alpha = rho1 / sum(q * p);
+
+                    x += alpha * p;
+                    r -= alpha * q;
                 }
             } else {
                 x = (*lvl->Ainv) * rhs;
