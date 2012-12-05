@@ -175,7 +175,7 @@ class instance {
         mutable vector f;
         mutable vector t;
 
-        vex::multivector<value_t,4> cg;
+        mutable vex::multivector<value_t,4> cg;
 
         static value_t inner_prod(const vector &x, const vector &y) {
             static vex::Reductor<value_t, vex::SUM> sum(

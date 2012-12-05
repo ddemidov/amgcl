@@ -74,7 +74,7 @@ class solver {
         template <class vector1, class vector2>
         bool solve(const vector1 &rhs, vector2 &x) const {
             for(size_t iter = 0; iter < prm.maxiter; iter++) {
-                cycle(rhs, x);
+                apply(rhs, x);
 
                 value_t r = hier.front().resid(rhs, x);
 
@@ -85,35 +85,8 @@ class solver {
 
         // Perform 1 V-cycle. May be used as a preconditioning step.
         template <class vector1, class vector2>
-        void cycle(const vector1 &rhs, vector2 &x) const {
+        void apply(const vector1 &rhs, vector2 &x) const {
             level_type::cycle(hier.begin(), hier.end(), prm, rhs, x);
-        }
-
-        class preconditioner {
-            public:
-                template <class vector1, class vector2>
-                void apply(const vector1 &rhs, vector2 &x) const {
-                    level_type::cycle(begin, end, prm, rhs, x);
-                }
-            private:
-                typedef typename std::list< level_type >::const_iterator level_iterator;
-
-                preconditioner(
-                        const amg::params &prm,
-                        level_iterator begin, level_iterator end
-                        )
-                    : prm(prm), begin(begin), end(end)
-                {}
-
-                const amg::params &prm;
-                level_iterator begin;
-                level_iterator end;
-
-                friend class solver;
-        };
-
-        const preconditioner precond() const {
-            return preconditioner(prm, hier.begin(), hier.end());
         }
 
     private:

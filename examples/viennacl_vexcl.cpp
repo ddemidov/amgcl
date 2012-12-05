@@ -27,7 +27,7 @@ struct amg_precond {
     void apply(vex::vector<double> &x) const {
         r = 0;
         r.swap(x);
-        amg.cycle(r, x);
+        amg.apply(r, x);
     }
 
     // Build VexCL-based hierarchy:

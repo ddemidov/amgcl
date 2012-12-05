@@ -42,7 +42,7 @@ struct amg_precond {
     template <class vector>
     void apply(vector &x) const {
         std::fill(r.begin(), r.end(), static_cast<double>(0));
-        amg.cycle(x, r);
+        amg.apply(x, r);
         std::copy(r.begin(), r.end(), &x[0]);
     }
 

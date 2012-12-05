@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
     x = 0;
 
     prof.tic("solve (cg)");
-    auto cnv = amg::solve(Agpu, f, amg.precond(), x, amg::cg_tag());
+    auto cnv = amg::solve(Agpu, f, amg, x, amg::cg_tag());
     prof.toc("solve (cg)");
 
     std::cout << "Iterations: " << std::get<0>(cnv) << std::endl
@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
     // Solve the problem with BiCGStab method. Use AMG as a preconditioner:
     x = 0;
     prof.tic("solve (bicg)");
-    cnv = amg::solve(Agpu, f, amg.precond(), x, amg::bicg_tag());
+    cnv = amg::solve(Agpu, f, amg, x, amg::bicg_tag());
     prof.toc("solve (bicg)");
 
     std::cout << "Iterations: " << std::get<0>(cnv) << std::endl
