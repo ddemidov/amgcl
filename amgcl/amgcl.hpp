@@ -117,10 +117,10 @@ class solver {
         }
 
     private:
-        void build_level(matrix &&A, const params &prm, bool parent = false)
+        void build_level(matrix &&A, const params &prm, unsigned nlevel = 0)
         {
             if (A.rows <= prm.coarse_enough) {
-                hier.emplace_back(std::move(A), std::move(sparse::inverse(A)));
+                hier.emplace_back(std::move(A), std::move(sparse::inverse(A)), prm, nlevel);
             } else {
                 TIC("interp");
                 matrix P = interp_t::interp(A, prm);
@@ -137,9 +137,9 @@ class solver {
                             [&prm](value_t v) { return v / prm.over_interp; });
                 TOC("prod");
 
-                hier.emplace_back(std::move(A), std::move(P), std::move(R), parent);
+                hier.emplace_back(std::move(A), std::move(P), std::move(R), prm, nlevel);
 
-                build_level(std::move(a), prm, true);
+                build_level(std::move(a), prm, nlevel + 1);
             }
         }
 

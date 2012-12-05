@@ -39,6 +39,7 @@ struct params {
     unsigned npre;          // Number of pre-relaxations.
     unsigned npost;         // Number of post-relaxations.
     unsigned ncycle;        // Number of cycles (1 for V-cycle, 2 for W-cycle, etc.).
+    unsigned kcycle;        // How often to invoke k-cycle instead of just cycle.
     unsigned maxiter;       // Maximum number of iterations in standalone solver.
     double   tol;           // The required precision for standalone solver.
 
@@ -51,6 +52,7 @@ struct params {
         npre          = 1;
         npost         = 1;
         ncycle        = 1;
+        kcycle        = 0;
         maxiter       = 100;
         tol           = 1e-8;
     }

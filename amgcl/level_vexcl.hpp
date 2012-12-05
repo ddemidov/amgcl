@@ -45,7 +45,7 @@ class instance {
         // Construct complete multigrid level from system matrix (a),
         // prolongation (p) and restriction (r) operators.
         // The matrices are moved into the local members.
-        instance(cpu_matrix &&a, cpu_matrix &&p, cpu_matrix &&r, bool parent = true)
+        instance(cpu_matrix &&a, cpu_matrix &&p, cpu_matrix &&r, const params &prm, unsigned nlevel)
             : A(new matrix(vex::StaticContext<>::get().queue(), a.rows, a.cols, a.row.data(), a.col.data(), a.val.data())),
               P(new matrix(vex::StaticContext<>::get().queue(), p.rows, p.cols, p.row.data(), p.col.data(), p.val.data())),
               R(new matrix(vex::StaticContext<>::get().queue(), r.rows, r.cols, r.row.data(), r.col.data(), r.val.data())),
@@ -53,9 +53,12 @@ class instance {
         {
             vex::copy(diagonal(a), d);
 
-            if (parent) {
+            if (nlevel) {
                 u.resize(a.rows);
                 f.resize(a.rows);
+
+                if (prm.kcycle && nlevel % prm.kcycle == 0)
+                    cg.resize(a.rows);
             }
 
             a.clear();
@@ -65,7 +68,7 @@ class instance {
 
         // Construct the coarsest hierarchy level from system matrix (a) and
         // its inverse (ai).
-        instance(cpu_matrix &&a, cpu_matrix &&ai)
+        instance(cpu_matrix &&a, cpu_matrix &&ai, const params &prm, unsigned nlevel)
             : A(new matrix(vex::StaticContext<>::get().queue(), a.rows, a.cols, a.row.data(), a.col.data(), a.val.data())),
               Ainv(new matrix(vex::StaticContext<>::get().queue(), ai.rows, ai.cols, ai.row.data(), ai.col.data(), ai.val.data())),
               d(a.rows), u(a.rows), f(a.rows), t(a.rows)
@@ -86,13 +89,9 @@ class instance {
 
         // Compute residual value.
         value_t resid(const vector &rhs, vector &x) const {
-	    static vex::Reductor<value_t, vex::SUM> sum(
-		    vex::StaticContext<>::get().queue()
-		    );
-
             t = rhs - (*A) * x;
 
-            return sqrt(sum(t * t));
+            return sqrt(inner_prod(t, t));
         }
 
         // Perform one V-cycle. Coarser levels are cycled recursively. The
@@ -111,7 +110,10 @@ class instance {
                     nxt->f = (*lvl->R) * lvl->t;
                     nxt->u = 0;
 
-                    kcycle(nxt, end, prm, nxt->f, nxt->u);
+                    if (nxt->cg.size())
+                        kcycle(nxt, end, prm, nxt->f, nxt->u);
+                    else
+                        cycle(nxt, end, prm, nxt->f, nxt->u);
 
                     x += (*lvl->P) * nxt->u;
 
@@ -126,17 +128,15 @@ class instance {
         static void kcycle(Iterator lvl, Iterator end, const amg::params &prm,
                 const vector &rhs, vector &x)
         {
-	    static vex::Reductor<value_t, vex::SUM> sum(
-		    vex::StaticContext<>::get().queue()
-		    );
-
             Iterator nxt = lvl; ++nxt;
 
             if (nxt != end) {
-                const auto n = x.size();
+                auto &r = lvl->cg(0);
+                auto &s = lvl->cg(1);
+                auto &p = lvl->cg(2);
+                auto &q = lvl->cg(3);
 
-                vector r = rhs;
-                vector s(n), p(n), q(n);
+                r = rhs;
 
                 value_t rho1 = 0, rho2 = 0;
 
@@ -145,7 +145,7 @@ class instance {
                     cycle(lvl, end, prm, r, s);
 
                     rho2 = rho1;
-                    rho1 = sum(r * s);
+                    rho1 = inner_prod(r, s);
 
                     if (iter)
                         p = s + (rho1 / rho2) * p;
@@ -154,7 +154,7 @@ class instance {
 
                     q = (*lvl->A) * p;
 
-                    value_t alpha = rho1 / sum(q * p);
+                    value_t alpha = rho1 / inner_prod(q, p);
 
                     x += alpha * p;
                     r -= alpha * q;
@@ -174,6 +174,15 @@ class instance {
         mutable vector u;
         mutable vector f;
         mutable vector t;
+
+        vex::multivector<value_t,4> cg;
+
+        static value_t inner_prod(const vector &x, const vector &y) {
+            static vex::Reductor<value_t, vex::SUM> sum(
+		    vex::StaticContext<>::get().queue());
+
+            return sum(x * y);
+        }
 };
 
 };

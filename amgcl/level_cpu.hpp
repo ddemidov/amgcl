@@ -42,10 +42,10 @@ class instance {
         // Construct complete multigrid level from system matrix (a),
         // prolongation (p) and restriction (r) operators.
         // The matrices are moved into the local members.
-        instance(matrix &&a, matrix &&p, matrix &&r, bool has_parent = true)
+        instance(matrix &&a, matrix &&p, matrix &&r, const params &prm, unsigned nlevel)
             : A(std::move(a)), P(std::move(p)), R(std::move(r))
         {
-            if (has_parent) {
+            if (nlevel) {
                 u.resize(A.rows);
                 f.resize(A.rows);
             }
@@ -55,7 +55,7 @@ class instance {
 
         // Construct the coarsest hierarchy level from system matrix (a) and
         // its inverse (ai).
-        instance(matrix &&a, matrix &&ai)
+        instance(matrix &&a, matrix &&ai, const params &prm, unsigned nlevel)
             : A(std::move(a)), Ai(std::move(ai)), u(A.rows), f(A.rows), t(A.rows)
         { }
 
