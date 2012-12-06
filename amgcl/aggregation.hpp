@@ -52,7 +52,7 @@ aggregates( const spmat &A, const params &prm ) {
     Scol.reserve( sparse::matrix_nonzeros(A) );
 
     for(index_t i = 0; i < n; ++i) {
-        value_t dia_i;
+        value_t dia_i = dia[i];
 
         assert(dia_i != 0 && "Zero diagonal is bad anyway");
 
@@ -141,6 +141,94 @@ static sparse::matrix<value_t, index_t> interp(
     return P;
 }
 
+};
+
+struct aggregated_operator {
+
+    template <class spmat>
+    static spmat apply(const spmat &R, const spmat &A, const spmat &P) {
+        typedef typename sparse::matrix_index<spmat>::type index_t;
+        typedef typename sparse::matrix_value<spmat>::type value_t;
+
+        const auto n  = sparse::matrix_rows(A);
+        const auto nc = sparse::matrix_rows(R);
+
+        spmat a(nc, nc);
+
+        std::fill(a.row.begin(), a.row.end(), static_cast<index_t>(0));
+
+        std::vector<index_t> marker(nc, static_cast<index_t>(-1));
+
+        for(index_t i = 0; i < n; ++i) {
+            assert(P.row[i] == P.row[i + 1] || P.row[i] + 1 == P.row[i + 1]);
+            if (P.row[i] == P.row[i + 1]) continue;
+
+            index_t gi = P.col[P.row[i]];
+
+            assert(gi < nc && "Wrong aggregation data");
+
+            for(index_t j = A.row[i], e = A.row[i+1]; j < e; ++j) {
+                index_t c = A.col[j];
+
+                if (P.row[c] == P.row[c + 1]) continue;
+
+                index_t gj = P.col[P.row[c]];
+
+                assert(gj < nc && "Wrong aggregation data");
+
+                if (marker[gj] != gi) {
+                    marker[gj] = gi;
+                    ++( a.row[gi + 1] );
+                }
+            }
+        }
+
+        std::fill(marker.begin(), marker.end(), static_cast<index_t>(-1));
+
+        std::partial_sum(a.row.begin(), a.row.end(), a.row.begin());
+
+        a.reserve(a.row.back());
+
+        for(index_t i = 0; i < n; ++i) {
+            if (P.row[i] == P.row[i + 1]) continue;
+
+            index_t gi = P.col[P.row[i]];
+
+            assert(gi < nc && "Wrong aggregation data");
+
+            index_t row_beg  = a.row[gi];
+            index_t row_end  = a.row[gi + 1];
+            index_t row_head = row_beg;
+
+            for(index_t j = A.row[i], e = A.row[i+1]; j < e; ++j) {
+                index_t c = A.col[j];
+
+                if (P.row[c] == P.row[c + 1]) continue;
+
+                index_t gj = P.col[P.row[c]];
+                index_t v  = A.val[j];
+
+                assert(gj < nc && "Wrong aggregation data");
+
+                if (marker[gj] < row_beg || marker[gj] >= row_end) {
+                    marker[gj] = row_head;
+                    a.col[row_head] = gj;
+                    a.val[row_head] = v;
+                    ++row_head;
+                } else {
+                    a.val[marker[gj]] += v;
+                }
+            }
+        }
+
+        return a;
+    }
+
+};
+
+template <class T>
+struct coarse_operator< aggregation<T> > {
+    typedef aggregated_operator type;
 };
 
 } // namespace interp

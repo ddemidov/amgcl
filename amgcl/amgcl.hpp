@@ -44,6 +44,22 @@ extern amg::profiler<> prof;
 #  define TOC(what)
 #endif
 
+namespace interp {
+
+struct galerkin_operator {
+    template <class matrix>
+    static matrix apply(const matrix &R, const matrix &A, const matrix &P) {
+        return sparse::prod(sparse::prod(R, A), P);
+    }
+};
+
+template <class T>
+struct coarse_operator {
+    typedef galerkin_operator type;
+};
+
+} // namespace interp
+
 // Algebraic multigrid method. The hierarchy by default is built for a CPU. The
 // other possibility is VexCL-based representation
 // ( level_t = level::vexcl<value_t, index_t> ).
@@ -103,12 +119,13 @@ class solver {
                 matrix R = sparse::transpose(P);
                 TOC("transp");
 
-                TIC("prod");
-                matrix a = sparse::prod(sparse::prod(R, A), P);
+                TIC("coarse operator");
+                matrix a = interp::coarse_operator<interp_t>::type::apply(R, A, P);
+
                 if (prm.over_interp > 1.0f)
                     std::transform(a.val.begin(), a.val.end(), a.val.begin(),
                             [&prm](value_t v) { return v / prm.over_interp; });
-                TOC("prod");
+                TOC("coarse operator");
 
                 hier.emplace_back(std::move(A), std::move(P), std::move(R), prm, nlevel);
 
