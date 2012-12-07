@@ -99,6 +99,9 @@ class solver {
     private:
         void build_level(matrix &&A, const params &prm, unsigned nlevel = 0)
         {
+#ifdef AMGCL_PROFILING
+            std::cout << A.rows << std::endl;
+#endif
             if (A.rows <= prm.coarse_enough) {
                 hier.emplace_back(std::move(A), std::move(sparse::inverse(A)), prm, nlevel);
             } else {

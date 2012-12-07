@@ -58,7 +58,7 @@ aggregates( const spmat &A, const params &prm ) {
         // Include its neighbors as well.
         for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
             index_t c = Acol[j];
-            if (c != i) {
+            if (c != i && agg[c] != removed) {
                 agg[c] = last_g;
                 neib.push_back(c);
             }
@@ -67,11 +67,9 @@ aggregates( const spmat &A, const params &prm ) {
         // Temporarily mark undefined points adjacent to the new aggregate as
         // beloning to the aggregate. If nobody claims them later, they will
         // stay here.
-        for(auto nb = neib.begin(); nb != neib.end(); ++nb) {
-            for(index_t j = Arow[*nb], e = Arow[*nb + 1]; j < e; ++j) {
+        for(auto nb = neib.begin(); nb != neib.end(); ++nb)
+            for(index_t j = Arow[*nb], e = Arow[*nb + 1]; j < e; ++j)
                 if (agg[Acol[j]] == undefined) agg[Acol[j]] = last_g;
-            }
-        }
     }
 
     assert( std::count(agg.begin(), agg.end(), undefined) == 0 );
@@ -100,7 +98,10 @@ static sparse::matrix<value_t, index_t> interp(
     auto aggr = aggr_type::aggregates(A, prm);
     TOC("aggregates");
 
-    index_t nc = *std::max_element(aggr.begin(), aggr.end()) + 1;
+    index_t nc = std::max(
+            static_cast<index_t>(0),
+            *std::max_element(aggr.begin(), aggr.end()) + static_cast<index_t>(1)
+            );
 
     TIC("interpolation");
     sparse::matrix<value_t, index_t> P(n, nc);
