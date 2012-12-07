@@ -3,10 +3,11 @@
 #include <chrono>
 #include <cstdlib>
 
+#define VIENNACL_WITH_OPENCL
 #define AMGCL_PROFILING
 
 #include <amgcl/amgcl.hpp>
-#include <amgcl/interp_classic.hpp>
+#include <amgcl/aggregation.hpp>
 #include <amgcl/level_viennacl.hpp>
 
 #include <viennacl/linalg/cg.hpp>
@@ -35,7 +36,7 @@ struct amg_precond {
     // Build VexCL-based hierarchy:
     mutable amgcl::solver<
         double, int,
-        amgcl::interp::classic,
+        amgcl::interp::aggregation<amgcl::aggr::plain>,
         amgcl::level::ViennaCL
         > amg;
 
@@ -72,8 +73,8 @@ int main(int argc, char *argv[]) {
 
     // Build the preconditioner.
     amgcl::params prm;
-    //prm.kcycle = 1;
-    //prm.over_interp = 1.5;
+    prm.kcycle = 1;
+    prm.over_interp = 1.5;
     prof.tic("setup");
     amg_precond amg(A, prm);
     prof.toc("setup");
