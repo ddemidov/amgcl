@@ -3,11 +3,18 @@ amgcl
 
 Simple AMG hierarchy builder. May be used as a standalone solver or as a
 preconditioner. CG and BiCGStab iterative solvers are provided. Solvers from
-from ViennaCL (http://viennacl.sourceforge.net) are supported as well.
+from [ViennaCL](http://viennacl.sourceforge.net) are supported as well.
 
-Eigen (http://eigen.tuxfamily.org) or VexCL (https://github.com/ddemidov/vexcl)
-matrix/vector containers may be used. See examples/eigen.cpp and
-examples/vexcl.cpp for respective examples.
+[VexCL](https://github.com/ddemidov/vexcl),
+[ViennaCL](http://viennacl.sourceforge.net), or
+[Eigen](http://eigen.tuxfamily.org) matrix/vector containers may be used with
+built-in and ViennaCL's solvers. See [examples/vexcl.cpp][ex1],
+[examples/viennacl.cpp][ex2] and [examples/eigen.cpp][ex3] for respective
+examples.
+
+[ex1]: https://github.com/ddemidov/amgcl/blob/master/examples/vexcl.cpp
+[ex2]: https://github.com/ddemidov/amgcl/blob/master/examples/viennacl.cpp
+[ex3]: https://github.com/ddemidov/amgcl/blob/master/examples/eigen.cpp
 
 AMG hierarchy building
 ----------------------
