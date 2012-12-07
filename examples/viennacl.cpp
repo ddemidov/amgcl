@@ -6,10 +6,22 @@
 #define VIENNACL_WITH_OPENCL
 #define AMGCL_PROFILING
 
+// #define AGGREGATION
+
 #include <amgcl/amgcl.hpp>
-#include <amgcl/aggregation.hpp>
+
+#ifdef AGGREGATION
+#  include <amgcl/aggregation.hpp>
+#else
+#  include <amgcl/interp_classic.hpp>
+#endif
+
 #include <amgcl/level_viennacl.hpp>
 
+#include <vexcl/devlist.hpp>
+
+#include <viennacl/vector.hpp>
+#include <viennacl/compressed_matrix.hpp>
 #include <viennacl/linalg/cg.hpp>
 
 namespace amgcl {
@@ -36,7 +48,11 @@ struct amg_precond {
     // Build VexCL-based hierarchy:
     mutable amgcl::solver<
         double, int,
+#ifdef AGGREGATION
         amgcl::interp::aggregation<amgcl::aggr::plain>,
+#else
+        amgcl::interp::classic,
+#endif
         amgcl::level::ViennaCL
         > amg;
 
@@ -49,7 +65,18 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    try {
+    // There is no easy way to select compute device in ViennaCL, so just use
+    // VexCL for that.
+    vex::Context ctx(
+            vex::Filter::Env &&
+            vex::Filter::DoublePrecision &&
+            vex::Filter::Count(1)
+            );
+    std::vector<cl_device_id> dev_id(1, ctx.queue(0).getInfo<CL_QUEUE_DEVICE>()());
+    std::vector<cl_command_queue> queue_id(1, ctx.queue(0)());
+    viennacl::ocl::setup_context(0, ctx.context(0)(), dev_id, queue_id);
+    std::cout << ctx << std::endl;
+
     // Read matrix and rhs from a binary file.
     std::ifstream pfile(argv[1], std::ios::binary);
     int n;
@@ -73,8 +100,10 @@ int main(int argc, char *argv[]) {
 
     // Build the preconditioner.
     amgcl::params prm;
+#ifdef AGGREGATION
     prm.kcycle = 1;
     prm.over_interp = 1.5;
+#endif
     prof.tic("setup");
     amg_precond amg(A, prm);
     prof.toc("setup");
@@ -89,7 +118,7 @@ int main(int argc, char *argv[]) {
     // Solve the problem with CG method from ViennaCL. Use AMG as a
     // preconditioner:
     prof.tic("solve");
-    viennacl::linalg::cg_tag tag(1e-8, n);
+    viennacl::linalg::cg_tag tag(1e-6, 100);
     viennacl::vector<double> x = viennacl::linalg::solve(Agpu, f, tag, amg);
     prof.toc("solve");
 
@@ -97,7 +126,7 @@ int main(int argc, char *argv[]) {
               << "Error:      " << tag.error() << std::endl;
 
     std::cout << prof;
-    } catch (const char *err) {
-        std::cout << "error: " << err << std::endl;
-    }
+
+    // Prevent ViennaCL from segfaulting:
+    exit(0);
 }
