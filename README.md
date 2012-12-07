@@ -57,7 +57,7 @@ std::cout << "Iterations: " << std::get<0>(conv) << std::endl
           << "Error:      " << std::get<1>(conv) << std::endl;
 ```
 
-Using the AMG as a preconditioner with a Krylov subspace mathod like conjugate
+Using the AMG as a preconditioner with a Krylov subspace method like conjugate
 gradients works even better:
 ```C++
 // Eigen::VectorXd rhs, x;
