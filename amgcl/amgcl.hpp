@@ -25,6 +25,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+#include <tuple>
 #include <list>
 
 #include <amgcl/spmat.hpp>
@@ -79,15 +80,16 @@ class solver {
         // 1. Any type with operator[] should work on a CPU.
         // 2. vex::vector<value_t> should be used with VexCL-based hierarchy.
         template <class vector1, class vector2>
-        bool solve(const vector1 &rhs, vector2 &x) const {
-            for(size_t iter = 0; iter < prm.maxiter; iter++) {
+        std::tuple< int, value_t > solve(const vector1 &rhs, vector2 &x) const {
+            int     iter = 0;
+            value_t res  = 2 * prm.tol;
+
+            for(; res > prm.tol && iter < prm.maxiter; ++iter) {
                 apply(rhs, x);
-
-                value_t r = hier.front().resid(rhs, x);
-
-                if (r <= prm.tol) return true;
+                res = hier.front().resid(rhs, x);
             }
-            return false;
+
+            return std::make_tuple(iter, res);
         }
 
         // Perform 1 V-cycle. May be used as a preconditioning step.
