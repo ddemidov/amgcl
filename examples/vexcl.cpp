@@ -5,9 +5,14 @@
 #include <vexcl/vexcl.hpp>
 
 #define AMGCL_PROFILING
+#define AGGREGATION
 
 #include <amgcl/amgcl.hpp>
-#include <amgcl/interp_classic.hpp>
+#ifdef AGGREGATION
+#  include <amgcl/aggregation.hpp>
+#else
+#  include <amgcl/interp_classic.hpp>
+#endif
 #include <amgcl/level_vexcl.hpp>
 #include <amgcl/operations_vexcl.hpp>
 #include <amgcl/cg.hpp>
@@ -56,12 +61,22 @@ int main(int argc, char *argv[]) {
             );
 
     // Build the preconditioner.
+    amgcl::params prm;
+#ifdef AGGREGATION
+    prm.kcycle = 1;
+    prm.over_interp = 1.5;
+#endif
+
     prof.tic("setup");
     amgcl::solver<
         double, int,
+#ifdef AGGREGATION
+        amgcl::interp::aggregation<amgcl::aggr::plain>,
+#else
         amgcl::interp::classic,
+#endif
         amgcl::level::vexcl
-        > amg(A);
+        > amg(A, prm);
     prof.toc("setup");
 
     // Copy matrix and rhs to GPU(s).

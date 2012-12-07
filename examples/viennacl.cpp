@@ -4,9 +4,8 @@
 #include <cstdlib>
 
 #define VIENNACL_WITH_OPENCL
+#define AGGREGATION
 #define AMGCL_PROFILING
-
-// #define AGGREGATION
 
 #include <amgcl/amgcl.hpp>
 
@@ -41,8 +40,8 @@ struct amg_precond {
     // Use one V-cycle with zero initial approximation as a preconditioning step.
     void apply(viennacl::vector<double> &x) const {
         r.clear();
-        r.fast_swap(x);
-        amg.apply(r, x);
+        amg.apply(x, r);
+        viennacl::copy(r, x);
     }
 
     // Build VexCL-based hierarchy:
@@ -118,7 +117,7 @@ int main(int argc, char *argv[]) {
     // Solve the problem with CG method from ViennaCL. Use AMG as a
     // preconditioner:
     prof.tic("solve");
-    viennacl::linalg::cg_tag tag(1e-6, 100);
+    viennacl::linalg::cg_tag tag(1e-8, 100);
     viennacl::vector<double> x = viennacl::linalg::solve(Agpu, f, tag, amg);
     prof.toc("solve");
 

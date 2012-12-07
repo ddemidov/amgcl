@@ -14,9 +14,6 @@ add_executable(viennacl_eigen viennacl_eigen.cpp)
 add_executable(vexcl vexcl.cpp)
 target_link_libraries(vexcl OpenCL)
 
-add_executable(aggr aggr.cpp)
-target_link_libraries(aggr OpenCL)
-
 add_executable(viennacl viennacl.cpp)
 target_link_libraries(viennacl OpenCL)
 

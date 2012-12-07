@@ -102,7 +102,7 @@ class instance {
 
             const index_t n = x.size();
 
-            t = const_cast<vector&>(rhs) - viennacl::linalg::prod(A, x);
+            t = rhs - viennacl::linalg::prod(A, x);
             value_t w = static_cast<value_t>(0.72);
             viennacl::ocl::enqueue( mul_add(x, t, d, w) );
         }
@@ -126,7 +126,7 @@ class instance {
                 for(unsigned j = 0; j < prm.ncycle; ++j) {
                     for(unsigned i = 0; i < prm.npre; ++i) lvl->relax(rhs, x);
 
-                    lvl->t = const_cast<vector&>(rhs) - viennacl::linalg::prod(lvl->A, x);
+                    lvl->t = rhs - viennacl::linalg::prod(lvl->A, x);
                     nxt->f = viennacl::linalg::prod(lvl->R, lvl->t);
                     nxt->u.clear();
 
