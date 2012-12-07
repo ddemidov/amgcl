@@ -28,7 +28,7 @@ THE SOFTWARE.
 #include <tuple>
 #include <stdexcept>
 
-namespace amg {
+namespace amgcl {
 
 struct bicg_tag {
     int maxiter;
@@ -109,6 +109,6 @@ solve(const matrix &A, const vector &rhs, const precond &P, vector &x, bicg_tag 
     return std::make_tuple(iter, res);
 }
 
-} // namespace amg
+} // namespace amgcl
 
 #endif

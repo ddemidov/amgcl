@@ -32,7 +32,7 @@ THE SOFTWARE.
 #include <stack>
 #include <chrono>
 
-namespace amg {
+namespace amgcl {
 
 // Simple profiler class.
 template <
@@ -148,7 +148,7 @@ class profiler {
 };
 
 #ifdef AMGCL_PROFILING
-extern amg::profiler<> prof;
+extern profiler<> prof;
 #  define TIC(what) prof.tic(what);
 #  define TOC(what) prof.toc(what);
 #else
@@ -156,5 +156,5 @@ extern amg::profiler<> prof;
 #  define TOC(what)
 #endif
 
-} // namespace amg
+} // namespace amgcl
 #endif

@@ -27,7 +27,7 @@ THE SOFTWARE.
 
 #include <Eigen/Dense>
 
-namespace amg {
+namespace amgcl {
 
 template <typename T>
 struct value_type {
@@ -49,7 +49,7 @@ void clear(Eigen::MatrixBase<T> &x) {
     x.setZero();
 }
 
-}
+} // namespace amgcl
 
 
 #endif

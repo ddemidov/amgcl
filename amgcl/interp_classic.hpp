@@ -33,7 +33,7 @@ THE SOFTWARE.
 #include <amgcl/params.hpp>
 #include <amgcl/profiler.hpp>
 
-namespace amg {
+namespace amgcl {
 namespace interp {
 
 // Classic (direct) interpolation based on [1].
@@ -391,6 +391,6 @@ static sparse::matrix<value_t, index_t> interp(
 
 } // namespace interp
 
-} // namespace amg
+} // namespace amgcl
 
 #endif

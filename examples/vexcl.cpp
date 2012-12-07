@@ -13,10 +13,10 @@
 #include <amgcl/cg.hpp>
 #include <amgcl/bicgstab.hpp>
 
-namespace amg {
-amg::profiler<> prof;
+namespace amgcl {
+profiler<> prof;
 }
-using amg::prof;
+using amgcl::prof;
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
@@ -40,8 +40,8 @@ int main(int argc, char *argv[]) {
     pfile.read((char*)val.data(), val.size() * sizeof(double));
     pfile.read((char*)rhs.data(), rhs.size() * sizeof(double));
 
-    // Wrap the matrix into amg::sparse::map:
-    amg::sparse::matrix_map<double, int> A(
+    // Wrap the matrix into amgcl::sparse::map:
+    amgcl::sparse::matrix_map<double, int> A(
             n, n, row.data(), col.data(), val.data()
             );
 
@@ -64,10 +64,10 @@ int main(int argc, char *argv[]) {
 
     // Build the preconditioner.
     prof.tic("setup");
-    amg::solver<
+    amgcl::solver<
         double, int,
-        amg::interp::classic,
-        amg::level::vexcl
+        amgcl::interp::classic,
+        amgcl::level::vexcl
         > amg(A);
     prof.toc("setup");
 
@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
     x = 0;
 
     prof.tic("solve (cg)");
-    auto cnv = amg::solve(Agpu, f, amg, x, amg::cg_tag());
+    auto cnv = amgcl::solve(Agpu, f, amg, x, amgcl::cg_tag());
     prof.toc("solve (cg)");
 
     std::cout << "Iterations: " << std::get<0>(cnv) << std::endl
@@ -86,7 +86,7 @@ int main(int argc, char *argv[]) {
     // Solve the problem with BiCGStab method. Use AMG as a preconditioner:
     x = 0;
     prof.tic("solve (bicg)");
-    cnv = amg::solve(Agpu, f, amg, x, amg::bicg_tag());
+    cnv = amgcl::solve(Agpu, f, amg, x, amgcl::bicg_tag());
     prof.toc("solve (bicg)");
 
     std::cout << "Iterations: " << std::get<0>(cnv) << std::endl

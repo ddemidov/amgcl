@@ -34,7 +34,7 @@ THE SOFTWARE.
 #include <amgcl/level_cpu.hpp>
 #include <amgcl/profiler.hpp>
 
-namespace amg {
+namespace amgcl {
 
 namespace interp {
 
@@ -133,6 +133,6 @@ class solver {
         std::list< level_type > hier;
 };
 
-} // namespace amg
+} // namespace amgcl
 
 #endif

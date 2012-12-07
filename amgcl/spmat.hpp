@@ -31,10 +31,10 @@ THE SOFTWARE.
 #include <cassert>
 #include <omp.h>
 
-// Local implementation of a sparse matrix. Use amg::sparse::map with
+// Local implementation of a sparse matrix. Use amgcl::sparse::map with
 // externally-defined matrices in CRS format.
 
-namespace amg {
+namespace amgcl {
 namespace sparse {
 
 //---------------------------------------------------------------------------
@@ -458,6 +458,6 @@ diagonal(const spmat &A) {
 }
 
 } // namespace sparse
-} // namespace amg
+} // namespace amgcl
 
 #endif

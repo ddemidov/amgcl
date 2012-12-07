@@ -28,7 +28,7 @@ THE SOFTWARE.
 #include <vector>
 #include <amgcl/spmat.hpp>
 
-namespace amg {
+namespace amgcl {
 namespace level {
 
 // CPU-based AMG hierarchy.
@@ -106,7 +106,7 @@ class instance {
         // Perform one V-cycle. Coarser levels are cycled recursively. The
         // coarsest level is solved directly.
         template <class Iterator, class vector1, class vector2>
-        static void cycle(Iterator lvl, Iterator end, const amg::params &prm,
+        static void cycle(Iterator lvl, Iterator end, const params &prm,
                 const vector1 &rhs, vector2 &x)
         {
             const index_t n = lvl->A.rows;
@@ -191,6 +191,6 @@ class instance {
 };
 
 } // namespace level
-} // namespace amg
+} // namespace amgcl
 
 #endif

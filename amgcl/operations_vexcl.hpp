@@ -27,7 +27,7 @@ THE SOFTWARE.
 
 #include <vexcl/vexcl.hpp>
 
-namespace amg {
+namespace amgcl {
 
 template <typename T>
 struct value_type {
@@ -50,7 +50,6 @@ void clear(vex::vector<T> &x) {
     x = 0;
 }
 
-}
-
+} // namespace amgcl
 
 #endif

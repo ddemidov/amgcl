@@ -24,18 +24,18 @@ struct tag_of<T,
 
 } }
 
-namespace amg {
-amg::profiler<> prof;
+namespace amgcl {
+profiler<> prof;
 }
-using amg::prof;
+using amgcl::prof;
 
-// Simple wrapper around amg::solver that provides ViennaCL's preconditioner
+// Simple wrapper around amgcl::solver that provides ViennaCL's preconditioner
 // interface.
 struct amg_precond {
     // Build AMG hierarchy.
     template <class matrix>
-    amg_precond(const matrix &A, const amg::params &prm = amg::params())
-        : amg(A, prm), r(amg::sparse::matrix_rows(A))
+    amg_precond(const matrix &A, const amgcl::params &prm = amgcl::params())
+        : amg(A, prm), r(amgcl::sparse::matrix_rows(A))
     { }
 
     // Use one V-cycle with zero initial approximation as a preconditioning step.
@@ -46,10 +46,10 @@ struct amg_precond {
         std::copy(r.begin(), r.end(), &x[0]);
     }
 
-    mutable amg::solver<
+    mutable amgcl::solver<
         double, int,
-        amg::interp::classic,
-        amg::level::cpu
+        amgcl::interp::classic,
+        amgcl::level::cpu
         > amg;
     mutable std::vector<double> r;
 };
@@ -81,9 +81,9 @@ int main(int argc, char *argv[]) {
             n, n, row.back(), row.data(), col.data(), val.data()
             );
 
-    // Wrap the matrix into amg::sparse::map and build the preconditioner:
+    // Wrap the matrix into amgcl::sparse::map and build the preconditioner:
     prof.tic("setup");
-    amg_precond amg(amg::sparse::map(n, n, row.data(), col.data(), val.data()));
+    amg_precond amg(amgcl::sparse::map(n, n, row.data(), col.data(), val.data()));
     prof.toc("setup");
 
     // Solve the problem with CG method from ViennaCL. Use AMG as a

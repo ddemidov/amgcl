@@ -28,7 +28,7 @@ THE SOFTWARE.
 #include <amgcl/spmat.hpp>
 #include <vexcl/vexcl.hpp>
 
-namespace amg {
+namespace amgcl {
 namespace level {
 
 // CPU-based AMG hierarchy. vex::StaticContext is used for the VexCL types
@@ -97,7 +97,7 @@ class instance {
         // Perform one V-cycle. Coarser levels are cycled recursively. The
         // coarsest level is solved directly.
         template <class Iterator>
-        static void cycle(Iterator lvl, Iterator end, const amg::params &prm,
+        static void cycle(Iterator lvl, Iterator end, const params &prm,
                 const vector &rhs, vector &x)
         {
             Iterator nxt = lvl; ++nxt;
@@ -125,7 +125,7 @@ class instance {
         }
 
         template <class Iterator>
-        static void kcycle(Iterator lvl, Iterator end, const amg::params &prm,
+        static void kcycle(Iterator lvl, Iterator end, const params &prm,
                 const vector &rhs, vector &x)
         {
             Iterator nxt = lvl; ++nxt;
@@ -188,6 +188,6 @@ class instance {
 };
 
 } // namespace level
-} // namespace amg
+} // namespace amgcl
 
 #endif
