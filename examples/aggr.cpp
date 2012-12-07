@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
 
     // Build the preconditioner.
     amg::params prm;
-    prm.kcycle = 2;
+    prm.kcycle = 1;
     prm.over_interp = 1.5;
 
     prof.tic("setup");

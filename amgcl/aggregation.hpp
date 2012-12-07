@@ -32,67 +32,61 @@ aggregates( const spmat &A, const params &prm ) {
     
     const index_t n = sparse::matrix_rows(A);
 
-    index_t n_undef = n;
-    index_t last_g  = -1;
+    const index_t undefined = static_cast<index_t>(-1);
+    const index_t removed   = static_cast<index_t>(-2);
 
-    std::vector<char>    def(n, false);
-    std::vector<index_t> agg(n, -1);
-    std::vector<value_t> dia(diagonal(A));
+    std::vector<index_t> agg(n);
 
     auto Arow = sparse::matrix_outer_index(A);
     auto Acol = sparse::matrix_inner_index(A);
     auto Aval = sparse::matrix_values(A);
 
-    // Compute strongly coupled neighborhoods.
-    std::vector<index_t> Srow;
-    Srow.reserve(n + 1);
-    Srow.push_back(0);
-
-    std::vector<index_t> Scol;
-    Scol.reserve( sparse::matrix_nonzeros(A) );
-
+    // Remove nodes without neigbors
+    index_t max_nonzeros_per_row = 0;
     for(index_t i = 0; i < n; ++i) {
-        value_t dia_i = dia[i];
+        auto w = Arow[i + 1] - Arow[i];
+        agg[i] = (w > 1 ? undefined : removed);
 
-        assert(dia_i != 0 && "Zero diagonal is bad anyway");
+        if (w > max_nonzeros_per_row) max_nonzeros_per_row = w;
+    }
 
-        index_t j = Arow[i];
-        index_t e = Arow[i + 1];
+    std::vector<index_t> neib;
+    neib.reserve(max_nonzeros_per_row);
 
-        if (j + 1 == e) {
-            def[i] = true;
-            --n_undef;
-        }
+    index_t last_g = static_cast<index_t>(-1);
 
-        for( ; j < e; ++j) {
+    // Perform plain aggregation
+    for(index_t i = 0; i < n; ++i) {
+        if (agg[i] != undefined) continue;
+
+        // The point is not adjacent to a core of any previous aggregate:
+        // so its a seed of a new aggregate.
+        agg[i] = ++last_g;
+
+        neib.clear();
+
+        // Include its neighbors as well.
+        for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
             index_t c = Acol[j];
-            value_t v = Aval[j];
-
-            if (v * v > prm.eps_strong * dia_i * dia[c])
-                Scol.push_back(c);
+            if (c != i) {
+                agg[c] = last_g;
+                neib.push_back(c);
+            }
         }
 
-        Srow.push_back(Scol.size());
-    }
-
-    for(index_t i = 0; i < n; ++i) {
-        if (def[i]) continue;
-
-        ++last_g;
-
-        for(index_t j = Srow[i], e = Srow[i + 1]; j < e; ++j) {
-            index_t c = Scol[j];
-
-            if (def[c]) continue;
-
-            def[c] = true;
-            agg[c] = last_g;
-
-            --n_undef;
+        // Temporarily mark undefined points adjacent to the new aggregate as
+        // beloning to the aggregate. If nobody claims them later, they will
+        // stay here.
+        for(auto nb = neib.begin(); nb != neib.end(); ++nb) {
+            for(index_t j = Arow[*nb], e = Arow[*nb + 1]; j < e; ++j) {
+                if (agg[Acol[j]] == undefined) agg[Acol[j]] = last_g;
+            }
         }
     }
 
-    assert(n_undef == 0);
+    std::cout << last_g + 1 << " of " << n << std::endl;
+
+    assert( std::count(agg.begin(), agg.end(), undefined) == 0 );
 
     return agg;
 }
@@ -226,10 +220,12 @@ struct aggregated_operator {
 
 };
 
+/*
 template <class T>
 struct coarse_operator< aggregation<T> > {
     typedef aggregated_operator type;
 };
+*/
 
 } // namespace interp
 } // namespace amg
