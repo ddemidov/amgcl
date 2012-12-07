@@ -117,11 +117,7 @@ struct matrix {
         row( A.row ),
         col( A.col ),
         val( A.val )
-    {
-#ifdef AMGCL_PROFILING
-        std::cout << "Matrix is copied :(" << std::endl;
-#endif
-    }
+    { }
 
     matrix(matrix &&A) :
         rows(A.rows),
@@ -129,7 +125,7 @@ struct matrix {
         row( std::move(A.row) ),
         col( std::move(A.col) ),
         val( std::move(A.val) )
-    {}
+    { }
 
     template <class spmat>
     matrix(const spmat &A) :
@@ -138,11 +134,7 @@ struct matrix {
         row(matrix_outer_index(A), matrix_outer_index(A) + rows + 1),
         col(matrix_inner_index(A), matrix_inner_index(A) + row[rows]),
         val(matrix_values(A), matrix_values(A) + row[rows])
-    {
-#ifdef AMGCL_PROFILING
-        std::cout << "Matrix is copied :(" << std::endl;
-#endif
-    }
+    { }
 
     void reserve(index_t nnz) {
         col.resize(nnz);
