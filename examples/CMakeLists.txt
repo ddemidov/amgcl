@@ -15,5 +15,8 @@ target_link_libraries(vexcl OpenCL)
 add_executable(aggr aggr.cpp)
 target_link_libraries(aggr OpenCL)
 
+add_executable(viennacl viennacl.cpp)
+target_link_libraries(viennacl OpenCL)
+
 add_executable(viennacl_vexcl viennacl_vexcl.cpp)
 target_link_libraries(viennacl_vexcl OpenCL)

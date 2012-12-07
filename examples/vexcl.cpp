@@ -40,11 +40,6 @@ int main(int argc, char *argv[]) {
     pfile.read((char*)val.data(), val.size() * sizeof(double));
     pfile.read((char*)rhs.data(), rhs.size() * sizeof(double));
 
-    // Wrap the matrix into amgcl::sparse::map:
-    amgcl::sparse::matrix_map<double, int> A(
-            n, n, row.data(), col.data(), val.data()
-            );
-
     // Initialize VexCL context.
     vex::Context ctx( vex::Filter::Env && vex::Filter::DoublePrecision );
 
@@ -55,12 +50,10 @@ int main(int argc, char *argv[]) {
 
     std::cout << ctx << std::endl;
 
-    // Copy matrix and rhs to GPU(s).
-    vex::SpMat<double, int, int> Agpu(
-            ctx.queue(), n, n, row.data(), col.data(), val.data()
+    // Wrap the matrix into amgcl::sparse::map:
+    amgcl::sparse::matrix_map<double, int> A(
+            n, n, row.data(), col.data(), val.data()
             );
-
-    vex::vector<double> f(ctx.queue(), rhs);
 
     // Build the preconditioner.
     prof.tic("setup");
@@ -70,6 +63,13 @@ int main(int argc, char *argv[]) {
         amgcl::level::vexcl
         > amg(A);
     prof.toc("setup");
+
+    // Copy matrix and rhs to GPU(s).
+    vex::SpMat<double, int, int> Agpu(
+            ctx.queue(), n, n, row.data(), col.data(), val.data()
+            );
+
+    vex::vector<double> f(ctx.queue(), rhs);
 
     // Solve the problem with CG method. Use AMG as a preconditioner:
     vex::vector<double> x(ctx.queue(), n);

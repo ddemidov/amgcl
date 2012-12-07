@@ -1,5 +1,5 @@
-#ifndef AMGCL_LEVEL_VEXCL_HPP
-#define AMGCL_LEVEL_VEXCL_HPP
+#ifndef AMGCL_LEVEL_VIENNACL_HPP
+#define AMGCL_LEVEL_VIENNACL_HPP
 
 /*
 The MIT License
@@ -25,40 +25,49 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+#include <array>
+
 #include <amgcl/spmat.hpp>
-#include <vexcl/vexcl.hpp>
+#include <amgcl/operations_viennacl.hpp>
+
+#include <viennacl/vector.hpp>
+#include <viennacl/compressed_matrix.hpp>
+#include "viennacl/linalg/inner_prod.hpp"
+#include <viennacl/linalg/prod.hpp>
+#include <viennacl/generator/custom_operation.hpp>
 
 namespace amgcl {
 namespace level {
 
-// VexCL-based AMG hierarchy. vex::StaticContext is used for the VexCL types
-// construction.
-struct vexcl {
+// ViennaCL-based AMG hierarchy.
+struct ViennaCL {
 
 template <typename value_t, typename index_t = long long>
 class instance {
     public:
         typedef sparse::matrix<value_t, index_t>      cpu_matrix;
-        typedef vex::SpMat<value_t, index_t, index_t> matrix;
-        typedef vex::vector<value_t>                  vector;
+        typedef viennacl::compressed_matrix<value_t>  matrix;
+        typedef viennacl::vector<value_t>             vector;
 
         // Construct complete multigrid level from system matrix (a),
         // prolongation (p) and restriction (r) operators.
         // The matrices are moved into the local members.
         instance(cpu_matrix &&a, cpu_matrix &&p, cpu_matrix &&r, const params &prm, unsigned nlevel)
-            : A(new matrix(vex::StaticContext<>::get().queue(), a.rows, a.cols, a.row.data(), a.col.data(), a.val.data())),
-              P(new matrix(vex::StaticContext<>::get().queue(), p.rows, p.cols, p.row.data(), p.col.data(), p.val.data())),
-              R(new matrix(vex::StaticContext<>::get().queue(), r.rows, r.cols, r.row.data(), r.col.data(), r.val.data())),
-              d(a.rows), t(a.rows)
+            : d(a.rows), t(a.rows)
         {
-            vex::copy(diagonal(a), d);
+            copy(a, A);
+            copy(p, P);
+            copy(r, R);
+
+            viennacl::copy(diagonal(a), d);
 
             if (nlevel) {
                 u.resize(a.rows);
                 f.resize(a.rows);
 
                 if (prm.kcycle && nlevel % prm.kcycle == 0)
-                    cg.resize(a.rows);
+                    for(auto v = cg.begin(); v != cg.end(); v++)
+                        v->resize(a.rows);
             }
 
             a.clear();
@@ -69,11 +78,12 @@ class instance {
         // Construct the coarsest hierarchy level from system matrix (a) and
         // its inverse (ai).
         instance(cpu_matrix &&a, cpu_matrix &&ai, const params &prm, unsigned nlevel)
-            : A(new matrix(vex::StaticContext<>::get().queue(), a.rows, a.cols, a.row.data(), a.col.data(), a.val.data())),
-              Ainv(new matrix(vex::StaticContext<>::get().queue(), ai.rows, ai.cols, ai.row.data(), ai.col.data(), ai.val.data())),
-              d(a.rows), u(a.rows), f(a.rows), t(a.rows)
+            : d(a.rows), u(a.rows), f(a.rows), t(a.rows)
         {
-            vex::copy(diagonal(a), d);
+            copy(a,  A);
+            copy(ai, Ainv);
+
+            viennacl::copy(diagonal(a), d);
 
             a.clear();
             ai.clear();
@@ -81,17 +91,27 @@ class instance {
 
         // Perform one relaxation (smoothing) step.
         void relax(const vector &rhs, vector &x) const {
+            using namespace viennacl::generator;
+
+            static symbolic_vector<0, value_t> sym_x;
+            static symbolic_vector<1, value_t> sym_t;
+            static symbolic_vector<2, value_t> sym_d;
+            static cpu_symbolic_scalar<3, value_t> sym_w;
+            static custom_operation mul_add(
+                    sym_x += sym_w * element_div(sym_t, sym_d), "amgcl_relax_mul_add");
+
             const index_t n = x.size();
 
-            t = rhs - (*A) * x;
-            x += 0.72 * t / d;
+            t = const_cast<vector&>(rhs) - viennacl::linalg::prod(A, x);
+            value_t w = static_cast<value_t>(0.72);
+            viennacl::ocl::enqueue( mul_add(x, t, d, w) );
         }
 
         // Compute residual value.
         value_t resid(const vector &rhs, vector &x) const {
-            t = rhs - (*A) * x;
+            t = rhs - A * x;
 
-            return sqrt(inner_prod(t, t));
+            return sqrt(viennacl::linalg::inner_prod(t, t));
         }
 
         // Perform one V-cycle. Coarser levels are cycled recursively. The
@@ -106,21 +126,21 @@ class instance {
                 for(unsigned j = 0; j < prm.ncycle; ++j) {
                     for(unsigned i = 0; i < prm.npre; ++i) lvl->relax(rhs, x);
 
-                    lvl->t = rhs - (*lvl->A) * x;
-                    nxt->f = (*lvl->R) * lvl->t;
-                    nxt->u = 0;
+                    lvl->t = const_cast<vector&>(rhs) - viennacl::linalg::prod(lvl->A, x);
+                    nxt->f = viennacl::linalg::prod(lvl->R, lvl->t);
+                    nxt->u.clear();
 
-                    if (nxt->cg.size())
+                    if (nxt->cg[0].size())
                         kcycle(nxt, end, prm, nxt->f, nxt->u);
                     else
                         cycle(nxt, end, prm, nxt->f, nxt->u);
 
-                    x += (*lvl->P) * nxt->u;
+                    x += viennacl::linalg::prod(lvl->P, nxt->u);
 
                     for(unsigned i = 0; i < prm.npost; ++i) lvl->relax(rhs, x);
                 }
             } else {
-                x = (*lvl->Ainv) * rhs;
+                x = viennacl::linalg::prod(lvl->Ainv, rhs);
             }
         }
 
@@ -131,43 +151,43 @@ class instance {
             Iterator nxt = lvl; ++nxt;
 
             if (nxt != end) {
-                auto &r = lvl->cg(0);
-                auto &s = lvl->cg(1);
-                auto &p = lvl->cg(2);
-                auto &q = lvl->cg(3);
+                auto &r = lvl->cg[0];
+                auto &s = lvl->cg[1];
+                auto &p = lvl->cg[2];
+                auto &q = lvl->cg[3];
 
                 r = rhs;
 
                 value_t rho1 = 0, rho2 = 0;
 
                 for(int iter = 0; iter < 2; ++iter) {
-                    s = 0;
+                    s.clear();
                     cycle(lvl, end, prm, r, s);
 
                     rho2 = rho1;
-                    rho1 = inner_prod(r, s);
+                    rho1 = viennacl::linalg::inner_prod(r, s);
 
                     if (iter)
                         p = s + (rho1 / rho2) * p;
                     else
                         p = s;
 
-                    q = (*lvl->A) * p;
+                    q = viennacl::linalg::prod(lvl->A, p);
 
-                    value_t alpha = rho1 / inner_prod(q, p);
+                    value_t alpha = rho1 / viennacl::linalg::inner_prod(q, p);
 
                     x += alpha * p;
                     r -= alpha * q;
                 }
             } else {
-                x = (*lvl->Ainv) * rhs;
+                x = viennacl::linalg::prod(lvl->Ainv, rhs);
             }
         }
     private:
-        std::unique_ptr<matrix> A;
-        std::unique_ptr<matrix> P;
-        std::unique_ptr<matrix> R;
-        std::unique_ptr<matrix> Ainv;
+        matrix A;
+        matrix P;
+        matrix R;
+        matrix Ainv;
 
         vector d;
 
@@ -175,14 +195,7 @@ class instance {
         mutable vector f;
         mutable vector t;
 
-        mutable vex::multivector<value_t,4> cg;
-
-        static value_t inner_prod(const vector &x, const vector &y) {
-            static vex::Reductor<value_t, vex::SUM> sum(
-		    vex::StaticContext<>::get().queue());
-
-            return sum(x * y);
-        }
+        mutable std::array<vector, 4> cg;
 };
 
 };
