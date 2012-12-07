@@ -5,6 +5,8 @@
 #include <Eigen/Dense>
 #include <Eigen/SparseCore>
 
+#define AMGCL_PROFILING
+
 #include <amgcl/amgcl.hpp>
 #include <amgcl/operations_eigen.hpp>
 #include <amgcl/cg.hpp>

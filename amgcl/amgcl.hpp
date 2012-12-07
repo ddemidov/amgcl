@@ -35,15 +35,6 @@ THE SOFTWARE.
 
 namespace amg {
 
-#ifdef AMGCL_PROFILING
-extern amg::profiler<> prof;
-#  define TIC(what) prof.tic(what);
-#  define TOC(what) prof.toc(what);
-#else
-#  define TIC(what)
-#  define TOC(what)
-#endif
-
 namespace interp {
 
 struct galerkin_operator {

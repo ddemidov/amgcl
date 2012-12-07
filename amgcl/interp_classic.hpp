@@ -34,16 +34,6 @@ THE SOFTWARE.
 #include <amgcl/profiler.hpp>
 
 namespace amg {
-
-#ifdef AMGCL_PROFILING
-extern amg::profiler<> prof;
-#  define TIC(what) prof.tic(what);
-#  define TOC(what) prof.tic(what);
-#else
-#  define TIC(what)
-#  define TOC(what)
-#endif
-
 namespace interp {
 
 // Classic (direct) interpolation based on [1].

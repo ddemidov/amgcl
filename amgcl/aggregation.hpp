@@ -7,19 +7,9 @@
 
 #include <amgcl/spmat.hpp>
 #include <amgcl/params.hpp>
+#include <amgcl/profiler.hpp>
 
 namespace amg {
-
-#ifdef AMGCL_PROFILING
-#  include <amgcl/profiler.hpp>
-#  define TIC(what) prof.tic(what);
-#  define TOC(what) prof.tic(what);
-   extern amg::profiler<> prof;
-#else
-#  define TIC(what)
-#  define TOC(what)
-#endif
-
 namespace aggr {
 
 struct plain {
@@ -83,8 +73,6 @@ aggregates( const spmat &A, const params &prm ) {
             }
         }
     }
-
-    std::cout << last_g + 1 << " of " << n << std::endl;
 
     assert( std::count(agg.begin(), agg.end(), undefined) == 0 );
 

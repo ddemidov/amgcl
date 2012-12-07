@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <vexcl/vexcl.hpp>
 
+#define AMGCL_PROFILING
+
 #include <amgcl/amgcl.hpp>
 #include <amgcl/aggregation.hpp>
 #include <amgcl/level_vexcl.hpp>
