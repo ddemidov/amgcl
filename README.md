@@ -22,8 +22,8 @@ algebraic information contained in the system matrix:
 amgcl::solver<
     double,                 // Scalar type
     int,                    // Index type of the matrix
-    amgcl::interp::classic,   // Interpolation kind
-    amgcl::level::cpu         // Where to store the hierarchy
+    amgcl::interp::classic, // Interpolation kind
+    amgcl::level::cpu       // Where to store the hierarchy
 > amg(A);
 ```
 
@@ -74,3 +74,11 @@ If `amgcl::level::vexcl` is used as a storage backend, then `vex::SpMat` and
 
 auto conv = amgcl::solve(Agpu, rhs, x, cg_tag());
 ```
+
+Installation
+------------
+
+The library is header-only, so there is nothing to compile or link to. You just
+need to copy amgcl folder somewhere and tell your compiler to scan it for
+include files.
+
