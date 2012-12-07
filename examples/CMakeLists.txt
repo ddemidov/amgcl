@@ -6,6 +6,8 @@ find_path(EIGEN_INCLUDE Eigen/SparseCore PATH_SUFFIXES eigen3)
 
 include_directories(${EIGEN_INCLUDE} ${CMAKE_SOURCE_DIR})
 
+add_executable(genproblem genproblem.cpp)
+
 add_executable(eigen eigen.cpp)
 add_executable(viennacl_eigen viennacl_eigen.cpp)
 
