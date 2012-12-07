@@ -72,7 +72,7 @@ If `amgcl::level::vexcl` is used as a storage backend, then `vex::SpMat` and
 // vex::SpMat<double,int> Agpu;
 // vex::vector<double> rhs, x;
 
-auto conv = amgcl::solve(Agpu, rhs, x, cg_tag());
+auto conv = amgcl::solve(Agpu, rhs, x, amgcl::cg_tag());
 ```
 
 Installation
