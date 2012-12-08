@@ -45,7 +45,12 @@ int main(int argc, char *argv[]) {
     pfile.read((char*)val.data(), val.size() * sizeof(double));
     pfile.read((char*)rhs.data(), rhs.size() * sizeof(double));
 
-    // Wrap the matrix into amgcl::sparse::map and build the preconditioner:
+    // Wrap the matrix into Eigen Map.
+    Eigen::MappedSparseMatrix<double, Eigen::RowMajor, int> A(
+            n, n, row.back(), row.data(), col.data(), val.data()
+            );
+
+    // Build the preconditioner:
     amgcl::params prm;
 #ifdef AGGREGATION
     prm.kcycle = 1;
@@ -61,13 +66,8 @@ int main(int argc, char *argv[]) {
         amgcl::interp::classic,
 #endif
         amgcl::level::cpu
-        > amg(amgcl::sparse::map(n, n, row.data(), col.data(), val.data()), prm);
+        > amg(amgcl::sparse::map(A), prm);
     prof.toc("setup");
-
-    // Wrap the matrix into Eigen Map.
-    Eigen::MappedSparseMatrix<double, Eigen::RowMajor, int> A(
-            n, n, row.back(), row.data(), col.data(), val.data()
-            );
 
 
     // Solve the problem with CG method. Use AMG as a preconditioner:

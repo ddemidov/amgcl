@@ -26,6 +26,7 @@ THE SOFTWARE.
 */
 
 #include <Eigen/Dense>
+#include <Eigen/SparseCore>
 
 namespace amgcl {
 
@@ -48,6 +49,22 @@ template <typename T>
 void clear(Eigen::MatrixBase<T> &x) {
     x.setZero();
 }
+
+namespace sparse {
+
+template <class Derived>
+matrix_map<typename Derived::Scalar, typename Derived::Index>
+map(const Eigen::SparseMatrixBase<Derived> &A) {
+    return matrix_map<typename Derived::Scalar, typename Derived::Index>(
+            A.derived().rows(),
+            A.derived().cols(),
+            A.derived().outerIndexPtr(),
+            A.derived().innerIndexPtr(),
+            A.derived().valuePtr()
+            );
+}
+
+} // namespace sparse
 
 } // namespace amgcl
 

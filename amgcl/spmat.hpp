@@ -163,21 +163,23 @@ struct matrix_map {
 
     matrix_map(
             index_t rows, index_t cols,
-            index_t *row, index_t *col, value_t *val
+            const index_t *row, const index_t *col, const value_t *val
             )
         : rows(rows), cols(cols), row(row), col(col), val(val)
     {}
 
-    index_t rows, cols;
+    const index_t rows;
+    const index_t cols;
 
-    index_t *row;
-    index_t *col;
-    value_t *val;
+    const index_t *row;
+    const index_t *col;
+    const value_t *val;
 };
 
 template <typename value_t, class index_t>
 matrix_map<value_t, index_t> map(
-        index_t rows, index_t cols, index_t *row, index_t *col, value_t *val
+        index_t rows, index_t cols,
+        const index_t *row, const index_t *col, const value_t *val
         )
 {
     return matrix_map<value_t, index_t>(rows, cols, row, col, val);

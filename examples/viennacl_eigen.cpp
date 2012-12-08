@@ -1,7 +1,9 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
+
 #include <amgcl/amgcl.hpp>
+#include <amgcl/operations_eigen.hpp>
 
 #include <Eigen/Dense>
 #include <Eigen/SparseCore>
@@ -81,9 +83,9 @@ int main(int argc, char *argv[]) {
             n, n, row.back(), row.data(), col.data(), val.data()
             );
 
-    // Wrap the matrix into amgcl::sparse::map and build the preconditioner:
+    // Build the preconditioner:
     prof.tic("setup");
-    amg_precond amg(amgcl::sparse::map(n, n, row.data(), col.data(), val.data()));
+    amg_precond amg(amgcl::sparse::map(A));
     prof.toc("setup");
 
     // Solve the problem with CG method from ViennaCL. Use AMG as a
