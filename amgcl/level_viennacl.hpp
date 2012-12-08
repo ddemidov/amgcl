@@ -33,6 +33,7 @@ THE SOFTWARE.
 #include <viennacl/vector.hpp>
 #include <viennacl/compressed_matrix.hpp>
 #include <viennacl/ell_matrix.hpp>
+#include <viennacl/hyb_matrix.hpp>
 #include "viennacl/linalg/inner_prod.hpp"
 #include <viennacl/linalg/prod.hpp>
 #include <viennacl/generator/custom_operation.hpp>
@@ -42,7 +43,8 @@ namespace level {
 
 enum gpu_matrix_format {
     GPU_MATRIX_CRS,
-    GPU_MATRIX_ELL
+    GPU_MATRIX_ELL,
+    GPU_MATRIX_HYB
 };
 
 template <gpu_matrix_format Format, typename value_type>
@@ -58,8 +60,13 @@ struct matrix_format<GPU_MATRIX_ELL, value_type> {
     typedef viennacl::ell_matrix<value_type> type;
 };
 
+template <typename value_type>
+struct matrix_format<GPU_MATRIX_HYB, value_type> {
+    typedef viennacl::hyb_matrix<value_type> type;
+};
+
 // ViennaCL-based AMG hierarchy.
-template <gpu_matrix_format Format>
+template <gpu_matrix_format Format = GPU_MATRIX_HYB>
 struct ViennaCL {
 
 template <typename value_t, typename index_t = long long>
