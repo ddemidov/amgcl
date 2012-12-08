@@ -21,6 +21,7 @@
 
 #include <viennacl/vector.hpp>
 #include <viennacl/compressed_matrix.hpp>
+#include <viennacl/ell_matrix.hpp>
 #include <viennacl/linalg/cg.hpp>
 
 namespace amgcl {
@@ -52,7 +53,7 @@ struct amg_precond {
 #else
         amgcl::interp::classic,
 #endif
-        amgcl::level::ViennaCL
+        amgcl::level::ViennaCL<amgcl::level::GPU_MATRIX_ELL>
         > amg;
 
     mutable viennacl::vector<double> r;
@@ -108,8 +109,8 @@ int main(int argc, char *argv[]) {
     prof.toc("setup");
 
     // Copy matrix and rhs to GPU(s).
-    viennacl::compressed_matrix<double> Agpu;
-    amgcl::copy(A, Agpu);
+    viennacl::ell_matrix<double> Agpu;
+    viennacl::copy(amgcl::sparse::viennacl_map(A), Agpu);
 
     viennacl::vector<double> f(n);
     viennacl::copy(rhs, f);

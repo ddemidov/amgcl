@@ -31,6 +31,7 @@ THE SOFTWARE.
 #include <amgcl/operations_viennacl.hpp>
 
 #include <viennacl/vector.hpp>
+#include <viennacl/compressed_matrix.hpp>
 #include <viennacl/ell_matrix.hpp>
 #include "viennacl/linalg/inner_prod.hpp"
 #include <viennacl/linalg/prod.hpp>
@@ -39,15 +40,34 @@ THE SOFTWARE.
 namespace amgcl {
 namespace level {
 
+enum gpu_matrix_format {
+    GPU_MATRIX_CRS,
+    GPU_MATRIX_ELL
+};
+
+template <gpu_matrix_format Format, typename value_type>
+struct matrix_format;
+
+template <typename value_type>
+struct matrix_format<GPU_MATRIX_CRS, value_type> {
+    typedef viennacl::compressed_matrix<value_type> type;
+};
+
+template <typename value_type>
+struct matrix_format<GPU_MATRIX_ELL, value_type> {
+    typedef viennacl::ell_matrix<value_type> type;
+};
+
 // ViennaCL-based AMG hierarchy.
+template <gpu_matrix_format Format>
 struct ViennaCL {
 
 template <typename value_t, typename index_t = long long>
 class instance {
     public:
-        typedef sparse::matrix<value_t, index_t> cpu_matrix;
-        typedef viennacl::ell_matrix<value_t>    matrix;
-        typedef viennacl::vector<value_t>        vector;
+        typedef sparse::matrix<value_t, index_t>              cpu_matrix;
+        typedef typename matrix_format<Format, value_t>::type matrix;
+        typedef viennacl::vector<value_t>                     vector;
 
         // Construct complete multigrid level from system matrix (a),
         // prolongation (p) and restriction (r) operators.
