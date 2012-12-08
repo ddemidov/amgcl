@@ -122,14 +122,16 @@ class instance {
 
             const index_t n = x.size();
 
-            t = rhs - viennacl::linalg::prod(A, x);
+            t = rhs;
+            t -= viennacl::linalg::prod(A, x);
             value_t w = static_cast<value_t>(0.72);
             viennacl::ocl::enqueue( mul_add(x, t, d, w) );
         }
 
         // Compute residual value.
         value_t resid(const vector &rhs, vector &x) const {
-            t = rhs - A * x;
+            t = rhs;
+            t -= viennacl::linalg::prod(A, x);
 
             return sqrt(viennacl::linalg::inner_prod(t, t));
         }
@@ -146,7 +148,8 @@ class instance {
                 for(unsigned j = 0; j < prm.ncycle; ++j) {
                     for(unsigned i = 0; i < prm.npre; ++i) lvl->relax(rhs, x);
 
-                    lvl->t = rhs - viennacl::linalg::prod(lvl->A, x);
+                    lvl->t = rhs;
+                    lvl->t -= viennacl::linalg::prod(lvl->A, x);
                     nxt->f = viennacl::linalg::prod(lvl->R, lvl->t);
                     nxt->u.clear();
 
