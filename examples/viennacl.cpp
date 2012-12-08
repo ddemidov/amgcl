@@ -113,7 +113,7 @@ int main(int argc, char *argv[]) {
     viennacl::copy(amgcl::sparse::viennacl_map(A), Agpu);
 
     viennacl::vector<double> f(n);
-    viennacl::copy(rhs, f);
+    viennacl::fast_copy(rhs, f);
 
     // Solve the problem with CG method from ViennaCL. Use AMG as a
     // preconditioner:

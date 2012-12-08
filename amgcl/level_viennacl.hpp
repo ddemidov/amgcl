@@ -79,7 +79,7 @@ class instance {
             viennacl::copy(sparse::viennacl_map(p), P);
             viennacl::copy(sparse::viennacl_map(r), R);
 
-            viennacl::copy(diagonal(a), d);
+            viennacl::fast_copy(diagonal(a), d);
 
             if (nlevel) {
                 u.resize(a.rows);
@@ -103,7 +103,7 @@ class instance {
             viennacl::copy(sparse::viennacl_map(a),  A);
             viennacl::copy(sparse::viennacl_map(ai), Ainv);
 
-            viennacl::copy(diagonal(a), d);
+            viennacl::fast_copy(diagonal(a), d);
 
             a.clear();
             ai.clear();
