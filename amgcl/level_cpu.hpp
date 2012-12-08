@@ -26,6 +26,7 @@ THE SOFTWARE.
 */
 
 #include <vector>
+#include <array>
 #include <amgcl/spmat.hpp>
 
 namespace amgcl {
@@ -48,6 +49,10 @@ class instance {
             if (nlevel) {
                 u.resize(A.rows);
                 f.resize(A.rows);
+
+                if (prm.kcycle && nlevel % prm.kcycle == 0)
+                    for(auto v = cg.begin(); v != cg.end(); ++v)
+                        v->resize(A.rows);
             }
 
             t.resize(A.rows);
@@ -142,7 +147,10 @@ class instance {
 
                     std::fill(nxt->u.begin(), nxt->u.end(), static_cast<value_t>(0));
 
-                    cycle(nxt, end, prm, nxt->f, nxt->u);
+                    if (nxt->cg[0].empty())
+                        cycle(nxt, end, prm, nxt->f, nxt->u);
+                    else
+                        kcycle(nxt, end, prm, nxt->f, nxt->u);
 
                     //x += lvl->P * nxt->u;
 #pragma omp parallel for schedule(dynamic, 1024)
@@ -166,6 +174,78 @@ class instance {
                 }
             }
         }
+
+        template <class Iterator, class vector1, class vector2>
+        static void kcycle(Iterator lvl, Iterator end, const params &prm,
+                const vector1 &rhs, vector2 &x)
+        {
+            const index_t n = lvl->A.rows;
+            Iterator nxt = lvl; ++nxt;
+
+            if (nxt != end) {
+                auto &r = lvl->cg[0];
+                auto &s = lvl->cg[1];
+                auto &p = lvl->cg[2];
+                auto &q = lvl->cg[3];
+
+                std::copy(&rhs[0], &rhs[0] + n, &r[0]);
+
+                value_t rho1 = 0, rho2 = 0;
+
+                for(int iter = 0; iter < 2; ++iter) {
+                    std::fill(&s[0], &s[0] + n, static_cast<value_t>(0));
+                    cycle(lvl, end, prm, r, s);
+
+                    rho2 = rho1;
+                    rho1 = lvl->inner_prod(r, s);
+
+                    if (iter) {
+                        value_t beta = rho1 / rho2;
+                        std::transform(
+                                &p[0], &p[0] + n,
+                                &s[0], &p[0],
+                                [beta](value_t pp, value_t ss) {
+                                    return ss + beta * pp;
+                                });
+                    } else {
+                        std::copy(&s[0], &s[0] + n, &p[0]);
+                    }
+
+#pragma omp parallel for schedule(dynamic, 1024)
+                    for(index_t i = 0; i < n; ++i) {
+                        value_t temp = 0;
+
+                        for(index_t j = lvl->A.row[i], e = lvl->A.row[i + 1]; j < e; ++j)
+                            temp += lvl->A.val[j] * p[lvl->A.col[j]];
+
+                        q[i] = temp;
+                    }
+
+                    value_t alpha = rho1 / lvl->inner_prod(q, p);
+
+                    std::transform(
+                            &x[0], &x[0] + n,
+                            &p[0], &x[0],
+                            [alpha](value_t xx, value_t pp) {
+                                return xx + alpha * pp;
+                            });
+
+                    std::transform(
+                            &r[0], &r[0] + n,
+                            &q[0], &r[0],
+                            [alpha](value_t rr, value_t qq) {
+                                return rr - alpha * qq;
+                            });
+                }
+            } else {
+                for(index_t i = 0; i < n; ++i) {
+                    value_t temp = 0;
+                    for(index_t j = lvl->Ai.row[i], e = lvl->Ai.row[i + 1]; j < e; ++j)
+                        temp += lvl->Ai.val[j] * rhs[lvl->Ai.col[j]];
+                    x[i] = temp;
+                }
+            }
+        }
     private:
         matrix A;
         matrix P;
@@ -177,6 +257,8 @@ class instance {
         mutable std::vector<value_t> f;
         mutable std::vector<value_t> t;
 
+        mutable std::array<std::vector<value_t>, 4> cg;
+
         template <class U>
         inline static void vector_copy(U &u, U &v) {
             std::swap(u, v);
@@ -185,6 +267,19 @@ class instance {
         template <class U, class V>
         inline static void vector_copy(U &u, V &v) {
             std::copy(u.begin(), u.end(), &v[0]);
+        }
+
+        template <class vector1, class vector2>
+        value_t inner_prod(const vector1 &x, const vector2 &y) const {
+            const index_t n = A.rows;
+
+            value_t sum = 0;
+
+#pragma omp parallel for reduction(+:sum) schedule(dynamic, 1024)
+            for(index_t i = 0; i < n; ++i)
+                sum += x[i] * y[i];
+
+            return sum;
         }
 };
 

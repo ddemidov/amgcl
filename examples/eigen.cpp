@@ -6,8 +6,14 @@
 #include <Eigen/SparseCore>
 
 #define AMGCL_PROFILING
+//#define AGGREGATION
 
 #include <amgcl/amgcl.hpp>
+#ifdef AGGREGATION
+#  include <amgcl/aggregation.hpp>
+#else
+#  include <amgcl/interp_classic.hpp>
+#endif
 #include <amgcl/operations_eigen.hpp>
 #include <amgcl/cg.hpp>
 #include <amgcl/bicgstab.hpp>
@@ -40,13 +46,22 @@ int main(int argc, char *argv[]) {
     pfile.read((char*)rhs.data(), rhs.size() * sizeof(double));
 
     // Wrap the matrix into amgcl::sparse::map and build the preconditioner:
+    amgcl::params prm;
+#ifdef AGGREGATION
+    prm.kcycle = 1;
+    prm.over_interp = 1.5;
+#endif
+
     prof.tic("setup");
     amgcl::solver<
         double, int,
-        amgcl::interp::classic, amgcl::level::cpu
-        > amg(
-            amgcl::sparse::map(n, n, row.data(), col.data(), val.data())
-            );
+#ifdef AGGREGATION
+        amgcl::interp::aggregation<amgcl::aggr::plain>,
+#else
+        amgcl::interp::classic,
+#endif
+        amgcl::level::cpu
+        > amg(amgcl::sparse::map(n, n, row.data(), col.data(), val.data()), prm);
     prof.toc("setup");
 
     // Wrap the matrix into Eigen Map.
