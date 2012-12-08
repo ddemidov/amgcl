@@ -31,7 +31,7 @@ THE SOFTWARE.
 #include <amgcl/operations_viennacl.hpp>
 
 #include <viennacl/vector.hpp>
-#include <viennacl/compressed_matrix.hpp>
+#include <viennacl/ell_matrix.hpp>
 #include "viennacl/linalg/inner_prod.hpp"
 #include <viennacl/linalg/prod.hpp>
 #include <viennacl/generator/custom_operation.hpp>
@@ -45,9 +45,9 @@ struct ViennaCL {
 template <typename value_t, typename index_t = long long>
 class instance {
     public:
-        typedef sparse::matrix<value_t, index_t>      cpu_matrix;
-        typedef viennacl::compressed_matrix<value_t>  matrix;
-        typedef viennacl::vector<value_t>             vector;
+        typedef sparse::matrix<value_t, index_t> cpu_matrix;
+        typedef viennacl::ell_matrix<value_t>    matrix;
+        typedef viennacl::vector<value_t>        vector;
 
         // Construct complete multigrid level from system matrix (a),
         // prolongation (p) and restriction (r) operators.
@@ -55,9 +55,9 @@ class instance {
         instance(cpu_matrix &&a, cpu_matrix &&p, cpu_matrix &&r, const params &prm, unsigned nlevel)
             : d(a.rows), t(a.rows)
         {
-            copy(a, A);
-            copy(p, P);
-            copy(r, R);
+            viennacl::copy(sparse::viennacl_map(a), A);
+            viennacl::copy(sparse::viennacl_map(p), P);
+            viennacl::copy(sparse::viennacl_map(r), R);
 
             viennacl::copy(diagonal(a), d);
 
@@ -80,8 +80,8 @@ class instance {
         instance(cpu_matrix &&a, cpu_matrix &&ai, const params &prm, unsigned nlevel)
             : d(a.rows), u(a.rows), f(a.rows), t(a.rows)
         {
-            copy(a,  A);
-            copy(ai, Ainv);
+            viennacl::copy(sparse::viennacl_map(a),  A);
+            viennacl::copy(sparse::viennacl_map(ai), Ainv);
 
             viennacl::copy(diagonal(a), d);
 
