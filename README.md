@@ -74,7 +74,7 @@ gradients works even better:
 ```C++
 // Eigen::VectorXd rhs, x;
 
-auto conv = amgcl::solve(A, rhs, x, amgcl::cg_tag());
+auto conv = amgcl::solve(A, rhs, amg, x, amgcl::cg_tag());
 ```
 
 Types of right-hand side and solution vectors should be compatible with the
@@ -86,7 +86,7 @@ if `amgcl::level::vexcl` is used as a storage backend, then `vex::SpMat` and
 // vex::SpMat<double,int> Agpu;
 // vex::vector<double> rhs, x;
 
-auto conv = amgcl::solve(Agpu, rhs, x, amgcl::cg_tag());
+auto conv = amgcl::solve(Agpu, rhs, amg, x, amgcl::cg_tag());
 ```
 
 Installation
