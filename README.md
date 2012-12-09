@@ -57,7 +57,7 @@ amgcl::solver<
 Solution
 --------
 
-After the hierarchy is constructed, it may be repeatedly used to solve the
+Once the hierarchy is constructed, it may be repeatedly used to solve the
 linear system for different right-hand sides:
 
 ```C++
