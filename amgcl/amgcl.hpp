@@ -181,6 +181,7 @@ class solver {
         typedef typename level_t::template instance<value_t, index_t> level_type;
 
     public:
+        /// Parameters for AMG components.
         struct params {
             unsigned coarse_enough; ///< When level is coarse enough to be solved directly.
 
