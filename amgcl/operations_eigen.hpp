@@ -25,6 +25,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+/**
+ * \file   operations_eigen.hpp
+ * \author Denis Demidov <ddemidov@ksu.ru>
+ * \brief  Adaptors for Eigen types.
+ */
+
 #include <Eigen/Dense>
 #include <Eigen/SparseCore>
 

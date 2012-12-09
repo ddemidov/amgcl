@@ -25,92 +25,108 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+/**
+ * \file   spmat.hpp
+ * \author Denis Demidov <ddemidov@ksu.ru>
+ * \brief  A set of routines to work with sparse matrices in CRS format.
+ */
+
 #include <vector>
 #include <algorithm>
 #include <stdexcept>
 #include <cassert>
 #include <omp.h>
 
-// Local implementation of a sparse matrix. Use amgcl::sparse::map with
-// externally-defined matrices in CRS format.
-
 namespace amgcl {
+
+/// A set of routines to work with sparse matrices in CRS format.
 namespace sparse {
 
-//---------------------------------------------------------------------------
+/// Type of matrix indices.
 template <class spmat>
 struct matrix_index {
     typedef typename spmat::index_type type;
 };
 
-//---------------------------------------------------------------------------
+/// Type of matrix values.
 template <class spmat>
 struct matrix_value {
     typedef typename spmat::value_type type;
 };
 
-//---------------------------------------------------------------------------
+/// Number of rows in a matrix.
 template <class spmat>
 typename matrix_index<spmat>::type matrix_rows(const spmat &A) {
     return A.rows;
 }
 
+/// Number of columns in a matrix.
 template <class spmat>
 typename matrix_index<spmat>::type matrix_cols(const spmat &A) {
     return A.cols;
 }
 
-//---------------------------------------------------------------------------
+/// Pointer to an array of outer indices.
 template <class spmat>
 const typename matrix_index<spmat>::type * matrix_outer_index(const spmat &A) {
     return &(A.row[0]);
 }
 
+/// Pointer to an array of outer indices.
 template <class spmat>
 typename matrix_index<spmat>::type * matrix_outer_index(spmat &A) {
     return &(A.row[0]);
 }
 
-//---------------------------------------------------------------------------
+/// Pointer to an array of inner indices.
 template <class spmat>
 const typename matrix_index<spmat>::type * matrix_inner_index(const spmat &A) {
     return &(A.col[0]);
 }
 
+/// Pointer to an array of inner indices.
 template <class spmat>
 typename matrix_index<spmat>::type * matrix_inner_index(spmat &A) {
     return &(A.col[0]);
 }
 
-//---------------------------------------------------------------------------
+/// Pointer to an array of values.
 template <class spmat>
 const typename matrix_value<spmat>::type * matrix_values(const spmat &A) {
     return &(A.val[0]);
 }
 
+/// Pointer to an array of values.
 template <class spmat>
 typename matrix_value<spmat>::type * matrix_values(spmat &A) {
     return &(A.val[0]);
 }
 
-//---------------------------------------------------------------------------
+/// Number of nonzero entries.
 template <class spmat>
 typename matrix_index<spmat>::type matrix_nonzeros(const spmat &A) {
     return matrix_outer_index(A)[matrix_rows(A)];
 }
 
-//---------------------------------------------------------------------------
+/// Sparse matrix in CRS format.
+/**
+ * \param value_t  Type of matrix values.
+ * \param indexe_t Type of matrix indices.
+ */
 template <typename value_t = double, class index_t = long long>
 struct matrix {
     typedef index_t index_type;
     typedef value_t value_type;
 
+    /// Empty matrix construction.
     matrix() : rows(0), cols(0) {}
 
+    /// Constructs matrix with a given number of rows, columns, and nonzero entries.
     matrix(index_t rows, index_t cols, index_t nnz = 0) :
         rows(rows), cols(cols), row(rows + 1), col(nnz), val(nnz)
     {}
 
+    /// Copy constructor.
     matrix(const matrix &A) :
         rows(A.rows),
         cols(A.cols),
@@ -119,6 +135,7 @@ struct matrix {
         val( A.val )
     { }
 
+    /// Move constructor.
     matrix(matrix &&A) :
         rows(A.rows),
         cols(A.cols),
@@ -127,6 +144,7 @@ struct matrix {
         val( std::move(A.val) )
     { }
 
+    /// Copy constructor from a compatible type.
     template <class spmat>
     matrix(const spmat &A) :
         rows(matrix_rows(A)),
@@ -136,11 +154,13 @@ struct matrix {
         val(matrix_values(A), matrix_values(A) + row[rows])
     { }
 
+    /// Allocates memory for a given number of nonzero entries.
     void reserve(index_t nnz) {
         col.resize(nnz);
         val.resize(nnz);
     }
 
+    /// Deallocates any heap memory held by the matrix.
     void clear() {
         rows = cols = 0;
         std::vector<index_t>().swap(row);
@@ -148,19 +168,25 @@ struct matrix {
         std::vector<value_t>().swap(val);
     }
 
-    index_t rows, cols;
+    index_t rows;               ///< Number of rows.
+    index_t cols;               ///< Number of columns.
 
-    std::vector<index_t> row;
-    std::vector<index_t> col;
-    std::vector<value_t> val;
+    std::vector<index_t> row;   ///< Outer indices.
+    std::vector<index_t> col;   ///< Inner indices.
+    std::vector<value_t> val;   ///< Values.
 };
 
-//---------------------------------------------------------------------------
+/// Proxy for sparse matrix in CRS format that does not own its data.
+/**
+ * \param value_t  Type of matrix values.
+ * \param indexe_t Type of matrix indices.
+ */
 template <typename value_t, class index_t>
 struct matrix_map {
     typedef index_t index_type;
     typedef value_t value_type;
 
+    /// Stores matrix dimensions and pointers to data arrays.
     matrix_map(
             index_t rows, index_t cols,
             const index_t *row, const index_t *col, const value_t *val
@@ -168,14 +194,15 @@ struct matrix_map {
         : rows(rows), cols(cols), row(row), col(col), val(val)
     {}
 
-    const index_t rows;
-    const index_t cols;
+    const index_t rows;     ///< Number of rows.
+    const index_t cols;     ///< Number of columns.
 
-    const index_t *row;
-    const index_t *col;
-    const value_t *val;
+    const index_t *row;     ///< Outer indices.
+    const index_t *col;     ///< Inner indices.
+    const value_t *val;     ///< Values.
 };
 
+/// Constructs proxy matrix class from a raw data.
 template <typename value_t, class index_t>
 matrix_map<value_t, index_t> map(
         index_t rows, index_t cols,
@@ -185,7 +212,7 @@ matrix_map<value_t, index_t> map(
     return matrix_map<value_t, index_t>(rows, cols, row, col, val);
 }
 
-//---------------------------------------------------------------------------
+/// Transpose of a sparse matrix.
 template <class spmat>
 matrix<
     typename matrix_value<spmat>::type,
@@ -227,7 +254,7 @@ transpose(const spmat &A) {
     return T;
 }
 
-//---------------------------------------------------------------------------
+/// Matrix-matrix product.
 template <class spmat1, class spmat2>
 matrix<
     typename matrix_value<spmat1>::type,
@@ -314,7 +341,7 @@ prod(const spmat1 &A, const spmat2 &B) {
     return C;
 }
 
-//---------------------------------------------------------------------------
+/// Gauss-Jordan elimination.
 template <typename index_t, class value_t>
 void gaussj(index_t n, value_t *a) {
     const static value_t one = static_cast<value_t>(1);
@@ -385,7 +412,10 @@ void gaussj(index_t n, value_t *a) {
     }
 }
 
-//---------------------------------------------------------------------------
+/// Inversion of a sparse matrix.
+/**
+ * Gauss-Jordan elimination routine is used.
+ */
 template <class spmat>
 matrix<
     typename matrix_value<spmat>::type,
@@ -427,7 +457,7 @@ inverse(const spmat &A) {
     return Ainv;
 }
 
-//---------------------------------------------------------------------------
+/// Returns vector containing diagonal entrix of a sparse matrix.
 template <class spmat>
 std::vector< typename matrix_value<spmat>::type >
 diagonal(const spmat &A) {

@@ -52,7 +52,7 @@ struct amg_precond {
 #else
         amgcl::interp::classic,
 #endif
-        amgcl::level::ViennaCL<amgcl::level::GPU_MATRIX_HYB>
+        amgcl::level::ViennaCL<amgcl::level::CL_MATRIX_HYB>
         > amg;
 
     mutable viennacl::vector<double> r;

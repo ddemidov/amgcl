@@ -3,14 +3,16 @@ amgcl
 
 Simple AMG hierarchy builder. May be used as a standalone solver or as a
 preconditioner. CG and BiCGStab iterative solvers are provided. Solvers from
-from [ViennaCL](http://viennacl.sourceforge.net) are supported as well.
+from [ViennaCL][ViennaCL] are supported as well.
 
-[VexCL](https://github.com/ddemidov/vexcl),
-[ViennaCL](http://viennacl.sourceforge.net), or
-[Eigen](http://eigen.tuxfamily.org) matrix/vector containers may be used with
-built-in and ViennaCL's solvers. See [examples/vexcl.cpp][ex1],
-[examples/viennacl.cpp][ex2] and [examples/eigen.cpp][ex3] for respective
-examples.
+[VexCL][VexCL], [ViennaCL][ViennaCL], or [Eigen][Eigen] matrix/vector
+containers may be used with built-in and ViennaCL's solvers. See
+[examples/vexcl.cpp][ex1], [examples/viennacl.cpp][ex2] and
+[examples/eigen.cpp][ex3] for respective examples.
+
+[VexCL]:    https://github.com/ddemidov/vexcl
+[ViennaCL]: http://viennacl.sourceforge.net
+[Eigen]:    http://eigen.tuxfamily.org
 
 [ex1]: https://github.com/ddemidov/amgcl/blob/master/examples/vexcl.cpp
 [ex2]: https://github.com/ddemidov/amgcl/blob/master/examples/viennacl.cpp
@@ -37,9 +39,9 @@ amgcl::solver<
 Currently supported interpolation schemes are `amgcl::interp::classic` and
 `amgcl::interp::aggregation<amgcl::aggr::plain>`. The aggregation scheme uses
 less memory and is set up faster than classic interpolation, but its
-convergence rate is slower. It is well suited for VexCL containers, where
-solution phase is accelerated by the OpenCL technology and, therefore, the cost
-of the setup phase is much more important.
+convergence rate is slower. It is well suited for VexCL or ViennaCL containers,
+where solution phase is accelerated by the OpenCL technology and, therefore,
+the cost of the setup phase is much more important.
 
 ```C++
 amgcl::solver<
@@ -72,7 +74,9 @@ gradients works even better:
 auto conv = amgcl::solve(A, rhs, x, amgcl::cg_tag());
 ```
 
-If `amgcl::level::vexcl` is used as a storage backend, then `vex::SpMat` and
+Types of right-hand side and solution vectors should be compatible with the
+level type used for construction of the AMG hierarchy. For example,
+if `amgcl::level::vexcl` is used as a storage backend, then `vex::SpMat` and
 `vex::vector` types have to be used when solving:
 
 ```C++

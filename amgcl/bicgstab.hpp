@@ -25,20 +25,43 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+/**
+ * \file   bicgstab.hpp
+ * \author Denis Demidov <ddemidov@ksu.ru>
+ * \brief  Stabilized BiConjugate Gradient method.
+ *
+ * Implementation is based on (Barrett at. al, 2006)
+ */
+
 #include <tuple>
 #include <stdexcept>
 
 namespace amgcl {
 
+/// Controlling parameters.
 struct bicg_tag {
-    int maxiter;
-    double tol;
+    int maxiter; ///< Maximum number of iterations.
+    double tol;  ///< The desired precision.
 
     bicg_tag(int maxiter = 100, double tol = 1e-8)
         : maxiter(maxiter), tol(tol)
     {}
 };
 
+/// Stabilized BiConjugate Gradient method.
+/**
+ * Implementation is based on (Barrett at. al, 2006)
+ *
+ * \param A   The system matrix.
+ * \param rhs The right-hand side.
+ * \param P   The preconditioner. Should provide apply(rhs, x) method.
+ * \param x   The solution. Contains an initial approximation on input, and
+ *            the approximated solution on output.
+ * \param prm The control parameters.
+ *
+ * \returns a tuple containing number of iterations made and precision
+ * achieved.
+ */
 template <class matrix, class vector, class precond>
 std::tuple< int, typename value_type<vector>::type >
 solve(const matrix &A, const vector &rhs, const precond &P, vector &x, bicg_tag prm = bicg_tag())

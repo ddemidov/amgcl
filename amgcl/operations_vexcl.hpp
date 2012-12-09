@@ -25,6 +25,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+/**
+ * \file   operations_vexcl.hpp
+ * \author Denis Demidov <ddemidov@ksu.ru>
+ * \brief  Adaptors for VexCL types.
+ */
+
 #include <vexcl/vexcl.hpp>
 
 namespace amgcl {

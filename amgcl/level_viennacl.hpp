@@ -25,6 +25,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+/**
+ * \file   level_vexcl.hpp
+ * \author Denis Demidov <ddemidov@ksu.ru>
+ * \brief  Level of an AMG hierarchy for use with VexCL vectors.
+ */
+
 #include <array>
 
 #include <amgcl/spmat.hpp>
@@ -34,39 +40,45 @@ THE SOFTWARE.
 #include <viennacl/compressed_matrix.hpp>
 #include <viennacl/ell_matrix.hpp>
 #include <viennacl/hyb_matrix.hpp>
-#include "viennacl/linalg/inner_prod.hpp"
+#include <viennacl/linalg/inner_prod.hpp>
 #include <viennacl/linalg/prod.hpp>
 #include <viennacl/generator/custom_operation.hpp>
 
 namespace amgcl {
 namespace level {
 
-enum gpu_matrix_format {
-    GPU_MATRIX_CRS,
-    GPU_MATRIX_ELL,
-    GPU_MATRIX_HYB
+/// Possible matrix storage formats.
+enum cl_matrix_format {
+    CL_MATRIX_CRS, ///< Compressed matrix. Fastest construction, slowest operation (on a GPU). Best suited for CPU compute devices.
+    CL_MATRIX_ELL, ///< ELL format. Ideal for matrices with constant number of nonzeros per row on GPU compute devices.
+    CL_MATRIX_HYB  ///< Hybrid ELL format. Best choice for general matrices on GPU compute devices.
 };
 
-template <gpu_matrix_format Format, typename value_type>
+template <cl_matrix_format Format, typename value_type>
 struct matrix_format;
 
 template <typename value_type>
-struct matrix_format<GPU_MATRIX_CRS, value_type> {
+struct matrix_format<CL_MATRIX_CRS, value_type> {
     typedef viennacl::compressed_matrix<value_type> type;
 };
 
 template <typename value_type>
-struct matrix_format<GPU_MATRIX_ELL, value_type> {
+struct matrix_format<CL_MATRIX_ELL, value_type> {
     typedef viennacl::ell_matrix<value_type> type;
 };
 
 template <typename value_type>
-struct matrix_format<GPU_MATRIX_HYB, value_type> {
+struct matrix_format<CL_MATRIX_HYB, value_type> {
     typedef viennacl::hyb_matrix<value_type> type;
 };
 
-// ViennaCL-based AMG hierarchy.
-template <gpu_matrix_format Format = GPU_MATRIX_HYB>
+/// VexCL-based AMG hierarchy.
+/**
+ * Level of an AMG hierarchy for use with ViennaCL vectors.
+ *
+ * \param Format Matrix storage format.
+ */
+template <cl_matrix_format Format = CL_MATRIX_HYB>
 struct ViennaCL {
 
 template <typename value_t, typename index_t = long long>

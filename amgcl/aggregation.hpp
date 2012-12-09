@@ -1,6 +1,36 @@
 #ifndef AMGCL_AGGR_PLAIN_HPP
 #define AMGCL_AGGR_PLAIN_HPP
 
+/*
+The MIT License
+
+Copyright (c) 2012 Denis Demidov <ddemidov@ksu.ru>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+*/
+
+/**
+ * \file   aggregation.hpp
+ * \author Denis Demidov <ddemidov@ksu.ru>
+ * \brief  Aggregates-based interpolation scheme.
+ */
+
 #include <vector>
 #include <tuple>
 #include <algorithm>
@@ -10,10 +40,32 @@
 #include <amgcl/profiler.hpp>
 
 namespace amgcl {
+
 namespace aggr {
 
+/// Plain aggregation.
+/**
+ * Modification of a greedy aggregation scheme from (Vanek 1995). Any
+ * nonzero matrix entry forms a connection. Vatiables without neighbours
+ * (resulting, e.g., from Dirichlet conditions) are excluded from aggregation
+ * process. The aggregation is completed in a single pass over variables:
+ * variables adjacent to a new aggregate are temporarily marked as beloning to
+ * this aggregate. Later they may be claimed by other aggregates; if nobody
+ * claims them, then they just stay in their initial aggregate.
+ */
 struct plain {
 
+/// Constructs aggregates of variables.
+/** 
+ * Each entry of the return vector corresponds to a variable and contains
+ * number of an aggregate the variable belongs to. If an entry is negative,
+ * then variable does not belong to any aggregate.
+ *
+ * \param A system matrix.
+ * \param prm parameters.
+ *
+ * \returns a vector of aggregate numbers.
+ */
 template <class spmat>
 static std::vector< typename sparse::matrix_index<spmat>::type >
 aggregates( const spmat &A, const params &prm ) {
@@ -31,7 +83,7 @@ aggregates( const spmat &A, const params &prm ) {
     auto Acol = sparse::matrix_inner_index(A);
     auto Aval = sparse::matrix_values(A);
 
-    // Remove nodes without neigbors
+    // Remove nodes without neighbours
     index_t max_row_width = 0;
     for(index_t i = 0; i < n; ++i) {
         auto w = Arow[i + 1] - Arow[i];
@@ -83,10 +135,24 @@ aggregates( const spmat &A, const params &prm ) {
 
 namespace interp {
 
-// Constructs corse level by agregation.
+/// Aggregation-based interpolation scheme.
+/**
+ * \param aggr_type Aggregation scheme. For now the only possible value is
+ *                  amgcl::aggr::plain.
+ */
 template <class aggr_type>
 struct aggregation {
 
+/// Constructs coarse level by agregation.
+/**
+ * Returns interpolation operator, which is enough to construct system matrix
+ * at coarser level.
+ *
+ * \param A   system matrix.
+ * \param prm parameters.
+ *
+ * \returns interpolation operator.
+ */
 template < class value_t, class index_t >
 static sparse::matrix<value_t, index_t> interp(
         const sparse::matrix<value_t, index_t> &A, const params &prm

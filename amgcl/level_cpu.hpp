@@ -25,14 +25,25 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+/**
+ * \file   level_cpu.hpp
+ * \author Denis Demidov <ddemidov@ksu.ru>
+ * \brief  Level of an AMG hierarchy for use with arrays located in main (CPU) memory.
+ */
+
 #include <vector>
 #include <array>
 #include <amgcl/spmat.hpp>
 
 namespace amgcl {
+
+/// Storage schemes for levels of AMG hierarchy.
 namespace level {
 
-// CPU-based AMG hierarchy.
+/// CPU-based AMG hierarchy.
+/**
+ * Level of an AMG hierarchy for use with arrays located in main (CPU) memory.
+ */
 struct cpu {
 
 template <typename value_t, typename index_t>

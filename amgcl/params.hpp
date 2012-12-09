@@ -25,23 +25,29 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+/**
+ * \file   params.hpp
+ * \author Denis Demidov <ddemidov@ksu.ru>
+ * \brief  AMG parameters.
+ */
+
 namespace amgcl {
 
-// Minimal set af AMG parameters.
+/// AMG parameters.
 struct params {
-    float    eps_strong;    // Parameter for strong connections.
-    unsigned coarse_enough; // When level is coarse enough to be solved directly.
+    float    eps_strong;    ///< Parameter for strong connections.
+    unsigned coarse_enough; ///< When level is coarse enough to be solved directly.
 
-    bool     trunc_int;     // Truncate prolongation operator.
-    float    eps_tr;        // Truncation parameter.
-    float    over_interp;   // Over-interpolation factor.
+    bool     trunc_int;     ///< Truncate prolongation operator.
+    float    eps_tr;        ///< Truncation parameter.
+    float    over_interp;   ///< Over-interpolation factor.
 
-    unsigned npre;          // Number of pre-relaxations.
-    unsigned npost;         // Number of post-relaxations.
-    unsigned ncycle;        // Number of cycles (1 for V-cycle, 2 for W-cycle, etc.).
-    unsigned kcycle;        // How often to invoke k-cycle instead of just cycle.
-    unsigned maxiter;       // Maximum number of iterations in standalone solver.
-    double   tol;           // The required precision for standalone solver.
+    unsigned npre;          ///< Number of pre-relaxations.
+    unsigned npost;         ///< Number of post-relaxations.
+    unsigned ncycle;        ///< Number of cycles (1 for V-cycle, 2 for W-cycle, etc.).
+    unsigned kcycle;        ///< How often to invoke k-cycle instead of just cycle.
+    unsigned maxiter;       ///< Maximum number of iterations in standalone solver.
+    double   tol;           ///< The required precision for standalone solver.
 
     params() {
         eps_strong    = 0.25f;

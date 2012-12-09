@@ -25,6 +25,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+/**
+ * \file   profiler.hpp
+ * \author Denis Demidov <ddemidov@ksu.ru>
+ * \brief  Profiler class.
+ */
+
 #include <iostream>
 #include <iomanip>
 #include <map>
@@ -34,18 +40,34 @@ THE SOFTWARE.
 
 namespace amgcl {
 
-// Simple profiler class.
+/// Simple profiler class.
+/**
+ * \param clock       Clock to use for profiling.
+ * \param SHIFT_WIDTH Indentation for output of profiling results.
+ *
+ * Provides simple to use, possibly nested timers with nicely formatted output.
+ * The implementation was inspired by a HOOMD-Blue code
+ * (http://codeblue.umich.edu/hoomd-blue)
+ */
 template <
     class clock = std::chrono::high_resolution_clock,
     uint SHIFT_WIDTH = 2
     >
 class profiler {
     public:
+        /// Initialization.
+        /**
+         * \param name Profile title to use with output.
+         */
         profiler(const std::string &name = "Profile") : name(name) {
             stack.push(&root);
             root.start_time = clock::now();
         }
 
+        /// Starts named timer.
+        /**
+         * \param name Timer name.
+         */
         void tic(const std::string &name) {
             auto top = stack.top();
 
@@ -54,6 +76,10 @@ class profiler {
             stack.push(&top->children[name]);
         }
 
+        /// Stops named timer.
+        /**
+         * \param name Timer name.
+         */
         double toc(const std::string &name) {
             profile_unit *top = stack.top();
             stack.pop();
@@ -140,6 +166,11 @@ class profiler {
             root.print(out, name, 0, root.length, root.total_width(name, 0));
         }
 
+        /// Sends formatted profiling data to an output stream.
+        /**
+         * \param out  Output stream.
+         * \param prof Profiler.
+         */
         friend std::ostream& operator<<(std::ostream &out, profiler &prof) {
             out << std::endl;
             prof.print(out);

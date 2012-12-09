@@ -25,6 +25,101 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+/**
+ * \file   amgcl.hpp
+ * \author Denis Demidov <ddemidov@ksu.ru>
+ * \brief  Generic algebraic multigrid framework.
+ */
+
+/**
+\mainpage amgcl Generic algebraic multigrid framework.
+
+This is a simple and generic AMG hierarchy builder (and a work in progress).
+May be used as a standalone solver or as a preconditioner. CG and BiCGStab
+iterative solvers are provided. Solvers from from <a
+href="http://viennacl.sourceforge.net">ViennaCL</a> are supported as well.
+
+<a href="https://github.com/ddemidov/vexcl">VexCL</a>, <a
+href="http://viennacl.sourceforge.net">ViennaCL</a>, or <a
+href="http://eigen.tuxfamily.org">Eigen</a> matrix/vector
+containers may be used with built-in and ViennaCL's solvers. See
+<a href="https://github.com/ddemidov/amgcl/blob/master/examples/vexcl.cpp">examples/vexcl.cpp</a>,
+<a href="https://github.com/ddemidov/amgcl/blob/master/examples/viennacl.cpp">examples/viennacl.cpp</a> and
+<a href="https://github.com/ddemidov/amgcl/blob/master/examples/eigen.cpp">examples/eigen.cpp</a> for respective examples.
+
+\section setup AMG hierarchy building
+
+Constructor of amgcl::solver<> object builds the multigrid hierarchy based on
+algebraic information contained in the system matrix:
+
+\code
+// amgcl::sparse::matrix<double, int> A;
+// or
+// amgcl::sparse::matrix_map<double, int> A;
+amgcl::solver<
+    double,                 // Scalar type
+    int,                    // Index type of the matrix
+    amgcl::interp::classic, // Interpolation kind
+    amgcl::level::cpu       // Where to store the hierarchy
+> amg(A);
+\endcode
+
+Currently supported interpolation schemes are amgcl::interp::classic and
+amgcl::interp::aggregation<amgcl::aggr::plain>. The aggregation scheme uses
+less memory and is set up faster than classic interpolation, but its
+convergence rate is slower. It is well suited for VexCL or ViennaCL containers,
+where solution phase is accelerated by the OpenCL technology and, therefore,
+the cost of the setup phase is much more important.
+
+\code
+amgcl::solver<
+    double, int,
+    amgcl::interp::aggregation<amgcl::aggr::plain>,
+    amgcl::level::vexcl
+> amg(A);
+\endcode
+
+\section solution Solution
+
+After the hierarchy is constructed, it may be repeatedly used to solve the
+linear system for different right-hand sides:
+
+\code
+// std::vector<double> rhs, x;
+
+auto conv = amg.solve(rhs, x);
+
+std::cout << "Iterations: " << std::get<0>(conv) << std::endl
+          << "Error:      " << std::get<1>(conv) << std::endl;
+\endcode
+
+Using the AMG as a preconditioner with a Krylov subspace method like conjugate
+gradients works even better:
+\code
+// Eigen::VectorXd rhs, x;
+
+auto conv = amgcl::solve(A, rhs, x, amgcl::cg_tag());
+\endcode
+
+Types of right-hand side and solution vectors should be compatible with the
+level type used for construction of the AMG hierarchy. For example,
+if amgcl::level::vexcl is used as a storage backend, then vex::SpMat<> and
+vex::vector<> types have to be used when solving:
+
+\code
+// vex::SpMat<double,int> Agpu;
+// vex::vector<double> rhs, x;
+
+auto conv = amgcl::solve(Agpu, rhs, x, amgcl::cg_tag());
+\endcode
+
+\section install Installation
+
+The library is header-only, so there is nothing to compile or link to. You just
+need to copy amgcl folder somewhere and tell your compiler to scan it for
+include files.
+*/
+
 #include <tuple>
 #include <list>
 
@@ -34,10 +129,13 @@ THE SOFTWARE.
 #include <amgcl/level_cpu.hpp>
 #include <amgcl/profiler.hpp>
 
+/// Primary namespace for the library.
 namespace amgcl {
 
+/// Interpolation-related types and functions.
 namespace interp {
 
+/// Galerkin operator.
 struct galerkin_operator {
     template <class matrix>
     static matrix apply(const matrix &R, const matrix &A, const matrix &P) {
@@ -45,40 +143,75 @@ struct galerkin_operator {
     }
 };
 
-template <class T>
+/// Returns coarse level construction scheme for a given interpolation scheme.
+/**
+ * By default, Galerkin operator is used to construct coarse level from system
+ * matrix, restriction and prolongation operators:
+ * \f[A^H = R A^h P.\f] Usually, \f$R = P^T.\f$
+ *
+ * \param Interpolation interpolation scheme.
+ */
+template <class Interpolation>
 struct coarse_operator {
     typedef galerkin_operator type;
 };
 
 } // namespace interp
 
-// Algebraic multigrid method. The hierarchy by default is built for a CPU. The
-// other possibility is VexCL-based representation
-// ( level_t = level::vexcl<value_t, index_t> ).
+/// Algebraic multigrid method.
+/**
+ * \param value_t  Type for matrix entries.
+ * \param index_t  Type for matrix indices. Should be signed integral type.
+ * \param interp_t Interpolation scheme.  Possible choices:
+ *                 amgcl::interp::classic and amgcl::interp::aggregation.
+ * \param level_t  Class for storing the hierarchy level structure. Possible
+ *                 choices: amgcl::level::cpu, amgcl::level::vexcl,
+ *                 amgcl::level::ViennaCL<>.
+ */
 template <
-    typename value_t,
-    typename index_t = long long,
-    class interp_t = interp::classic,   // Interpolation scheme.
-    class level_t = level::cpu          // Where to build the hierarchy
+    typename value_t  = double,
+    typename index_t  = long long,
+    typename interp_t = interp::classic,
+    typename level_t  = level::cpu
     >
 class solver {
-    public:
+    private:
         typedef sparse::matrix<value_t, index_t> matrix;
         typedef typename level_t::template instance<value_t, index_t> level_type;
 
-        // The input matrix is copied here and may be freed afterwards.
-        solver(matrix A, const params &prm = params()) : prm(prm)
+    public:
+
+        /// Constructs the AMG hierarchy from the system matrix.
+        /** 
+         * The input matrix is copied here and may be freed afterwards.
+         *
+         * \param A   The system matrix. Should be convertible to
+         *            amgcl::sparse::matrix<>.
+         * \param prm Parameters controlling the setup and solution phases.
+         *
+         * \sa amgcl::sparse::map()
+         */
+        template <typename spmat>
+        solver(const spmat &A, const params &prm = params()) : prm(prm)
         {
             static_assert(std::is_signed<index_t>::value,
                     "Matrix index type should be signed");
 
-            build_level(std::move(A), prm);
+            build_level(std::move(matrix(A)), prm);
         }
 
-        // Use the AMG hierarchy as a standalone solver. The vector types should
-        // be compatible with level_type.
-        // 1. Any type with operator[] should work on a CPU.
-        // 2. vex::vector<value_t> should be used with VexCL-based hierarchy.
+        /// The AMG hierarchy is used as a standalone solver.
+        /** 
+         * The vector types should be compatible with level_t:
+         *
+         * -# Any type with operator[] should work on a CPU.
+         * -# vex::vector<value_t> should be used with level::vexcl.
+         * -# viennacl::vector<value_t> should be used with level::ViennaCL.
+         *
+         * \param rhs Right-hand side.
+         * \param x   Solution. Contains an initial approximation on input, and
+         *            the approximated solution on output.
+         */
         template <class vector1, class vector2>
         std::tuple< int, value_t > solve(const vector1 &rhs, vector2 &x) const {
             int     iter = 0;
@@ -92,7 +225,20 @@ class solver {
             return std::make_tuple(iter, res);
         }
 
-        // Perform 1 V-cycle. May be used as a preconditioning step.
+        /// Performs single multigrid cycle.
+        /**
+         * Is intended to be used as a preconditioner with iterative methods.
+         *
+         * The vector types should be compatible with level_t:
+         *
+         * -# Any type with operator[] should work on a CPU.
+         * -# vex::vector<value_t> should be used with level::vexcl.
+         * -# viennacl::vector<value_t> should be used with level::ViennaCL.
+         *
+         * \param rhs Right-hand side.
+         * \param x   Solution. Contains an initial approximation on input, and
+         *            the approximated solution on output.
+         */
         template <class vector1, class vector2>
         void apply(const vector1 &rhs, vector2 &x) const {
             level_type::cycle(hier.begin(), hier.end(), prm, rhs, x);

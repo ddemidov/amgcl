@@ -25,14 +25,22 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+/**
+ * \file   level_vexcl.hpp
+ * \author Denis Demidov <ddemidov@ksu.ru>
+ * \brief  Level of an AMG hierarchy for use with VexCL vectors.
+ */
+
 #include <amgcl/spmat.hpp>
 #include <vexcl/vexcl.hpp>
 
 namespace amgcl {
 namespace level {
 
-// VexCL-based AMG hierarchy. vex::StaticContext is used for the VexCL types
-// construction.
+/// VexCL-based AMG hierarchy.
+/**
+ * Level of an AMG hierarchy for use with VexCL vectors.
+ */
 struct vexcl {
 
 template <typename value_t, typename index_t = long long>
