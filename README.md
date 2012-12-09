@@ -3,7 +3,7 @@ amgcl
 
 This is a simple and generic AMG hierarchy builder (and a work in progress).
 May be used as a standalone solver or as a preconditioner. CG and BiCGStab
-iterative solvers are provided. Solvers from from [ViennaCL][ViennaCL] are
+iterative solvers are provided. Solvers from [ViennaCL][ViennaCL] are
 supported as well.
 
 [VexCL][VexCL], [ViennaCL][ViennaCL], or [Eigen][Eigen] matrix/vector
