@@ -41,6 +41,7 @@ THE SOFTWARE.
 
 namespace amgcl {
 
+/// Aggreagtion related types and functions.
 namespace aggr {
 
 /// Plain aggregation.
