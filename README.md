@@ -10,6 +10,8 @@ containers may be used with built-in and ViennaCL's solvers. See
 [examples/vexcl.cpp][ex1], [examples/viennacl.cpp][ex2] and
 [examples/eigen.cpp][ex3] for respective examples.
 
+Doxygen-generated documention is available at http://ddemidov.github.com/amgcl.
+
 [VexCL]:    https://github.com/ddemidov/vexcl
 [ViennaCL]: http://viennacl.sourceforge.net
 [Eigen]:    http://eigen.tuxfamily.org
