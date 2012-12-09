@@ -36,7 +36,7 @@ THE SOFTWARE.
 
 This is a simple and generic AMG hierarchy builder (and a work in progress).
 May be used as a standalone solver or as a preconditioner. CG and BiCGStab
-iterative solvers are provided. Solvers from from <a
+iterative solvers are provided. Solvers from <a
 href="http://viennacl.sourceforge.net">ViennaCL</a> are supported as well.
 
 <a href="https://github.com/ddemidov/vexcl">VexCL</a>, <a
