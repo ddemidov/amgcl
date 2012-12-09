@@ -72,6 +72,10 @@ int main(int argc, char *argv[]) {
         > AMG;
 
     typename AMG::params prm;
+    prm.level.ctx = &ctx;
+#ifdef AGGREGATION
+    prm.level.kcycle = 1;
+#endif
 
     prof.tic("setup");
     AMG amg(A, prm);

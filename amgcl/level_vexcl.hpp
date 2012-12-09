@@ -47,7 +47,11 @@ struct vexcl {
 
 struct params
     : public amgcl::level::params
-{ };
+{
+    vex::Context *ctx;  ///< VexCL Context for VexCL objects creation.
+
+    params() : ctx(0) { }
+};
 
 template <typename value_t, typename index_t = long long>
 class instance {
@@ -60,19 +64,24 @@ class instance {
         // prolongation (p) and restriction (r) operators.
         // The matrices are moved into the local members.
         instance(cpu_matrix &&a, cpu_matrix &&p, cpu_matrix &&r, const params &prm, unsigned nlevel)
-            : A(new matrix(vex::StaticContext<>::get().queue(), a.rows, a.cols, a.row.data(), a.col.data(), a.val.data())),
-              P(new matrix(vex::StaticContext<>::get().queue(), p.rows, p.cols, p.row.data(), p.col.data(), p.val.data())),
-              R(new matrix(vex::StaticContext<>::get().queue(), r.rows, r.cols, r.row.data(), r.col.data(), r.val.data())),
-              d(a.rows), t(a.rows)
+            : A(new matrix(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
+                        a.rows, a.cols, a.row.data(), a.col.data(), a.val.data())),
+              P(new matrix(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
+                          p.rows, p.cols, p.row.data(), p.col.data(), p.val.data())),
+              R(new matrix(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
+                          r.rows, r.cols, r.row.data(), r.col.data(), r.val.data())),
+              d(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
+              t(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
+              sum(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue())
         {
             vex::copy(diagonal(a), d);
 
             if (nlevel) {
-                u.resize(a.rows);
-                f.resize(a.rows);
+                u.resize(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows);
+                f.resize(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows);
 
                 if (prm.kcycle && nlevel % prm.kcycle == 0)
-                    cg.resize(a.rows);
+                    cg.resize(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows);
             }
 
             a.clear();
@@ -83,9 +92,15 @@ class instance {
         // Construct the coarsest hierarchy level from system matrix (a) and
         // its inverse (ai).
         instance(cpu_matrix &&a, cpu_matrix &&ai, const params &prm, unsigned nlevel)
-            : A(new matrix(vex::StaticContext<>::get().queue(), a.rows, a.cols, a.row.data(), a.col.data(), a.val.data())),
-              Ainv(new matrix(vex::StaticContext<>::get().queue(), ai.rows, ai.cols, ai.row.data(), ai.col.data(), ai.val.data())),
-              d(a.rows), u(a.rows), f(a.rows), t(a.rows)
+            : A(new matrix(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
+                        a.rows, a.cols, a.row.data(), a.col.data(), a.val.data())),
+              Ainv(new matrix(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
+                          ai.rows, ai.cols, ai.row.data(), ai.col.data(), ai.val.data())),
+              d(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
+              u(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
+              f(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
+              t(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
+              sum(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue())
         {
             vex::copy(diagonal(a), d);
 
@@ -105,7 +120,7 @@ class instance {
         value_t resid(const vector &rhs, vector &x) const {
             t = rhs - (*A) * x;
 
-            return sqrt(inner_prod(t, t));
+            return sqrt(sum(t * t));
         }
 
         // Perform one V-cycle. Coarser levels are cycled recursively. The
@@ -159,7 +174,7 @@ class instance {
                     cycle(lvl, end, prm, r, s);
 
                     rho2 = rho1;
-                    rho1 = inner_prod(r, s);
+                    rho1 = lvl->sum(r * s);
 
                     if (iter)
                         p = s + (rho1 / rho2) * p;
@@ -168,7 +183,7 @@ class instance {
 
                     q = (*lvl->A) * p;
 
-                    value_t alpha = rho1 / inner_prod(q, p);
+                    value_t alpha = rho1 / lvl->sum(q * p);
 
                     x += alpha * p;
                     r -= alpha * q;
@@ -185,18 +200,13 @@ class instance {
 
         vector d;
 
+        vex::Reductor<value_t, vex::SUM> sum;
+
         mutable vector u;
         mutable vector f;
         mutable vector t;
 
         mutable vex::multivector<value_t,4> cg;
-
-        static value_t inner_prod(const vector &x, const vector &y) {
-            static vex::Reductor<value_t, vex::SUM> sum(
-		    vex::StaticContext<>::get().queue());
-
-            return sum(x * y);
-        }
 };
 
 };

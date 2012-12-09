@@ -101,6 +101,9 @@ int main(int argc, char *argv[]) {
 
     // Build the preconditioner.
     amg_precond::params prm;
+#ifdef AGGREGATION
+    prm.level.kcycle = 1;
+#endif
 
     prof.tic("setup");
     amg_precond amg(A, prm);

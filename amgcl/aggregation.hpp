@@ -215,6 +215,8 @@ struct aggregated_operator {
                     [&prm](value_t v) {
                         return v / prm.over_interp;
                     });
+
+        return a;
     }
 };
 
