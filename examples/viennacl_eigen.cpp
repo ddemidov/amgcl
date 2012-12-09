@@ -11,14 +11,12 @@
 #define VIENNACL_HAVE_EIGEN
 #include <viennacl/linalg/cg.hpp>
 
+// This is needed for ViennaCL to recognize MappedSparseMatrix as Eigen type.
 namespace viennacl { namespace traits {
 
-// This is needed for ViennaCL to recognize MappedSparseMatrix as Eigen type.
 template <class T>
 struct tag_of<T,
-    typename std::enable_if<
-            std::is_base_of<Eigen::EigenBase<T>, T>::value
-        >::type
+    typename std::enable_if< std::is_base_of<Eigen::EigenBase<T>, T>::value >::type
     >
 {
   typedef viennacl::tag_eigen  type;
@@ -34,9 +32,16 @@ using amgcl::prof;
 // Simple wrapper around amgcl::solver that provides ViennaCL's preconditioner
 // interface.
 struct amg_precond {
+    typedef amgcl::solver<
+        double, int,
+        amgcl::interp::classic,
+        amgcl::level::cpu
+        > AMG;
+    typedef typename AMG::params params;
+
     // Build AMG hierarchy.
     template <class matrix>
-    amg_precond(const matrix &A, const amgcl::params &prm = amgcl::params())
+    amg_precond(const matrix &A, const params &prm = params())
         : amg(A, prm), r(amgcl::sparse::matrix_rows(A))
     { }
 
@@ -48,11 +53,7 @@ struct amg_precond {
         std::copy(r.begin(), r.end(), &x[0]);
     }
 
-    mutable amgcl::solver<
-        double, int,
-        amgcl::interp::classic,
-        amgcl::level::cpu
-        > amg;
+    mutable AMG amg;
     mutable std::vector<double> r;
 };
 

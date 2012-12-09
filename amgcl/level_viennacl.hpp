@@ -33,6 +33,7 @@ THE SOFTWARE.
 
 #include <array>
 
+#include <amgcl/level_params.hpp>
 #include <amgcl/spmat.hpp>
 #include <amgcl/operations_viennacl.hpp>
 
@@ -80,6 +81,10 @@ struct matrix_format<CL_MATRIX_HYB, value_type> {
  */
 template <cl_matrix_format Format = CL_MATRIX_HYB>
 struct ViennaCL {
+
+struct params
+    : public amgcl::level::params
+{ };
 
 template <typename value_t, typename index_t = long long>
 class instance {

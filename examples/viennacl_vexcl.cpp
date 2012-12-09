@@ -17,9 +17,16 @@ using amgcl::prof;
 // Simple wrapper around amgcl::solver that provides ViennaCL's preconditioner
 // interface.
 struct amg_precond {
+    typedef amgcl::solver<
+        double, int,
+        amgcl::interp::classic,
+        amgcl::level::vexcl
+        > AMG;
+    typedef typename AMG::params params;
+
     // Build AMG hierarchy.
     template <class matrix>
-    amg_precond(const matrix &A, const amgcl::params &prm = amgcl::params())
+    amg_precond(const matrix &A, const params &prm = params())
         : amg(A, prm), r(amgcl::sparse::matrix_rows(A))
     { }
 
@@ -31,11 +38,7 @@ struct amg_precond {
     }
 
     // Build VexCL-based hierarchy:
-    mutable amgcl::solver<
-        double, int,
-        amgcl::interp::classic,
-        amgcl::level::vexcl
-        > amg;
+    mutable AMG amg;
     mutable vex::vector<double> r;
 };
 

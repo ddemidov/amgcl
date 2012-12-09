@@ -51,14 +51,7 @@ int main(int argc, char *argv[]) {
             );
 
     // Build the preconditioner:
-    amgcl::params prm;
-#ifdef AGGREGATION
-    prm.kcycle = 1;
-    prm.over_interp = 1.5;
-#endif
-
-    prof.tic("setup");
-    amgcl::solver<
+    typedef amgcl::solver<
         double, int,
 #ifdef AGGREGATION
         amgcl::interp::aggregation<amgcl::aggr::plain>,
@@ -66,7 +59,12 @@ int main(int argc, char *argv[]) {
         amgcl::interp::classic,
 #endif
         amgcl::level::cpu
-        > amg(amgcl::sparse::map(A), prm);
+        > AMG;
+
+    typename AMG::params prm;
+
+    prof.tic("setup");
+    AMG amg(amgcl::sparse::map(A), prm);
     prof.toc("setup");
 
 

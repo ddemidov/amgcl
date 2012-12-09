@@ -124,7 +124,6 @@ include files.
 #include <list>
 
 #include <amgcl/spmat.hpp>
-#include <amgcl/params.hpp>
 #include <amgcl/interp_classic.hpp>
 #include <amgcl/level_cpu.hpp>
 #include <amgcl/profiler.hpp>
@@ -137,8 +136,10 @@ namespace interp {
 
 /// Galerkin operator.
 struct galerkin_operator {
-    template <class matrix>
-    static matrix apply(const matrix &R, const matrix &A, const matrix &P) {
+    template <class spmat, class Params>
+    static spmat apply(const spmat &R, const spmat &A, const spmat &P,
+            const Params &prm)
+    {
         return sparse::prod(sparse::prod(R, A), P);
     }
 };
@@ -180,6 +181,14 @@ class solver {
         typedef typename level_t::template instance<value_t, index_t> level_type;
 
     public:
+        struct params {
+            unsigned coarse_enough; ///< When level is coarse enough to be solved directly.
+
+            typename interp_t::params interp; ///< Interpolation parameters.
+            typename level_t::params  level;  ///< Level/Solution parameters.
+
+            params() : coarse_enough(300) { }
+        };
 
         /// Constructs the AMG hierarchy from the system matrix.
         /** 
@@ -215,9 +224,9 @@ class solver {
         template <class vector1, class vector2>
         std::tuple< int, value_t > solve(const vector1 &rhs, vector2 &x) const {
             int     iter = 0;
-            value_t res  = 2 * prm.tol;
+            value_t res  = 2 * prm.level.tol;
 
-            for(; res > prm.tol && iter < prm.maxiter; ++iter) {
+            for(; res > prm.level.tol && iter < prm.level.maxiter; ++iter) {
                 apply(rhs, x);
                 res = hier.front().resid(rhs, x);
             }
@@ -241,7 +250,7 @@ class solver {
          */
         template <class vector1, class vector2>
         void apply(const vector1 &rhs, vector2 &x) const {
-            level_type::cycle(hier.begin(), hier.end(), prm, rhs, x);
+            level_type::cycle(hier.begin(), hier.end(), prm.level, rhs, x);
         }
 
     private:
@@ -251,10 +260,10 @@ class solver {
             std::cout << A.rows << std::endl;
 #endif
             if (A.rows <= prm.coarse_enough) {
-                hier.emplace_back(std::move(A), std::move(sparse::inverse(A)), prm, nlevel);
+                hier.emplace_back(std::move(A), std::move(sparse::inverse(A)), prm.level, nlevel);
             } else {
                 TIC("interp");
-                matrix P = interp_t::interp(A, prm);
+                matrix P = interp_t::interp(A, prm.interp);
                 TOC("interp");
 
                 TIC("transp");
@@ -262,14 +271,11 @@ class solver {
                 TOC("transp");
 
                 TIC("coarse operator");
-                matrix a = interp::coarse_operator<interp_t>::type::apply(R, A, P);
-
-                if (prm.over_interp > 1.0f)
-                    std::transform(a.val.begin(), a.val.end(), a.val.begin(),
-                            [&prm](value_t v) { return v / prm.over_interp; });
+                matrix a = interp::coarse_operator<interp_t>::type::apply(
+                        R, A, P, prm.interp);
                 TOC("coarse operator");
 
-                hier.emplace_back(std::move(A), std::move(P), std::move(R), prm, nlevel);
+                hier.emplace_back(std::move(A), std::move(P), std::move(R), prm.level, nlevel);
 
                 build_level(std::move(a), prm, nlevel + 1);
             }

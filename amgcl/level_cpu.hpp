@@ -33,6 +33,8 @@ THE SOFTWARE.
 
 #include <vector>
 #include <array>
+
+#include <amgcl/level_params.hpp>
 #include <amgcl/spmat.hpp>
 
 namespace amgcl {
@@ -45,6 +47,10 @@ namespace level {
  * Level of an AMG hierarchy for use with arrays located in main (CPU) memory.
  */
 struct cpu {
+
+struct params
+    : public amgcl::level::params
+{};
 
 template <typename value_t, typename index_t>
 class instance {

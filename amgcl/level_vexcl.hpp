@@ -31,7 +31,9 @@ THE SOFTWARE.
  * \brief  Level of an AMG hierarchy for use with VexCL vectors.
  */
 
+#include <amgcl/level_params.hpp>
 #include <amgcl/spmat.hpp>
+
 #include <vexcl/vexcl.hpp>
 
 namespace amgcl {
@@ -42,6 +44,10 @@ namespace level {
  * Level of an AMG hierarchy for use with VexCL vectors.
  */
 struct vexcl {
+
+struct params
+    : public amgcl::level::params
+{ };
 
 template <typename value_t, typename index_t = long long>
 class instance {

@@ -31,9 +31,20 @@ using amgcl::prof;
 // Simple wrapper around amgcl::solver that provides ViennaCL's preconditioner
 // interface.
 struct amg_precond {
+    typedef amgcl::solver<
+        double, int,
+#ifdef AGGREGATION
+        amgcl::interp::aggregation<amgcl::aggr::plain>,
+#else
+        amgcl::interp::classic,
+#endif
+        amgcl::level::ViennaCL<amgcl::level::CL_MATRIX_HYB>
+        > AMG;
+    typedef typename AMG::params params;
+
     // Build AMG hierarchy.
     template <class matrix>
-    amg_precond(const matrix &A, const amgcl::params &prm = amgcl::params())
+    amg_precond(const matrix &A, const params &prm = params())
         : amg(A, prm), r(amgcl::sparse::matrix_rows(A))
     { }
 
@@ -45,16 +56,7 @@ struct amg_precond {
     }
 
     // Build VexCL-based hierarchy:
-    mutable amgcl::solver<
-        double, int,
-#ifdef AGGREGATION
-        amgcl::interp::aggregation<amgcl::aggr::plain>,
-#else
-        amgcl::interp::classic,
-#endif
-        amgcl::level::ViennaCL<amgcl::level::CL_MATRIX_HYB>
-        > amg;
-
+    mutable AMG amg;
     mutable viennacl::vector<double> r;
 };
 
@@ -98,11 +100,8 @@ int main(int argc, char *argv[]) {
             );
 
     // Build the preconditioner.
-    amgcl::params prm;
-#ifdef AGGREGATION
-    prm.kcycle = 1;
-    prm.over_interp = 1.5;
-#endif
+    amg_precond::params prm;
+
     prof.tic("setup");
     amg_precond amg(A, prm);
     prof.toc("setup");

@@ -36,7 +36,6 @@ THE SOFTWARE.
 #include <algorithm>
 
 #include <amgcl/spmat.hpp>
-#include <amgcl/params.hpp>
 #include <amgcl/profiler.hpp>
 
 namespace amgcl {
@@ -63,13 +62,12 @@ struct plain {
  * then variable does not belong to any aggregate.
  *
  * \param A system matrix.
- * \param prm parameters.
  *
  * \returns a vector of aggregate numbers.
  */
 template <class spmat>
 static std::vector< typename sparse::matrix_index<spmat>::type >
-aggregates( const spmat &A, const params &prm ) {
+aggregates( const spmat &A ) {
     typedef typename sparse::matrix_index<spmat>::type index_t;
     typedef typename sparse::matrix_value<spmat>::type value_t;
     
@@ -144,6 +142,13 @@ namespace interp {
 template <class aggr_type>
 struct aggregation {
 
+/// Parameters controlling aggregation.
+struct params {
+    float over_interp;   ///< Over-interpolation factor.
+
+    params() : over_interp(1.5) {}
+};
+
 /// Constructs coarse level by agregation.
 /**
  * Returns interpolation operator, which is enough to construct system matrix
@@ -162,7 +167,7 @@ static sparse::matrix<value_t, index_t> interp(
     const index_t n = sparse::matrix_rows(A);
 
     TIC("aggregates");
-    auto aggr = aggr_type::aggregates(A, prm);
+    auto aggr = aggr_type::aggregates(A);
     TOC("aggregates");
 
     index_t nc = std::max(
@@ -191,6 +196,31 @@ static sparse::matrix<value_t, index_t> interp(
     return P;
 }
 
+};
+
+/// Coarse level computing for aggregation-based AMG.
+struct aggregated_operator {
+    template <class spmat, class Params>
+    static spmat apply(const spmat &R, const spmat &A, const spmat &P,
+            const Params &prm)
+    {
+        typedef typename sparse::matrix_value<spmat>::type value_t;
+
+        // For now this s just a Galerking operator with possible
+        // over-interpolation.
+        auto a = sparse::prod(sparse::prod(R, A), P);
+
+        if (prm.over_interp > 1.0f)
+            std::transform(a.val.begin(), a.val.end(), a.val.begin(),
+                    [&prm](value_t v) {
+                        return v / prm.over_interp;
+                    });
+    }
+};
+
+template <class T>
+struct coarse_operator< aggregation<T> > {
+    typedef aggregated_operator type;
 };
 
 } // namespace interp

@@ -36,7 +36,6 @@ THE SOFTWARE.
 #include <algorithm>
 
 #include <amgcl/spmat.hpp>
-#include <amgcl/params.hpp>
 #include <amgcl/profiler.hpp>
 
 namespace amgcl {
@@ -46,6 +45,15 @@ namespace interp {
 /// Direct interpolation scheme based on (Stuben, 1999).
 class classic {
     public:
+        /// Parameters controlling interpolation construction.
+        struct params {
+            float eps_strong; ///< Parameter for strong connections.
+            bool  trunc_int;  ///< Truncate prolongation operator?
+            float eps_tr;     ///< Truncation parameter.
+
+            params() : eps_strong(0.25f), trunc_int(true), eps_tr(0.2f) {}
+        };
+
         /// Computes prolongation operator from a system matrix.
         /**
          * \param A   The system matrix.
