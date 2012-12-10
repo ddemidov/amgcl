@@ -33,7 +33,7 @@ THE SOFTWARE.
  * Implementation is based on \ref Templates_1994 "Barrett (1994)"
  */
 
-#include <tuple>
+#include <utility>
 
 namespace amgcl {
 
@@ -58,11 +58,11 @@ struct cg_tag {
  *            the approximated solution on output.
  * \param prm The control parameters.
  *
- * \returns a tuple containing number of iterations made and precision
+ * \returns a pair containing number of iterations made and precision
  * achieved.
  */
 template <class matrix, class vector, class precond>
-std::tuple< int, typename value_type<vector>::type >
+std::pair< int, typename value_type<vector>::type >
 solve(const matrix &A, const vector &rhs, const precond &P, vector &x, cg_tag prm = cg_tag())
 {
     typedef typename value_type<vector>::type value_t;
@@ -77,7 +77,7 @@ solve(const matrix &A, const vector &rhs, const precond &P, vector &x, cg_tag pr
 
     if (norm_of_rhs == 0) {
         clear(x);
-        return std::make_tuple(0, norm_of_rhs);
+        return std::make_pair(0, norm_of_rhs);
     }
 
     int     iter;
@@ -107,7 +107,7 @@ solve(const matrix &A, const vector &rhs, const precond &P, vector &x, cg_tag pr
         r -= alpha * q;
     }
 
-    return std::make_tuple(iter, res);
+    return std::make_pair(iter, res);
 }
 
 } // namespace amgcl

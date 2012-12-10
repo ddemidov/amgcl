@@ -31,8 +31,6 @@ THE SOFTWARE.
  * \brief  Adaptors for ViennaCL types.
  */
 
-#include <type_traits>
-
 #include <amgcl/spmat.hpp>
 #include <viennacl/compressed_matrix.hpp>
 

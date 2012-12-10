@@ -32,7 +32,6 @@ THE SOFTWARE.
  */
 
 #include <vector>
-#include <tuple>
 #include <algorithm>
 
 #include <amgcl/spmat.hpp>

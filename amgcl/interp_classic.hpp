@@ -32,7 +32,6 @@ THE SOFTWARE.
  */
 
 #include <vector>
-#include <tuple>
 #include <algorithm>
 
 #include <amgcl/spmat.hpp>
@@ -89,8 +88,6 @@ class classic {
             auto Acol = sparse::matrix_inner_index(A);
             auto Aval = sparse::matrix_values(A);
 
-            auto &Sval = std::get<2>(S);
-
             sparse::matrix<value_t, index_t> P(n, nc);
             std::fill(P.row.begin(), P.row.end(), static_cast<index_t>(0));
 
@@ -112,7 +109,7 @@ class classic {
                     value_t amin = 0, amax = 0;
 
                     for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
-                        if (!Sval[j] || cf[Acol[j]] != 'C') continue;
+                        if (!S.val[j] || cf[Acol[j]] != 'C') continue;
 
                         amin = std::min(amin, Aval[j]);
                         amax = std::max(amax, Aval[j]);
@@ -122,14 +119,14 @@ class classic {
                     Amax[i] = amax = amax * prm.eps_tr;
 
                     for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
-                        if (!Sval[j] || cf[Acol[j]] != 'C') continue;
+                        if (!S.val[j] || cf[Acol[j]] != 'C') continue;
 
                         if (Aval[j] <= amin || Aval[j] >= amax)
                             ++P.row[i + 1];
                     }
                 } else {
                     for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
-                        if (Sval[j] && cf[Acol[j]] == 'C')
+                        if (S.val[j] && cf[Acol[j]] == 'C')
                             ++P.row[i + 1];
                 }
             }
@@ -164,13 +161,13 @@ class classic {
 
                     if (v < 0) {
                         a_num += v;
-                        if (Sval[j] && cf[c] == 'C') {
+                        if (S.val[j] && cf[c] == 'C') {
                             a_den += v;
                             if (prm.trunc_int && v > Amin[i]) d_neg += v;
                         }
                     } else {
                         b_num += v;
-                        if (Sval[j] && cf[c] == 'C') {
+                        if (S.val[j] && cf[c] == 'C') {
                             b_den += v;
                             if (prm.trunc_int && v < Amax[i]) d_pos += v;
                         }
@@ -194,7 +191,7 @@ class classic {
                     index_t c = Acol[j];
                     value_t v = Aval[j];
 
-                    if (!Sval[j] || cf[c] != 'C') continue;
+                    if (!S.val[j] || cf[c] != 'C') continue;
                     if (prm.trunc_int && v > Amin[i] && v < Amax[i]) continue;
 
                     P.col[row_head] = cidx[c];
@@ -210,29 +207,17 @@ class classic {
     private:
         // Extract strong connections from a system matrix.
         template < class spmat >
-        static std::tuple<
-            std::vector<typename sparse::matrix_index<spmat>::type>,
-            std::vector<typename sparse::matrix_index<spmat>::type>,
-            std::vector<char>
-            >
+        static sparse::matrix<char, typename sparse::matrix_index<spmat>::type>
         connect(const spmat &A, const params &prm, std::vector<char> &cf) {
             typedef typename sparse::matrix_index<spmat>::type index_t;
             typedef typename sparse::matrix_value<spmat>::type value_t;
 
             const index_t n = sparse::matrix_rows(A);
 
-            std::tuple<
-                std::vector<index_t>,
-                std::vector<index_t>,
-                std::vector<char>
-                > S;
+            sparse::matrix<char, index_t> S(n, n);
 
-            auto &Srow = std::get<0>(S);
-            auto &Scol = std::get<1>(S);
-            auto &Sval = std::get<2>(S);
-
-            Srow.resize(n + 1, 0);
-            Sval.resize(sparse::matrix_nonzeros(A), false);
+            S.row.resize(n + 1, 0);
+            S.val.resize(sparse::matrix_nonzeros(A), false);
 
             auto Arow = sparse::matrix_outer_index(A);
             auto Acol = sparse::matrix_inner_index(A);
@@ -253,21 +238,21 @@ class classic {
                 a_min *= prm.eps_strong;
 
                 for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
-                    if (Acol[j] != i && Aval[j] < a_min) Sval[j] = true;
+                    if (Acol[j] != i && Aval[j] < a_min) S.val[j] = true;
             }
 
             for(index_t i = 0, nnz = Arow[n]; i < nnz; ++i)
-                if (Sval[i]) Srow[Acol[i] + 1]++;
+                if (S.val[i]) S.row[Acol[i] + 1]++;
 
-            std::partial_sum(Srow.begin(), Srow.end(), Srow.begin());
+            std::partial_sum(S.row.begin(), S.row.end(), S.row.begin());
 
-            Scol.resize(Srow.back());
+            S.col.resize(S.row.back());
 
             for(index_t i = 0; i < n; ++i)
                 for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
-                    if (Sval[j]) Scol[ Srow[ Acol[j] ]++ ] = i;
+                    if (S.val[j]) S.col[ S.row[ Acol[j] ]++ ] = i;
 
-            for(index_t i = n; i > 0; --i) Srow[i] = Srow[i-1];
+            for(index_t i = n; i > 0; --i) S.row[i] = S.row[i-1];
 
             return S;
         }
@@ -276,21 +261,13 @@ class classic {
         template < class spmat >
         static void cfsplit(
                 const spmat &A,
-                const std::tuple<
-                            std::vector<typename sparse::matrix_index<spmat>::type>,
-                            std::vector<typename sparse::matrix_index<spmat>::type>,
-                            std::vector<char>
-                            > &S,
+                const sparse::matrix<char, typename sparse::matrix_index<spmat>::type> &S,
                 std::vector<char> &cf
                 )
         {
             typedef typename sparse::matrix_index<spmat>::type index_t;
 
             const index_t n = sparse::matrix_rows(A);
-
-            auto &Srow = std::get<0>(S);
-            auto &Scol = std::get<1>(S);
-            auto &Sval = std::get<2>(S);
 
             auto Arow = sparse::matrix_outer_index(A);
             auto Acol = sparse::matrix_inner_index(A);
@@ -300,8 +277,8 @@ class classic {
             // Initialize lambdas:
             for(index_t i = 0; i < n; ++i) {
                 index_t temp = 0;
-                for(index_t j = Srow[i], e = Srow[i + 1]; j < e; ++j)
-                    temp += (cf[Scol[j]] == 'U' ? 1 : 2);
+                for(index_t j = S.row[i], e = S.row[i + 1]; j < e; ++j)
+                    temp += (cf[S.col[j]] == 'U' ? 1 : 2);
                 lambda[i] = temp;
             }
 
@@ -349,8 +326,8 @@ class classic {
                 cf[i] = 'C';
 
                 // Its neighbours from S' become F-variables.
-                for(index_t j = Srow[i], e = Srow[i + 1]; j < e; ++j) {
-                    index_t c = Scol[j];
+                for(index_t j = S.row[i], e = S.row[i + 1]; j < e; ++j) {
+                    index_t c = S.col[j];
 
                     if (cf[c] != 'U') continue;
 
@@ -358,7 +335,7 @@ class classic {
 
                     // Increase lambdas of the newly created F's neighbours.
                     for(index_t jj = Arow[c], ee = Arow[c + 1]; jj < ee; ++jj) {
-                        if (!Sval[jj]) continue;
+                        if (!S.val[jj]) continue;
 
                         index_t cc = Acol[jj];
                         index_t lam_cc = lambda[cc];
@@ -383,7 +360,7 @@ class classic {
 
                 // Decrease lambdas of the newly create C's neighbours.
                 for(index_t j = Arow[i], e = Arow[i + 1]; j < e; j++) {
-                    if (!Sval[j]) continue;
+                    if (!S.val[j]) continue;
 
                     index_t c = Acol[j];
                     index_t lam = lambda[c];

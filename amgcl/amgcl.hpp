@@ -134,7 +134,7 @@ include files.
     1994.
 */
 
-#include <tuple>
+#include <utility>
 #include <list>
 
 #include <amgcl/spmat.hpp>
@@ -237,7 +237,7 @@ class solver {
          *            the approximated solution on output.
          */
         template <class vector1, class vector2>
-        std::tuple< int, value_t > solve(const vector1 &rhs, vector2 &x) const {
+        std::pair< int, value_t > solve(const vector1 &rhs, vector2 &x) const {
             int     iter = 0;
             value_t res  = 2 * prm.level.tol;
 
@@ -246,7 +246,7 @@ class solver {
                 res = hier.front().resid(rhs, x);
             }
 
-            return std::make_tuple(iter, res);
+            return std::make_pair(iter, res);
         }
 
         /// Performs single multigrid cycle.

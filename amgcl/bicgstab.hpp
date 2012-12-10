@@ -33,7 +33,7 @@ THE SOFTWARE.
  * Implementation is based on \ref Templates_1994 "Barrett (1994)"
  */
 
-#include <tuple>
+#include <utility>
 #include <stdexcept>
 
 namespace amgcl {
@@ -59,11 +59,11 @@ struct bicg_tag {
  *            the approximated solution on output.
  * \param prm The control parameters.
  *
- * \returns a tuple containing number of iterations made and precision
+ * \returns a pair containing number of iterations made and precision
  * achieved.
  */
 template <class matrix, class vector, class precond>
-std::tuple< int, typename value_type<vector>::type >
+std::pair< int, typename value_type<vector>::type >
 solve(const matrix &A, const vector &rhs, const precond &P, vector &x, bicg_tag prm = bicg_tag())
 {
     typedef typename value_type<vector>::type value_t;
@@ -129,7 +129,7 @@ solve(const matrix &A, const vector &rhs, const precond &P, vector &x, bicg_tag 
         }
     }
 
-    return std::make_tuple(iter, res);
+    return std::make_pair(iter, res);
 }
 
 } // namespace amgcl
