@@ -43,7 +43,6 @@ THE SOFTWARE.
 #include <viennacl/hyb_matrix.hpp>
 #include <viennacl/linalg/inner_prod.hpp>
 #include <viennacl/linalg/prod.hpp>
-#include <viennacl/generator/custom_operation.hpp>
 
 namespace amgcl {
 namespace level {
@@ -135,21 +134,12 @@ class instance {
 
         // Perform one relaxation (smoothing) step.
         void relax(const vector &rhs, vector &x) const {
-            using namespace viennacl::generator;
-
-            static symbolic_vector<0, value_t> sym_x;
-            static symbolic_vector<1, value_t> sym_t;
-            static symbolic_vector<2, value_t> sym_d;
-            static cpu_symbolic_scalar<3, value_t> sym_w;
-            static custom_operation mul_add(
-                    sym_x += sym_w * element_div(sym_t, sym_d), "amgcl_relax_mul_add");
-
             const index_t n = x.size();
 
             t = viennacl::linalg::prod(A, x);
             t = rhs - t;
-            value_t w = static_cast<value_t>(0.72);
-            viennacl::ocl::enqueue( mul_add(x, t, d, w) );
+            t = viennacl::linalg::element_div(t, d);
+            x += 0.72 * t;
         }
 
         // Compute residual value.
