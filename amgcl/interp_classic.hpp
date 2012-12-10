@@ -28,7 +28,7 @@ THE SOFTWARE.
 /**
  * \file   interp_classic.hpp
  * \author Denis Demidov <ddemidov@ksu.ru>
- * \brief  Direct interpolation scheme based on (Stuben, 1999).
+ * \brief  Direct interpolation scheme based on \ref Stuben_1999 "Stuben (1999)".
  */
 
 #include <vector>
@@ -42,7 +42,7 @@ namespace amgcl {
 
 namespace interp {
 
-/// Direct interpolation scheme based on (Stuben, 1999).
+/// Direct interpolation scheme based on \ref Stuben_1999 "Stuben (1999)".
 class classic {
     public:
         /// Parameters controlling interpolation construction.

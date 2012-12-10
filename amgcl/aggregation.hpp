@@ -45,8 +45,8 @@ namespace aggr {
 
 /// Plain aggregation.
 /**
- * Modification of a greedy aggregation scheme from (Vanek 1995). Any
- * nonzero matrix entry forms a connection. Variables without neighbours
+ * Modification of a greedy aggregation scheme from \ref Vanek_1996 "Vanek (1996)".
+ * Any nonzero matrix entry forms a connection. Variables without neighbours
  * (resulting, e.g., from Dirichlet conditions) are excluded from aggregation
  * process. The aggregation is completed in a single pass over variables:
  * variables adjacent to a new aggregate are temporarily marked as beloning to

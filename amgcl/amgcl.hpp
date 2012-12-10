@@ -118,6 +118,20 @@ auto conv = amgcl::solve(Agpu, rhs, amg, x, amgcl::cg_tag());
 The library is header-only, so there is nothing to compile or link to. You just
 need to copy amgcl folder somewhere and tell your compiler to scan it for
 include files.
+
+\section references References
+ -# \anchor Trottenberg_2001 <em>U. Trottenberg, C. Oosterlee, A. Shuller,</em>
+    Multigrid, Academic Press, London, 2001.
+ -# \anchor Stuben_1999 <em>K. Stuben,</em> Algebraic multigrid (AMG): an
+    introduction with applications, Journal of Computational and Applied
+     Mathematics,  2001, Vol. 128, Pp. 281-309.
+ -# \anchor Vanek_1996 <em>P. Vanek, J. Mandel, M. Brezina,</em> Algebraic multigrid
+    by smoothed aggregation for second and fourth order elliptic problems,
+    Computing 56, 1996, Pp. 179-196.
+ -# \anchor Templates_1994 <em>R. Barrett, M. Berry,
+    T. F. Chan et al.</em> Templates for the Solution of Linear Systems:
+    Building Blocks for Iterative Methods, 2nd Edition, SIAM, Philadelphia, PA,
+    1994.
 */
 
 #include <tuple>

@@ -30,7 +30,7 @@ THE SOFTWARE.
  * \author Denis Demidov <ddemidov@ksu.ru>
  * \brief  Conjugate Gradient method.
  *
- * Implementation is based on (Barrett at. al, 2006)
+ * Implementation is based on \ref Templates_1994 "Barrett (1994)"
  */
 
 #include <tuple>
@@ -49,7 +49,7 @@ struct cg_tag {
 
 /// Conjugate Gradient method.
 /**
- * Implementation is based on (Barrett at. al, 2006)
+ * Implementation is based on \ref Templates_1994 "Barrett (1994)"
  *
  * \param A   The system matrix.
  * \param rhs The right-hand side.
