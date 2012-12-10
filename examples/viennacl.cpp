@@ -4,23 +4,23 @@
 #include <cstdlib>
 
 #define VIENNACL_WITH_OPENCL
-#define AGGREGATION
+//#define VIENNACL_WITH_OPENMP
+
 #define AMGCL_PROFILING
 
 #include <amgcl/amgcl.hpp>
+#include <amgcl/level_viennacl.hpp>
 
-#ifdef AGGREGATION
+#ifdef VIENNACL_WITH_OPENCL
+#  include <vexcl/devlist.hpp>
+#  include <viennacl/hyb_matrix.hpp>
 #  include <amgcl/aggregation.hpp>
 #else
+#  include <viennacl/compressed_matrix.hpp>
 #  include <amgcl/interp_classic.hpp>
 #endif
 
-#include <amgcl/level_viennacl.hpp>
-
-#include <vexcl/devlist.hpp>
-
 #include <viennacl/vector.hpp>
-#include <viennacl/hyb_matrix.hpp>
 #include <viennacl/linalg/cg.hpp>
 
 namespace amgcl {
@@ -33,12 +33,13 @@ using amgcl::prof;
 struct amg_precond {
     typedef amgcl::solver<
         double, int,
-#ifdef AGGREGATION
+#ifdef VIENNACL_WITH_OPENCL
         amgcl::interp::aggregation<amgcl::aggr::plain>,
+        amgcl::level::ViennaCL<amgcl::level::CL_MATRIX_HYB>
 #else
         amgcl::interp::classic,
+        amgcl::level::ViennaCL<amgcl::level::CL_MATRIX_CRS>
 #endif
-        amgcl::level::ViennaCL<amgcl::level::CL_MATRIX_HYB>
         > AMG;
     typedef typename AMG::params params;
 
@@ -66,6 +67,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+#ifdef VIENNACL_WITH_OPENCL
     // There is no easy way to select compute device in ViennaCL, so just use
     // VexCL for that.
     vex::Context ctx(
@@ -77,6 +79,7 @@ int main(int argc, char *argv[]) {
     std::vector<cl_command_queue> queue_id(1, ctx.queue(0)());
     viennacl::ocl::setup_context(0, ctx.context(0)(), dev_id, queue_id);
     std::cout << ctx << std::endl;
+#endif
 
     // Read matrix and rhs from a binary file.
     std::ifstream pfile(argv[1], std::ios::binary);
@@ -101,7 +104,7 @@ int main(int argc, char *argv[]) {
 
     // Build the preconditioner.
     amg_precond::params prm;
-#ifdef AGGREGATION
+#ifdef VIENNACL_WITH_OPENCL
     prm.level.kcycle = 1;
 #endif
 
