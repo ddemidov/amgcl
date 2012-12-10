@@ -45,6 +45,7 @@ namespace level {
  */
 struct vexcl {
 
+/// Parameters for VexCL-based level storage scheme.
 struct params
     : public amgcl::level::params
 {

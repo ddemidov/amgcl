@@ -128,6 +128,8 @@ include files.
  -# \anchor Vanek_1996 <em>P. Vanek, J. Mandel, M. Brezina,</em> Algebraic multigrid
     by smoothed aggregation for second and fourth order elliptic problems,
     Computing 56, 1996, Pp. 179-196.
+ -# \anchor Notay_2008 <em>Y. Notay, P. Vassilevski,</em> Recursive
+    Krylov-based multigrid cycles, Numer. Linear Algebra Appl. 2008; 15:473-487.
  -# \anchor Templates_1994 <em>R. Barrett, M. Berry,
     T. F. Chan et al.</em> Templates for the Solution of Linear Systems:
     Building Blocks for Iterative Methods, 2nd Edition, SIAM, Philadelphia, PA,
@@ -197,7 +199,14 @@ class solver {
     public:
         /// Parameters for AMG components.
         struct params {
-            unsigned coarse_enough; ///< When level is coarse enough to be solved directly.
+            /// When level is coarse enough to be solved directly?
+            /**
+             * If number of variables at a next level in hierarchy becomes
+             * lower than this threshold, then the hierarchy construction is
+             * stopped and the linear system is solved explicitly at this
+             * level.
+             */
+            unsigned coarse_enough;
 
             typename interp_t::params interp; ///< Interpolation parameters.
             typename level_t::params  level;  ///< Level/Solution parameters.

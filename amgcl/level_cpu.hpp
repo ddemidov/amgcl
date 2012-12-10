@@ -48,6 +48,7 @@ namespace level {
  */
 struct cpu {
 
+/// Parameters for CPU-based level storage scheme.
 struct params
     : public amgcl::level::params
 {};

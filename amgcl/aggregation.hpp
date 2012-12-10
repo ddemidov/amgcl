@@ -143,9 +143,21 @@ struct aggregation {
 
 /// Parameters controlling aggregation.
 struct params {
-    float over_interp;   ///< Over-interpolation factor.
+    /// Over-interpolation factor \f$\alpha\f$.
+    /**
+     * See \ref Stuben_1999 "Stuben (1999)", Section 9.1 "Re-scaling of the
+     * Galerkin operator". [In case of aggregation multigrid] Coarse-grid
+     * correction of smooth error, and by this the overall convergence, can
+     * often be substantially improved by using "over-interpolation", that is,
+     * by multiplying the actual correction (corresponding to piecewise
+     * constant interpolation) by some factor \f$\alpha>1\f$. Equivalently,
+     * this means that the coarse-level Galerkin operator is re-scaled by
+     * \f$1/\alpha\f$:
+     * \f[I_h^HA_hI_H^h \to \frac{1}{\alpha}I_h^HA_hI_H^h.\f]
+     */
+    float over_interp;
 
-    params() : over_interp(1.5) {}
+    params() : over_interp(1.5f) {}
 };
 
 /// Constructs coarse level by agregation.

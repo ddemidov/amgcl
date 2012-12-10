@@ -37,12 +37,32 @@ namespace level {
 
 /// Common parameters for level construction/solution.
 struct params {
-    unsigned npre;          ///< Number of pre-relaxations.
-    unsigned npost;         ///< Number of post-relaxations.
-    unsigned ncycle;        ///< Number of cycles (1 for V-cycle, 2 for W-cycle, etc.).
-    unsigned kcycle;        ///< How often to invoke k-cycle instead of just cycle.
-    unsigned maxiter;       ///< Maximum number of iterations in standalone solver.
-    double   tol;           ///< The required precision for standalone solver.
+    /// Number of pre-relaxations.
+    unsigned npre;
+
+    /// Number of post-relaxations.
+    unsigned npost;
+
+    /// Number of cycles (1 for V-cycle, 2 for W-cycle, etc.).
+    unsigned ncycle;
+
+    /// How often to invoke k-cycle instead of just v-cycle.
+    /**
+     * See \ref Notay_2008 "Notay (2008)". K-cycle employs a Krylov method
+     * (here CG) on each level of the grid hierarchy and uses this grid
+     * hierarchy for the preconditioning of this Krylov method. The approach is
+     * further extended by allowing such inner iterations only at levels of
+     * given multiplicity, whereas normal V-cycle formulation is used at all
+     * other levels.
+     */
+    // TODO: Try flexible (generalized) CG method here.
+    unsigned kcycle;
+
+    /// Maximum number of iterations in standalone solver.
+    unsigned maxiter;
+
+    /// The required precision for standalone solver.
+    double   tol;
 
     params()
         : npre(1), npost(1), ncycle(1), kcycle(0), maxiter(100), tol(1e-8)

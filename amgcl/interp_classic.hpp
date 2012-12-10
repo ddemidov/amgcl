@@ -44,11 +44,38 @@ namespace interp {
 /// Direct interpolation scheme based on \ref Stuben_1999 "Stuben (1999)".
 class classic {
     public:
-        /// Parameters controlling interpolation construction.
+        /// Parameters controlling direct interpolation.
+        /**
+         * See \ref Stuben_1999 "Stuben (1999)" for detailed description of
+         * these parameters.
+         */
         struct params {
-            float eps_strong; ///< Parameter for strong connections.
-            bool  trunc_int;  ///< Truncate prolongation operator?
-            float eps_tr;     ///< Truncation parameter.
+            /// Parameter \f$\varepsilon_{str}\f$ defining strong couplings.
+            /**
+             * Variable \f$i\f$ is defined to be strongly negatively coupled to
+             * another variable, \f$j\f$, if \f[-a_{ij} \geq
+             * \max\limits_{a_{ik}<0}|a_{ik}|\quad \text{with fixed} \quad 0
+             * < \varepsilon_{str} < 1.\f]
+             */
+            float eps_strong;
+
+            /// Truncate prolongation operator?
+            /**
+             * Interpolation operators, and, hence coarse operators may
+             * increase substabtially towards coarser levels. Without
+             * truncation, this may become too costly. Truncation ignores all
+             * interpolatory connections which are smaller (in absolute value)
+             * than the largest one by a factor of \f$\varepsilon_{tr}\f$. The
+             * remaining weights are rescaled so that the total sum remains
+             * unchanged. In practice, a value of \f$\varepsilon_{tr}=0.2\f$ is
+             * usually taken.
+             */
+            // TODO: is it possible to say which coefficiants of the P matrix
+            // are to be dropped only looking at A matrix?
+            bool  trunc_int;
+
+            /// Truncation parameter \f$\varepsilon_{tr}\f$.
+            float eps_tr;
 
             params() : eps_strong(0.25f), trunc_int(true), eps_tr(0.2f) {}
         };

@@ -81,6 +81,7 @@ struct matrix_format<CL_MATRIX_HYB, value_type> {
 template <cl_matrix_format Format = CL_MATRIX_HYB>
 struct ViennaCL {
 
+/// Parameters for CPU-based level storage scheme.
 struct params
     : public amgcl::level::params
 { };
