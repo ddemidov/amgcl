@@ -41,7 +41,10 @@ namespace amgcl {
 
 namespace interp {
 
+/** \defgroup interpolation Interpolation */
+
 /// Direct interpolation scheme based on \ref Stuben_1999 "Stuben (1999)".
+/** \ingroup interpolation */
 class classic {
     public:
         /// Parameters controlling direct interpolation.

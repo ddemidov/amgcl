@@ -42,9 +42,12 @@ namespace amgcl {
 /// Storage schemes for levels of AMG hierarchy.
 namespace level {
 
+/** \defgroup levels Level storage backends */
+
 /// CPU-based AMG hierarchy.
 /**
  * Level of an AMG hierarchy for use with arrays located in main (CPU) memory.
+ * \ingroup levels
  */
 struct cpu {
 

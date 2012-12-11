@@ -42,6 +42,7 @@ namespace level {
 /// VexCL-based AMG hierarchy.
 /**
  * Level of an AMG hierarchy for use with VexCL vectors.
+ * \ingroup levels
  */
 struct vexcl {
 

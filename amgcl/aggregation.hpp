@@ -137,6 +137,8 @@ namespace interp {
 /**
  * \param aggr_type Aggregation scheme. For now the only possible value is
  *                  amgcl::aggr::plain.
+ *
+ * \ingroup interpolation
  */
 template <class aggr_type>
 struct aggregation {

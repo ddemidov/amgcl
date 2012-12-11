@@ -77,6 +77,8 @@ struct matrix_format<CL_MATRIX_HYB, value_type> {
  * Level of an AMG hierarchy for use with ViennaCL vectors.
  *
  * \param Format Matrix storage format.
+ *
+ * \ingroup levels
  */
 template <cl_matrix_format Format = CL_MATRIX_HYB>
 struct ViennaCL {
