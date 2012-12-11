@@ -39,12 +39,14 @@ amgcl::solver<
 > amg(A);
 ```
 
-Currently supported interpolation schemes are `amgcl::interp::classic` and
-`amgcl::interp::aggregation<amgcl::aggr::plain>`. The aggregation scheme uses
-less memory and is set up faster than classic interpolation, but its
-convergence rate is slower. It is well suited for VexCL or ViennaCL containers,
-where solution phase is accelerated by the OpenCL technology and, therefore,
-the cost of the setup phase is much more important.
+See documentation for [Interpolation][interp] module to see the list of
+supported interpolation schemes. The aggregation schemes use less memory and
+are set up faster than classic interpolation, but their convergence rate is
+slower. They are well suited for VexCL or ViennaCL containers, where solution
+phase is accelerated by the OpenCL technology and, therefore, the cost of the
+setup phase is much more important.
+
+[interp]: http://ddemidov.github.com/amgcl/group__interpolation.html
 
 ```C++
 amgcl::solver<
