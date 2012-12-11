@@ -9,7 +9,8 @@
 
 #include <amgcl/amgcl.hpp>
 #ifdef AGGREGATION
-#  include <amgcl/aggregation.hpp>
+#  include <amgcl/aggr_plain.hpp>
+#  include <amgcl/interp_aggr.hpp>
 #else
 #  include <amgcl/interp_classic.hpp>
 #endif

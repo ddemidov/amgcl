@@ -14,7 +14,8 @@
 #ifdef VIENNACL_WITH_OPENCL
 #  include <vexcl/devlist.hpp>
 #  include <viennacl/hyb_matrix.hpp>
-#  include <amgcl/aggregation.hpp>
+#  include <amgcl/aggr_plain.hpp>
+#  include <amgcl/interp_aggr.hpp>
 #else
 #  include <viennacl/compressed_matrix.hpp>
 #  include <amgcl/interp_classic.hpp>
