@@ -41,6 +41,8 @@ struct options {
     int         interp;
     int         solver;
     std::string pfile;
+
+    amgcl::level::params lp;
 };
 
 //---------------------------------------------------------------------------
@@ -100,6 +102,10 @@ void test_classic(const vex::Context &ctx,
     > AMG;
 
     typename AMG::params prm;
+    prm.level.npre   = op.lp.npre;
+    prm.level.npost  = op.lp.npost;
+    prm.level.ncycle = op.lp.ncycle;
+    prm.level.kcycle = op.lp.kcycle;
 
 
     prof.tic("Setup");
@@ -123,6 +129,10 @@ void test_aggregation(const vex::Context &ctx,
     > AMG;
 
     typename AMG::params prm;
+    prm.level.npre   = op.lp.npre;
+    prm.level.npost  = op.lp.npost;
+    prm.level.ncycle = op.lp.ncycle;
+    prm.level.kcycle = op.lp.kcycle;
 
     const int n = amgcl::sparse::matrix_rows(A);
 
@@ -147,6 +157,10 @@ void test_smoothed_aggregation(const vex::Context &ctx,
     > AMG;
 
     typename AMG::params prm;
+    prm.level.npre   = op.lp.npre;
+    prm.level.npost  = op.lp.npost;
+    prm.level.ncycle = op.lp.ncycle;
+    prm.level.kcycle = op.lp.kcycle;
 
     const int n = amgcl::sparse::matrix_rows(A);
 
@@ -175,6 +189,10 @@ int main(int argc, char *argv[]) {
             po::value<std::string>(&op.pfile)->default_value("problem.dat"),
             "Problem file"
             )
+        ("npre",   po::value<unsigned>(&op.lp.npre  )->default_value(op.lp.npre))
+        ("npost",  po::value<unsigned>(&op.lp.npost )->default_value(op.lp.npost))
+        ("ncycle", po::value<unsigned>(&op.lp.ncycle)->default_value(op.lp.ncycle))
+        ("kcycle", po::value<unsigned>(&op.lp.kcycle)->default_value(op.lp.kcycle))
         ;
 
     po::positional_options_description pdesc;
