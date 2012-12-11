@@ -179,11 +179,8 @@ struct coarse_operator {
 /**
  * \param value_t  Type for matrix entries.
  * \param index_t  Type for matrix indices. Should be signed integral type.
- * \param interp_t Interpolation scheme.  Possible choices:
- *                 amgcl::interp::classic and amgcl::interp::aggregation.
- * \param level_t  Class for storing the hierarchy level structure. Possible
- *                 choices: amgcl::level::cpu, amgcl::level::vexcl,
- *                 amgcl::level::ViennaCL<>.
+ * \param interp_t \ref interpolation "Interpolation scheme".
+ * \param level_t  Hierarchy level \ref levels "storage backend".
  */
 template <
     typename value_t  = double,

@@ -72,7 +72,7 @@ struct matrix_format<CL_MATRIX_HYB, value_type> {
     typedef viennacl::hyb_matrix<value_type> type;
 };
 
-/// VexCL-based AMG hierarchy.
+/// ViennaCL-based AMG hierarchy.
 /**
  * Level of an AMG hierarchy for use with ViennaCL vectors.
  *

@@ -39,8 +39,10 @@ THE SOFTWARE.
 
 namespace amgcl {
 
-/// Aggreagtion related types and functions.
+/// Aggregation related types and functions.
 namespace aggr {
+
+/** \defgroup aggregation Aggregation */
 
 /// Plain aggregation.
 /**
@@ -51,6 +53,8 @@ namespace aggr {
  * variables adjacent to a new aggregate are temporarily marked as beloning to
  * this aggregate. Later they may be claimed by other aggregates; if nobody
  * claims them, then they just stay in their initial aggregate.
+ *
+ * \ingroup aggregation
  */
 struct plain {
 
@@ -135,8 +139,7 @@ namespace interp {
 
 /// Aggregation-based interpolation scheme.
 /**
- * \param aggr_type Aggregation scheme. For now the only possible value is
- *                  amgcl::aggr::plain.
+ * \param aggr_type \ref aggregation "Aggregation scheme".
  *
  * \ingroup interpolation
  */
