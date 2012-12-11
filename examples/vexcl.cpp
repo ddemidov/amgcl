@@ -1,6 +1,4 @@
 #include <iostream>
-#include <fstream>
-#include <chrono>
 #include <cstdlib>
 #include <vexcl/vexcl.hpp>
 
@@ -19,6 +17,8 @@
 #include <amgcl/cg.hpp>
 #include <amgcl/bicgstab.hpp>
 
+#include "read.hpp"
+
 namespace amgcl {
 profiler<> prof;
 }
@@ -31,20 +31,11 @@ int main(int argc, char *argv[]) {
     }
 
     // Read matrix and rhs from a binary file.
-    std::ifstream pfile(argv[1], std::ios::binary);
-    int n;
-    pfile.read((char*)&n, sizeof(int));
-
-    std::vector<int> row(n + 1);
-    pfile.read((char*)row.data(), row.size() * sizeof(int));
-
-    std::vector<int>    col(row.back());
-    std::vector<double> val(row.back());
-    std::vector<double> rhs(n);
-
-    pfile.read((char*)col.data(), col.size() * sizeof(int));
-    pfile.read((char*)val.data(), val.size() * sizeof(double));
-    pfile.read((char*)rhs.data(), rhs.size() * sizeof(double));
+    std::vector<int>    row;
+    std::vector<int>    col;
+    std::vector<double> val;
+    std::vector<double> rhs;
+    int n = read_problem(argv[1], row, col, val, rhs);
 
     // Initialize VexCL context.
     vex::Context ctx( vex::Filter::Env && vex::Filter::DoublePrecision );

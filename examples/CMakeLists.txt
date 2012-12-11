@@ -19,3 +19,10 @@ target_link_libraries(viennacl OpenCL)
 
 add_executable(viennacl_vexcl viennacl_vexcl.cpp)
 target_link_libraries(viennacl_vexcl OpenCL)
+
+
+find_package(Boost COMPONENTS program_options)
+
+add_executable(utest utest.cpp)
+target_link_libraries(utest OpenCL ${Boost_PROGRAM_OPTIONS_LIBRARY})
+
