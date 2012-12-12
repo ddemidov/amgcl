@@ -128,64 +128,79 @@ static sparse::matrix<value_t, index_t> interp(
     auto Acol = sparse::matrix_inner_index(A);
     auto Aval = sparse::matrix_values(A);
 
-    std::vector<index_t> marker(nc, static_cast<index_t>(-1));
 
-    // Count number of entries in P.
-    for(index_t i = 0; i < n; ++i) {
-        for(index_t j = Arow[i], e = Arow[i+1]; j < e; ++j) {
-            index_t c = Acol[j];
+#pragma omp parallel
+    {
+        std::vector<index_t> marker(nc, static_cast<index_t>(-1));
 
-            if (c != i && !S[j]) continue;
+	int nt  = omp_get_num_threads();
+	int tid = omp_get_thread_num();
 
-            index_t g = aggr[c];
+	index_t chunk_size  = (n + nt - 1) / nt;
+	index_t chunk_start = tid * chunk_size;
+	index_t chunk_end   = std::min(n, chunk_start + chunk_size);
 
-            if (g >= 0 && marker[g] != i) {
-                marker[g] = i;
-                ++P.row[i + 1];
+        // Count number of entries in P.
+        for(index_t i = chunk_start; i < chunk_end; ++i) {
+            for(index_t j = Arow[i], e = Arow[i+1]; j < e; ++j) {
+                index_t c = Acol[j];
+
+                if (c != i && !S[j]) continue;
+
+                index_t g = aggr[c];
+
+                if (g >= 0 && marker[g] != i) {
+                    marker[g] = i;
+                    ++P.row[i + 1];
+                }
             }
         }
-    }
 
-    std::fill(marker.begin(), marker.end(), static_cast<index_t>(-1));
+        std::fill(marker.begin(), marker.end(), static_cast<index_t>(-1));
 
-    std::partial_sum(P.row.begin(), P.row.end(), P.row.begin());
-    P.reserve(P.row.back());
-
-    // Fill the interpolation matrix.
-    for(index_t i = 0; i < n; ++i) {
-
-        // Diagonal of the filtered matrix is original matrix diagonal minus
-        // its weak connections.
-        value_t dia = 0;
-        for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
-            if (Acol[j] == i)
-                dia += Aval[j];
-            else if (!S[j])
-                dia -= Aval[j];
+#pragma omp barrier
+#pragma omp single
+        {
+            std::partial_sum(P.row.begin(), P.row.end(), P.row.begin());
+            P.reserve(P.row.back());
         }
-        dia = 1 / dia;
 
-        index_t row_beg = P.row[i];
-        index_t row_end = row_beg;
-        for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
-            index_t c = Acol[j];
+        // Fill the interpolation matrix.
+        for(index_t i = chunk_start; i < chunk_end; ++i) {
 
-            // Skip weak couplings, ...
-            if (c != i && !S[j]) continue;
+            // Diagonal of the filtered matrix is original matrix diagonal minus
+            // its weak connections.
+            value_t dia = 0;
+            for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
+                if (Acol[j] == i)
+                    dia += Aval[j];
+                else if (!S[j])
+                    dia -= Aval[j];
+            }
+            dia = 1 / dia;
 
-            // ... and the ones not in any aggregate.
-            index_t g = aggr[c];
-            if (g < 0) continue;
+            index_t row_beg = P.row[i];
+            index_t row_end = row_beg;
+            for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
+                index_t c = Acol[j];
 
-            value_t v = (c == i) ? 1 - prm.relax : -prm.relax * dia * Aval[j];
+                // Skip weak couplings, ...
+                if (c != i && !S[j]) continue;
 
-            if (marker[g] < row_beg) {
-                marker[g] = row_end;
-                P.col[row_end] = g;
-                P.val[row_end] = v;
-                ++row_end;
-            } else {
-                P.val[marker[g]] += v;
+                // ... and the ones not in any aggregate.
+                index_t g = aggr[c];
+                if (g < 0) continue;
+
+                value_t v = (c == i) ? 1 - prm.relax : -prm.relax * dia * Aval[j];
+
+                if (marker[g] < row_beg) {
+                    marker[g] = row_end;
+                    P.col[row_end] = g;
+                    P.val[row_end] = v;
+                    ++row_end;
+                } else {
+                    P.val[marker[g]] += v;
+                }
             }
         }
     }

@@ -475,6 +475,7 @@ diagonal(const spmat &A) {
 
     std::vector<value_t> dia(n);
 
+#pragma omp parallel for schedule(dynamic, 1024)
     for(index_t i = 0; i < n; ++i) {
         value_t d = 0;
         for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
