@@ -66,12 +66,12 @@ class instance {
         // prolongation (p) and restriction (r) operators.
         // The matrices are moved into the local members.
         instance(cpu_matrix &&a, cpu_matrix &&p, cpu_matrix &&r, const params &prm, unsigned nlevel)
-            : A(new matrix(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
-                        a.rows, a.cols, a.row.data(), a.col.data(), a.val.data())),
-              P(new matrix(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
-                          p.rows, p.cols, p.row.data(), p.col.data(), p.val.data())),
-              R(new matrix(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
-                          r.rows, r.cols, r.row.data(), r.col.data(), r.val.data())),
+            : A(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
+                    a.rows, a.cols, a.row.data(), a.col.data(), a.val.data()),
+              P(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
+                      p.rows, p.cols, p.row.data(), p.col.data(), p.val.data()),
+              R(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
+                          r.rows, r.cols, r.row.data(), r.col.data(), r.val.data()),
               d(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
               t(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
               sum(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue())
@@ -94,10 +94,10 @@ class instance {
         // Construct the coarsest hierarchy level from system matrix (a) and
         // its inverse (ai).
         instance(cpu_matrix &&a, cpu_matrix &&ai, const params &prm, unsigned nlevel)
-            : A(new matrix(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
-                        a.rows, a.cols, a.row.data(), a.col.data(), a.val.data())),
-              Ainv(new matrix(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
-                          ai.rows, ai.cols, ai.row.data(), ai.col.data(), ai.val.data())),
+            : A(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
+                        a.rows, a.cols, a.row.data(), a.col.data(), a.val.data()),
+              Ainv(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
+                          ai.rows, ai.cols, ai.row.data(), ai.col.data(), ai.val.data()),
               d(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
               u(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
               f(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
@@ -114,13 +114,13 @@ class instance {
         void relax(const vector &rhs, vector &x) const {
             const index_t n = x.size();
 
-            t = rhs - (*A) * x;
+            t = rhs - A * x;
             x += 0.72 * t / d;
         }
 
         // Compute residual value.
         value_t resid(const vector &rhs, vector &x) const {
-            t = rhs - (*A) * x;
+            t = rhs - A * x;
 
             return sqrt(sum(t * t));
         }
@@ -137,8 +137,8 @@ class instance {
                 for(unsigned j = 0; j < prm.ncycle; ++j) {
                     for(unsigned i = 0; i < prm.npre; ++i) lvl->relax(rhs, x);
 
-                    lvl->t = rhs - (*lvl->A) * x;
-                    nxt->f = (*lvl->R) * lvl->t;
+                    lvl->t = rhs - lvl->A * x;
+                    nxt->f = lvl->R * lvl->t;
                     nxt->u = 0;
 
                     if (nxt->cg.size())
@@ -146,12 +146,12 @@ class instance {
                     else
                         cycle(nxt, end, prm, nxt->f, nxt->u);
 
-                    x += (*lvl->P) * nxt->u;
+                    x += lvl->P * nxt->u;
 
                     for(unsigned i = 0; i < prm.npost; ++i) lvl->relax(rhs, x);
                 }
             } else {
-                x = (*lvl->Ainv) * rhs;
+                x = lvl->Ainv * rhs;
             }
         }
 
@@ -183,7 +183,7 @@ class instance {
                     else
                         p = s;
 
-                    q = (*lvl->A) * p;
+                    q = lvl->A * p;
 
                     value_t alpha = rho1 / lvl->sum(q * p);
 
@@ -191,14 +191,14 @@ class instance {
                     r -= alpha * q;
                 }
             } else {
-                x = (*lvl->Ainv) * rhs;
+                x = lvl->Ainv * rhs;
             }
         }
     private:
-        std::unique_ptr<matrix> A;
-        std::unique_ptr<matrix> P;
-        std::unique_ptr<matrix> R;
-        std::unique_ptr<matrix> Ainv;
+        matrix A;
+        matrix P;
+        matrix R;
+        matrix Ainv;
 
         vector d;
 
