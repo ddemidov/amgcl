@@ -42,6 +42,7 @@ struct options {
     int         solver;
     std::string pfile;
 
+    unsigned coarse_enough;
     amgcl::level::params lp;
 };
 
@@ -102,6 +103,9 @@ void test_classic(const vex::Context &ctx,
     > AMG;
 
     typename AMG::params prm;
+
+    prm.coarse_enough = op.coarse_enough;
+
     prm.level.npre   = op.lp.npre;
     prm.level.npost  = op.lp.npost;
     prm.level.ncycle = op.lp.ncycle;
@@ -129,6 +133,9 @@ void test_aggregation(const vex::Context &ctx,
     > AMG;
 
     typename AMG::params prm;
+
+    prm.coarse_enough = op.coarse_enough;
+
     prm.level.npre   = op.lp.npre;
     prm.level.npost  = op.lp.npost;
     prm.level.ncycle = op.lp.ncycle;
@@ -157,6 +164,9 @@ void test_smoothed_aggregation(const vex::Context &ctx,
     > AMG;
 
     typename AMG::params prm;
+
+    prm.coarse_enough = op.coarse_enough;
+
     prm.level.npre   = op.lp.npre;
     prm.level.npost  = op.lp.npost;
     prm.level.ncycle = op.lp.ncycle;
@@ -189,6 +199,9 @@ int main(int argc, char *argv[]) {
             po::value<std::string>(&op.pfile)->default_value("problem.dat"),
             "Problem file"
             )
+
+        ("coarse_enough", po::value<unsigned>(&op.coarse_enough)->default_value(300))
+
         ("npre",   po::value<unsigned>(&op.lp.npre  )->default_value(op.lp.npre))
         ("npost",  po::value<unsigned>(&op.lp.npost )->default_value(op.lp.npost))
         ("ncycle", po::value<unsigned>(&op.lp.ncycle)->default_value(op.lp.ncycle))
