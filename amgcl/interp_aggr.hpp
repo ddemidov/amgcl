@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include <algorithm>
 
 #include <amgcl/spmat.hpp>
+#include <amgcl/aggr_connect.hpp>
 #include <amgcl/profiler.hpp>
 
 namespace amgcl {
@@ -66,7 +67,15 @@ struct params {
      */
     float over_interp;
 
-    params() : over_interp(1.5f) {}
+    /// Parameter \f$\varepsilon_{str}\f$ defining strong couplings.
+    /**
+     * Variable \f$i\f$ is defined to be strongly coupled to another variable,
+     * \f$j\f$, if \f[|a_{ij}| \geq \varepsilon_{str}\sqrt{a_{ii} a_{jj}}\quad
+     * \text{with fixed} \quad 0 < \varepsilon_{str} < 1.\f]
+     */
+    float eps_strong;
+
+    params() : over_interp(1.5f), eps_strong(0.1f) {}
 };
 
 /// Constructs coarse level by agregation.
@@ -87,7 +96,7 @@ static sparse::matrix<value_t, index_t> interp(
     const index_t n = sparse::matrix_rows(A);
 
     TIC("aggregates");
-    auto aggr = aggr_type::aggregates(A);
+    auto aggr = aggr_type::aggregates(A, aggr::connect(A, prm.eps_strong));
     TOC("aggregates");
 
     index_t nc = std::max(

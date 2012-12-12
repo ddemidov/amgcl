@@ -59,21 +59,22 @@ namespace aggr {
 struct plain {
 
 /// Constructs aggregates of variables.
-/** 
+/**
  * Each entry of the return vector corresponds to a variable and contains
  * number of an aggregate the variable belongs to. If an entry is negative,
  * then variable does not belong to any aggregate.
  *
- * \param A system matrix.
+ * \param A The system matrix.
+ * \param S Strong couplings in A.
  *
  * \returns a vector of aggregate numbers.
  */
 template <class spmat>
 static std::vector< typename sparse::matrix_index<spmat>::type >
-aggregates( const spmat &A ) {
+aggregates( const spmat &A, const std::vector<char> &S ) {
     typedef typename sparse::matrix_index<spmat>::type index_t;
     typedef typename sparse::matrix_value<spmat>::type value_t;
-    
+
     const index_t n = sparse::matrix_rows(A);
 
     const index_t undefined = static_cast<index_t>(-1);
@@ -86,16 +87,20 @@ aggregates( const spmat &A ) {
     auto Aval = sparse::matrix_values(A);
 
     // Remove nodes without neighbours
-    index_t max_row_width = 0;
+    unsigned max_neib = 0;
     for(index_t i = 0; i < n; ++i) {
-        auto w = Arow[i + 1] - Arow[i];
-        agg[i] = (w > 1 ? undefined : removed);
+        unsigned n_neib = 0;
 
-        if (w > max_row_width) max_row_width = w;
+        for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
+            if (S[j]) ++n_neib;
+
+        agg[i] = (n_neib ? undefined : removed);
+
+        max_neib = std::max(n_neib, max_neib);
     }
 
     std::vector<index_t> neib;
-    neib.reserve(max_row_width);
+    neib.reserve(max_neib);
 
     index_t last_g = static_cast<index_t>(-1);
 
@@ -112,7 +117,7 @@ aggregates( const spmat &A ) {
         // Include its neighbors as well.
         for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
             index_t c = Acol[j];
-            if (c != i && agg[c] != removed) {
+            if (S[j] && agg[c] != removed) {
                 agg[c] = last_g;
                 neib.push_back(c);
             }
@@ -123,7 +128,7 @@ aggregates( const spmat &A ) {
         // stay here.
         for(auto nb = neib.begin(); nb != neib.end(); ++nb)
             for(index_t j = Arow[*nb], e = Arow[*nb + 1]; j < e; ++j)
-                if (agg[Acol[j]] == undefined) agg[Acol[j]] = last_g;
+                if (S[j] && agg[Acol[j]] == undefined) agg[Acol[j]] = last_g;
     }
 
     assert( std::count(agg.begin(), agg.end(), undefined) == 0 );

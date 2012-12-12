@@ -57,8 +57,10 @@ class classic {
             /**
              * Variable \f$i\f$ is defined to be strongly negatively coupled to
              * another variable, \f$j\f$, if \f[-a_{ij} \geq
-             * \max\limits_{a_{ik}<0}|a_{ik}|\quad \text{with fixed} \quad 0
-             * < \varepsilon_{str} < 1.\f]
+             * \varepsilon_{str}\max\limits_{a_{ik}<0}|a_{ik}|\quad \text{with
+             * fixed} \quad 0 < \varepsilon_{str} < 1.\f]
+             * In practice, a value of \f$\varepsilon_{str}=0.25\f$ is usually
+             * taken.
              */
             float eps_strong;
 

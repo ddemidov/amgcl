@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include <algorithm>
 
 #include <amgcl/spmat.hpp>
+#include <amgcl/aggr_connect.hpp>
 #include <amgcl/profiler.hpp>
 
 namespace amgcl {
@@ -66,23 +67,28 @@ struct params {
      * \f[
      * a_{ij}^F =
      * \begin{cases}
-     * a_{ij} \quad \text{if} \; j \in N_i(\varepsilon)\\
+     * a_{ij} \quad \text{if} \; j \in N_i\\
      * 0 \quad \text{otherwise}
      * \end{cases}, \quad \text{if}\; i \neq j,
      * \quad a_{ii}^F = a_{ii} - \sum\limits_{j=1,j\neq i}^n
      * \left(a_{ij} - a_{ij}^F \right),
      * \f]
-     * where \f$D\f$ denotes the diagonal of \f$A^F\f$.
+     * where \f$N_i\f$ is the set of variables, strongly coupled to variable
+     * \f$i\f$, and \f$D\f$ denotes the diagonal of \f$A^F\f$.
      */
     float relax;
 
-    /// Matrix filtering parameter \f$\varepsilon\f$
+    /// Parameter \f$\varepsilon_{str}\f$ defining strong couplings.
     /**
-     * \sa relax
+     * Variable \f$i\f$ is defined to be strongly coupled to another variable,
+     * \f$j\f$, if \f[|a_{ij}| \geq \varepsilon\sqrt{a_{ii} a_{jj}}\quad
+     * \text{with fixed} \quad \varepsilon = \varepsilon_{str} \left(
+     * \frac{1}{2} \right)^l,\f]
+     * where \f$l\f$ is level number (finest level is 0).
      */
-    float eps;
+    mutable float eps_strong;
 
-    params() : relax(0.666f), eps(0.1f) {}
+    params() : relax(2.0f / 3.0f), eps_strong(0.08f) {}
 };
 
 /// Constructs coarse level by agregation.
@@ -95,7 +101,6 @@ struct params {
  *
  * \returns interpolation operator.
  */
-// TODO: actually filter the matrix.
 template < class value_t, class index_t >
 static sparse::matrix<value_t, index_t> interp(
         const sparse::matrix<value_t, index_t> &A, const params &prm
@@ -103,8 +108,11 @@ static sparse::matrix<value_t, index_t> interp(
 {
     const index_t n = sparse::matrix_rows(A);
 
+    auto S = aggr::connect(A, prm.eps_strong);
+    prm.eps_strong *= 0.5;
+
     TIC("aggregates");
-    auto aggr = aggr_type::aggregates(A);
+    auto aggr = aggr_type::aggregates(A, S);
     TOC("aggregates");
 
     index_t nc = std::max(
@@ -123,10 +131,13 @@ static sparse::matrix<value_t, index_t> interp(
     std::vector<index_t> marker(nc, static_cast<index_t>(-1));
 
     // Count number of entries in P.
-    index_t nnz = 0;
     for(index_t i = 0; i < n; ++i) {
         for(index_t j = Arow[i], e = Arow[i+1]; j < e; ++j) {
-            index_t g = aggr[Acol[j]];
+            index_t c = Acol[j];
+
+            if (c != i && !S[j]) continue;
+
+            index_t g = aggr[c];
 
             if (g >= 0 && marker[g] != i) {
                 marker[g] = i;
@@ -142,27 +153,31 @@ static sparse::matrix<value_t, index_t> interp(
 
     // Fill the interpolation matrix.
     for(index_t i = 0; i < n; ++i) {
+
+        // Diagonal of the filtered matrix is original matrix diagonal minus
+        // its weak connections.
         value_t dia = 0;
-
         for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
-            if (Acol[j] == i) {
-                dia = Aval[j];
-                break;
-            }
+            if (Acol[j] == i)
+                dia += Aval[j];
+            else if (!S[j])
+                dia -= Aval[j];
         }
-
         dia = 1 / dia;
 
         index_t row_beg = P.row[i];
         index_t row_end = row_beg;
         for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
             index_t c = Acol[j];
-            index_t g = aggr[c];
 
+            // Skip weak couplings, ...
+            if (c != i && !S[j]) continue;
+
+            // ... and the ones not in any aggregate.
+            index_t g = aggr[c];
             if (g < 0) continue;
 
-            value_t v = -prm.relax * Aval[j] * dia;
-            if (c == i) v += static_cast<value_t>(1);
+            value_t v = (c == i) ? 1 - prm.relax : -prm.relax * dia * Aval[j];
 
             if (marker[g] < row_beg) {
                 marker[g] = row_end;
