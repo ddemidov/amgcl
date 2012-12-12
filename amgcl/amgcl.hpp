@@ -136,6 +136,8 @@ include files.
     1994.
 */
 
+#include <iostream>
+#include <iomanip>
 #include <utility>
 #include <list>
 
@@ -274,12 +276,41 @@ class solver {
             level_type::cycle(hier.begin(), hier.end(), prm.level, rhs, x);
         }
 
+        /// Output some general information about the AMG hierarchy.
+        std::ostream& print(std::ostream &os) const {
+            index_t sum_dof = std::accumulate(
+                    hier.begin(), hier.end(), static_cast<index_t>(0),
+                    [](index_t sum, const level_type &lvl) {
+                        return sum + lvl.size();
+                    });
+
+            index_t sum_nnz = std::accumulate(
+                    hier.begin(), hier.end(), static_cast<index_t>(0),
+                    [](index_t sum, const level_type &lvl) {
+                        return sum + lvl.nonzeros();
+                    });
+
+            os << "Number of levels:    "   << hier.size()
+               << "\nOperator complexity: " << std::fixed << std::setprecision(2)
+                                            << 1.0 * sum_nnz / hier.front().nonzeros()
+               << "\nGrid complexity:     " << std::fixed << std::setprecision(2)
+                                            << 1.0 * sum_dof / hier.front().size()
+               << "\n\nlevel     unknowns       nonzeros\n"
+               << "---------------------------------\n";
+
+            index_t depth = 0;
+            for(auto lvl = hier.begin(); lvl != hier.end(); ++lvl, ++depth)
+                os << std::setw(5)  << depth
+                   << std::setw(13) << lvl->size()
+                   << std::setw(15) << lvl->nonzeros() << " ("
+                   << std::setw(5) << std::fixed << std::setprecision(2)
+                   << 100.0 * lvl->nonzeros() / sum_nnz
+                   << "%)" << std::endl;
+            return os;
+        }
     private:
         void build_level(matrix &&A, const params &prm, unsigned nlevel = 0)
         {
-#ifdef AMGCL_PROFILING
-            std::cout << A.rows << std::endl;
-#endif
             if (A.rows <= prm.coarse_enough) {
                 hier.emplace_back(std::move(A), std::move(sparse::inverse(A)), prm.level, nlevel);
             } else {
@@ -307,5 +338,16 @@ class solver {
 };
 
 } // namespace amgcl
+
+/// Output some general information about the AMG hierarchy.
+template <
+    typename value_t,
+    typename index_t,
+    typename interp_t,
+    typename level_t
+    >
+std::ostream& operator<<(std::ostream &os, const amgcl::solver<value_t, index_t, interp_t, level_t> &amg) {
+    return amg.print(os);
+}
 
 #endif

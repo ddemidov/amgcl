@@ -194,6 +194,14 @@ class instance {
                 x = lvl->Ainv * rhs;
             }
         }
+
+        index_t size() const {
+            return A.rows();
+        }
+
+        index_t nonzeros() const {
+            return A.nonzeros();
+        }
     private:
         matrix A;
         matrix P;

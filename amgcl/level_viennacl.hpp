@@ -224,6 +224,14 @@ class instance {
                 x = viennacl::linalg::prod(lvl->Ainv, rhs);
             }
         }
+
+        index_t size() const {
+            return A.size1();
+        }
+
+        index_t nonzeros() const {
+            return A.nnz();
+        }
     private:
         matrix A;
         matrix P;

@@ -139,9 +139,9 @@ class profiler {
 
                 out << name << ":"
                     << setw(width - name.size()) << ""
-                    << setiosflags(ios::fixed)
-                    << setw(10) << setprecision(3) << time << " sec."
-                    << "] (" << setprecision(2) << setw(6) << perc << "%)"
+                    << setw(10)
+                    << fixed << setprecision(3) << time << " sec."
+                    << "] (" << fixed << setprecision(2) << setw(6) << perc << "%)"
                     << endl;
             }
 

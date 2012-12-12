@@ -81,7 +81,8 @@ void solve(
     }
     prof.toc("solve");
 
-    std::cout << "Iterations: " << std::get<0>(cnv) << std::endl
+    std::cout << std::scientific << std::setprecision(6)
+              << "Iterations: " << std::get<0>(cnv) << std::endl
               << "Error:      " << std::get<1>(cnv) << std::endl
               << std::endl;
 }
@@ -109,6 +110,8 @@ void run_cpu_test(const spmat &A, const vector &rhs, const options &op) {
     prof.tic("setup");
     AMG amg(A, prm);
     prof.toc("setup");
+
+    std::cout << amg << std::endl;
 
     Eigen::MappedSparseMatrix<double, Eigen::RowMajor, int> Amap(
             amgcl::sparse::matrix_rows(A),
@@ -150,6 +153,8 @@ void run_vexcl_test(const spmat &A, const vector &rhs, const options &op) {
     prof.tic("setup");
     AMG amg(A, prm);
     prof.toc("setup");
+
+    std::cout << amg << std::endl;
 
     // Copy matrix and rhs to GPU(s).
     vex::SpMat<double, int, int> Agpu(

@@ -267,6 +267,14 @@ class instance {
                 }
             }
         }
+
+        index_t size() const {
+            return t.size();
+        }
+
+        index_t nonzeros() const {
+            return sparse::matrix_nonzeros(A);
+        }
     private:
         matrix A;
         matrix P;
