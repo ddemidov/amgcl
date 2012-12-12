@@ -31,12 +31,21 @@ THE SOFTWARE.
  * \brief  Adaptors for VexCL types.
  */
 
+#include <type_traits>
 #include <vexcl/vexcl.hpp>
 
 namespace amgcl {
 
+#ifndef AMGCL_OPERATIONS_VALUE_TYPE_DECLARED
+#define AMGCL_OPERATIONS_VALUE_TYPE_DECLARED
+template <class T, class Enable = void> struct value_type;
+#endif
+
 template <typename T>
-struct value_type {
+struct value_type<T,
+    typename std::enable_if<std::is_arithmetic<typename T::value_type>::value>::type
+    >
+{
     typedef typename T::value_type type;
 };
 
