@@ -5,6 +5,9 @@
 
 #include <vexcl/vexcl.hpp>
 
+#include <Eigen/Dense>
+#include <Eigen/SparseCore>
+
 #define AMGCL_PROFILING
 
 #include <amgcl/amgcl.hpp>
@@ -12,8 +15,10 @@
 #include <amgcl/interp_aggr.hpp>
 #include <amgcl/interp_smoothed_aggr.hpp>
 #include <amgcl/interp_classic.hpp>
+#include <amgcl/level_cpu.hpp>
 #include <amgcl/level_vexcl.hpp>
 #include <amgcl/operations_vexcl.hpp>
+#include <amgcl/operations_eigen.hpp>
 #include <amgcl/cg.hpp>
 #include <amgcl/bicgstab.hpp>
 
@@ -32,13 +37,17 @@ enum interp_t {
     smoothed_aggregation = 3
 };
 
+enum level_t {
+    vexcl_lvl = 1,
+    cpu_lvl   = 2
+};
+
 enum solver_t {
     cg   = 1,
     bicg = 2
 };
 
 struct options {
-    int         interp;
     int         solver;
     std::string pfile;
 
@@ -49,40 +58,28 @@ struct options {
 //---------------------------------------------------------------------------
 template <class AMG, class spmat, class vector>
 void solve(
-        const vex::Context &ctx,
         const AMG          &amg,
         const spmat        &A,
         const vector       &rhs,
+        vector             &x,
         const options      &op
         )
 {
-    const int n = amgcl::sparse::matrix_rows(A);
-
-    // Copy matrix and rhs to GPU(s).
-    vex::SpMat<double, int, int> Agpu(
-            ctx.queue(), n, n,
-            amgcl::sparse::matrix_outer_index(A),
-            amgcl::sparse::matrix_inner_index(A),
-            amgcl::sparse::matrix_values(A)
-            );
-
-    vex::vector<double> f(ctx.queue(), rhs);
-    vex::vector<double> x(ctx.queue(), n);
-    x = 0;
+    const int n = rhs.size();
 
     std::pair<int,double> cnv;
-    prof.tic("Solve");
+    prof.tic("solve");
     switch (static_cast<solver_t>(op.solver)) {
         case cg:
-            cnv = amgcl::solve(Agpu, f, amg, x, amgcl::cg_tag());
+            cnv = amgcl::solve(A, rhs, amg, x, amgcl::cg_tag());
             break;
         case bicg:
-            cnv = amgcl::solve(Agpu, f, amg, x, amgcl::bicg_tag());
+            cnv = amgcl::solve(A, rhs, amg, x, amgcl::bicg_tag());
             break;
         default:
             throw std::invalid_argument("Unsupported iterative solver");
     }
-    prof.toc("Solve");
+    prof.toc("solve");
 
     std::cout << "Iterations: " << std::get<0>(cnv) << std::endl
               << "Error:      " << std::get<1>(cnv) << std::endl
@@ -90,16 +87,11 @@ void solve(
 }
 
 //---------------------------------------------------------------------------
-template <class spmat, class vector>
-void test_classic(const vex::Context &ctx,
-        const spmat &A, const vector &rhs,
-        const options &op
-        )
-{
+template <class interp_t, class spmat, class vector>
+void run_cpu_test(const spmat &A, const vector &rhs, const options &op) {
     typedef amgcl::solver<
-        double, int,
-        amgcl::interp::classic,
-        amgcl::level::vexcl
+        double, int, interp_t,
+        amgcl::level::cpu
     > AMG;
 
     typename AMG::params prm;
@@ -111,26 +103,39 @@ void test_classic(const vex::Context &ctx,
     prm.level.ncycle = op.lp.ncycle;
     prm.level.kcycle = op.lp.kcycle;
 
+    Eigen::VectorXd x = Eigen::VectorXd::Zero(rhs.size());
+    
 
-    prof.tic("Setup");
+    prof.tic("setup");
     AMG amg(A, prm);
-    prof.toc("Setup");
+    prof.toc("setup");
 
-    solve(ctx, amg, A, rhs, op);
+    Eigen::MappedSparseMatrix<double, Eigen::RowMajor, int> Amap(
+            amgcl::sparse::matrix_rows(A),
+            amgcl::sparse::matrix_cols(A),
+            amgcl::sparse::matrix_nonzeros(A),
+            const_cast<int*   >(amgcl::sparse::matrix_outer_index(A)),
+            const_cast<int*   >(amgcl::sparse::matrix_inner_index(A)),
+            const_cast<double*>(amgcl::sparse::matrix_values(A))
+            );
+
+    solve(amg, Amap, rhs, x, op);
 }
 
 //---------------------------------------------------------------------------
-template <class spmat, class vector>
-void test_aggregation(const vex::Context &ctx,
-        const spmat &A, const vector &rhs,
-        const options &op
-        )
-{
+template <class interp_t, class spmat, class vector>
+void run_vexcl_test(const spmat &A, const vector &rhs, const options &op) {
     typedef amgcl::solver<
-        double, int,
-        amgcl::interp::aggregation<amgcl::aggr::plain>,
+        double, int, interp_t,
         amgcl::level::vexcl
     > AMG;
+
+    prof.tic("OpenCL initialization");
+    vex::Context ctx( vex::Filter::Env && vex::Filter::DoublePrecision );
+    prof.toc("OpenCL initialization");
+
+    if (!ctx.size()) throw std::runtime_error("No available compute devices");
+    std::cout << ctx << std::endl;
 
     typename AMG::params prm;
 
@@ -141,57 +146,42 @@ void test_aggregation(const vex::Context &ctx,
     prm.level.ncycle = op.lp.ncycle;
     prm.level.kcycle = op.lp.kcycle;
 
-    const int n = amgcl::sparse::matrix_rows(A);
 
-    prof.tic("Setup");
+    prof.tic("setup");
     AMG amg(A, prm);
-    prof.toc("Setup");
+    prof.toc("setup");
 
-    solve(ctx, amg, A, rhs, op);
-}
+    // Copy matrix and rhs to GPU(s).
+    vex::SpMat<double, int, int> Agpu(
+            ctx.queue(), rhs.size(), rhs.size(),
+            amgcl::sparse::matrix_outer_index(A),
+            amgcl::sparse::matrix_inner_index(A),
+            amgcl::sparse::matrix_values(A)
+            );
 
-//---------------------------------------------------------------------------
-template <class spmat, class vector>
-void test_smoothed_aggregation(const vex::Context &ctx,
-        const spmat &A, const vector &rhs,
-        const options &op
-        )
-{
-    typedef amgcl::solver<
-        double, int,
-        amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
-        amgcl::level::vexcl
-    > AMG;
+    vex::vector<double> f(ctx.queue(), rhs.size(), rhs.data());
+    vex::vector<double> x(ctx.queue(), rhs.size());
+    x = 0;
 
-    typename AMG::params prm;
-
-    prm.coarse_enough = op.coarse_enough;
-
-    prm.level.npre   = op.lp.npre;
-    prm.level.npost  = op.lp.npost;
-    prm.level.ncycle = op.lp.ncycle;
-    prm.level.kcycle = op.lp.kcycle;
-
-    const int n = amgcl::sparse::matrix_rows(A);
-
-    prof.tic("Setup");
-    AMG amg(A, prm);
-    prof.toc("Setup");
-
-    solve(ctx, amg, A, rhs, op);
+    solve(amg, Agpu, f, x, op);
 }
 
 //---------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
+    int interp;
+    int level;
+
     options op;
 
     po::options_description desc("Possible options");
 
     desc.add_options()
         ("help", "Show help")
-        ("interp",
-            po::value<int>(&op.interp)->default_value(smoothed_aggregation),
+        ("interp", po::value<int>(&interp)->default_value(smoothed_aggregation),
             "Interpolation: classic(1), aggregation(2), smoothed_aggregation (3)"
+            )
+        ("level", po::value<int>(&level)->default_value(vexcl_lvl),
+            "Backend: vexcl(1), cpu(2)"
             )
         ("solver", po::value<int>(&op.solver)->default_value(cg),
             "Iterative solver: cg(1), bicgstab(2)")
@@ -226,35 +216,55 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    prof.tic("OpenCL initialization");
-    vex::Context ctx( vex::Filter::Env && vex::Filter::DoublePrecision );
-    prof.toc("OpenCL initialization");
-
-    if (!ctx.size()) throw std::runtime_error("No available compute devices");
-    std::cout << ctx << std::endl;
-
     prof.tic("Read problem");
     std::vector<int>    row;
     std::vector<int>    col;
     std::vector<double> val;
-    std::vector<double> rhs;
+    Eigen::VectorXd     rhs;
     int n = read_problem(op.pfile, row, col, val, rhs);
     prof.toc("Read problem");
 
     auto A = amgcl::sparse::map(n, n, row.data(), col.data(), val.data());
 
-    switch(static_cast<interp_t>(op.interp)) {
-        case classic:
-            test_classic(ctx, A, rhs, op);
+    switch(static_cast<level_t>(level)) {
+        case vexcl_lvl:
+            switch(static_cast<interp_t>(interp)) {
+                case classic:
+                    run_vexcl_test< amgcl::interp::classic >(
+                            A, rhs, op);
+                    break;
+                case aggregation:
+                    run_vexcl_test< amgcl::interp::aggregation< amgcl::aggr::plain > >(
+                            A, rhs, op);
+                    break;
+                case smoothed_aggregation:
+                    run_vexcl_test< amgcl::interp::smoothed_aggregation< amgcl::aggr::plain > >(
+                            A, rhs, op);
+                    break;
+                default:
+                    throw std::invalid_argument("Unsupported interpolation scheme");
+            }
             break;
-        case aggregation:
-            test_aggregation(ctx, A, rhs, op);
-            break;
-        case smoothed_aggregation:
-            test_smoothed_aggregation(ctx, A, rhs, op);
+        case cpu_lvl:
+            switch(static_cast<interp_t>(interp)) {
+                case classic:
+                    run_cpu_test< amgcl::interp::classic >(
+                            A, rhs, op);
+                    break;
+                case aggregation:
+                    run_cpu_test< amgcl::interp::aggregation< amgcl::aggr::plain > >(
+                            A, rhs, op);
+                    break;
+                case smoothed_aggregation:
+                    run_cpu_test< amgcl::interp::smoothed_aggregation< amgcl::aggr::plain > >(
+                            A, rhs, op);
+                    break;
+                default:
+                    throw std::invalid_argument("Unsupported interpolation scheme");
+            }
             break;
         default:
-            throw std::invalid_argument("Unsupported interpolation scheme");
+            throw std::invalid_argument("Unsupported backend");
     }
 
     std::cout << prof << std::endl;
