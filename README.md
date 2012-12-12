@@ -90,6 +90,78 @@ if `amgcl::level::vexcl` is used as a storage backend, then `vex::SpMat` and
 
 auto conv = amgcl::solve(Agpu, rhs, amg, x, amgcl::cg_tag());
 ```
+Performance
+-----------
+
+Here is output of `utest` program (see examples folder), solving 2D 2048x2048
+Poisson problem generated with `./genproblem 2048`.
+
+The first run is CPU-only (`--level=2`, see `./utest -help` for the options
+list). The CPU is Intel Core i7 920:
+```
+$ ./utest --level 2
+Reading "problem.dat"...
+Done
+
+Number of levels:    6
+Operator complexity: 1.34
+Grid complexity:     1.19
+
+level     unknowns       nonzeros
+---------------------------------
+    0      4194304       20938768 (74.75%)
+    1       698198        6278320 (22.41%)
+    2        77749         701425 ( 2.50%)
+    3         8814          82110 ( 0.29%)
+    4          988           9362 ( 0.03%)
+    5          115           1149 ( 0.00%)
+
+Iterations: 25
+Error:      6.679105e-09
+
+[Profile:            7.562 sec.] (100.00%)
+[ self:              0.011 sec.] (  0.15%)
+[  Read problem:     0.130 sec.] (  1.72%)
+[  setup:            1.020 sec.] ( 13.49%)
+[  solve:            6.401 sec.] ( 84.65%)
+```
+
+The second run is VexCL-based, the GPU is NVIDIA Tesla C2075:
+```
+$ ./utest --level=1
+Reading "problem.dat"...
+Done
+
+1. Tesla C2075
+
+Number of levels:    6
+Operator complexity: 1.34
+Grid complexity:     1.19
+
+level     unknowns       nonzeros
+---------------------------------
+    0      4194304       20938768 (74.75%)
+    1       698198        6278320 (22.41%)
+    2        77749         701425 ( 2.50%)
+    3         8814          82110 ( 0.29%)
+    4          988           9362 ( 0.03%)
+    5          115           1149 ( 0.00%)
+
+Iterations: 25
+Error:      6.679105e-09
+
+[Profile:                     3.592 sec.] (100.00%)
+[ self:                       0.437 sec.] ( 12.16%)
+[  OpenCL initialization:     0.051 sec.] (  1.41%)
+[  Read problem:              0.130 sec.] (  3.61%)
+[  setup:                     2.179 sec.] ( 60.65%)
+[  solve:                     0.796 sec.] ( 22.16%)
+```
+
+Setup time has increased, because data structures have to be transfered to GPU
+memory. But due to the accelerated solution the total time is reduced. Further
+time savings may be expected if the preconditioner is reused for solution with
+different right-hand sides.
 
 Installation
 ------------
