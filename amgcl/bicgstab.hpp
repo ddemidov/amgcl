@@ -61,6 +61,8 @@ struct bicg_tag {
  *
  * \returns a pair containing number of iterations made and precision
  * achieved.
+ *
+ * \ingroup iterative
  */
 template <class matrix, class vector, class precond>
 std::pair< int, typename value_type<vector>::type >
