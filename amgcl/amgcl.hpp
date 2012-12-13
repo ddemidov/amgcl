@@ -74,7 +74,7 @@ setup phase is much more important.
 \code
 amgcl::solver<
     double, int,
-    amgcl::interp::aggregation<amgcl::aggr::plain>,
+    amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
     amgcl::level::vexcl
 > amg(A);
 \endcode
