@@ -43,8 +43,9 @@ enum level_t {
 };
 
 enum solver_t {
-    cg   = 1,
-    bicg = 2
+    cg         = 1,
+    bicg       = 2,
+    standalone = 3,
 };
 
 struct options {
@@ -76,6 +77,9 @@ void solve(
         case bicg:
             cnv = amgcl::solve(A, rhs, amg, x, amgcl::bicg_tag());
             break;
+        case standalone:
+            cnv = amg.solve(rhs, x);
+            break;
         default:
             throw std::invalid_argument("Unsupported iterative solver");
     }
@@ -103,6 +107,7 @@ void run_cpu_test(const spmat &A, const vector &rhs, const options &op) {
     prm.level.npost  = op.lp.npost;
     prm.level.ncycle = op.lp.ncycle;
     prm.level.kcycle = op.lp.kcycle;
+    prm.level.tol    = op.lp.tol;
 
     Eigen::VectorXd x = Eigen::VectorXd::Zero(rhs.size());
     
@@ -148,6 +153,7 @@ void run_vexcl_test(const spmat &A, const vector &rhs, const options &op) {
     prm.level.npost  = op.lp.npost;
     prm.level.ncycle = op.lp.ncycle;
     prm.level.kcycle = op.lp.kcycle;
+    prm.level.tol    = op.lp.tol;
 
 
     prof.tic("setup");
@@ -183,13 +189,14 @@ int main(int argc, char *argv[]) {
     desc.add_options()
         ("help", "Show help")
         ("interp", po::value<int>(&interp)->default_value(smoothed_aggregation),
-            "Interpolation: classic(1), aggregation(2), smoothed_aggregation (3)"
+            "Interpolation: classic(1), aggregation(2), "
+            "smoothed_aggregation (3)"
             )
         ("level", po::value<int>(&level)->default_value(vexcl_lvl),
             "Backend: vexcl(1), cpu(2)"
             )
         ("solver", po::value<int>(&op.solver)->default_value(cg),
-            "Iterative solver: cg(1), bicgstab(2)")
+            "Iterative solver: cg(1), bicgstab(2), standalone(3)")
         ("problem",
             po::value<std::string>(&op.pfile)->default_value("problem.dat"),
             "Problem file"
@@ -201,6 +208,7 @@ int main(int argc, char *argv[]) {
         ("npost",  po::value<unsigned>(&op.lp.npost )->default_value(op.lp.npost))
         ("ncycle", po::value<unsigned>(&op.lp.ncycle)->default_value(op.lp.ncycle))
         ("kcycle", po::value<unsigned>(&op.lp.kcycle)->default_value(op.lp.kcycle))
+        ("tol",    po::value<double  >(&op.lp.tol   )->default_value(op.lp.tol))
         ;
 
     po::positional_options_description pdesc;
