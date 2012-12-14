@@ -142,8 +142,6 @@ include files.
 #include <list>
 
 #include <amgcl/spmat.hpp>
-#include <amgcl/interp_classic.hpp>
-#include <amgcl/level_cpu.hpp>
 #include <amgcl/profiler.hpp>
 
 /// Primary namespace for the library.
@@ -179,16 +177,13 @@ struct coarse_operator {
 
 /// Algebraic multigrid method.
 /**
- * \param value_t  Type for matrix entries.
+ * \param value_t  Type for matrix entries (double/float).
  * \param index_t  Type for matrix indices. Should be signed integral type.
  * \param interp_t \ref interpolation "Interpolation scheme".
  * \param level_t  Hierarchy level \ref levels "storage backend".
  */
 template <
-    typename value_t  = double,
-    typename index_t  = long long,
-    typename interp_t = interp::classic,
-    typename level_t  = level::cpu
+    typename value_t, typename index_t, typename interp_t, typename level_t
     >
 class solver {
     private:

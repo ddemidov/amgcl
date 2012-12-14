@@ -7,16 +7,15 @@
 #define AMGCL_PROFILING
 
 #include <amgcl/amgcl.hpp>
+#include <amgcl/interp_smoothed_aggr.hpp>
+#include <amgcl/aggr_plain.hpp>
 #include <amgcl/level_viennacl.hpp>
 
 #ifdef VIENNACL_WITH_OPENCL
 #  include <vexcl/devlist.hpp>
 #  include <viennacl/hyb_matrix.hpp>
-#  include <amgcl/aggr_plain.hpp>
-#  include <amgcl/interp_aggr.hpp>
 #else
 #  include <viennacl/compressed_matrix.hpp>
-#  include <amgcl/interp_classic.hpp>
 #endif
 
 #include <viennacl/vector.hpp>
@@ -34,11 +33,10 @@ using amgcl::prof;
 struct amg_precond {
     typedef amgcl::solver<
         double, int,
+        amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
 #ifdef VIENNACL_WITH_OPENCL
-        amgcl::interp::aggregation<amgcl::aggr::plain>,
         amgcl::level::ViennaCL<amgcl::level::CL_MATRIX_HYB>
 #else
-        amgcl::interp::classic,
         amgcl::level::ViennaCL<amgcl::level::CL_MATRIX_CRS>
 #endif
         > AMG;
@@ -48,7 +46,10 @@ struct amg_precond {
     template <class matrix>
     amg_precond(const matrix &A, const params &prm = params())
         : amg(A, prm), r(amgcl::sparse::matrix_rows(A))
-    { }
+    {
+        std::cout << amg << std::endl;
+    }
+
 
     // Use one V-cycle with zero initial approximation as a preconditioning step.
     void apply(viennacl::vector<double> &x) const {
@@ -95,17 +96,16 @@ int main(int argc, char *argv[]) {
             );
 
     // Build the preconditioner.
-    amg_precond::params prm;
-#ifdef VIENNACL_WITH_OPENCL
-    prm.level.kcycle = 1;
-#endif
-
     prof.tic("setup");
-    amg_precond amg(A, prm);
+    amg_precond amg(A);
     prof.toc("setup");
 
     // Copy matrix and rhs to GPU(s).
+#ifdef VIENNACL_WITH_OPENCL
     viennacl::hyb_matrix<double> Agpu;
+#else
+    viennacl::compressed_matrix<double> Agpu;
+#endif
     viennacl::copy(amgcl::sparse::viennacl_map(A), Agpu);
 
     viennacl::vector<double> f(n);

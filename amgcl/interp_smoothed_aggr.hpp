@@ -133,12 +133,17 @@ static sparse::matrix<value_t, index_t> interp(
     {
         std::vector<index_t> marker(nc, static_cast<index_t>(-1));
 
+#ifdef _OPENMP
 	int nt  = omp_get_num_threads();
 	int tid = omp_get_thread_num();
 
 	index_t chunk_size  = (n + nt - 1) / nt;
 	index_t chunk_start = tid * chunk_size;
 	index_t chunk_end   = std::min(n, chunk_start + chunk_size);
+#else
+	index_t chunk_start = 0;
+	index_t chunk_end   = n;
+#endif
 
         // Count number of entries in P.
         for(index_t i = chunk_start; i < chunk_end; ++i) {

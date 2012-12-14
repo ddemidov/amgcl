@@ -1,7 +1,12 @@
 #include <iostream>
 #include <cstdlib>
 
+#define AMGCL_PROFILING
+
 #include <amgcl/amgcl.hpp>
+#include <amgcl/interp_smoothed_aggr.hpp>
+#include <amgcl/aggr_plain.hpp>
+#include <amgcl/level_cpu.hpp>
 #include <amgcl/operations_eigen.hpp>
 
 #include <Eigen/Dense>
@@ -35,7 +40,7 @@ using amgcl::prof;
 struct amg_precond {
     typedef amgcl::solver<
         double, int,
-        amgcl::interp::classic,
+        amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
         amgcl::level::cpu
         > AMG;
     typedef typename AMG::params params;
@@ -44,7 +49,10 @@ struct amg_precond {
     template <class matrix>
     amg_precond(const matrix &A, const params &prm = params())
         : amg(A, prm), r(amgcl::sparse::matrix_rows(A))
-    { }
+    {
+        std::cout << amg << std::endl;
+    }
+
 
     // Use one V-cycle with zero initial approximation as a preconditioning step.
     template <class vector>
@@ -78,7 +86,7 @@ int main(int argc, char *argv[]) {
 
     // Build the preconditioner:
     prof.tic("setup");
-    amg_precond amg(amgcl::sparse::map(A));
+    amg_precond amg( amgcl::sparse::map(A) );
     prof.toc("setup");
 
     // Solve the problem with CG method from ViennaCL. Use AMG as a

@@ -1,7 +1,8 @@
 #include <iostream>
 #include <cstdlib>
 #include <amgcl/amgcl.hpp>
-#include <amgcl/interp_classic.hpp>
+#include <amgcl/interp_smoothed_aggr.hpp>
+#include <amgcl/aggr_plain.hpp>
 #include <amgcl/level_vexcl.hpp>
 #include <vexcl/vexcl.hpp>
 #include <vexcl/external/viennacl.hpp>
@@ -19,7 +20,7 @@ using amgcl::prof;
 struct amg_precond {
     typedef amgcl::solver<
         double, int,
-        amgcl::interp::classic,
+        amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
         amgcl::level::vexcl
         > AMG;
     typedef typename AMG::params params;
@@ -28,7 +29,9 @@ struct amg_precond {
     template <class matrix>
     amg_precond(const matrix &A, const params &prm = params())
         : amg(A, prm), r(amgcl::sparse::matrix_rows(A))
-    { }
+    {
+        std::cout << amg << std::endl;
+    }
 
     // Use one V-cycle with zero initial approximation as a preconditioning step.
     void apply(vex::vector<double> &x) const {
@@ -62,25 +65,22 @@ int main(int argc, char *argv[]) {
 
     // Initialize VexCL context.
     vex::Context ctx( vex::Filter::Env && vex::Filter::DoublePrecision );
-
     if (!ctx.size()) {
         std::cerr << "No GPUs" << std::endl;
         return 1;
     }
-
     std::cout << ctx << std::endl;
-
-    // Copy matrix and rhs to GPU(s).
-    vex::SpMat<double, int, int> Agpu(
-            ctx.queue(), n, n, row.data(), col.data(), val.data()
-            );
-
-    vex::vector<double> f(ctx.queue(), rhs);
 
     // Build the preconditioner.
     prof.tic("setup");
     amg_precond amg(A);
     prof.toc("setup");
+
+    // Copy matrix and rhs to GPU(s).
+    vex::SpMat<double, int, int> Agpu(
+            ctx.queue(), n, n, row.data(), col.data(), val.data()
+            );
+    vex::vector<double> f(ctx.queue(), rhs);
 
     // Solve the problem with CG method from ViennaCL. Use AMG as a
     // preconditioner:
@@ -92,10 +92,5 @@ int main(int argc, char *argv[]) {
     std::cout << "Iterations: " << tag.iters() << std::endl
               << "Error:      " << tag.error() << std::endl;
 
-    vex::Reductor<double, vex::SUM> sum(ctx.queue());
-
-    double norm_f = sum(f * f);
-    f -= Agpu * x;
-    std::cout << "Real error: " << sqrt(sum(f * f) / norm_f) << std::endl;
     std::cout << prof;
 }

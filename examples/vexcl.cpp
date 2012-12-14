@@ -3,19 +3,13 @@
 #include <vexcl/vexcl.hpp>
 
 #define AMGCL_PROFILING
-#define AGGREGATION
 
 #include <amgcl/amgcl.hpp>
-#ifdef AGGREGATION
-#  include <amgcl/aggr_plain.hpp>
-#  include <amgcl/interp_aggr.hpp>
-#else
-#  include <amgcl/interp_classic.hpp>
-#endif
+#include <amgcl/interp_smoothed_aggr.hpp>
+#include <amgcl/aggr_plain.hpp>
 #include <amgcl/level_vexcl.hpp>
 #include <amgcl/operations_vexcl.hpp>
 #include <amgcl/cg.hpp>
-#include <amgcl/bicgstab.hpp>
 
 #include "read.hpp"
 
@@ -55,23 +49,19 @@ int main(int argc, char *argv[]) {
     // Build the preconditioner.
     typedef amgcl::solver<
         double, int,
-#ifdef AGGREGATION
-        amgcl::interp::aggregation<amgcl::aggr::plain>,
-#else
-        amgcl::interp::classic,
-#endif
+        amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
         amgcl::level::vexcl
         > AMG;
 
     typename AMG::params prm;
     prm.level.ctx = &ctx;
-#ifdef AGGREGATION
     prm.level.kcycle = 1;
-#endif
 
     prof.tic("setup");
     AMG amg(A, prm);
     prof.toc("setup");
+
+    std::cout << amg << std::endl;
 
     // Copy matrix and rhs to GPU(s).
     vex::SpMat<double, int, int> Agpu(
@@ -87,16 +77,6 @@ int main(int argc, char *argv[]) {
     prof.tic("solve (cg)");
     auto cnv = amgcl::solve(Agpu, f, amg, x, amgcl::cg_tag());
     prof.toc("solve (cg)");
-
-    std::cout << "Iterations: " << std::get<0>(cnv) << std::endl
-              << "Error:      " << std::get<1>(cnv) << std::endl
-              << std::endl;
-
-    // Solve the problem with BiCGStab method. Use AMG as a preconditioner:
-    x = 0;
-    prof.tic("solve (bicg)");
-    cnv = amgcl::solve(Agpu, f, amg, x, amgcl::bicg_tag());
-    prof.toc("solve (bicg)");
 
     std::cout << "Iterations: " << std::get<0>(cnv) << std::endl
               << "Error:      " << std::get<1>(cnv) << std::endl

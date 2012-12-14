@@ -33,9 +33,14 @@ THE SOFTWARE.
 
 #include <vector>
 #include <algorithm>
+#include <numeric>
 #include <stdexcept>
+#include <cmath>
 #include <cassert>
-#include <omp.h>
+
+#ifdef _OPENMP
+#  include <omp.h>
+#endif
 
 namespace amgcl {
 
@@ -283,12 +288,17 @@ prod(const spmat1 &A, const spmat2 &B) {
     {
         std::vector<index_t> marker(m, static_cast<index_t>(-1));
 
+#ifdef _OPENMP
 	int nt  = omp_get_num_threads();
 	int tid = omp_get_thread_num();
 
 	index_t chunk_size  = (n + nt - 1) / nt;
 	index_t chunk_start = tid * chunk_size;
 	index_t chunk_end   = std::min(n, chunk_start + chunk_size);
+#else
+	index_t chunk_start = 0;
+	index_t chunk_end   = n;
+#endif
 
         for(index_t ia = chunk_start; ia < chunk_end; ++ia) {
             for(index_t ja = Arow[ia], ea = Arow[ia + 1]; ja < ea; ++ja) {
@@ -359,8 +369,8 @@ void gaussj(index_t n, value_t *a) {
             if (ipiv[j]) continue;
 
             for(index_t k = 0; k < n; ++k) {
-                if (!ipiv[k] && std::abs(a[j * n + k]) > big) {
-                    big  = std::abs(a[j * n + k]);
+                if (!ipiv[k] && fabs(a[j * n + k]) > big) {
+                    big  = fabs(a[j * n + k]);
                     irow = j;
                     icol = k;
                 }

@@ -5,18 +5,13 @@
 #include <Eigen/SparseCore>
 
 #define AMGCL_PROFILING
-//#define AGGREGATION
 
 #include <amgcl/amgcl.hpp>
-#ifdef AGGREGATION
-#  include <amgcl/aggr_plain.hpp>
-#  include <amgcl/interp_aggr.hpp>
-#else
-#  include <amgcl/interp_classic.hpp>
-#endif
+#include <amgcl/interp_smoothed_aggr.hpp>
+#include <amgcl/aggr_plain.hpp>
+#include <amgcl/level_cpu.hpp>
 #include <amgcl/operations_eigen.hpp>
 #include <amgcl/cg.hpp>
-#include <amgcl/bicgstab.hpp>
 
 #include "read.hpp"
 
@@ -46,39 +41,21 @@ int main(int argc, char *argv[]) {
     // Build the preconditioner:
     typedef amgcl::solver<
         double, int,
-#ifdef AGGREGATION
-        amgcl::interp::aggregation<amgcl::aggr::plain>,
-#else
-        amgcl::interp::classic,
-#endif
+        amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
         amgcl::level::cpu
         > AMG;
 
-    typename AMG::params prm;
-#ifdef AGGREGATION
-    prm.level.kcycle = 1;
-#endif
-
     prof.tic("setup");
-    AMG amg(amgcl::sparse::map(A), prm);
+    AMG amg( amgcl::sparse::map(A) );
     prof.toc("setup");
 
+    std::cout << amg << std::endl;
 
     // Solve the problem with CG method. Use AMG as a preconditioner:
     Eigen::VectorXd x = Eigen::VectorXd::Zero(n);
     prof.tic("solve (cg)");
     auto cnv = amgcl::solve(A, rhs, amg, x, amgcl::cg_tag());
     prof.toc("solve (cg)");
-
-    std::cout << "Iterations: " << std::get<0>(cnv) << std::endl
-              << "Error:      " << std::get<1>(cnv) << std::endl
-              << std::endl;
-
-    // Solve the problem with BiCGStab method. Use AMG as a preconditioner:
-    x.setZero();
-    prof.tic("solve (bicg)");
-    cnv = amgcl::solve(A, rhs, amg, x, amgcl::bicg_tag());
-    prof.toc("solve (bicg)");
 
     std::cout << "Iterations: " << std::get<0>(cnv) << std::endl
               << "Error:      " << std::get<1>(cnv) << std::endl

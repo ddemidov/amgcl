@@ -99,7 +99,7 @@ class instance {
         // prolongation (p) and restriction (r) operators.
         // The matrices are moved into the local members.
         instance(cpu_matrix &&a, cpu_matrix &&p, cpu_matrix &&r, const params &prm, unsigned nlevel)
-            : d(a.rows), t(a.rows)
+            : d(a.rows), t(a.rows), nnz(sparse::matrix_nonzeros(a))
         {
             viennacl::copy(sparse::viennacl_map(a), A);
             viennacl::copy(sparse::viennacl_map(p), P);
@@ -124,7 +124,8 @@ class instance {
         // Construct the coarsest hierarchy level from system matrix (a) and
         // its inverse (ai).
         instance(cpu_matrix &&a, cpu_matrix &&ai, const params &prm, unsigned nlevel)
-            : d(a.rows), u(a.rows), f(a.rows), t(a.rows)
+            : d(a.rows), u(a.rows), f(a.rows), t(a.rows),
+              nnz(sparse::matrix_nonzeros(a))
         {
             viennacl::copy(sparse::viennacl_map(a),  A);
             viennacl::copy(sparse::viennacl_map(ai), Ainv);
@@ -230,7 +231,7 @@ class instance {
         }
 
         index_t nonzeros() const {
-            return A.nnz();
+            return nnz;
         }
     private:
         matrix A;
@@ -245,6 +246,8 @@ class instance {
         mutable vector t;
 
         mutable std::array<vector, 4> cg;
+
+        index_t nnz;
 };
 
 };
