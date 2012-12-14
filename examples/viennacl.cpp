@@ -4,8 +4,6 @@
 #define VIENNACL_WITH_OPENCL
 //#define VIENNACL_WITH_OPENMP
 
-#define AMGCL_PROFILING
-
 #include <amgcl/amgcl.hpp>
 #include <amgcl/interp_smoothed_aggr.hpp>
 #include <amgcl/aggr_plain.hpp>
@@ -22,11 +20,6 @@
 #include <viennacl/linalg/cg.hpp>
 
 #include "read.hpp"
-
-namespace amgcl {
-profiler<> prof;
-}
-using amgcl::prof;
 
 // Simple wrapper around amgcl::solver that provides ViennaCL's preconditioner
 // interface.
@@ -68,6 +61,8 @@ int main(int argc, char *argv[]) {
         std::cerr << "Usage: " << argv[0] << " <problem.dat>" << std::endl;
         return 1;
     }
+
+    amgcl::profiler<> prof;
 
 #ifdef VIENNACL_WITH_OPENCL
     // There is no easy way to select compute device in ViennaCL, so just use

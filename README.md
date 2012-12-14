@@ -93,7 +93,7 @@ auto conv = amgcl::solve(Agpu, rhs, amg, x, amgcl::cg_tag());
 Performance
 -----------
 
-Here is output of `utest` program (see examples folder), solving 2D 2048x2048
+Here is output of `utest` benchmark (see examples folder), solving 2D 2048x2048
 Poisson problem generated with `./genproblem 2048`.
 
 The first run is CPU-only (`--level=2`, see `./utest -help` for the options

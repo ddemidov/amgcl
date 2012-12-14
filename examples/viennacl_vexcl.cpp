@@ -10,11 +10,6 @@
 
 #include "read.hpp"
 
-namespace amgcl {
-profiler<> prof;
-}
-using amgcl::prof;
-
 // Simple wrapper around amgcl::solver that provides ViennaCL's preconditioner
 // interface.
 struct amg_precond {
@@ -50,6 +45,8 @@ int main(int argc, char *argv[]) {
         std::cerr << "Usage: " << argv[0] << " <problem.dat>" << std::endl;
         return 1;
     }
+
+    amgcl::profiler<> prof;
 
     // Read matrix and rhs from a binary file.
     std::vector<int>    row;

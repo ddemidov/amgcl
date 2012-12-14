@@ -2,8 +2,6 @@
 #include <cstdlib>
 #include <vexcl/vexcl.hpp>
 
-#define AMGCL_PROFILING
-
 #include <amgcl/amgcl.hpp>
 #include <amgcl/interp_smoothed_aggr.hpp>
 #include <amgcl/aggr_plain.hpp>
@@ -13,16 +11,13 @@
 
 #include "read.hpp"
 
-namespace amgcl {
-profiler<> prof;
-}
-using amgcl::prof;
-
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <problem.dat>" << std::endl;
         return 1;
     }
+
+    amgcl::profiler<> prof;
 
     // Read matrix and rhs from a binary file.
     std::vector<int>    row;

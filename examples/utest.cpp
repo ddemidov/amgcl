@@ -85,8 +85,7 @@ void solve(
     }
     prof.toc("solve");
 
-    std::cout << std::scientific << std::setprecision(6)
-              << "Iterations: " << std::get<0>(cnv) << std::endl
+    std::cout << "Iterations: " << std::get<0>(cnv) << std::endl
               << "Error:      " << std::get<1>(cnv) << std::endl
               << std::endl;
 }
