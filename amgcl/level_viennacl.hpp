@@ -31,8 +31,8 @@ THE SOFTWARE.
  * \brief  Level of an AMG hierarchy for use with VexCL vectors.
  */
 
-#include <array>
 
+#include <boost/array.hpp>
 #include <boost/typeof/typeof.hpp>
 
 #include <amgcl/level_params.hpp>
@@ -164,8 +164,8 @@ class instance {
         {
             Iterator pnxt = plvl; ++pnxt;
 
-            BOOST_AUTO(lvl, *plvl);
-            BOOST_AUTO(nxt, *pnxt);
+            instance *lvl = plvl->get();
+            instance *nxt = pnxt->get();
 
             if (pnxt != end) {
                 for(unsigned j = 0; j < prm.ncycle; ++j) {
@@ -197,8 +197,8 @@ class instance {
         {
             Iterator pnxt = plvl; ++pnxt;
 
-            BOOST_AUTO(lvl, *plvl);
-            BOOST_AUTO(nxt, *pnxt);
+            instance *lvl = plvl->get();
+            instance *nxt = pnxt->get();
 
             if (pnxt != end) {
                 viennacl::vector<value_t> &r = lvl->cg[0];
@@ -253,7 +253,7 @@ class instance {
         mutable vector f;
         mutable vector t;
 
-        mutable std::array<vector, 4> cg;
+        mutable boost::array<vector, 4> cg;
 
         index_t nnz;
 };

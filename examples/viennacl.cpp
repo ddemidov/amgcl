@@ -1,9 +1,6 @@
 #include <iostream>
 #include <cstdlib>
 
-#define VIENNACL_WITH_OPENCL
-//#define VIENNACL_WITH_OPENMP
-
 #include <amgcl/amgcl.hpp>
 #include <amgcl/interp_smoothed_aggr.hpp>
 #include <amgcl/aggr_plain.hpp>
@@ -11,6 +8,9 @@
 
 #ifdef VIENNACL_WITH_OPENCL
 #  include <vexcl/devlist.hpp>
+#endif
+
+#if defined(VIENNACL_WITH_OPENCL) || defined(VIENNACL_WITH_CUDA)
 #  include <viennacl/hyb_matrix.hpp>
 #else
 #  include <viennacl/compressed_matrix.hpp>
@@ -100,7 +100,7 @@ int main(int argc, char *argv[]) {
     prof.toc("setup");
 
     // Copy matrix and rhs to GPU(s).
-#ifdef VIENNACL_WITH_OPENCL
+#if defined(VIENNACL_WITH_OPENCL) || defined(VIENNACL_WITH_CUDA)
     viennacl::hyb_matrix<double> Agpu;
 #else
     viennacl::compressed_matrix<double> Agpu;
@@ -122,6 +122,8 @@ int main(int argc, char *argv[]) {
 
     std::cout << prof;
 
+#ifdef VIENNACL_WITH_OPENCL
     // Prevent ViennaCL from segfaulting:
     exit(0);
+#endif
 }

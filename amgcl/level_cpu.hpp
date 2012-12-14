@@ -146,8 +146,8 @@ class instance {
         {
             Iterator pnxt = plvl; ++pnxt;
 
-            BOOST_AUTO(lvl, *plvl);
-            BOOST_AUTO(nxt, *pnxt);
+            instance *lvl = plvl->get();
+            instance *nxt = pnxt->get();
 
             const index_t n = lvl->A.rows;
 
@@ -215,8 +215,8 @@ class instance {
         {
             Iterator pnxt = plvl; ++pnxt;
 
-            BOOST_AUTO(lvl, *plvl);
-            BOOST_AUTO(nxt, *pnxt);
+            instance *lvl = plvl->get();
+            instance *nxt = pnxt->get();
 
             const index_t n = lvl->A.rows;
 

@@ -133,8 +133,8 @@ class instance {
         {
             Iterator pnxt = plvl; ++pnxt;
 
-            BOOST_AUTO(lvl, *plvl);
-            BOOST_AUTO(nxt, *pnxt);
+            instance *lvl = plvl->get();
+            instance *nxt = pnxt->get();
 
             if (pnxt != end) {
                 for(unsigned j = 0; j < prm.ncycle; ++j) {
@@ -164,8 +164,8 @@ class instance {
         {
             Iterator pnxt = plvl; ++pnxt;
 
-            BOOST_AUTO(lvl, *plvl);
-            BOOST_AUTO(nxt, *pnxt);
+            instance *lvl = plvl->get();
+            instance *nxt = pnxt->get();
 
             if (pnxt != end) {
                 vex::vector<value_t> &r = lvl->cg(0);
