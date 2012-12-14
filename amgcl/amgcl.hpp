@@ -273,6 +273,9 @@ class solver {
 
         /// Output some general information about the AMG hierarchy.
         std::ostream& print(std::ostream &os) const {
+            auto ff = os.flags();
+            auto pp = os.precision();
+
             index_t sum_dof = std::accumulate(
                     hier.begin(), hier.end(), static_cast<index_t>(0),
                     [](index_t sum, const level_type &lvl) {
@@ -301,6 +304,9 @@ class solver {
                    << std::setw(5) << std::fixed << std::setprecision(2)
                    << 100.0 * lvl->nonzeros() / sum_nnz
                    << "%)" << std::endl;
+
+            os.flags(ff);
+            os.precision(pp);
             return os;
         }
     private:

@@ -163,7 +163,13 @@ class profiler {
             root.length += std::chrono::duration<double>(
                     clock::now() - root.start_time).count();
 
+            auto ff = out.flags();
+            auto pp = out.precision();
+
             root.print(out, name, 0, root.length, root.total_width(name, 0));
+
+            out.flags(ff);
+            out.precision(pp);
         }
 
         /// Sends formatted profiling data to an output stream.
