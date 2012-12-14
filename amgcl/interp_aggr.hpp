@@ -96,7 +96,7 @@ static sparse::matrix<value_t, index_t> interp(
     const index_t n = sparse::matrix_rows(A);
 
     TIC("aggregates");
-    auto aggr = aggr_type::aggregates(A, aggr::connect(A, prm.eps_strong));
+    BOOST_AUTO(aggr, aggr_type::aggregates(A, aggr::connect(A, prm.eps_strong)));
     TOC("aggregates");
 
     index_t nc = std::max(
@@ -137,7 +137,7 @@ struct aggregated_operator {
 
         // For now this s just a Galerking operator with possible
         // over-interpolation.
-        auto a = sparse::prod(sparse::prod(R, A), P);
+        BOOST_AUTO(a, sparse::prod(sparse::prod(R, A), P));
 
         if (prm.over_interp > 1.0f)
             std::transform(a.val.begin(), a.val.end(), a.val.begin(),

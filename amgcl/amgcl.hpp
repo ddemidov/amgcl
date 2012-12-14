@@ -141,6 +141,10 @@ include files.
 #include <utility>
 #include <list>
 
+#include <boost/static_assert.hpp>
+#include <boost/typeof/typeof.hpp>
+#include <boost/type_traits/is_signed.hpp>
+
 #include <amgcl/spmat.hpp>
 #include <amgcl/profiler.hpp>
 
@@ -221,10 +225,11 @@ class solver {
         template <typename spmat>
         solver(const spmat &A, const params &prm = params()) : prm(prm)
         {
-            static_assert(std::is_signed<index_t>::value,
+            BOOST_STATIC_ASSERT_MSG(boost::is_signed<index_t>::value,
                     "Matrix index type should be signed");
 
-            build_level(std::move(matrix(A)), prm);
+            matrix copy(A);
+            build_level(copy, prm);
         }
 
         /// The AMG hierarchy is used as a standalone solver.
@@ -273,20 +278,15 @@ class solver {
 
         /// Output some general information about the AMG hierarchy.
         std::ostream& print(std::ostream &os) const {
-            auto ff = os.flags();
-            auto pp = os.precision();
+            BOOST_AUTO(ff, os.flags());
+            BOOST_AUTO(pp, os.precision());
 
-            index_t sum_dof = std::accumulate(
-                    hier.begin(), hier.end(), static_cast<index_t>(0),
-                    [](index_t sum, const level_type &lvl) {
-                        return sum + lvl.size();
-                    });
-
-            index_t sum_nnz = std::accumulate(
-                    hier.begin(), hier.end(), static_cast<index_t>(0),
-                    [](index_t sum, const level_type &lvl) {
-                        return sum + lvl.nonzeros();
-                    });
+            index_t sum_dof = 0;
+            index_t sum_nnz = 0;
+            for(BOOST_AUTO(lvl, hier.begin()); lvl != hier.end(); ++lvl) {
+                sum_dof += lvl->size();
+                sum_nnz += lvl->nonzeros();
+            }
 
             os << "Number of levels:    "   << hier.size()
                << "\nOperator complexity: " << std::fixed << std::setprecision(2)
@@ -297,7 +297,7 @@ class solver {
                << "---------------------------------\n";
 
             index_t depth = 0;
-            for(auto lvl = hier.begin(); lvl != hier.end(); ++lvl, ++depth)
+            for(BOOST_AUTO(lvl, hier.begin()); lvl != hier.end(); ++lvl, ++depth)
                 os << std::setw(5)  << depth
                    << std::setw(13) << lvl->size()
                    << std::setw(15) << lvl->nonzeros() << " ("
@@ -310,10 +310,15 @@ class solver {
             return os;
         }
     private:
-        void build_level(matrix &&A, const params &prm, unsigned nlevel = 0)
+        void build_level(matrix &A, const params &prm, unsigned nlevel = 0)
         {
             if (A.rows <= prm.coarse_enough) {
-                hier.emplace_back(std::move(A), std::move(sparse::inverse(A)), prm.level, nlevel);
+                matrix Ai = sparse::inverse(A);
+#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cpluplus >= 201103L
+                hier.emplace_back( A, Ai, prm.level, nlevel );
+#else
+                hier.push_back( level_type(A, Ai, prm.level, nlevel) );
+#endif
             } else {
                 TIC("interp");
                 matrix P = interp_t::interp(A, prm.interp);
@@ -328,9 +333,13 @@ class solver {
                         R, A, P, prm.interp);
                 TOC("coarse operator");
 
-                hier.emplace_back(std::move(A), std::move(P), std::move(R), prm.level, nlevel);
+#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cpluplus >= 201103L
+                hier.emplace_back( A, P, R, prm.level, nlevel );
+#else
+                hier.push_back( level_type(A, P, R, prm.level, nlevel) );
+#endif
 
-                build_level(std::move(a), prm, nlevel + 1);
+                build_level(a, prm, nlevel + 1);
             }
         }
 

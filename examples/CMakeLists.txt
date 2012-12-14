@@ -1,4 +1,5 @@
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+find_package(Boost COMPONENTS program_options chrono)
+include_directories(${Boost_INCLUDE_DIRS})
 
 find_package(OpenMP)
 if (OpenMP_CXX_FLAGS)
@@ -35,10 +36,12 @@ endif (VEXCL_INCLUDE OR VIENNACL_INCLUDE)
 
 if (EIGEN_INCLUDE)
     add_executable(eigen eigen.cpp)
+    target_link_libraries(eigen ${Boost_CHRONO_LIBRARY})
 endif (EIGEN_INCLUDE)
 
 if (VIENNACL_INCLUDE AND EIGEN_INCLUDE)
     add_executable(viennacl_eigen viennacl_eigen.cpp)
+    target_link_libraries(viennacl_eigen ${Boost_CHRONO_LIBRARY})
 endif (VIENNACL_INCLUDE AND EIGEN_INCLUDE)
 
 if (VEXCL_INCLUDE)
@@ -46,7 +49,7 @@ add_executable(vexcl vexcl.cpp)
     if (NOT WIN32)
         set_target_properties(vexcl PROPERTIES COMPILE_FLAGS "-std=c++0x")
     endif (NOT WIN32)
-    target_link_libraries(vexcl ${OPENCL_LIBRARY})
+    target_link_libraries(vexcl ${OPENCL_LIBRARY} ${Boost_CHRONO_LIBRARY})
 endif (VEXCL_INCLUDE)
 
 if (VIENNACL_INCLUDE AND VEXCL_INCLUDE)
@@ -54,22 +57,24 @@ if (VIENNACL_INCLUDE AND VEXCL_INCLUDE)
     if (NOT WIN32)
         set_target_properties(viennacl PROPERTIES COMPILE_FLAGS "-std=c++0x")
     endif (NOT WIN32)
-    target_link_libraries(viennacl ${OPENCL_LIBRARY})
+    target_link_libraries(viennacl ${OPENCL_LIBRARY} ${Boost_CHRONO_LIBRARY})
 
     add_executable(viennacl_vexcl viennacl_vexcl.cpp)
     if (NOT WIN32)
         set_target_properties(viennacl_vexcl PROPERTIES COMPILE_FLAGS "-std=c++0x")
     endif (NOT WIN32)
-    target_link_libraries(viennacl_vexcl ${OPENCL_LIBRARY})
+    target_link_libraries(viennacl_vexcl ${OPENCL_LIBRARY} ${Boost_CHRONO_LIBRARY})
 endif (VIENNACL_INCLUDE AND VEXCL_INCLUDE)
 
 if (VEXCL_INCLUDE AND EIGEN_INCLUDE AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    find_package(Boost COMPONENTS program_options)
     add_executable(utest utest.cpp)
     if (NOT WIN32)
-        set_target_properties(viennacl_vexcl PROPERTIES COMPILE_FLAGS "-std=c++0x")
+        set_target_properties(utest PROPERTIES COMPILE_FLAGS "-std=c++0x")
     endif (NOT WIN32)
-    set_target_properties(viennacl_vexcl PROPERTIES INCLUDE_DIRS ${Boost_INCLUDE_DIRS})
-    target_link_libraries(utest ${OPENCL_LIBRARY} ${Boost_PROGRAM_OPTIONS_LIBRARY})
+    target_link_libraries(utest
+        ${OPENCL_LIBRARY}
+        ${Boost_PROGRAM_OPTIONS_LIBRARY}
+        ${Boost_CHRONO_LIBRARY}
+        )
 endif (VEXCL_INCLUDE AND EIGEN_INCLUDE AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 

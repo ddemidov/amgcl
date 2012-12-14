@@ -33,6 +33,8 @@ THE SOFTWARE.
 
 #include <array>
 
+#include <boost/typeof/typeof.hpp>
+
 #include <amgcl/level_params.hpp>
 #include <amgcl/spmat.hpp>
 #include <amgcl/operations_viennacl.hpp>
@@ -98,7 +100,7 @@ class instance {
         // Construct complete multigrid level from system matrix (a),
         // prolongation (p) and restriction (r) operators.
         // The matrices are moved into the local members.
-        instance(cpu_matrix &&a, cpu_matrix &&p, cpu_matrix &&r, const params &prm, unsigned nlevel)
+        instance(cpu_matrix &a, cpu_matrix &p, cpu_matrix &r, const params &prm, unsigned nlevel)
             : d(a.rows), t(a.rows), nnz(sparse::matrix_nonzeros(a))
         {
             viennacl::copy(sparse::viennacl_map(a), A);
@@ -112,7 +114,7 @@ class instance {
                 f.resize(a.rows);
 
                 if (prm.kcycle && nlevel % prm.kcycle == 0)
-                    for(auto v = cg.begin(); v != cg.end(); v++)
+                    for(BOOST_AUTO(v, cg.begin()); v != cg.end(); v++)
                         v->resize(a.rows);
             }
 
@@ -123,7 +125,7 @@ class instance {
 
         // Construct the coarsest hierarchy level from system matrix (a) and
         // its inverse (ai).
-        instance(cpu_matrix &&a, cpu_matrix &&ai, const params &prm, unsigned nlevel)
+        instance(cpu_matrix &a, cpu_matrix &ai, const params &prm, unsigned nlevel)
             : d(a.rows), u(a.rows), f(a.rows), t(a.rows),
               nnz(sparse::matrix_nonzeros(a))
         {
@@ -193,10 +195,10 @@ class instance {
             Iterator nxt = lvl; ++nxt;
 
             if (nxt != end) {
-                auto &r = lvl->cg[0];
-                auto &s = lvl->cg[1];
-                auto &p = lvl->cg[2];
-                auto &q = lvl->cg[3];
+                viennacl::vector<value_t> &r = lvl->cg[0];
+                viennacl::vector<value_t> &s = lvl->cg[1];
+                viennacl::vector<value_t> &p = lvl->cg[2];
+                viennacl::vector<value_t> &q = lvl->cg[3];
 
                 r = rhs;
 

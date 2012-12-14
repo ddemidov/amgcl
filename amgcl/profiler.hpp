@@ -36,7 +36,10 @@ THE SOFTWARE.
 #include <map>
 #include <string>
 #include <stack>
-#include <chrono>
+
+#include <boost/chrono.hpp>
+#include <boost/typeof/typeof.hpp>
+
 
 namespace amgcl {
 
@@ -50,7 +53,7 @@ namespace amgcl {
  * (http://codeblue.umich.edu/hoomd-blue)
  */
 template <
-    class clock = std::chrono::high_resolution_clock,
+    class clock = boost::chrono::high_resolution_clock,
     uint SHIFT_WIDTH = 2
     >
 class profiler {
@@ -69,11 +72,8 @@ class profiler {
          * \param name Timer name.
          */
         void tic(const std::string &name) {
-            auto top = stack.top();
-
-            top->children[name].start_time = clock::now();
-
-            stack.push(&top->children[name]);
+            stack.top()->children[name].start_time = clock::now();
+            stack.push(&stack.top()->children[name]);
         }
 
         /// Stops named timer.
@@ -81,10 +81,10 @@ class profiler {
          * \param name Timer name.
          */
         double toc(const std::string &name) {
-            profile_unit *top = stack.top();
+            BOOST_AUTO(top, stack.top());
             stack.pop();
 
-            double delta = std::chrono::duration<double>(
+            double delta = boost::chrono::duration<double>(
                     clock::now() - top->start_time).count();
 
             top->length += delta;
@@ -98,14 +98,14 @@ class profiler {
 
             double children_time() const {
                 double s = 0;
-                for(auto c = children.begin(); c != children.end(); c++)
+                for(BOOST_AUTO(c, children.begin()); c != children.end(); c++)
                     s += c->second.length;
                 return s;
             }
 
             size_t total_width(const std::string &name, int level) const {
                 size_t w = name.size() + level;
-                for(auto c = children.begin(); c != children.end(); c++)
+                for(BOOST_AUTO(c, children.begin()); c != children.end(); c++)
                     w = std::max(w, c->second.total_width(c->first, level + SHIFT_WIDTH));
                 return w;
             }
@@ -128,7 +128,7 @@ class profiler {
                     }
                 }
 
-                for(auto c = children.begin(); c != children.end(); c++)
+                for(BOOST_AUTO(c, children.begin()); c != children.end(); c++)
                     c->second.print(out, c->first, level + SHIFT_WIDTH, total, width);
             }
 
@@ -145,7 +145,7 @@ class profiler {
                     << endl;
             }
 
-            std::chrono::time_point<clock> start_time;
+            boost::chrono::time_point<clock> start_time;
 
             double length;
 
@@ -160,11 +160,11 @@ class profiler {
             if (stack.top() != &root)
                 out << "Warning! Profile is incomplete." << std::endl;
 
-            root.length += std::chrono::duration<double>(
+            root.length += boost::chrono::duration<double>(
                     clock::now() - root.start_time).count();
 
-            auto ff = out.flags();
-            auto pp = out.precision();
+            BOOST_AUTO(ff, out.flags());
+            BOOST_AUTO(pp, out.precision());
 
             root.print(out, name, 0, root.length, root.total_width(name, 0));
 

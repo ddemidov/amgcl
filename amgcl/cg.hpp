@@ -71,7 +71,7 @@ solve(const matrix &A, const vector &rhs, const precond &P, vector &x, cg_tag pr
 {
     typedef typename value_type<vector>::type value_t;
 
-    const auto n = x.size();
+    const size_t n = x.size();
 
     vector r(n), s(n), p(n), q(n);
     r = rhs - A * x;

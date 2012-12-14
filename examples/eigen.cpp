@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cstdlib>
+#include <utility>
 
 #include <Eigen/Dense>
 #include <Eigen/SparseCore>
@@ -53,11 +54,11 @@ int main(int argc, char *argv[]) {
     // Solve the problem with CG method. Use AMG as a preconditioner:
     Eigen::VectorXd x = Eigen::VectorXd::Zero(n);
     prof.tic("solve (cg)");
-    auto cnv = amgcl::solve(A, rhs, amg, x, amgcl::cg_tag());
+    std::pair<int,double> cnv = amgcl::solve(A, rhs, amg, x, amgcl::cg_tag());
     prof.toc("solve (cg)");
 
-    std::cout << "Iterations: " << std::get<0>(cnv) << std::endl
-              << "Error:      " << std::get<1>(cnv) << std::endl
+    std::cout << "Iterations: " << cnv.first  << std::endl
+              << "Error:      " << cnv.second << std::endl
               << std::endl;
 
     std::cout << prof;

@@ -34,6 +34,8 @@ THE SOFTWARE.
 #include <vector>
 #include <algorithm>
 
+#include <boost/typeof/typeof.hpp>
+
 #include <amgcl/spmat.hpp>
 #include <amgcl/profiler.hpp>
 
@@ -82,9 +84,9 @@ aggregates( const spmat &A, const std::vector<char> &S ) {
 
     std::vector<index_t> agg(n);
 
-    auto Arow = sparse::matrix_outer_index(A);
-    auto Acol = sparse::matrix_inner_index(A);
-    auto Aval = sparse::matrix_values(A);
+    BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
+    BOOST_AUTO(Acol, sparse::matrix_inner_index(A));
+    BOOST_AUTO(Aval, sparse::matrix_values(A));
 
     // Remove nodes without neighbours
     unsigned max_neib = 0;
@@ -126,7 +128,7 @@ aggregates( const spmat &A, const std::vector<char> &S ) {
         // Temporarily mark undefined points adjacent to the new aggregate as
         // beloning to the aggregate. If nobody claims them later, they will
         // stay here.
-        for(auto nb = neib.begin(); nb != neib.end(); ++nb)
+        for(BOOST_AUTO(nb, neib.begin()); nb != neib.end(); ++nb)
             for(index_t j = Arow[*nb], e = Arow[*nb + 1]; j < e; ++j)
                 if (S[j] && agg[Acol[j]] == undefined) agg[Acol[j]] = last_g;
     }

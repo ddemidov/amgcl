@@ -15,7 +15,7 @@ inline int read_problem(const std::string &fname,
         )
 {
     std::cout << "Reading \"" << fname << "\"..." << std::endl;
-    std::ifstream f(fname, std::ios::binary);
+    std::ifstream f(fname.c_str(), std::ios::binary);
     if (!f) throw std::invalid_argument("Failed to open problem file");
 
     int n;

@@ -1,6 +1,9 @@
 #include <iostream>
 #include <cstdlib>
 
+#include <boost/utility/enable_if.hpp>
+#include <boost/type_traits/is_base_of.hpp>
+
 #include <amgcl/amgcl.hpp>
 #include <amgcl/interp_smoothed_aggr.hpp>
 #include <amgcl/aggr_plain.hpp>
@@ -20,7 +23,7 @@ namespace viennacl { namespace traits {
 
 template <class T>
 struct tag_of<T,
-    typename std::enable_if< std::is_base_of<Eigen::EigenBase<T>, T>::value >::type
+    typename boost::enable_if< boost::is_base_of<Eigen::EigenBase<T>, T> >::type
     >
 {
   typedef viennacl::tag_eigen  type;

@@ -50,13 +50,13 @@ std::vector<char> connect(const spmat &A, float eps_strong) {
 
     const index_t n = sparse::matrix_rows(A);
 
-    auto Arow = sparse::matrix_outer_index(A);
-    auto Acol = sparse::matrix_inner_index(A);
-    auto Aval = sparse::matrix_values(A);
+    BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
+    BOOST_AUTO(Acol, sparse::matrix_inner_index(A));
+    BOOST_AUTO(Aval, sparse::matrix_values(A));
 
     std::vector<char> S(sparse::matrix_nonzeros(A));
 
-    auto dia = sparse::diagonal(A);
+    BOOST_AUTO(dia, sparse::diagonal(A));
 
     value_t eps2 = eps_strong * eps_strong;
 

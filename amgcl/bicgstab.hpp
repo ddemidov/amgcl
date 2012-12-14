@@ -70,7 +70,7 @@ solve(const matrix &A, const vector &rhs, const precond &P, vector &x, bicg_tag 
 {
     typedef typename value_type<vector>::type value_t;
 
-    const auto n = x.size();
+    const size_t n = x.size();
 
     vector r (n);
     vector p (n);

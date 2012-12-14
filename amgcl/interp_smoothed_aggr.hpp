@@ -34,6 +34,8 @@ THE SOFTWARE.
 #include <vector>
 #include <algorithm>
 
+#include <boost/typeof/typeof.hpp>
+
 #include <amgcl/spmat.hpp>
 #include <amgcl/aggr_connect.hpp>
 #include <amgcl/profiler.hpp>
@@ -108,11 +110,11 @@ static sparse::matrix<value_t, index_t> interp(
 {
     const index_t n = sparse::matrix_rows(A);
 
-    auto S = aggr::connect(A, prm.eps_strong);
+    BOOST_AUTO(S, aggr::connect(A, prm.eps_strong));
     prm.eps_strong *= 0.5;
 
     TIC("aggregates");
-    auto aggr = aggr_type::aggregates(A, S);
+    BOOST_AUTO(aggr, aggr_type::aggregates(A, S));
     TOC("aggregates");
 
     index_t nc = std::max(
@@ -124,9 +126,9 @@ static sparse::matrix<value_t, index_t> interp(
     sparse::matrix<value_t, index_t> P(n, nc);
     std::fill(P.row.begin(), P.row.end(), static_cast<index_t>(0));
 
-    auto Arow = sparse::matrix_outer_index(A);
-    auto Acol = sparse::matrix_inner_index(A);
-    auto Aval = sparse::matrix_values(A);
+    BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
+    BOOST_AUTO(Acol, sparse::matrix_inner_index(A));
+    BOOST_AUTO(Aval, sparse::matrix_values(A));
 
 
 #pragma omp parallel

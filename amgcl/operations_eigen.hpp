@@ -31,9 +31,11 @@ THE SOFTWARE.
  * \brief  Adaptors for Eigen types.
  */
 
-#include <type_traits>
 #include <Eigen/Dense>
 #include <Eigen/SparseCore>
+
+#include <boost/utility/enable_if.hpp>
+#include <boost/type_traits/is_arithmetic.hpp>
 
 namespace amgcl {
 
@@ -44,7 +46,7 @@ template <class T, class Enable = void> struct value_type;
 
 template <typename T>
 struct value_type<T,
-    typename std::enable_if<std::is_arithmetic<typename T::Scalar>::value>::type
+    typename boost::enable_if< boost::is_arithmetic<typename T::Scalar> >::type
     >
 {
     typedef typename T::Scalar type;

@@ -32,7 +32,9 @@ THE SOFTWARE.
  */
 
 #include <vector>
-#include <array>
+
+#include <boost/array.hpp>
+#include <boost/typeof/typeof.hpp>
 
 #include <amgcl/level_params.hpp>
 #include <amgcl/spmat.hpp>
@@ -64,15 +66,19 @@ class instance {
         // Construct complete multigrid level from system matrix (a),
         // prolongation (p) and restriction (r) operators.
         // The matrices are moved into the local members.
-        instance(matrix &&a, matrix &&p, matrix &&r, const params &prm, unsigned nlevel)
-            : A(std::move(a)), P(std::move(p)), R(std::move(r))
+        instance(matrix &a, matrix &p, matrix &r, const params &prm, unsigned nlevel)
+            : t(a.rows)
         {
+            A.swap(a);
+            P.swap(p);
+            R.swap(r);
+
             if (nlevel) {
                 u.resize(A.rows);
                 f.resize(A.rows);
 
                 if (prm.kcycle && nlevel % prm.kcycle == 0)
-                    for(auto v = cg.begin(); v != cg.end(); ++v)
+                    for(BOOST_AUTO(v, cg.begin()); v != cg.end(); ++v)
                         v->resize(A.rows);
             }
 
@@ -81,9 +87,12 @@ class instance {
 
         // Construct the coarsest hierarchy level from system matrix (a) and
         // its inverse (ai).
-        instance(matrix &&a, matrix &&ai, const params &prm, unsigned nlevel)
-            : A(std::move(a)), Ai(std::move(ai)), u(A.rows), f(A.rows), t(A.rows)
-        { }
+        instance(matrix &a, matrix &ai, const params &prm, unsigned nlevel)
+            : u(a.rows), f(a.rows), t(a.rows)
+        {
+            A.swap(a);
+            Ai.swap(ai);
+        }
 
         // Perform one relaxation (smoothing) step.
         template <class vector1, class vector2>
@@ -204,10 +213,10 @@ class instance {
             Iterator nxt = lvl; ++nxt;
 
             if (nxt != end) {
-                auto &r = lvl->cg[0];
-                auto &s = lvl->cg[1];
-                auto &p = lvl->cg[2];
-                auto &q = lvl->cg[3];
+                std::vector<value_t> &r = lvl->cg[0];
+                std::vector<value_t> &s = lvl->cg[1];
+                std::vector<value_t> &p = lvl->cg[2];
+                std::vector<value_t> &q = lvl->cg[3];
 
                 std::copy(&rhs[0], &rhs[0] + n, &r[0]);
 
@@ -222,12 +231,10 @@ class instance {
 
                     if (iter) {
                         value_t beta = rho1 / rho2;
-                        std::transform(
-                                &p[0], &p[0] + n,
-                                &s[0], &p[0],
-                                [beta](value_t pp, value_t ss) {
-                                    return ss + beta * pp;
-                                });
+#pragma omp parallel for schedule(dynamic, 1024)
+                        for(index_t i = 0; i < n; ++i) {
+                            p[i] = s[i] + beta * p[i];
+                        }
                     } else {
                         std::copy(&s[0], &s[0] + n, &p[0]);
                     }
@@ -244,19 +251,11 @@ class instance {
 
                     value_t alpha = rho1 / lvl->inner_prod(q, p);
 
-                    std::transform(
-                            &x[0], &x[0] + n,
-                            &p[0], &x[0],
-                            [alpha](value_t xx, value_t pp) {
-                                return xx + alpha * pp;
-                            });
-
-                    std::transform(
-                            &r[0], &r[0] + n,
-                            &q[0], &r[0],
-                            [alpha](value_t rr, value_t qq) {
-                                return rr - alpha * qq;
-                            });
+#pragma omp parallel for schedule(dynamic, 1024)
+                    for(index_t i = 0; i < n; ++i) {
+                        x[i] += alpha * p[i];
+                        r[i] -= alpha * q[i];
+                    }
                 }
             } else {
                 for(index_t i = 0; i < n; ++i) {
@@ -286,7 +285,7 @@ class instance {
         mutable std::vector<value_t> f;
         mutable std::vector<value_t> t;
 
-        mutable std::array<std::vector<value_t>, 4> cg;
+        mutable boost::array<std::vector<value_t>, 4> cg;
 
         template <class U>
         inline static void vector_copy(U &u, U &v) {

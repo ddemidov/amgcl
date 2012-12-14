@@ -38,6 +38,8 @@ THE SOFTWARE.
 #include <cmath>
 #include <cassert>
 
+#include <boost/typeof/typeof.hpp>
+
 #ifdef _OPENMP
 #  include <omp.h>
 #endif
@@ -140,14 +142,17 @@ struct matrix {
         val( A.val )
     { }
 
-    /// Move constructor.
-    matrix(matrix &&A) :
-        rows(A.rows),
-        cols(A.cols),
-        row( std::move(A.row) ),
-        col( std::move(A.col) ),
-        val( std::move(A.val) )
-    { }
+    /// Swap contents with other matrix.
+    void swap(matrix &A) {
+        if (this != &A) {
+            std::swap(rows, A.rows);
+            std::swap(cols, A.cols);
+
+            std::swap(row, A.row);
+            std::swap(col, A.col);
+            std::swap(val, A.val);
+        }
+    }
 
     /// Copy constructor from a compatible type.
     template <class spmat>
@@ -167,10 +172,7 @@ struct matrix {
 
     /// Deallocates any heap memory held by the matrix.
     void clear() {
-        rows = cols = 0;
-        std::vector<index_t>().swap(row);
-        std::vector<index_t>().swap(col);
-        std::vector<value_t>().swap(val);
+        matrix().swap(*this);
     }
 
     index_t rows;               ///< Number of rows.
@@ -231,9 +233,9 @@ transpose(const spmat &A) {
     const index_t m   = matrix_cols(A);
     const index_t nnz = matrix_nonzeros(A);
 
-    auto Arow = matrix_outer_index(A);
-    auto Acol = matrix_inner_index(A);
-    auto Aval = matrix_values(A);
+    BOOST_AUTO(Arow, matrix_outer_index(A));
+    BOOST_AUTO(Acol, matrix_inner_index(A));
+    BOOST_AUTO(Aval, matrix_values(A));
 
     matrix<value_t, index_t> T(m, n, nnz);
 
@@ -272,13 +274,13 @@ prod(const spmat1 &A, const spmat2 &B) {
     const index_t n   = matrix_rows(A);
     const index_t m   = matrix_cols(B);
 
-    auto Arow = matrix_outer_index(A);
-    auto Acol = matrix_inner_index(A);
-    auto Aval = matrix_values(A);
+    BOOST_AUTO(Arow, matrix_outer_index(A));
+    BOOST_AUTO(Acol, matrix_inner_index(A));
+    BOOST_AUTO(Aval, matrix_values(A));
 
-    auto Brow = matrix_outer_index(B);
-    auto Bcol = matrix_inner_index(B);
-    auto Bval = matrix_values(B);
+    BOOST_AUTO(Brow, matrix_outer_index(B));
+    BOOST_AUTO(Bcol, matrix_inner_index(B));
+    BOOST_AUTO(Bval, matrix_values(B));
 
     matrix<value_t, index_t> C(n, m);
 
@@ -394,22 +396,15 @@ void gaussj(index_t n, value_t *a) {
         value_t pivinv = one / a[icol * n + icol];
         a[icol * n + icol] = one;
 
-        std::transform(a + icol * n, a + (icol + 1) * n, a + icol * n,
-                [pivinv](value_t e) {
-                    return e * pivinv;
-                });
+        for(value_t *v = a + icol * n, *e = a + (icol + 1) * n; v != e; ++v)
+            *v *= pivinv;
 
         for(index_t k = 0; k < n; ++k) {
             if (k != icol) {
                 value_t dum = a[k * n + icol];
                 a[k * n + icol] = zero;
-                std::transform(
-                        a + n * k, a + n * (k + 1),
-                        a + n * icol,
-                        a + n * k,
-                        [dum](value_t v1, value_t v2) {
-                            return v1 - v2 * dum;
-                        });
+                for(value_t *v1 = a + n * k, *v2 = a + n * icol, *e = a + n * (k + 1); v1 != e; ++v1, ++v2)
+                    *v1 -= *v2 * dum;
             }
         }
     }
@@ -440,9 +435,9 @@ inverse(const spmat &A) {
     assert(n == sparse::matrix_cols(A)
             && "Inverse of a non-square matrix does not make sense");
 
-    auto Arow = matrix_outer_index(A);
-    auto Acol = matrix_inner_index(A);
-    auto Aval = matrix_values(A);
+    BOOST_AUTO(Arow, matrix_outer_index(A));
+    BOOST_AUTO(Acol, matrix_inner_index(A));
+    BOOST_AUTO(Aval, matrix_values(A));
 
     matrix<
         typename matrix_value<spmat>::type,
@@ -479,9 +474,9 @@ diagonal(const spmat &A) {
     assert(n == sparse::matrix_cols(A)
             && "Diagonal of a non-square matrix is not well-defined");
 
-    auto Arow = matrix_outer_index(A);
-    auto Acol = matrix_inner_index(A);
-    auto Aval = matrix_values(A);
+    BOOST_AUTO(Arow, matrix_outer_index(A));
+    BOOST_AUTO(Acol, matrix_inner_index(A));
+    BOOST_AUTO(Aval, matrix_values(A));
 
     std::vector<value_t> dia(n);
 

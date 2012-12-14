@@ -34,6 +34,8 @@ THE SOFTWARE.
 #include <vector>
 #include <algorithm>
 
+#include <boost/typeof/typeof.hpp>
+
 #include <amgcl/spmat.hpp>
 #include <amgcl/profiler.hpp>
 
@@ -102,7 +104,7 @@ class classic {
             std::vector<char> cf(n, 'U');
 
             TIC("conn");
-            auto S = connect(A, prm, cf);
+            BOOST_AUTO(S, connect(A, prm, cf));
             TOC("conn");
 
             TIC("split");
@@ -116,9 +118,9 @@ class classic {
             for(index_t i = 0; i < n; i++)
                 if (cf[i] == 'C') cidx[i] = nc++;
 
-            auto Arow = sparse::matrix_outer_index(A);
-            auto Acol = sparse::matrix_inner_index(A);
-            auto Aval = sparse::matrix_values(A);
+            BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
+            BOOST_AUTO(Acol, sparse::matrix_inner_index(A));
+            BOOST_AUTO(Aval, sparse::matrix_values(A));
 
             sparse::matrix<value_t, index_t> P(n, nc);
             std::fill(P.row.begin(), P.row.end(), static_cast<index_t>(0));
@@ -251,9 +253,9 @@ class classic {
             S.row.resize(n + 1, 0);
             S.val.resize(sparse::matrix_nonzeros(A), false);
 
-            auto Arow = sparse::matrix_outer_index(A);
-            auto Acol = sparse::matrix_inner_index(A);
-            auto Aval = sparse::matrix_values(A);
+            BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
+            BOOST_AUTO(Acol, sparse::matrix_inner_index(A));
+            BOOST_AUTO(Aval, sparse::matrix_values(A));
 
 #pragma omp parallel for schedule(dynamic, 1024)
             for(index_t i = 0; i < n; ++i) {
@@ -301,8 +303,8 @@ class classic {
 
             const index_t n = sparse::matrix_rows(A);
 
-            auto Arow = sparse::matrix_outer_index(A);
-            auto Acol = sparse::matrix_inner_index(A);
+            BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
+            BOOST_AUTO(Acol, sparse::matrix_inner_index(A));
 
             std::vector<index_t> lambda(n);
 

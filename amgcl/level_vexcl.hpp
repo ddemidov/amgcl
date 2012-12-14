@@ -65,7 +65,7 @@ class instance {
         // Construct complete multigrid level from system matrix (a),
         // prolongation (p) and restriction (r) operators.
         // The matrices are moved into the local members.
-        instance(cpu_matrix &&a, cpu_matrix &&p, cpu_matrix &&r, const params &prm, unsigned nlevel)
+        instance(cpu_matrix &a, cpu_matrix &p, cpu_matrix &r, const params &prm, unsigned nlevel)
             : A(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
                     a.rows, a.cols, a.row.data(), a.col.data(), a.val.data()),
               P(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
@@ -93,7 +93,7 @@ class instance {
 
         // Construct the coarsest hierarchy level from system matrix (a) and
         // its inverse (ai).
-        instance(cpu_matrix &&a, cpu_matrix &&ai, const params &prm, unsigned nlevel)
+        instance(cpu_matrix &a, cpu_matrix &ai, const params &prm, unsigned nlevel)
             : A(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
                         a.rows, a.cols, a.row.data(), a.col.data(), a.val.data()),
               Ainv(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
@@ -162,10 +162,10 @@ class instance {
             Iterator nxt = lvl; ++nxt;
 
             if (nxt != end) {
-                auto &r = lvl->cg(0);
-                auto &s = lvl->cg(1);
-                auto &p = lvl->cg(2);
-                auto &q = lvl->cg(3);
+                vex::vector<value_t> &r = lvl->cg(0);
+                vex::vector<value_t> &s = lvl->cg(1);
+                vex::vector<value_t> &p = lvl->cg(2);
+                vex::vector<value_t> &q = lvl->cg(3);
 
                 r = rhs;
 
