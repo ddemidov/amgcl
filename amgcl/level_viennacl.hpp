@@ -159,12 +159,15 @@ class instance {
         // Perform one V-cycle. Coarser levels are cycled recursively. The
         // coarsest level is solved directly.
         template <class Iterator>
-        static void cycle(Iterator lvl, Iterator end, const params &prm,
+        static void cycle(Iterator plvl, Iterator end, const params &prm,
                 const vector &rhs, vector &x)
         {
-            Iterator nxt = lvl; ++nxt;
+            Iterator pnxt = plvl; ++pnxt;
 
-            if (nxt != end) {
+            BOOST_AUTO(lvl, *plvl);
+            BOOST_AUTO(nxt, *pnxt);
+
+            if (pnxt != end) {
                 for(unsigned j = 0; j < prm.ncycle; ++j) {
                     for(unsigned i = 0; i < prm.npre; ++i) lvl->relax(rhs, x);
 
@@ -174,9 +177,9 @@ class instance {
                     nxt->u.clear();
 
                     if (nxt->cg[0].size())
-                        kcycle(nxt, end, prm, nxt->f, nxt->u);
+                        kcycle(pnxt, end, prm, nxt->f, nxt->u);
                     else
-                        cycle(nxt, end, prm, nxt->f, nxt->u);
+                        cycle(pnxt, end, prm, nxt->f, nxt->u);
 
                     lvl->t = viennacl::linalg::prod(lvl->P, nxt->u);
                     x += lvl->t;
@@ -189,12 +192,15 @@ class instance {
         }
 
         template <class Iterator>
-        static void kcycle(Iterator lvl, Iterator end, const params &prm,
+        static void kcycle(Iterator plvl, Iterator end, const params &prm,
                 const vector &rhs, vector &x)
         {
-            Iterator nxt = lvl; ++nxt;
+            Iterator pnxt = plvl; ++pnxt;
 
-            if (nxt != end) {
+            BOOST_AUTO(lvl, *plvl);
+            BOOST_AUTO(nxt, *pnxt);
+
+            if (pnxt != end) {
                 viennacl::vector<value_t> &r = lvl->cg[0];
                 viennacl::vector<value_t> &s = lvl->cg[1];
                 viennacl::vector<value_t> &p = lvl->cg[2];
@@ -206,7 +212,7 @@ class instance {
 
                 for(int iter = 0; iter < 2; ++iter) {
                     s.clear();
-                    cycle(lvl, end, prm, r, s);
+                    cycle(plvl, end, prm, r, s);
 
                     rho2 = rho1;
                     rho1 = viennacl::linalg::inner_prod(r, s);

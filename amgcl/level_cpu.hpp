@@ -141,13 +141,17 @@ class instance {
         // Perform one V-cycle. Coarser levels are cycled recursively. The
         // coarsest level is solved directly.
         template <class Iterator, class vector1, class vector2>
-        static void cycle(Iterator lvl, Iterator end, const params &prm,
+        static void cycle(Iterator plvl, Iterator end, const params &prm,
                 const vector1 &rhs, vector2 &x)
         {
-            const index_t n = lvl->A.rows;
-            Iterator nxt = lvl; ++nxt;
+            Iterator pnxt = plvl; ++pnxt;
 
-            if (nxt != end) {
+            BOOST_AUTO(lvl, *plvl);
+            BOOST_AUTO(nxt, *pnxt);
+
+            const index_t n = lvl->A.rows;
+
+            if (pnxt != end) {
                 const index_t nc = nxt->A.rows;
 
                 for(unsigned j = 0; j < prm.ncycle; ++j) {
@@ -178,9 +182,9 @@ class instance {
                     std::fill(nxt->u.begin(), nxt->u.end(), static_cast<value_t>(0));
 
                     if (nxt->cg[0].empty())
-                        cycle(nxt, end, prm, nxt->f, nxt->u);
+                        cycle(pnxt, end, prm, nxt->f, nxt->u);
                     else
-                        kcycle(nxt, end, prm, nxt->f, nxt->u);
+                        kcycle(pnxt, end, prm, nxt->f, nxt->u);
 
                     //x += lvl->P * nxt->u;
 #pragma omp parallel for schedule(dynamic, 1024)
@@ -206,13 +210,17 @@ class instance {
         }
 
         template <class Iterator, class vector1, class vector2>
-        static void kcycle(Iterator lvl, Iterator end, const params &prm,
+        static void kcycle(Iterator plvl, Iterator end, const params &prm,
                 const vector1 &rhs, vector2 &x)
         {
-            const index_t n = lvl->A.rows;
-            Iterator nxt = lvl; ++nxt;
+            Iterator pnxt = plvl; ++pnxt;
 
-            if (nxt != end) {
+            BOOST_AUTO(lvl, *plvl);
+            BOOST_AUTO(nxt, *pnxt);
+
+            const index_t n = lvl->A.rows;
+
+            if (pnxt != end) {
                 std::vector<value_t> &r = lvl->cg[0];
                 std::vector<value_t> &s = lvl->cg[1];
                 std::vector<value_t> &p = lvl->cg[2];
@@ -224,7 +232,7 @@ class instance {
 
                 for(int iter = 0; iter < 2; ++iter) {
                     std::fill(&s[0], &s[0] + n, static_cast<value_t>(0));
-                    cycle(lvl, end, prm, r, s);
+                    cycle(plvl, end, prm, r, s);
 
                     rho2 = rho1;
                     rho1 = lvl->inner_prod(r, s);

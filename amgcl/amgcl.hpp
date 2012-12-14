@@ -142,6 +142,8 @@ include files.
 #include <list>
 
 #include <boost/static_assert.hpp>
+#include <boost/smart_ptr/shared_ptr.hpp>
+#include <boost/smart_ptr/make_shared.hpp>
 #include <boost/typeof/typeof.hpp>
 #include <boost/type_traits/is_signed.hpp>
 
@@ -251,7 +253,7 @@ class solver {
 
             for(; res > prm.level.tol && iter < prm.level.maxiter; ++iter) {
                 apply(rhs, x);
-                res = hier.front().resid(rhs, x);
+                res = hier.front()->resid(rhs, x);
             }
 
             return std::make_pair(iter, res);
@@ -284,25 +286,25 @@ class solver {
             index_t sum_dof = 0;
             index_t sum_nnz = 0;
             for(BOOST_AUTO(lvl, hier.begin()); lvl != hier.end(); ++lvl) {
-                sum_dof += lvl->size();
-                sum_nnz += lvl->nonzeros();
+                sum_dof += (*lvl)->size();
+                sum_nnz += (*lvl)->nonzeros();
             }
 
             os << "Number of levels:    "   << hier.size()
                << "\nOperator complexity: " << std::fixed << std::setprecision(2)
-                                            << 1.0 * sum_nnz / hier.front().nonzeros()
+                                            << 1.0 * sum_nnz / hier.front()->nonzeros()
                << "\nGrid complexity:     " << std::fixed << std::setprecision(2)
-                                            << 1.0 * sum_dof / hier.front().size()
+                                            << 1.0 * sum_dof / hier.front()->size()
                << "\n\nlevel     unknowns       nonzeros\n"
                << "---------------------------------\n";
 
             index_t depth = 0;
             for(BOOST_AUTO(lvl, hier.begin()); lvl != hier.end(); ++lvl, ++depth)
                 os << std::setw(5)  << depth
-                   << std::setw(13) << lvl->size()
-                   << std::setw(15) << lvl->nonzeros() << " ("
+                   << std::setw(13) << (*lvl)->size()
+                   << std::setw(15) << (*lvl)->nonzeros() << " ("
                    << std::setw(5) << std::fixed << std::setprecision(2)
-                   << 100.0 * lvl->nonzeros() / sum_nnz
+                   << 100.0 * (*lvl)->nonzeros() / sum_nnz
                    << "%)" << std::endl;
 
             os.flags(ff);
@@ -314,11 +316,7 @@ class solver {
         {
             if (A.rows <= prm.coarse_enough) {
                 matrix Ai = sparse::inverse(A);
-#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cpluplus >= 201103L
-                hier.emplace_back( A, Ai, prm.level, nlevel );
-#else
-                hier.push_back( level_type(A, Ai, prm.level, nlevel) );
-#endif
+                hier.push_back( boost::shared_ptr<level_type>(new level_type(A, Ai, prm.level, nlevel) ) );
             } else {
                 TIC("interp");
                 matrix P = interp_t::interp(A, prm.interp);
@@ -333,18 +331,14 @@ class solver {
                         R, A, P, prm.interp);
                 TOC("coarse operator");
 
-#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cpluplus >= 201103L
-                hier.emplace_back( A, P, R, prm.level, nlevel );
-#else
-                hier.push_back( level_type(A, P, R, prm.level, nlevel) );
-#endif
+                hier.push_back( boost::shared_ptr<level_type>(new level_type(A, P, R, prm.level, nlevel) ) );
 
                 build_level(a, prm, nlevel + 1);
             }
         }
 
         params prm;
-        std::list< level_type > hier;
+        std::list< boost::shared_ptr<level_type> > hier;
 };
 
 } // namespace amgcl
