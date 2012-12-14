@@ -27,7 +27,7 @@ struct amg_precond {
     typedef amgcl::solver<
         double, int,
         amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
-#ifdef VIENNACL_WITH_OPENCL
+#if defined(VIENNACL_WITH_OPENCL) || defined(VIENNACL_WITH_CUDA)
         amgcl::level::ViennaCL<amgcl::level::CL_MATRIX_HYB>
 #else
         amgcl::level::ViennaCL<amgcl::level::CL_MATRIX_CRS>
