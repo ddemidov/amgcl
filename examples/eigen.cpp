@@ -40,8 +40,12 @@ int main(int argc, char *argv[]) {
         amgcl::level::cpu
         > AMG;
 
+    // Use K-Cycle on each level to improve convergence:
+    typename AMG::params prm;
+    prm.level.kcycle = 1;
+
     prof.tic("setup");
-    AMG amg( amgcl::sparse::map(A) );
+    AMG amg( amgcl::sparse::map(A), prm );
     prof.toc("setup");
 
     std::cout << amg << std::endl;

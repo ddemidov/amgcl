@@ -90,9 +90,13 @@ int main(int argc, char *argv[]) {
             n, n, row.data(), col.data(), val.data()
             );
 
+    // Use K-Cycle on each level to improve convergence:
+    typename amg_precond::AMG::params prm;
+    prm.level.kcycle = 1;
+
     // Build the preconditioner.
     prof.tic("setup");
-    amg_precond amg(A);
+    amg_precond amg(A, prm);
     prof.toc("setup");
 
     // Copy matrix and rhs to GPU(s).

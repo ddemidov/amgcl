@@ -49,7 +49,9 @@ int main(int argc, char *argv[]) {
         > AMG;
 
     typename AMG::params prm;
+    // Provide vex::Context for level construction:
     prm.level.ctx = &ctx;
+    // Use K-Cycle on each level to improve convergence:
     prm.level.kcycle = 1;
 
     prof.tic("setup");

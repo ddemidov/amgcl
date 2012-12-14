@@ -79,9 +79,13 @@ int main(int argc, char *argv[]) {
             n, n, row.back(), row.data(), col.data(), val.data()
             );
 
+    // Use K-Cycle on each level to improve convergence:
+    typename amg_precond::AMG::params prm;
+    prm.level.kcycle = 1;
+
     // Build the preconditioner:
     prof.tic("setup");
-    amg_precond amg( amgcl::sparse::map(A) );
+    amg_precond amg( amgcl::sparse::map(A), prm );
     prof.toc("setup");
 
     // Solve the problem with CG method from ViennaCL. Use AMG as a
@@ -92,8 +96,7 @@ int main(int argc, char *argv[]) {
     prof.toc("solve");
 
     std::cout << "Iterations: " << tag.iters() << std::endl
-              << "Error:      " << tag.error() << std::endl
-              << "Real error: " << (rhs - A * x).norm() / rhs.norm() << std::endl;
+              << "Error:      " << tag.error() << std::endl;
 
     std::cout << prof;
 }
