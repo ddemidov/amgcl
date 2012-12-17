@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    amgcl::profiler<> prof;
+    amgcl::profiler<> prof(argv[0]);
 
 #ifdef VIENNACL_WITH_OPENCL
     // There is no easy way to select compute device in ViennaCL, so just use

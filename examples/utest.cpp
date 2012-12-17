@@ -27,7 +27,7 @@
 namespace po = boost::program_options;
 
 namespace amgcl {
-    profiler<> prof;
+    profiler<> prof("utest");
 }
 using amgcl::prof;
 

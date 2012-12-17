@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
         std::cerr << "Usage: " << argv[0] << " <problem.dat>" << std::endl;
         return 1;
     }
-    amgcl::profiler<> prof;
+    amgcl::profiler<> prof(argv[0]);
 
     // Read matrix and rhs from a binary file.
     std::vector<int>    row;
