@@ -75,10 +75,10 @@ void solve(
     prof.tic("solve");
     switch (static_cast<solver_t>(op.solver)) {
         case cg:
-            cnv = amgcl::solve(A, rhs, amg, x, amgcl::cg_tag());
+            cnv = amgcl::solve(A, rhs, amg, x, amgcl::cg_tag(op.lp.maxiter, op.lp.tol));
             break;
         case bicg:
-            cnv = amgcl::solve(A, rhs, amg, x, amgcl::bicg_tag());
+            cnv = amgcl::solve(A, rhs, amg, x, amgcl::bicg_tag(op.lp.maxiter, op.lp.tol));
             break;
         case standalone:
             cnv = amg.solve(rhs, x);
@@ -110,9 +110,9 @@ void run_cpu_test(const spmat &A, const vector &rhs, const options &op) {
     prm.level.ncycle = op.lp.ncycle;
     prm.level.kcycle = op.lp.kcycle;
     prm.level.tol    = op.lp.tol;
+    prm.level.maxiter= op.lp.maxiter;
 
     EigenVector x = EigenVector::Zero(rhs.size());
-    
 
     prof.tic("setup");
     AMG amg(A, prm);
@@ -156,6 +156,7 @@ void run_vexcl_test(const spmat &A, const vector &rhs, const options &op) {
     prm.level.ncycle = op.lp.ncycle;
     prm.level.kcycle = op.lp.kcycle;
     prm.level.tol    = op.lp.tol;
+    prm.level.maxiter= op.lp.maxiter;
 
 
     prof.tic("setup");
@@ -203,6 +204,7 @@ int main(int argc, char *argv[]) {
         ("ncycle", po::value<unsigned>(&op.lp.ncycle)->default_value(op.lp.ncycle))
         ("kcycle", po::value<unsigned>(&op.lp.kcycle)->default_value(op.lp.kcycle))
         ("tol",    po::value<double  >(&op.lp.tol   )->default_value(op.lp.tol))
+        ("maxiter",po::value<unsigned>(&op.lp.maxiter)->default_value(op.lp.maxiter))
         ;
 
     po::positional_options_description pdesc;
