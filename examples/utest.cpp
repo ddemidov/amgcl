@@ -24,6 +24,9 @@
 
 #include "read.hpp"
 
+typedef double real;
+typedef Eigen::Matrix<real, Eigen::Dynamic, 1> EigenVector;
+
 namespace po = boost::program_options;
 
 namespace amgcl {
@@ -68,7 +71,7 @@ void solve(
 {
     const int n = rhs.size();
 
-    std::pair<int,double> cnv;
+    std::pair<int,real> cnv;
     prof.tic("solve");
     switch (static_cast<solver_t>(op.solver)) {
         case cg:
@@ -94,7 +97,7 @@ void solve(
 template <class interp_t, class spmat, class vector>
 void run_cpu_test(const spmat &A, const vector &rhs, const options &op) {
     typedef amgcl::solver<
-        double, int, interp_t,
+        real, int, interp_t,
         amgcl::level::cpu
     > AMG;
 
@@ -108,7 +111,7 @@ void run_cpu_test(const spmat &A, const vector &rhs, const options &op) {
     prm.level.kcycle = op.lp.kcycle;
     prm.level.tol    = op.lp.tol;
 
-    Eigen::VectorXd x = Eigen::VectorXd::Zero(rhs.size());
+    EigenVector x = EigenVector::Zero(rhs.size());
     
 
     prof.tic("setup");
@@ -117,13 +120,13 @@ void run_cpu_test(const spmat &A, const vector &rhs, const options &op) {
 
     std::cout << amg << std::endl;
 
-    Eigen::MappedSparseMatrix<double, Eigen::RowMajor, int> Amap(
+    Eigen::MappedSparseMatrix<real, Eigen::RowMajor, int> Amap(
             amgcl::sparse::matrix_rows(A),
             amgcl::sparse::matrix_cols(A),
             amgcl::sparse::matrix_nonzeros(A),
-            const_cast<int*   >(amgcl::sparse::matrix_outer_index(A)),
-            const_cast<int*   >(amgcl::sparse::matrix_inner_index(A)),
-            const_cast<double*>(amgcl::sparse::matrix_values(A))
+            const_cast<int* >(amgcl::sparse::matrix_outer_index(A)),
+            const_cast<int* >(amgcl::sparse::matrix_inner_index(A)),
+            const_cast<real*>(amgcl::sparse::matrix_values(A))
             );
 
     solve(amg, Amap, rhs, x, op);
@@ -133,7 +136,7 @@ void run_cpu_test(const spmat &A, const vector &rhs, const options &op) {
 template <class interp_t, class spmat, class vector>
 void run_vexcl_test(const spmat &A, const vector &rhs, const options &op) {
     typedef amgcl::solver<
-        double, int, interp_t,
+        real, int, interp_t,
         amgcl::level::vexcl
     > AMG;
 
@@ -161,8 +164,8 @@ void run_vexcl_test(const spmat &A, const vector &rhs, const options &op) {
 
     std::cout << amg << std::endl;
 
-    vex::vector<double> f(ctx.queue(), rhs.size(), rhs.data());
-    vex::vector<double> x(ctx.queue(), rhs.size());
+    vex::vector<real> f(ctx.queue(), rhs.size(), rhs.data());
+    vex::vector<real> x(ctx.queue(), rhs.size());
     x = 0;
 
     solve(amg, amg.top_matrix(), f, x, op);
@@ -221,10 +224,10 @@ int main(int argc, char *argv[]) {
     }
 
     prof.tic("Read problem");
-    std::vector<int>    row;
-    std::vector<int>    col;
-    std::vector<double> val;
-    Eigen::VectorXd     rhs;
+    std::vector<int>  row;
+    std::vector<int>  col;
+    std::vector<real> val;
+    EigenVector       rhs;
     int n = read_problem(op.pfile, row, col, val, rhs);
     prof.toc("Read problem");
 

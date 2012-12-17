@@ -11,6 +11,8 @@
 
 #include "read.hpp"
 
+typedef double real;
+
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <problem.dat>" << std::endl;
@@ -20,10 +22,10 @@ int main(int argc, char *argv[]) {
     amgcl::profiler<> prof(argv[0]);
 
     // Read matrix and rhs from a binary file.
-    std::vector<int>    row;
-    std::vector<int>    col;
-    std::vector<double> val;
-    std::vector<double> rhs;
+    std::vector<int>  row;
+    std::vector<int>  col;
+    std::vector<real> val;
+    std::vector<real> rhs;
     int n = read_problem(argv[1], row, col, val, rhs);
 
     // Initialize VexCL context.
@@ -37,13 +39,13 @@ int main(int argc, char *argv[]) {
     std::cout << ctx << std::endl;
 
     // Wrap the matrix into amgcl::sparse::map:
-    amgcl::sparse::matrix_map<double, int> A(
+    amgcl::sparse::matrix_map<real, int> A(
             n, n, row.data(), col.data(), val.data()
             );
 
     // Build the preconditioner.
     typedef amgcl::solver<
-        double, int,
+        real, int,
         amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
         amgcl::level::vexcl
         > AMG;
@@ -61,14 +63,14 @@ int main(int argc, char *argv[]) {
     std::cout << amg << std::endl;
 
     // Copy matrix and rhs to GPU(s).
-    vex::SpMat<double, int, int> Agpu(
+    vex::SpMat<real, int, int> Agpu(
             ctx.queue(), n, n, row.data(), col.data(), val.data()
             );
 
-    vex::vector<double> f(ctx.queue(), rhs);
+    vex::vector<real> f(ctx.queue(), rhs);
 
     // Solve the problem with CG method. Use AMG as a preconditioner:
-    vex::vector<double> x(ctx.queue(), n);
+    vex::vector<real> x(ctx.queue(), n);
     x = 0;
 
     prof.tic("solve (cg)");

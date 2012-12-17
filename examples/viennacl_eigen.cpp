@@ -20,6 +20,9 @@
 
 #include "read.hpp"
 
+typedef double real;
+typedef Eigen::Matrix<real, Eigen::Dynamic, 1> EigenVector;
+
 // This is needed for ViennaCL to recognize MappedSparseMatrix as Eigen type.
 namespace viennacl { namespace traits {
 
@@ -42,20 +45,20 @@ int main(int argc, char *argv[]) {
     amgcl::profiler<> prof(argv[0]);
 
     // Read matrix and rhs from a binary file.
-    std::vector<int>    row;
-    std::vector<int>    col;
-    std::vector<double> val;
-    Eigen::VectorXd     rhs;
+    std::vector<int>  row;
+    std::vector<int>  col;
+    std::vector<real> val;
+    EigenVector       rhs;
     int n = read_problem(argv[1], row, col, val, rhs);
 
     // Wrap the matrix into Eigen Map.
-    Eigen::MappedSparseMatrix<double, Eigen::RowMajor, int> A(
+    Eigen::MappedSparseMatrix<real, Eigen::RowMajor, int> A(
             n, n, row.back(), row.data(), col.data(), val.data()
             );
 
     // Build the preconditioner:
     typedef amgcl::solver<
-        double, int,
+        real, int,
         amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
         amgcl::level::cpu
         > AMG;
@@ -74,8 +77,8 @@ int main(int argc, char *argv[]) {
     // preconditioner:
     prof.tic("solve");
     viennacl::linalg::cg_tag tag(1e-8, n);
-    Eigen::VectorXd x = viennacl::linalg::solve(A, rhs, tag,
-            amgcl::make_viennacl_precond<Eigen::VectorXd>(amg));
+    EigenVector x = viennacl::linalg::solve(A, rhs, tag,
+            amgcl::make_viennacl_precond<EigenVector>(amg));
     prof.toc("solve");
 
     std::cout << "Iterations: " << tag.iters() << std::endl

@@ -14,6 +14,8 @@
 
 #include "read.hpp"
 
+typedef double real;
+typedef Eigen::Matrix<real, Eigen::Dynamic, 1> EigenVector;
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
@@ -23,20 +25,20 @@ int main(int argc, char *argv[]) {
     amgcl::profiler<> prof(argv[0]);
 
     // Read matrix and rhs from a binary file.
-    std::vector<int>    row;
-    std::vector<int>    col;
-    std::vector<double> val;
-    Eigen::VectorXd     rhs;
+    std::vector<int>  row;
+    std::vector<int>  col;
+    std::vector<real> val;
+    EigenVector       rhs;
     int n = read_problem(argv[1], row, col, val, rhs);
 
     // Wrap the matrix into Eigen Map.
-    Eigen::MappedSparseMatrix<double, Eigen::RowMajor, int> A(
+    Eigen::MappedSparseMatrix<real, Eigen::RowMajor, int> A(
             n, n, row.back(), row.data(), col.data(), val.data()
             );
 
     // Build the preconditioner:
     typedef amgcl::solver<
-        double, int,
+        real, int,
         amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
         amgcl::level::cpu
         > AMG;
@@ -52,9 +54,9 @@ int main(int argc, char *argv[]) {
     std::cout << amg << std::endl;
 
     // Solve the problem with CG method. Use AMG as a preconditioner:
-    Eigen::VectorXd x = Eigen::VectorXd::Zero(n);
+    EigenVector x = EigenVector::Zero(n);
     prof.tic("solve (cg)");
-    std::pair<int,double> cnv = amgcl::solve(A, rhs, amg, x, amgcl::cg_tag());
+    std::pair<int,real> cnv = amgcl::solve(A, rhs, amg, x, amgcl::cg_tag());
     prof.toc("solve (cg)");
 
     std::cout << "Iterations: " << cnv.first  << std::endl
