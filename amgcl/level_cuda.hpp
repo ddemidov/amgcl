@@ -446,7 +446,22 @@ struct axpy {
 } // namespace level
 
 
-/// \copydoc amgcl::solve()
+/// Conjugate Gradient method for Thrust/CUSPARSE combination.
+/**
+ * Implementation is based on \ref Templates_1994 "Barrett (1994)"
+ *
+ * \param A   The system matrix.
+ * \param rhs The right-hand side.
+ * \param P   The preconditioner. Should provide apply(rhs, x) method.
+ * \param x   The solution. Contains an initial approximation on input, and
+ *            the approximated solution on output.
+ * \param prm The control parameters.
+ *
+ * \returns a pair containing number of iterations made and precision
+ * achieved.
+ *
+ * \ingroup iterative
+ */
 template <class value_t, class precond>
 std::pair< int, value_t > solve(
         const sparse::cuda_matrix<value_t> &A,
