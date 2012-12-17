@@ -28,9 +28,9 @@ struct amg_precond {
         double, int,
         amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
 #if defined(VIENNACL_WITH_OPENCL) || defined(VIENNACL_WITH_CUDA)
-        amgcl::level::ViennaCL<amgcl::level::CL_MATRIX_HYB>
+        amgcl::level::viennacl<amgcl::level::CL_MATRIX_HYB>
 #else
-        amgcl::level::ViennaCL<amgcl::level::CL_MATRIX_CRS>
+        amgcl::level::viennacl<amgcl::level::CL_MATRIX_CRS>
 #endif
         > AMG;
     typedef typename AMG::params params;

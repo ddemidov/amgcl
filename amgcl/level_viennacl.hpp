@@ -83,7 +83,7 @@ struct matrix_format<CL_MATRIX_HYB, value_type> {
  * \ingroup levels
  */
 template <cl_matrix_format Format = CL_MATRIX_HYB>
-struct ViennaCL {
+struct viennacl {
 
 /// Parameters for CPU-based level storage scheme.
 struct params
@@ -95,7 +95,7 @@ class instance {
     public:
         typedef sparse::matrix<value_t, index_t>              cpu_matrix;
         typedef typename matrix_format<Format, value_t>::type matrix;
-        typedef viennacl::vector<value_t>                     vector;
+        typedef ::viennacl::vector<value_t>                   vector;
 
         // Construct complete multigrid level from system matrix (a),
         // prolongation (p) and restriction (r) operators.
@@ -103,11 +103,11 @@ class instance {
         instance(cpu_matrix &a, cpu_matrix &p, cpu_matrix &r, const params &prm, unsigned nlevel)
             : d(a.rows), t(a.rows), nnz(sparse::matrix_nonzeros(a))
         {
-            viennacl::copy(sparse::viennacl_map(a), A);
-            viennacl::copy(sparse::viennacl_map(p), P);
-            viennacl::copy(sparse::viennacl_map(r), R);
+            ::viennacl::copy(sparse::viennacl_map(a), A);
+            ::viennacl::copy(sparse::viennacl_map(p), P);
+            ::viennacl::copy(sparse::viennacl_map(r), R);
 
-            viennacl::fast_copy(diagonal(a), d);
+            ::viennacl::fast_copy(diagonal(a), d);
 
             if (nlevel) {
                 u.resize(a.rows);
@@ -129,10 +129,10 @@ class instance {
             : d(a.rows), u(a.rows), f(a.rows), t(a.rows),
               nnz(sparse::matrix_nonzeros(a))
         {
-            viennacl::copy(sparse::viennacl_map(a),  A);
-            viennacl::copy(sparse::viennacl_map(ai), Ainv);
+            ::viennacl::copy(sparse::viennacl_map(a),  A);
+            ::viennacl::copy(sparse::viennacl_map(ai), Ainv);
 
-            viennacl::fast_copy(diagonal(a), d);
+            ::viennacl::fast_copy(diagonal(a), d);
 
             a.clear();
             ai.clear();
@@ -142,18 +142,18 @@ class instance {
         void relax(const vector &rhs, vector &x) const {
             const index_t n = x.size();
 
-            t = viennacl::linalg::prod(A, x);
+            t = ::viennacl::linalg::prod(A, x);
             t = rhs - t;
-            t = viennacl::linalg::element_div(t, d);
+            t = ::viennacl::linalg::element_div(t, d);
             x += 0.72 * t;
         }
 
         // Compute residual value.
         value_t resid(const vector &rhs, vector &x) const {
-            t = viennacl::linalg::prod(A, x);
+            t = ::viennacl::linalg::prod(A, x);
             t = rhs - t;
 
-            return sqrt(viennacl::linalg::inner_prod(t, t));
+            return sqrt(::viennacl::linalg::inner_prod(t, t));
         }
 
         // Perform one V-cycle. Coarser levels are cycled recursively. The
@@ -171,9 +171,9 @@ class instance {
                 for(unsigned j = 0; j < prm.ncycle; ++j) {
                     for(unsigned i = 0; i < prm.npre; ++i) lvl->relax(rhs, x);
 
-                    lvl->t = viennacl::linalg::prod(lvl->A, x);
+                    lvl->t = ::viennacl::linalg::prod(lvl->A, x);
                     lvl->t = rhs - lvl->t;
-                    nxt->f = viennacl::linalg::prod(lvl->R, lvl->t);
+                    nxt->f = ::viennacl::linalg::prod(lvl->R, lvl->t);
                     nxt->u.clear();
 
                     if (nxt->cg[0].size())
@@ -181,13 +181,13 @@ class instance {
                     else
                         cycle(pnxt, end, prm, nxt->f, nxt->u);
 
-                    lvl->t = viennacl::linalg::prod(lvl->P, nxt->u);
+                    lvl->t = ::viennacl::linalg::prod(lvl->P, nxt->u);
                     x += lvl->t;
 
                     for(unsigned i = 0; i < prm.npost; ++i) lvl->relax(rhs, x);
                 }
             } else {
-                x = viennacl::linalg::prod(lvl->Ainv, rhs);
+                x = ::viennacl::linalg::prod(lvl->Ainv, rhs);
             }
         }
 
@@ -201,10 +201,10 @@ class instance {
             instance *nxt = pnxt->get();
 
             if (pnxt != end) {
-                viennacl::vector<value_t> &r = lvl->cg[0];
-                viennacl::vector<value_t> &s = lvl->cg[1];
-                viennacl::vector<value_t> &p = lvl->cg[2];
-                viennacl::vector<value_t> &q = lvl->cg[3];
+                vector &r = lvl->cg[0];
+                vector &s = lvl->cg[1];
+                vector &p = lvl->cg[2];
+                vector &q = lvl->cg[3];
 
                 r = rhs;
 
@@ -215,22 +215,22 @@ class instance {
                     cycle(plvl, end, prm, r, s);
 
                     rho2 = rho1;
-                    rho1 = viennacl::linalg::inner_prod(r, s);
+                    rho1 = ::viennacl::linalg::inner_prod(r, s);
 
                     if (iter)
                         p = s + (rho1 / rho2) * p;
                     else
                         p = s;
 
-                    q = viennacl::linalg::prod(lvl->A, p);
+                    q = ::viennacl::linalg::prod(lvl->A, p);
 
-                    value_t alpha = rho1 / viennacl::linalg::inner_prod(q, p);
+                    value_t alpha = rho1 / ::viennacl::linalg::inner_prod(q, p);
 
                     x += alpha * p;
                     r -= alpha * q;
                 }
             } else {
-                x = viennacl::linalg::prod(lvl->Ainv, rhs);
+                x = ::viennacl::linalg::prod(lvl->Ainv, rhs);
             }
         }
 
@@ -261,6 +261,8 @@ class instance {
 };
 
 } // namespace level
+
+
 } // namespace amgcl
 
 #endif
