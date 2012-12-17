@@ -284,7 +284,7 @@ class instance {
         struct relax_functor {
             value_t w;
 
-            relax_functor(value_t w = 0.72) : w(w) {}
+            relax_functor(value_t w) : w(w) {}
 
             template <class T>
             __host__ __device__
@@ -298,7 +298,7 @@ class instance {
 
         // Perform one relaxation (smoothing) step.
         void relax(const thrust::device_vector<value_t> &rhs,
-                thrust::device_vector<value_t> &x) const
+                thrust::device_vector<value_t> &x, const params &prm) const
         {
             const index_t n = x.size();
 
@@ -312,7 +312,7 @@ class instance {
                     thrust::make_zip_iterator(
                         thrust::make_tuple( x.end(), t.end(), d.end() )
                         ),
-                    relax_functor(0.72)
+                    relax_functor(prm.relax_factor)
                     );
         }
 
@@ -339,7 +339,7 @@ class instance {
 
             if (pnxt != end) {
                 for(unsigned j = 0; j < prm.ncycle; ++j) {
-                    for(unsigned i = 0; i < prm.npre; ++i) lvl->relax(rhs, x);
+                    for(unsigned i = 0; i < prm.npre; ++i) lvl->relax(rhs, x, prm);
 
                     thrust::copy(rhs.begin(), rhs.end(), lvl->t.begin());;
                     lvl->A.mul(-1, x, 1, lvl->t);
@@ -353,7 +353,7 @@ class instance {
 
                     lvl->P.mul(1, nxt->u, 1, x);
 
-                    for(unsigned i = 0; i < prm.npost; ++i) lvl->relax(rhs, x);
+                    for(unsigned i = 0; i < prm.npost; ++i) lvl->relax(rhs, x, prm);
                 }
             } else {
                 lvl->Ainv.mul(1, rhs, 0, x);

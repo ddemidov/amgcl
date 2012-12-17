@@ -144,13 +144,13 @@ class instance {
         }
 
         // Perform one relaxation (smoothing) step.
-        void relax(const vector &rhs, vector &x) const {
+        void relax(const vector &rhs, vector &x, const params &prm) const {
             const index_t n = x.size();
 
             t = ::viennacl::linalg::prod(A, x);
             t = rhs - t;
             t = ::viennacl::linalg::element_div(t, d);
-            x += 0.72 * t;
+            x += prm.relax_factor * t;
         }
 
         // Compute residual value.
@@ -174,7 +174,7 @@ class instance {
 
             if (pnxt != end) {
                 for(unsigned j = 0; j < prm.ncycle; ++j) {
-                    for(unsigned i = 0; i < prm.npre; ++i) lvl->relax(rhs, x);
+                    for(unsigned i = 0; i < prm.npre; ++i) lvl->relax(rhs, x, prm);
 
                     lvl->t = ::viennacl::linalg::prod(lvl->A, x);
                     lvl->t = rhs - lvl->t;
@@ -189,7 +189,7 @@ class instance {
                     lvl->t = ::viennacl::linalg::prod(lvl->P, nxt->u);
                     x += lvl->t;
 
-                    for(unsigned i = 0; i < prm.npost; ++i) lvl->relax(rhs, x);
+                    for(unsigned i = 0; i < prm.npost; ++i) lvl->relax(rhs, x, prm);
                 }
             } else {
                 x = ::viennacl::linalg::prod(lvl->Ainv, rhs);

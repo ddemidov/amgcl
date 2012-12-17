@@ -101,7 +101,7 @@ class instance {
 
         // Perform one relaxation (smoothing) step.
         template <class vector1, class vector2>
-        void relax(const vector1 &rhs, vector2 &x) const {
+        void relax(const vector1 &rhs, vector2 &x, const params &prm) const {
             const index_t n = A.rows;
 
 #pragma omp parallel for schedule(dynamic, 1024)
@@ -118,7 +118,7 @@ class instance {
                     if (c == i) diag = v;
                 }
 
-                t[i] = x[i] + 0.72 * (temp / diag);
+                t[i] = x[i] + prm.relax_factor * (temp / diag);
             }
 
             vector_copy(t, x);
@@ -160,7 +160,7 @@ class instance {
                 const index_t nc = nxt->A.rows;
 
                 for(unsigned j = 0; j < prm.ncycle; ++j) {
-                    for(unsigned i = 0; i < prm.npre; ++i) lvl->relax(rhs, x);
+                    for(unsigned i = 0; i < prm.npre; ++i) lvl->relax(rhs, x, prm);
 
                     //lvl->t = rhs - lvl->A * x;
 #pragma omp parallel for schedule(dynamic, 1024)
@@ -202,7 +202,7 @@ class instance {
                         x[i] += temp;
                     }
 
-                    for(unsigned i = 0; i < prm.npost; ++i) lvl->relax(rhs, x);
+                    for(unsigned i = 0; i < prm.npost; ++i) lvl->relax(rhs, x, prm);
                 }
             } else {
                 for(index_t i = 0; i < n; ++i) {

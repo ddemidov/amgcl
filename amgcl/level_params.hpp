@@ -58,6 +58,9 @@ struct params {
     // TODO: Try flexible (generalized) CG method here.
     unsigned kcycle;
 
+    /// Under-relaxation factor.
+    float relax_factor;
+
     /// Maximum number of iterations in standalone solver.
     unsigned maxiter;
 
@@ -65,7 +68,8 @@ struct params {
     double   tol;
 
     params()
-        : npre(1), npost(1), ncycle(1), kcycle(0), maxiter(100), tol(1e-8)
+        : npre(1), npost(1), ncycle(1), kcycle(0), relax_factor(0.72f),
+          maxiter(100), tol(1e-8)
     { }
 };
 

@@ -116,11 +116,11 @@ class instance {
         }
 
         // Perform one relaxation (smoothing) step.
-        void relax(const vector &rhs, vector &x) const {
+        void relax(const vector &rhs, vector &x, const params &prm) const {
             const index_t n = x.size();
 
             t = rhs - A * x;
-            x += 0.72 * t / d;
+            x += prm.relax_factor * t / d;
         }
 
         // Compute residual value.
@@ -143,7 +143,7 @@ class instance {
 
             if (pnxt != end) {
                 for(unsigned j = 0; j < prm.ncycle; ++j) {
-                    for(unsigned i = 0; i < prm.npre; ++i) lvl->relax(rhs, x);
+                    for(unsigned i = 0; i < prm.npre; ++i) lvl->relax(rhs, x, prm);
 
                     lvl->t = rhs - lvl->A * x;
                     nxt->f = lvl->R * lvl->t;
@@ -156,7 +156,7 @@ class instance {
 
                     x += lvl->P * nxt->u;
 
-                    for(unsigned i = 0; i < prm.npost; ++i) lvl->relax(rhs, x);
+                    for(unsigned i = 0; i < prm.npost; ++i) lvl->relax(rhs, x, prm);
                 }
             } else {
                 x = lvl->Ainv * rhs;
