@@ -446,6 +446,7 @@ struct axpy {
 } // namespace level
 
 
+/// \copydoc amgcl::solve()
 template <class value_t, class precond>
 std::pair< int, value_t > solve(
         const sparse::cuda_matrix<value_t> &A,

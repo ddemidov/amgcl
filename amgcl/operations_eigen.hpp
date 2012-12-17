@@ -41,6 +41,8 @@ THE SOFTWARE.
 
 namespace amgcl {
 
+/// Returns value type for an Eigen vector.
+/** Necessary for eigen types to work with amgcl::solve() functions. */
 template <typename T>
 struct value_type<T,
     typename boost::enable_if< boost::is_arithmetic<typename T::Scalar> >::type
@@ -49,23 +51,32 @@ struct value_type<T,
     typedef typename T::Scalar type;
 };
 
+/// Returns inner product of two Eigen vectors.
+/** Necessary for eigen types to work with amgcl::solve() functions. */
 template <typename T1, typename T2>
 typename T1::Scalar inner_prod(const Eigen::MatrixBase<T1> &x, const Eigen::MatrixBase<T2> &y) {
     return x.dot(y);
 }
 
+/// Returns norm of an Eigen vector.
+/** Necessary for eigen types to work with amgcl::solve() functions. */
 template <typename T>
 typename T::Scalar norm(const Eigen::MatrixBase<T> &x) {
     return x.norm();
 }
 
+/// Clears (sets elements to zero) an Eigen vector.
+/** Necessary for eigen types to work with amgcl::solve() functions. */
 template <typename T>
 void clear(Eigen::MatrixBase<T> &x) {
     x.setZero();
 }
 
+
 namespace sparse {
 
+/// Maps Eigen sparse matrix to format supported by amgcl.
+/** No data is copied here. */
 template <class Derived>
 matrix_map<typename Derived::Scalar, typename Derived::Index>
 map(const Eigen::SparseMatrixBase<Derived> &A) {

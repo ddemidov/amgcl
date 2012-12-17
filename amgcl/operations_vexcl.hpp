@@ -37,6 +37,8 @@ THE SOFTWARE.
 
 namespace amgcl {
 
+/// Returns value type of vex::vector.
+/** Necessary for vexcl types to work with amgcl::solve() functions. */
 template <typename T>
 struct value_type<T,
     typename std::enable_if<std::is_arithmetic<typename T::value_type>::value>::type
@@ -45,17 +47,23 @@ struct value_type<T,
     typedef typename T::value_type type;
 };
 
+/// Returns inner product of two vex::vectors.
+/** Necessary for vexcl types to work with amgcl::solve() functions. */
 template <typename T>
 T inner_prod(const vex::vector<T> &x, const vex::vector<T> &y) {
     static vex::Reductor<T, vex::SUM> sum(vex::StaticContext<>::get().queue());
     return sum(x * y);
 }
 
+/// Returns norm of vex::vector.
+/** Necessary for vexcl types to work with amgcl::solve() functions. */
 template <typename T>
 T norm(const vex::vector<T> &x) {
     return sqrt( inner_prod(x, x) );
 }
 
+/// Clears (sets elements to zero) vex::vector.
+/** Necessary for vexcl types to work with amgcl::solve() functions. */
 template <typename T>
 void clear(vex::vector<T> &x) {
     x = 0;
