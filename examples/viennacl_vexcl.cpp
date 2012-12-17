@@ -1,12 +1,15 @@
 #include <iostream>
 #include <cstdlib>
+
+#include <vexcl/vexcl.hpp>
+#include <vexcl/external/viennacl.hpp>
+
 #include <amgcl/amgcl.hpp>
 #include <amgcl/interp_smoothed_aggr.hpp>
 #include <amgcl/aggr_plain.hpp>
 #include <amgcl/level_vexcl.hpp>
 #include <amgcl/operations_viennacl.hpp>
-#include <vexcl/vexcl.hpp>
-#include <vexcl/external/viennacl.hpp>
+
 #include <viennacl/linalg/cg.hpp>
 
 #include "read.hpp"
