@@ -197,6 +197,9 @@ class solver {
         typedef typename level_t::template instance<value_t, index_t> level_type;
 
     public:
+        typedef value_t value_type;
+        typedef index_t index_type;
+
         /// Parameters for AMG components.
         struct params {
             /// When level is coarse enough to be solved directly?
@@ -310,6 +313,11 @@ class solver {
             os.flags(ff);
             os.precision(pp);
             return os;
+        }
+
+        /// Number of unknowns at the finest level.
+        index_t size() const {
+            return hier.front()->size();
         }
     private:
         void build_level(matrix &A, const params &prm, unsigned nlevel = 0)

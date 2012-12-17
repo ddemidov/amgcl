@@ -5,6 +5,7 @@
 #include <amgcl/interp_smoothed_aggr.hpp>
 #include <amgcl/aggr_plain.hpp>
 #include <amgcl/level_viennacl.hpp>
+#include <amgcl/operations_viennacl.hpp>
 
 #ifdef VIENNACL_WITH_OPENCL
 #  include <vexcl/devlist.hpp>
@@ -20,41 +21,6 @@
 #include <viennacl/linalg/cg.hpp>
 
 #include "read.hpp"
-
-// Simple wrapper around amgcl::solver that provides ViennaCL's preconditioner
-// interface.
-struct amg_precond {
-    typedef amgcl::solver<
-        double, int,
-        amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
-#if defined(VIENNACL_WITH_OPENCL) || defined(VIENNACL_WITH_CUDA)
-        amgcl::level::viennacl<amgcl::level::CL_MATRIX_HYB>
-#else
-        amgcl::level::viennacl<amgcl::level::CL_MATRIX_CRS>
-#endif
-        > AMG;
-    typedef typename AMG::params params;
-
-    // Build AMG hierarchy.
-    template <class matrix>
-    amg_precond(const matrix &A, const params &prm = params())
-        : amg(A, prm), r(amgcl::sparse::matrix_rows(A))
-    {
-        std::cout << amg << std::endl;
-    }
-
-
-    // Use one V-cycle with zero initial approximation as a preconditioning step.
-    void apply(viennacl::vector<double> &x) const {
-        r.clear();
-        amg.apply(x, r);
-        viennacl::copy(r, x);
-    }
-
-    // Build VexCL-based hierarchy:
-    mutable AMG amg;
-    mutable viennacl::vector<double> r;
-};
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
@@ -90,14 +56,26 @@ int main(int argc, char *argv[]) {
             n, n, row.data(), col.data(), val.data()
             );
 
+    // Build the preconditioner.
+    typedef amgcl::solver<
+        double, int,
+        amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
+#if defined(VIENNACL_WITH_OPENCL) || defined(VIENNACL_WITH_CUDA)
+        amgcl::level::viennacl<amgcl::level::CL_MATRIX_HYB>
+#else
+        amgcl::level::viennacl<amgcl::level::CL_MATRIX_CRS>
+#endif
+        > AMG;
+
     // Use K-Cycle on each level to improve convergence:
-    typename amg_precond::AMG::params prm;
+    typename AMG::params prm;
     prm.level.kcycle = 1;
 
-    // Build the preconditioner.
     prof.tic("setup");
-    amg_precond amg(A, prm);
+    AMG amg(A, prm);
     prof.toc("setup");
+
+    std::cout << amg << std::endl;
 
     // Copy matrix and rhs to GPU(s).
 #if defined(VIENNACL_WITH_OPENCL) || defined(VIENNACL_WITH_CUDA)
@@ -114,7 +92,8 @@ int main(int argc, char *argv[]) {
     // preconditioner:
     prof.tic("solve");
     viennacl::linalg::cg_tag tag(1e-8, 100);
-    viennacl::vector<double> x = viennacl::linalg::solve(Agpu, f, tag, amg);
+    viennacl::vector<double> x = viennacl::linalg::solve(Agpu, f, tag,
+            amgcl::make_viennacl_precond< viennacl::vector<double> >(amg));
     prof.toc("solve");
 
     std::cout << "Iterations: " << tag.iters() << std::endl

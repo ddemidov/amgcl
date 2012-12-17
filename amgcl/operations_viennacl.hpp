@@ -33,6 +33,7 @@ THE SOFTWARE.
 
 #include <amgcl/spmat.hpp>
 #include <viennacl/compressed_matrix.hpp>
+#include <viennacl/traits/clear.hpp>
 
 namespace amgcl {
 
@@ -159,6 +160,34 @@ viennacl_matrix_adapter<spmat> viennacl_map(const spmat &A) {
 }
 
 } // namespace sparse
+
+/// Wrapper around amgcl::solver that is compatible with ViennaCL solvers.
+/**
+ * \param vector Vector type that will be used with the preconditioner.
+ * \param AMG    Type of amgcl::solver
+ */
+template <class vector, class AMG>
+class viennacl_preconditioner {
+    public:
+        viennacl_preconditioner(const AMG &amg)
+            : amg(amg), buf(amg.size()) {}
+
+        void apply(vector &x) const {
+            buf.swap(x);
+            viennacl::traits::clear(x);
+            amg.apply(buf, x);
+        }
+    private:
+        const AMG &amg;
+        mutable vector buf;
+};
+
+/// Wrapper around amgcl::solver that is compatible with ViennaCL solvers.
+template <class vector, class AMG>
+viennacl_preconditioner<vector, AMG> make_viennacl_precond(const AMG &amg) {
+    return viennacl_preconditioner<vector, AMG>(amg);
+}
+
 } // namespace amgcl
 
 #endif

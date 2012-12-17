@@ -4,16 +4,18 @@
 #include <boost/utility/enable_if.hpp>
 #include <boost/type_traits/is_base_of.hpp>
 
+#include <Eigen/Dense>
+#include <Eigen/SparseCore>
+
+#define VIENNACL_HAVE_EIGEN
+
 #include <amgcl/amgcl.hpp>
 #include <amgcl/interp_smoothed_aggr.hpp>
 #include <amgcl/aggr_plain.hpp>
 #include <amgcl/level_cpu.hpp>
 #include <amgcl/operations_eigen.hpp>
+#include <amgcl/operations_viennacl.hpp>
 
-#include <Eigen/Dense>
-#include <Eigen/SparseCore>
-
-#define VIENNACL_HAVE_EIGEN
 #include <viennacl/linalg/cg.hpp>
 
 #include "read.hpp"
@@ -30,37 +32,6 @@ struct tag_of<T,
 };
 
 } }
-
-// Simple wrapper around amgcl::solver that provides ViennaCL's preconditioner
-// interface.
-struct amg_precond {
-    typedef amgcl::solver<
-        double, int,
-        amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
-        amgcl::level::cpu
-        > AMG;
-    typedef typename AMG::params params;
-
-    // Build AMG hierarchy.
-    template <class matrix>
-    amg_precond(const matrix &A, const params &prm = params())
-        : amg(A, prm), r(amgcl::sparse::matrix_rows(A))
-    {
-        std::cout << amg << std::endl;
-    }
-
-
-    // Use one V-cycle with zero initial approximation as a preconditioning step.
-    template <class vector>
-    void apply(vector &x) const {
-        std::fill(r.begin(), r.end(), static_cast<double>(0));
-        amg.apply(x, r);
-        std::copy(r.begin(), r.end(), &x[0]);
-    }
-
-    mutable AMG amg;
-    mutable std::vector<double> r;
-};
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
@@ -82,20 +53,29 @@ int main(int argc, char *argv[]) {
             n, n, row.back(), row.data(), col.data(), val.data()
             );
 
+    // Build the preconditioner:
+    typedef amgcl::solver<
+        double, int,
+        amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
+        amgcl::level::cpu
+        > AMG;
+
     // Use K-Cycle on each level to improve convergence:
-    typename amg_precond::AMG::params prm;
+    typename AMG::params prm;
     prm.level.kcycle = 1;
 
-    // Build the preconditioner:
     prof.tic("setup");
-    amg_precond amg( amgcl::sparse::map(A), prm );
+    AMG amg( amgcl::sparse::map(A), prm );
     prof.toc("setup");
+
+    std::cout << amg << std::endl;
 
     // Solve the problem with CG method from ViennaCL. Use AMG as a
     // preconditioner:
     prof.tic("solve");
     viennacl::linalg::cg_tag tag(1e-8, n);
-    Eigen::VectorXd x = viennacl::linalg::solve(A, rhs, tag, amg);
+    Eigen::VectorXd x = viennacl::linalg::solve(A, rhs, tag,
+            amgcl::make_viennacl_precond<Eigen::VectorXd>(amg));
     prof.toc("solve");
 
     std::cout << "Iterations: " << tag.iters() << std::endl

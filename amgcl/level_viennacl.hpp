@@ -262,7 +262,6 @@ class instance {
 
 } // namespace level
 
-
 } // namespace amgcl
 
 #endif
