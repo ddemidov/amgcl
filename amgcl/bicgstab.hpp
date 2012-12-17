@@ -36,17 +36,9 @@ THE SOFTWARE.
 #include <utility>
 #include <stdexcept>
 
+#include <amgcl/common.hpp>
+
 namespace amgcl {
-
-/// Controlling parameters.
-struct bicg_tag {
-    int maxiter; ///< Maximum number of iterations.
-    double tol;  ///< The desired precision.
-
-    bicg_tag(int maxiter = 100, double tol = 1e-8)
-        : maxiter(maxiter), tol(tol)
-    {}
-};
 
 /// Stabilized BiConjugate Gradient method.
 /**

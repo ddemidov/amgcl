@@ -31,6 +31,8 @@ THE SOFTWARE.
  * \brief  Adaptors for Eigen types.
  */
 
+#include <amgcl/common.hpp>
+
 #include <Eigen/Dense>
 #include <Eigen/SparseCore>
 
@@ -38,11 +40,6 @@ THE SOFTWARE.
 #include <boost/type_traits/is_arithmetic.hpp>
 
 namespace amgcl {
-
-#ifndef AMGCL_OPERATIONS_VALUE_TYPE_DECLARED
-#define AMGCL_OPERATIONS_VALUE_TYPE_DECLARED
-template <class T, class Enable = void> struct value_type;
-#endif
 
 template <typename T>
 struct value_type<T,

@@ -47,7 +47,9 @@ int main(int argc, char *argv[]) {
     thrust::device_vector<double> x(n, 0);
 
     prof.tic("solve");
-    std::pair<int, double> cnv = amgcl::solve(amgcl::sparse::cuda_matrix<double>(A), f, amg, x);
+    std::pair<int, double> cnv = amgcl::solve(
+            amgcl::sparse::cuda_matrix<double>(A), f, amg, x,
+            amgcl::cg_tag());
     prof.toc("solve");
 
     std::cout << "Iterations: " << cnv.first  << std::endl

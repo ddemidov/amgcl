@@ -35,19 +35,11 @@ THE SOFTWARE.
 
 #include <utility>
 
+#include <amgcl/common.hpp>
+
 namespace amgcl {
     
 /** \defgroup iterative Iterative solvers */
-
-/// Controlling parameters.
-struct cg_tag {
-    int maxiter; ///< Maximum number of iterations.
-    double tol;  ///< The desired precision.
-
-    cg_tag(int maxiter = 100, double tol = 1e-8)
-        : maxiter(maxiter), tol(tol)
-    {}
-};
 
 /// Conjugate Gradient method.
 /**

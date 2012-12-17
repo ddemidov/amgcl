@@ -41,6 +41,7 @@ THE SOFTWARE.
 
 #include <amgcl/level_params.hpp>
 #include <amgcl/spmat.hpp>
+#include <amgcl/common.hpp>
 
 #include <thrust/device_vector.h>
 #include <thrust/inner_product.h>
@@ -450,7 +451,8 @@ std::pair< int, value_t > solve(
         const sparse::cuda_matrix<value_t> &A,
         const thrust::device_vector<value_t> &rhs,
         const precond &P,
-        thrust::device_vector<value_t> &x
+        thrust::device_vector<value_t> &x,
+        cg_tag prm = cg_tag()
         )
 {
     const size_t n = x.size();
@@ -473,7 +475,7 @@ std::pair< int, value_t > solve(
     value_t res;
     for(
             iter = 0;
-            (res = level::cuda::norm(r) / norm_of_rhs) > 1e-8 && iter < 100;
+            (res = level::cuda::norm(r) / norm_of_rhs) > prm.tol && iter < prm.maxiter;
             ++iter
        )
     {

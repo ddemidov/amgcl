@@ -1,5 +1,5 @@
-#ifndef AMGCL_OPERATIONS_VEXCL_HPP
-#define AMGCL_OPERATIONS_VEXCL_HPP
+#ifndef AMGCL_COMMON_HPP
+#define AMGCL_COMMON_HPP
 
 /*
 The MIT License
@@ -26,40 +26,34 @@ THE SOFTWARE.
 */
 
 /**
- * \file   operations_vexcl.hpp
+ * \file   common.hpp
  * \author Denis Demidov <ddemidov@ksu.ru>
- * \brief  Adaptors for VexCL types.
+ * \brief  Common definitions for amgcl.
  */
 
-#include <type_traits>
-#include <amgcl/common.hpp>
-#include <vexcl/vexcl.hpp>
-
 namespace amgcl {
+    
+/// Control parameters for Conjugate Gradient method.
+struct cg_tag {
+    int maxiter; ///< Maximum number of iterations.
+    double tol;  ///< The desired precision.
 
-template <typename T>
-struct value_type<T,
-    typename std::enable_if<std::is_arithmetic<typename T::value_type>::value>::type
-    >
-{
-    typedef typename T::value_type type;
+    cg_tag(int maxiter = 100, double tol = 1e-8)
+        : maxiter(maxiter), tol(tol)
+    {}
 };
 
-template <typename T>
-T inner_prod(const vex::vector<T> &x, const vex::vector<T> &y) {
-    static vex::Reductor<T, vex::SUM> sum(vex::StaticContext<>::get().queue());
-    return sum(x * y);
-}
+/// Control parameters for Stabilized BiConjugate Gradient method.
+struct bicg_tag {
+    int maxiter; ///< Maximum number of iterations.
+    double tol;  ///< The desired precision.
 
-template <typename T>
-T norm(const vex::vector<T> &x) {
-    return sqrt( inner_prod(x, x) );
-}
+    bicg_tag(int maxiter = 100, double tol = 1e-8)
+        : maxiter(maxiter), tol(tol)
+    {}
+};
 
-template <typename T>
-void clear(vex::vector<T> &x) {
-    x = 0;
-}
+template <class T, class Enable = void> struct value_type;
 
 } // namespace amgcl
 
