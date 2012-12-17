@@ -87,3 +87,7 @@ if (VEXCL_INCLUDE AND EIGEN_INCLUDE AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL 
         )
 endif (VEXCL_INCLUDE AND EIGEN_INCLUDE AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 
+if (CUDA_FOUND)
+    cuda_add_executable(cuda cuda.cu OPTIONS "-arch=sm_20")
+    target_link_libraries(cuda ${CUDA_cusparse_LIBRARY} ${Boost_CHRONO_LIBRARY})
+endif (CUDA_FOUND)
