@@ -161,19 +161,11 @@ void run_vexcl_test(const spmat &A, const vector &rhs, const options &op) {
 
     std::cout << amg << std::endl;
 
-    // Copy matrix and rhs to GPU(s).
-    vex::SpMat<double, int, int> Agpu(
-            ctx.queue(), rhs.size(), rhs.size(),
-            amgcl::sparse::matrix_outer_index(A),
-            amgcl::sparse::matrix_inner_index(A),
-            amgcl::sparse::matrix_values(A)
-            );
-
     vex::vector<double> f(ctx.queue(), rhs.size(), rhs.data());
     vex::vector<double> x(ctx.queue(), rhs.size());
     x = 0;
 
-    solve(amg, Agpu, f, x, op);
+    solve(amg, amg.top_matrix(), f, x, op);
 }
 
 //---------------------------------------------------------------------------

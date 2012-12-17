@@ -94,6 +94,11 @@ class instance {
             Ai.swap(ai);
         }
 
+        // Returns reference to the system matrix
+        const matrix& get_matrix() const {
+            return A;
+        }
+
         // Perform one relaxation (smoothing) step.
         template <class vector1, class vector2>
         void relax(const vector1 &rhs, vector2 &x) const {

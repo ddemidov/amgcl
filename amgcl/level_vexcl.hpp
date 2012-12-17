@@ -110,6 +110,11 @@ class instance {
             ai.clear();
         }
 
+        // Returns reference to the system matrix
+        const matrix& get_matrix() const {
+            return A;
+        }
+
         // Perform one relaxation (smoothing) step.
         void relax(const vector &rhs, vector &x) const {
             const index_t n = x.size();

@@ -319,6 +319,11 @@ class solver {
         index_t size() const {
             return hier.front()->size();
         }
+
+        /// Returns reference to the system matrix at the finest level.
+        const typename level_type::matrix& top_matrix() const {
+            return hier.front()->get_matrix();
+        }
     private:
         void build_level(matrix &A, const params &prm, unsigned nlevel = 0)
         {

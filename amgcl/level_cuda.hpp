@@ -239,6 +239,7 @@ template <typename value_t, typename index_t = long long>
 class instance {
     public:
         typedef sparse::matrix<value_t, index_t> cpu_matrix;
+        typedef sparse::cuda_matrix<value_t>     matrix;
 
         instance(cpu_matrix &a, cpu_matrix &p, cpu_matrix &r, const params &prm, unsigned nlevel)
             : A(a), P(p), R(r), d(a.rows), t(a.rows)
@@ -272,6 +273,11 @@ class instance {
 
             a.clear();
             ai.clear();
+        }
+
+        // Returns reference to the system matrix
+        const matrix& get_matrix() const {
+            return A;
         }
 
         struct relax_functor {
