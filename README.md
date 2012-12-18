@@ -68,7 +68,7 @@ int main() {
     vex::Context ctx( vex::Filter::Type(CL_DEVICE_TYPE_GPU) && vex::Filter::DoublePrecision );
 
     // Here, the system matrix and right-hand side are somehow constructed. The
-    // system matrix data is stored is compressed row storage format in vectors
+    // system matrix data is stored in compressed row storage format in vectors
     // row, col, and val.
     int size;
     std::vector<int>    row, col;
