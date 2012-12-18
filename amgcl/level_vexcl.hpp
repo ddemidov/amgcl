@@ -33,6 +33,7 @@ THE SOFTWARE.
 
 #include <amgcl/level_params.hpp>
 #include <amgcl/spmat.hpp>
+#include <amgcl/operations_vexcl.hpp>
 
 #include <vexcl/vexcl.hpp>
 
@@ -41,7 +42,9 @@ namespace level {
 
 /// VexCL-based AMG hierarchy.
 /**
- * Level of an AMG hierarchy for use with VexCL vectors.
+ * Level of an AMG hierarchy for use with VexCL vectors. Uses OpenCL technology
+ * for acceleration and is able to run on OpenCL-compatible devices (GPUs or
+ * CPUs).
  * \ingroup levels
  */
 struct vexcl {

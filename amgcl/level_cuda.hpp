@@ -221,7 +221,8 @@ namespace level {
 
 /// Thrust/CUSPARSE based AMG hierarchy.
 /**
- * Level of an AMG hierarchy for use with Thrust/CUSPARSE data structures.
+ * Level of an AMG hierarchy for use with Thrust/CUSPARSE data structures. Uses
+ * NVIDIA CUDA technology for acceleration.
  * \ingroup levels
  */
 struct cuda {

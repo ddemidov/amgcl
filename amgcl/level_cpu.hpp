@@ -49,6 +49,7 @@ namespace level {
 /// CPU-based AMG hierarchy.
 /**
  * Level of an AMG hierarchy for use with arrays located in main (CPU) memory.
+ * Employs OpenMP parallelization.
  * \ingroup levels
  */
 struct cpu {

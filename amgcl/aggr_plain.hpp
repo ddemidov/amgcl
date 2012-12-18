@@ -28,7 +28,7 @@ THE SOFTWARE.
 /**
  * \file   aggr_plain.hpp
  * \author Denis Demidov <ddemidov@ksu.ru>
- * \brief  Smoothed aggregates-based interpolation scheme.
+ * \brief  Plain aggregation.
  */
 
 #include <vector>

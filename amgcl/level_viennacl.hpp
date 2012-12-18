@@ -76,7 +76,9 @@ struct matrix_format<CL_MATRIX_HYB, value_type> {
 
 /// ViennaCL-based AMG hierarchy.
 /**
- * Level of an AMG hierarchy for use with ViennaCL vectors.
+ * Level of an AMG hierarchy for use with ViennaCL vectors. ViennaCL provides
+ * several backends (OpenCL, CUDA, OpenMP) and is thus able to run on various
+ * hardware.
  *
  * \param Format Matrix storage format.
  *
