@@ -8,7 +8,7 @@ Gradient and Stabilized BiConjugate Gradient iterative solvers are provided.
 It is also possible to use generic solvers from other libraries, e.g.
 [ViennaCL][ViennaCL].
 
-The setup phase is completely CPU-based. The constracted levels of AMG
+The setup phase is completely CPU-based. The constructed levels of AMG
 hierarchy may be stored and used through several [backends][levels]. This
 allows for transparent acceleration of the solution phase with help of OpenCL,
 CUDA, or OpenMP technologies.  See [examples/vexcl.cpp][ex1],
@@ -16,7 +16,7 @@ CUDA, or OpenMP technologies.  See [examples/vexcl.cpp][ex1],
 using amgcl with [VexCL][VexCL], [ViennaCL][ViennaCL], or [Eigen][Eigen]
 backends.
 
-Doxygen-generated documention is available at http://ddemidov.github.com/amgcl.
+Doxygen-generated documentation is available at http://ddemidov.github.com/amgcl.
 
 [amg]:      http://en.wikipedia.org/wiki/Multigrid_method
 [levels]:   http://ddemidov.github.com/amgcl/group__levels.html
@@ -94,9 +94,8 @@ int main() {
     AMG amg(A, prm);
 
     // Now let's solve the system of equations. We need to transfer matrix,
-    // right-hand side, and initial approxiamtion side to GPUs. The matrix
-    // part may be omitted though, since AMG already has it as part of
-    // the hierarchy:
+    // right-hand side, and initial approximation to GPUs. The matrix part may
+    // be omitted though, since AMG already has it as part of the hierarchy:
     std::vector<double> x(size, 0.0);
 
     vex::vector<double> f(ctx.queue(), rhs);

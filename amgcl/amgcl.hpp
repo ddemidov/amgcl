@@ -34,84 +34,117 @@ THE SOFTWARE.
 /**
 \mainpage amgcl Generic algebraic multigrid framework.
 
-This is a simple and generic AMG hierarchy builder (and a work in progress).
-May be used as a standalone solver or as a preconditioner. CG and BiCGStab
-iterative solvers are provided. Solvers from <a
-href="http://viennacl.sourceforge.net">ViennaCL</a> are supported as well.
+amgcl is a simple and generic algebraic
+<a href="http://en.wikipedia.org/wiki/Multigrid_method">multigrid</a> (AMG)
+hierarchy builder (and a work in progress).  The constructed hierarchy may be
+used as a standalone solver or as a preconditioner with some iterative solver.
+Conjugate Gradient and Stabilized BiConjugate Gradient iterative solvers are
+provided.  It is also possible to use generic solvers from other libraries,
+e.g. <a href="http://viennacl.sourceforge.net">ViennaCL</a>.
 
-<a href="https://github.com/ddemidov/vexcl">VexCL</a>, <a
-href="http://viennacl.sourceforge.net">ViennaCL</a>, or <a
-href="http://eigen.tuxfamily.org">Eigen</a> matrix/vector
-containers may be used with built-in and ViennaCL's solvers. See
+The setup phase is completely CPU-based. The constructed levels of AMG
+hierarchy may be stored and used through several \ref levels "backends". This
+allows for transparent acceleration of the solution phase with help of OpenCL,
+CUDA, or OpenMP technologies.  See
 <a href="https://github.com/ddemidov/amgcl/blob/master/examples/vexcl.cpp">examples/vexcl.cpp</a>,
 <a href="https://github.com/ddemidov/amgcl/blob/master/examples/viennacl.cpp">examples/viennacl.cpp</a> and
-<a href="https://github.com/ddemidov/amgcl/blob/master/examples/eigen.cpp">examples/eigen.cpp</a> for respective examples.
+<a href="https://github.com/ddemidov/amgcl/blob/master/examples/eigen.cpp">examples/eigen.cpp</a>
+for examples of
+using amgcl with
+<a href="https://github.com/ddemidov/vexcl">VexCL</a>,
+<a href="http://viennacl.sourceforge.net">ViennaCL</a>, or
+<a href="http://eigen.tuxfamily.org">Eigen</a> backends.
 
-\section setup AMG hierarchy building
+\section overview Overview
 
-Constructor of amgcl::solver<> object builds the multigrid hierarchy based on
-algebraic information contained in the system matrix:
+You can use amgcl to solve large sparse system of linear equations in three
+simple steps: first, you have to select method components (this is a compile
+time decision); second, the AMG hierarchy has to be constructed from a system
+matrix; and third, the hierarchy is used to solve the equation system for a
+given right-hand side.
 
-\code
-// amgcl::sparse::matrix<double, int> A;
-// or
-// amgcl::sparse::matrix_map<double, int> A;
-amgcl::solver<
-    double,                 // Scalar type
-    int,                    // Index type of the matrix
-    amgcl::interp::classic, // Interpolation kind
-    amgcl::level::cpu       // Where to store the hierarchy
-> amg(A);
-\endcode
-
-See documentation for \ref interpolation "Interpolation" module to see the list
-of supported interpolation schemes. The aggregation schemes use less memory and
-are set up faster than classic interpolation, but their convergence rate is
-slower. They are well suited for VexCL or ViennaCL containers, where solution
-phase is accelerated by the OpenCL technology and, therefore, the cost of the
-setup phase is much more important.
+The list of interpolation schemes and available backends may be found in
+\ref interpolation "Interpolation" and \ref levels "Level Storage Backends" 
+modules.  The aggregation and smoothed-aggregation interpolation schemes use
+less memory and are set up faster than classic interpolation, but their
+convergence rate is slower. They are well suited for GPU-accelerated backends,
+where the cost of the setup phase is much more important.
 
 \code
-amgcl::solver<
-    double, int,
-    amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
-    amgcl::level::vexcl
-> amg(A);
+// First, we need to include relevant headers. Each header basically
+// corresponds to an AMG component. Let's say we want to use conjugate gradient
+// method preconditioned with smoothed aggregation AMG with VexCL backend:
+
+// This is generic hierarchy builder.
+#include <amgcl/amgcl.hpp>
+// It will use the following components:
+
+// Interpolation scheme based on smoothed aggregation.
+#include <amgcl/interp_smoothed_aggr.hpp>
+// Aggregates will be constructed with plain aggregation:
+#include <amgcl/aggr_plain.hpp>
+// VexCL will be used as a backend:
+#include <amgcl/level_vexcl.hpp>
+// The definition of conjugate gradient method:
+#include <amgcl/cg.hpp>
+
+int main() {
+    // VexCL context initialization (let's use all GPUs that support double precision):
+    vex::Context ctx( vex::Filter::Type(CL_DEVICE_TYPE_GPU) && vex::Filter::DoublePrecision );
+
+    // Here, the system matrix and right-hand side are somehow constructed. The
+    // system matrix data is stored is compressed row storage format in vectors
+    // row, col, and val.
+    int size;
+    std::vector<int>    row, col;
+    std::vector<double> val, rhs;
+
+    // We wrap the matrix data into amgcl-compatible type.
+    // No data is copied here:
+    auto A = amgcl::sparse::map(size, size, row.data(), col.data(), val.data());
+
+    // The AMG builder type:
+    typedef amgcl::solver<
+        double, int,
+        amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
+        amgcl::level::vexcl
+    > AMG;
+
+    // The parameters. Most of the parameters have some reasonable defaults.
+    // VexCL backend needs to know what context to use:
+    typename AMG::params prm;
+    prm.level.ctx = &ctx;
+
+    // Here we construct the hierarchy:
+    AMG amg(A, prm);
+
+    // Now let's solve the system of equations. We need to transfer matrix,
+    // right-hand side, and initial approximation to GPUs. The matrix part may
+    // be omitted though, since AMG already has it as part of the hierarchy:
+    std::vector<double> x(size, 0.0);
+
+    vex::vector<double> f(ctx.queue(), rhs);
+    vex::vector<double> u(ctx.queue(), x);
+
+    // Call AMG-preconditioned CG method:
+    auto cnv = amgcl::solve(amg.top_matrix(), f, amg, u, amgcl::cg_tag());
+
+    std::cout << "Iterations: " << std::get<0>(cnv) << std::endl
+              << "Error:      " << std::get<1>(cnv) << std::endl;
+
+    // Copy the solution back to host:
+    vex::copy(u, x);
+}
 \endcode
 
-\section solution Solution
+The following command line would compile the example:
+\verbatim
+g++ -o example -std=c++0x -O3 example.cpp -I<path/to/vexcl> -I<path/to/amgcl> -lOpenCL -lboost_chrono
+\endverbatim
 
-Once the hierarchy is constructed, it may be repeatedly used to solve the
-linear system for different right-hand sides:
-
-\code
-// std::vector<double> rhs, x;
-
-auto conv = amg.solve(rhs, x);
-
-std::cout << "Iterations: " << std::get<0>(conv) << std::endl
-          << "Error:      " << std::get<1>(conv) << std::endl;
-\endcode
-
-Using the AMG as a preconditioner with a Krylov subspace method like conjugate
-gradients works even better:
-\code
-// Eigen::VectorXd rhs, x;
-
-auto conv = amgcl::solve(A, rhs, amg, x, amgcl::cg_tag());
-\endcode
-
-Types of right-hand side and solution vectors should be compatible with the
-level type used for construction of the AMG hierarchy. For example,
-if amgcl::level::vexcl is used as a storage backend, then vex::SpMat<> and
-vex::vector<> types have to be used when solving:
-
-\code
-// vex::SpMat<double,int> Agpu;
-// vex::vector<double> rhs, x;
-
-auto conv = amgcl::solve(Agpu, rhs, amg, x, amgcl::cg_tag());
-\endcode
+The C++11 support is enabled here (by -std=c++0x flag) because it is required
+by VexCL library. amgcl relies on Boost instead (hence the need to link with
+boost_chrono library).
 
 \section install Installation
 
