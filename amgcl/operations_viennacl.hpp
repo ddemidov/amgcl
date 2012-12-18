@@ -39,6 +39,8 @@ namespace amgcl {
 
 namespace sparse {
 
+/// Provides proxy matrix class that may be used with ViennaCL.
+/** No data is copied here. The proxy class does not own the data.  */
 template <class spmat>
 class viennacl_matrix_adapter {
     public:
