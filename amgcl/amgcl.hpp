@@ -360,9 +360,13 @@ class solver {
         void build_level(matrix &A, const params &prm, unsigned nlevel = 0)
         {
             if (A.rows <= prm.coarse_enough) {
+                TIC("coarsest level");
                 matrix Ai = sparse::inverse(A);
                 hier.push_back( boost::shared_ptr<level_type>(new level_type(A, Ai, prm.level, nlevel) ) );
+                TOC("coarsest level");
             } else {
+                TIC("construct level");
+
                 TIC("interp");
                 matrix P = interp_t::interp(A, prm.interp);
                 TOC("interp");
@@ -376,7 +380,11 @@ class solver {
                         R, A, P, prm.interp);
                 TOC("coarse operator");
 
+                TOC("construct level");
+
+                TIC("transfer level data");
                 hier.push_back( boost::shared_ptr<level_type>(new level_type(A, P, R, prm.level, nlevel) ) );
+                TOC("transfer level data");
 
                 build_level(a, prm, nlevel + 1);
             }
