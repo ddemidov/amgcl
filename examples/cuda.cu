@@ -5,6 +5,7 @@
 #include <amgcl/aggr_plain.hpp>
 #include <amgcl/interp_smoothed_aggr.hpp>
 #include <amgcl/level_cuda.hpp>
+#include <amgcl/profiler.hpp>
 
 #include "read.hpp"
 

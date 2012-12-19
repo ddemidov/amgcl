@@ -184,14 +184,6 @@ class profiler {
         }
 };
 
-#ifdef AMGCL_PROFILING
-extern profiler<> prof;
-#  define TIC(what) prof.tic(what);
-#  define TOC(what) prof.toc(what);
-#else
-#  define TIC(what)
-#  define TOC(what)
-#endif
-
 } // namespace amgcl
+
 #endif

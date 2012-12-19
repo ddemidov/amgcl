@@ -113,11 +113,10 @@ int main() {
 ```
 The following command line would compile the example:
 ```
-g++ -o example -std=c++0x -O3 example.cpp -I<path/to/vexcl> -I<path/to/amgcl> -lOpenCL -lboost_chrono
+g++ -o example -std=c++0x -O3 example.cpp -I<path/to/vexcl> -I<path/to/amgcl> -lOpenCL
 ```
 The C++11 support is enabled here (by `-std=c++0x` flag) because it is required
-by VexCL library. amgcl relies on Boost instead (hence the need to link with
-boost_chrono library).
+by VexCL library. amgcl relies on Boost instead.
 
 
 Performance

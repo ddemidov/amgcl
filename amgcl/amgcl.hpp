@@ -93,7 +93,7 @@ int main() {
     vex::Context ctx( vex::Filter::Type(CL_DEVICE_TYPE_GPU) && vex::Filter::DoublePrecision );
 
     // Here, the system matrix and right-hand side are somehow constructed. The
-    // system matrix data is stored is compressed row storage format in vectors
+    // system matrix data is stored in compressed row storage format in vectors
     // row, col, and val.
     int size;
     std::vector<int>    row, col;
@@ -143,8 +143,7 @@ g++ -o example -std=c++0x -O3 example.cpp -I<path/to/vexcl> -I<path/to/amgcl> -l
 \endverbatim
 
 The C++11 support is enabled here (by -std=c++0x flag) because it is required
-by VexCL library. amgcl relies on Boost instead (hence the need to link with
-boost_chrono library).
+by VexCL library. amgcl relies on Boost instead.
 
 \section install Installation
 
@@ -181,7 +180,7 @@ include files.
 #include <boost/type_traits/is_signed.hpp>
 
 #include <amgcl/spmat.hpp>
-#include <amgcl/profiler.hpp>
+#include <amgcl/tictoc.hpp>
 
 /// Primary namespace for the library.
 namespace amgcl {

@@ -8,6 +8,7 @@
 #include <amgcl/level_vexcl.hpp>
 #include <amgcl/operations_vexcl.hpp>
 #include <amgcl/cg.hpp>
+#include <amgcl/profiler.hpp>
 
 #include "read.hpp"
 

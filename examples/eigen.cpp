@@ -11,6 +11,7 @@
 #include <amgcl/level_cpu.hpp>
 #include <amgcl/operations_eigen.hpp>
 #include <amgcl/cg.hpp>
+#include <amgcl/profiler.hpp>
 
 #include "read.hpp"
 

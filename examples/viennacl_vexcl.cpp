@@ -9,6 +9,7 @@
 #include <amgcl/aggr_plain.hpp>
 #include <amgcl/level_vexcl.hpp>
 #include <amgcl/operations_viennacl.hpp>
+#include <amgcl/profiler.hpp>
 
 #include <viennacl/linalg/cg.hpp>
 

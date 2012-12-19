@@ -15,6 +15,7 @@
 #include <amgcl/level_cpu.hpp>
 #include <amgcl/operations_eigen.hpp>
 #include <amgcl/operations_viennacl.hpp>
+#include <amgcl/profiler.hpp>
 
 #include <viennacl/linalg/cg.hpp>
 

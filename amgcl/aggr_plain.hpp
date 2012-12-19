@@ -37,7 +37,7 @@ THE SOFTWARE.
 #include <boost/typeof/typeof.hpp>
 
 #include <amgcl/spmat.hpp>
-#include <amgcl/profiler.hpp>
+#include <amgcl/tictoc.hpp>
 
 namespace amgcl {
 

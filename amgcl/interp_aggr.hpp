@@ -36,7 +36,7 @@ THE SOFTWARE.
 
 #include <amgcl/spmat.hpp>
 #include <amgcl/aggr_connect.hpp>
-#include <amgcl/profiler.hpp>
+#include <amgcl/tictoc.hpp>
 
 namespace amgcl {
 

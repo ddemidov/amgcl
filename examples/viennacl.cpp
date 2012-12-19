@@ -6,6 +6,7 @@
 #include <amgcl/aggr_plain.hpp>
 #include <amgcl/level_viennacl.hpp>
 #include <amgcl/operations_viennacl.hpp>
+#include <amgcl/profiler.hpp>
 
 #ifdef VIENNACL_WITH_OPENCL
 #  include <vexcl/devlist.hpp>
