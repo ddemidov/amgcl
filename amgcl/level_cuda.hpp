@@ -51,9 +51,19 @@ namespace amgcl {
 
 namespace sparse {
 
+/// Possible matrix storage formats.
+enum cuda_matrix_format {
+    CUDA_MATRIX_CRS, ///< Compressed matrix. Fastest construction, slowest operation (on a GPU). Best suited for CPU compute devices.
+    CUDA_MATRIX_HYB  ///< Hybrid ELL format. Best choice for general matrices on GPU compute devices.
+};
+
+/// Wrapper around CUSPARSE matrix
+template <typename value_type, cuda_matrix_format>
+class cuda_matrix;
+
 /// Wrapper around CUSPARSE matrix in Hybrid format
 template <typename value_type>
-class cuda_matrix {
+class cuda_matrix<value_type, CUDA_MATRIX_HYB> {
     public:
         /// Empty constructor.
         cuda_matrix() : rows(0), cols(0), nnz(0), desc(0), mat(0) {}
@@ -212,10 +222,148 @@ class cuda_matrix {
         }
 };
 
+/// Wrapper around CUSPARSE matrix in CRS format
 template <typename value_type>
-cusparseHandle_t cuda_matrix<value_type>::cusp_handle = 0;
+class cuda_matrix<value_type, CUDA_MATRIX_CRS> {
+    public:
+        /// Empty constructor.
+        cuda_matrix() : rows(0), cols(0), nnz(0), desc(0) {}
+
+        /// Convert sparse matrix to cuda_matrix.
+        template <class spmat>
+        cuda_matrix(const spmat &A)
+            : rows(matrix_rows(A)),
+              cols(matrix_cols(A)),
+              nnz (matrix_nonzeros(A)),
+              row(matrix_outer_index(A), matrix_outer_index(A) + rows + 1),
+              col(matrix_inner_index(A), matrix_inner_index(A) + nnz),
+              val(matrix_values(A), matrix_values(A) + nnz),
+              desc(0)
+        {
+            typedef typename matrix_index<spmat>::type index_t;
+            typedef typename matrix_value<spmat>::type value_t;
+
+            cusparseCreate();
+
+            check(cusparseCreateMatDescr(&desc),
+                    "cusparseCreateMatDescr failed");
+
+            check(cusparseSetMatType(desc, CUSPARSE_MATRIX_TYPE_GENERAL),
+                    "cusparseSetMatType failed");
+
+            check(cusparseSetMatIndexBase(desc, CUSPARSE_INDEX_BASE_ZERO),
+                    "cusparseSetMatIndexBase failed");
+        }
+
+        ~cuda_matrix() {
+            if (desc) check(cusparseDestroyMatDescr(desc),
+                    "cusparseDestroyMatDescr failed");
+        }
+
+        /// Matrix-vector product.
+        /**
+         * \f[y = \alpha A x + \beta y \f]
+         */
+        void mul(float alpha, const thrust::device_vector<float> &x,
+                float beta, thrust::device_vector<float> &y) const
+        {
+            BOOST_STATIC_ASSERT_MSG((boost::is_same<float, value_type>::value),
+                    "Wrong vector type in matrix-vector product");
+
+            check(cusparseScsrmv(cusp_handle, CUSPARSE_OPERATION_NON_TRANSPOSE,
+                        rows, cols, nnz, &alpha, desc,
+                        thrust::raw_pointer_cast(&val[0]),
+                        thrust::raw_pointer_cast(&row[0]),
+                        thrust::raw_pointer_cast(&col[0]),
+                        thrust::raw_pointer_cast(&x[0]), &beta,
+                        thrust::raw_pointer_cast(&y[0])
+                        ), "cusparseShybmv failed"
+                 );
+        }
+
+        /// Matrix-vector product.
+        /**
+         * \f[y = \alpha A x + \beta y \f]
+         */
+        void mul(double alpha, const thrust::device_vector<double> &x,
+                double beta, thrust::device_vector<double> &y) const
+        {
+            BOOST_STATIC_ASSERT_MSG((boost::is_same<double, value_type>::value),
+                    "Wrong vector type in matrix-vector product");
+
+            check(cusparseDcsrmv(cusp_handle, CUSPARSE_OPERATION_NON_TRANSPOSE,
+                        rows, cols, nnz, &alpha, desc,
+                        thrust::raw_pointer_cast(&val[0]),
+                        thrust::raw_pointer_cast(&row[0]),
+                        thrust::raw_pointer_cast(&col[0]),
+                        thrust::raw_pointer_cast(&x[0]), &beta,
+                        thrust::raw_pointer_cast(&y[0])
+                        ), "cusparseShybmv failed"
+                 );
+        }
+
+        /// Number of rows in the matrix.
+        unsigned size() const {
+            return rows;
+        }
+
+        /// Number of nonzero entries in the matrix.
+        unsigned nonzeros() const {
+            return nnz;
+        }
+
+        /// Initialization of CUSPARSE context.
+        /**
+         * This is called automatically by cuda_matrix constructor.
+         */
+        static void cusparseCreate() {
+            if (!cusp_handle)
+                check(::cusparseCreate(&cusp_handle), "cusparseCreate failed");
+        }
+
+        /// Releases of resources used by CUSPARSE library.
+        /**
+         * There is probably no need to call this.
+         */
+        static void cusparseDestroy() {
+            if (cusp_handle)
+                check(::cusparseDestroy(cusp_handle), "cusparseDestroy failed");
+        }
+    private:
+        unsigned rows, cols, nnz;
+
+        thrust::device_vector<int>        row;
+        thrust::device_vector<int>        col;
+        thrust::device_vector<value_type> val;
+
+        cusparseMatDescr_t desc;
+
+        static cusparseHandle_t cusp_handle;
+
+        inline static void check(cusparseStatus_t status, const char *err_msg) {
+            if (status != CUSPARSE_STATUS_SUCCESS)
+                throw std::runtime_error(err_msg);
+        }
+};
+
+
+template <typename value_type>
+cusparseHandle_t cuda_matrix<value_type, CUDA_MATRIX_HYB>::cusp_handle = 0;
+
+template <typename value_type>
+cusparseHandle_t cuda_matrix<value_type, CUDA_MATRIX_CRS>::cusp_handle = 0;
 
 } // namespace sparse
+
+template <typename T>
+struct axpy {
+    T a;
+    axpy(T a) : a(a) {}
+
+    __device__ __host__ T operator()(T x, T y) const {
+        return a * x + y;
+    }
+};
 
 namespace level {
 
@@ -225,6 +373,7 @@ namespace level {
  * NVIDIA CUDA technology for acceleration.
  * \ingroup levels
  */
+template <sparse::cuda_matrix_format format = sparse::CUDA_MATRIX_HYB>
 struct cuda {
 
 /// Parameters for CUSPARSE-based level storage scheme.
@@ -241,7 +390,7 @@ template <typename value_t, typename index_t = long long>
 class instance {
     public:
         typedef sparse::matrix<value_t, index_t> cpu_matrix;
-        typedef sparse::cuda_matrix<value_t>     matrix;
+        typedef sparse::cuda_matrix<value_t, format> matrix;
 
         instance(cpu_matrix &a, cpu_matrix &p, cpu_matrix &r, const params &prm, unsigned nlevel)
             : A(a), P(p), R(r), d(a.rows), t(a.rows)
@@ -391,7 +540,7 @@ class instance {
 
                     if (iter)
                         thrust::transform(p.begin(), p.end(), s.begin(), p.begin(),
-                                level::cuda::axpy<value_t>(rho1 / rho2));
+                                axpy<value_t>(rho1 / rho2));
                     else
                         thrust::copy(s.begin(), s.end(), p.begin());
 
@@ -400,9 +549,9 @@ class instance {
                     value_t alpha = rho1 / thrust::inner_product(q.begin(), q.end(), p.begin(), zero);
 
                     thrust::transform(p.begin(), p.end(), x.begin(), x.begin(),
-                            level::cuda::axpy<value_t>(alpha));
+                            axpy<value_t>(alpha));
                     thrust::transform(q.begin(), q.end(), r.begin(), r.begin(),
-                            level::cuda::axpy<value_t>(-alpha));
+                            axpy<value_t>(-alpha));
                 }
             } else {
                 lvl->Ainv.mul(1, rhs, 0, x);
@@ -417,10 +566,10 @@ class instance {
             return A.nonzeros();
         }
     private:
-        sparse::cuda_matrix<value_t> A;
-        sparse::cuda_matrix<value_t> P;
-        sparse::cuda_matrix<value_t> R;
-        sparse::cuda_matrix<value_t> Ainv;
+        sparse::cuda_matrix<value_t, format> A;
+        sparse::cuda_matrix<value_t, format> P;
+        sparse::cuda_matrix<value_t, format> R;
+        sparse::cuda_matrix<value_t, format> Ainv;
 
         thrust::device_vector<value_t> d;
 
@@ -429,17 +578,6 @@ class instance {
         mutable thrust::device_vector<value_t> u;
         mutable thrust::device_vector<value_t> f;
         mutable thrust::device_vector<value_t> t;
-};
-
-
-template <typename T>
-struct axpy {
-    T a;
-    axpy(T a) : a(a) {}
-
-    __device__ __host__ T operator()(T x, T y) const {
-        return a * x + y;
-    }
 };
 
 };
@@ -463,9 +601,9 @@ struct axpy {
  *
  * \ingroup iterative
  */
-template <class value_t, class precond>
+template <class value_t, sparse::cuda_matrix_format format, class precond>
 std::pair< int, value_t > solve(
-        const sparse::cuda_matrix<value_t> &A,
+        const sparse::cuda_matrix<value_t, format> &A,
         const thrust::device_vector<value_t> &rhs,
         const precond &P,
         thrust::device_vector<value_t> &x,
@@ -481,7 +619,7 @@ std::pair< int, value_t > solve(
     A.mul(-1, x, 1, r);
 
     value_t rho1 = 0, rho2 = 0;
-    value_t norm_of_rhs = level::cuda::norm(rhs);
+    value_t norm_of_rhs = level::cuda<format>::norm(rhs);
 
     if (norm_of_rhs == 0) {
         thrust::fill(x.begin(), x.end(), zero);
@@ -492,7 +630,7 @@ std::pair< int, value_t > solve(
     value_t res;
     for(
             iter = 0;
-            (res = level::cuda::norm(r) / norm_of_rhs) > prm.tol && iter < prm.maxiter;
+            (res = level::cuda<format>::norm(r) / norm_of_rhs) > prm.tol && iter < prm.maxiter;
             ++iter
        )
     {
@@ -504,7 +642,7 @@ std::pair< int, value_t > solve(
 
         if (iter)
             thrust::transform(p.begin(), p.end(), s.begin(), p.begin(),
-                    level::cuda::axpy<value_t>(rho1 / rho2));
+                    axpy<value_t>(rho1 / rho2));
         else
             thrust::copy(s.begin(), s.end(), p.begin());
 
@@ -513,9 +651,9 @@ std::pair< int, value_t > solve(
         value_t alpha = rho1 / thrust::inner_product(q.begin(), q.end(), p.begin(), zero);
 
         thrust::transform(p.begin(), p.end(), x.begin(), x.begin(),
-                level::cuda::axpy<value_t>(alpha));
+                axpy<value_t>(alpha));
         thrust::transform(q.begin(), q.end(), r.begin(), r.begin(),
-                level::cuda::axpy<value_t>(-alpha));
+                axpy<value_t>(-alpha));
     }
 
     return std::make_pair(iter, res);
