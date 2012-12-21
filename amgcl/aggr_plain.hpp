@@ -89,16 +89,21 @@ aggregates( const spmat &A, const std::vector<char> &S ) {
     BOOST_AUTO(Aval, sparse::matrix_values(A));
 
     // Remove nodes without neighbours
-    unsigned max_neib = 0;
+    index_t max_neib = 0;
     for(index_t i = 0; i < n; ++i) {
-        unsigned n_neib = 0;
+        index_t j = Arow[i];
+        index_t e = Arow[i + 1];
 
-        for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
-            if (S[j]) ++n_neib;
+        max_neib = std::max(e - j, max_neib);
 
-        agg[i] = (n_neib ? undefined : removed);
+        index_t state = removed;
+        for(; j < e; ++j)
+            if (S[j]) {
+                state = undefined;
+                break;
+            }
 
-        max_neib = std::max(n_neib, max_neib);
+        agg[i] = state;
     }
 
     std::vector<index_t> neib;
