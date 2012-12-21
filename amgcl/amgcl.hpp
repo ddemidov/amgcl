@@ -139,11 +139,14 @@ int main() {
 
 The following command line would compile the example:
 \verbatim
-g++ -o example -std=c++0x -O3 example.cpp -I<path/to/vexcl> -I<path/to/amgcl> -lOpenCL -lboost_chrono
+g++ -o example -std=c++0x -O3 -fopenmp example.cpp -I<path/to/vexcl> -I<path/to/amgcl> -lOpenCL -lboost_chrono
 \endverbatim
 
 The C++11 support is enabled here (by -std=c++0x flag) because it is required
-by VexCL library. amgcl relies on Boost instead.
+by VexCL library. amgcl relies on Boost instead. Also note the use of
+`-fopenmp` switch. It enables an OpenMP-based parallelization of the setup
+stage.
+
 
 \section install Installation
 
