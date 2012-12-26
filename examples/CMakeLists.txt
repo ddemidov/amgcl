@@ -12,7 +12,8 @@ endif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 
 include_directories(${CMAKE_SOURCE_DIR})
 
-add_executable(genproblem genproblem.cpp)
+add_executable(genproblem2d genproblem2d.cpp)
+add_executable(genproblem3d genproblem3d.cpp)
 
 find_path(EIGEN_INCLUDE Eigen/SparseCore PATH_SUFFIXES eigen3)
 find_path(VIENNACL_INCLUDE viennacl/vector.hpp)
