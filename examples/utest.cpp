@@ -98,7 +98,7 @@ template <class interp_t, class spmat, class vector>
 void run_cpu_test(const spmat &A, const vector &rhs, const options &op) {
     typedef amgcl::solver<
         real, int, interp_t,
-        amgcl::level::cpu
+        amgcl::level::cpu<amgcl::relax::damped_jacobi>
     > AMG;
 
     typename AMG::params prm;

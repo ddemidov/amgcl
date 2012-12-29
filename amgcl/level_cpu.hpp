@@ -51,13 +51,120 @@ namespace level {
  * Level of an AMG hierarchy for use with arrays located in main (CPU) memory.
  * Employs OpenMP parallelization.
  * \ingroup levels
+ *
+ * \param Relaxation Relaxation scheme (smoother) to use inside V-cycles.
  */
+template <relax::scheme Relaxation = relax::damped_jacobi>
 struct cpu {
+
+struct damped_jacobi {
+    struct params {
+        float damping;
+        params(float w = 0.72) : damping(w) {}
+    };
+
+    template <typename value_t, typename index_t>
+    struct instance {
+        instance() {}
+
+        template <class spmat>
+        instance(const spmat &A) {}
+
+        template <class spmat, class vector1, class vector2, class vector3>
+        void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
+            const index_t n = A.rows;
+
+#pragma omp parallel for schedule(dynamic, 1024)
+            for(index_t i = 0; i < n; ++i) {
+                value_t temp = rhs[i];
+                value_t diag = 1;
+
+                for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
+                    index_t c = A.col[j];
+                    value_t v = A.val[j];
+
+                    temp -= v * x[c];
+
+                    if (c == i) diag = v;
+                }
+
+                tmp[i] = x[i] + prm.damping * (temp / diag);
+            }
+
+            vector_copy(tmp, x);
+        }
+
+        template <class spmat, class vector1, class vector2, class vector3>
+        void apply_post(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
+            apply_pre(A, rhs, x, tmp, prm);
+        }
+
+        template <class U>
+        inline static void vector_copy(U &u, U &v) {
+            using namespace std;
+            swap(u, v);
+        }
+
+        template <class U, class V>
+        inline static void vector_copy(U &u, V &v) {
+            std::copy(u.begin(), u.end(), &v[0]);
+        }
+    };
+};
+
+struct gauss_seidel {
+    struct params { };
+
+    template <typename value_t, typename index_t>
+    struct instance {
+        instance() {}
+
+        template <class spmat>
+        instance(const spmat &A) {}
+
+#define GS_INNER_LOOP \
+                value_t temp = rhs[i]; \
+                value_t diag = 1; \
+                for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) { \
+                    index_t c = A.col[j]; \
+                    value_t v = A.val[j]; \
+                    if (c == i) \
+                        diag = v; \
+                    else \
+                        temp -= v * x[c]; \
+                } \
+                x[i] = temp / diag
+
+        template <class spmat, class vector1, class vector2, class vector3>
+        void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
+            const index_t n = A.rows;
+
+            for(index_t i = 0; i < n; ++i) {
+                GS_INNER_LOOP;
+            }
+        }
+
+        template <class spmat, class vector1, class vector2, class vector3>
+        void apply_post(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
+            const index_t n = A.rows;
+
+            for(index_t i = n - 1; i >= 0; --i) {
+                GS_INNER_LOOP;
+            }
+        }
+
+#undef GS_INNER_LOOP
+    };
+};
+
+struct relax_scheme;
 
 /// Parameters for CPU-based level storage scheme.
 struct params
     : public amgcl::level::params
-{};
+{
+    typename relax_scheme::type::params relax;
+};
 
 template <typename value_t, typename index_t>
 class instance {
@@ -68,7 +175,7 @@ class instance {
         // prolongation (p) and restriction (r) operators.
         // The matrices are moved into the local members.
         instance(matrix &a, matrix &p, matrix &r, const params &prm, unsigned nlevel)
-            : t(a.rows)
+            : t(a.rows), relax(a)
         {
             A.swap(a);
             P.swap(p);
@@ -98,31 +205,6 @@ class instance {
         // Returns reference to the system matrix
         const matrix& get_matrix() const {
             return A;
-        }
-
-        // Perform one relaxation (smoothing) step.
-        template <class vector1, class vector2>
-        void relax(const vector1 &rhs, vector2 &x, const params &prm) const {
-            const index_t n = A.rows;
-
-#pragma omp parallel for schedule(dynamic, 1024)
-            for(index_t i = 0; i < n; ++i) {
-                value_t temp = rhs[i];
-                value_t diag = 1;
-
-                for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
-                    index_t c = A.col[j];
-                    value_t v = A.val[j];
-
-                    temp -= v * x[c];
-
-                    if (c == i) diag = v;
-                }
-
-                t[i] = x[i] + prm.relax_factor * (temp / diag);
-            }
-
-            vector_copy(t, x);
         }
 
         // Compute residual value.
@@ -161,7 +243,8 @@ class instance {
                 const index_t nc = nxt->A.rows;
 
                 for(unsigned j = 0; j < prm.ncycle; ++j) {
-                    for(unsigned i = 0; i < prm.npre; ++i) lvl->relax(rhs, x, prm);
+                    for(unsigned i = 0; i < prm.npre; ++i)
+                        lvl->relax.apply_pre(lvl->A, rhs, x, lvl->t, prm.relax);
 
                     //lvl->t = rhs - lvl->A * x;
 #pragma omp parallel for schedule(dynamic, 1024)
@@ -203,7 +286,8 @@ class instance {
                         x[i] += temp;
                     }
 
-                    for(unsigned i = 0; i < prm.npost; ++i) lvl->relax(rhs, x, prm);
+                    for(unsigned i = 0; i < prm.npost; ++i)
+                        lvl->relax.apply_post(lvl->A, rhs, x, lvl->t, prm.relax);
                 }
             } else {
                 for(index_t i = 0; i < n; ++i) {
@@ -295,21 +379,13 @@ class instance {
 
         matrix Ai;
 
+        typename relax_scheme::type::template instance<value_t, index_t> relax;
+
         mutable std::vector<value_t> u;
         mutable std::vector<value_t> f;
         mutable std::vector<value_t> t;
 
         mutable boost::array<std::vector<value_t>, 4> cg;
-
-        template <class U>
-        inline static void vector_copy(U &u, U &v) {
-            std::swap(u, v);
-        }
-
-        template <class U, class V>
-        inline static void vector_copy(U &u, V &v) {
-            std::copy(u.begin(), u.end(), &v[0]);
-        }
 
         template <class vector1, class vector2>
         value_t inner_prod(const vector1 &x, const vector2 &y) const {
@@ -326,6 +402,17 @@ class instance {
 };
 
 };
+
+template <>
+struct cpu<relax::damped_jacobi>::relax_scheme {
+    typedef cpu<relax::damped_jacobi>::damped_jacobi type;
+};
+
+template <>
+struct cpu<relax::gauss_seidel>::relax_scheme {
+    typedef cpu<relax::gauss_seidel>::gauss_seidel type;
+};
+
 
 } // namespace level
 } // namespace amgcl

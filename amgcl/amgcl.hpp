@@ -216,6 +216,22 @@ struct coarse_operator {
 
 } // namespace interp
 
+/// Possible relaxation (smoothing) schemes.
+namespace relax {
+
+/// Possible relaxation (smoothing) schemes.
+/**
+ * Each backend may support only a limited subset of these.
+ */
+enum scheme {
+    damped_jacobi, ///< Damped Jacobi.
+    spai,          ///< Sparse approximate inverse.
+    gauss_seidel,  ///< Gauss-Seidel.
+    ilu            ///< Incomplete LU decomposition.
+};
+
+} // namespace relax.
+
 /// Algebraic multigrid method.
 /**
  * \param value_t  Type for matrix entries (double/float).
