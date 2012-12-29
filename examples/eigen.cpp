@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
     typedef amgcl::solver<
         real, int,
         amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
-        amgcl::level::cpu<amgcl::relax::gauss_seidel>
+        amgcl::level::cpu<amgcl::relax::damped_jacobi>
         > AMG;
 
     // Use K-Cycle on each level to improve convergence:

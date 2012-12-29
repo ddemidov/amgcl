@@ -495,6 +495,43 @@ diagonal(const spmat &A) {
     return dia;
 }
 
+//---------------------------------------------------------------------------
+template <typename I, typename V>
+void insertion_sort(I *col, V *val, I n) {
+    for(I j = 1; j < n; ++j) {
+        I c = col[j];
+        V v = val[j];
+        I i = j - 1;
+        while(i >= 0 && col[i] > c) {
+            col[i + 1] = col[i];
+            val[i + 1] = val[i];
+            i--;
+        }
+        col[i + 1] = c;
+        val[i + 1] = v;
+    }
+}
+
+/// Sort rows of the matrix column-wise.
+template <class spmat>
+void sort_rows(spmat &A) {
+    typedef typename matrix_index<spmat>::type index_t;
+    typedef typename matrix_value<spmat>::type value_t;
+
+    const index_t n = sparse::matrix_rows(A);
+
+    BOOST_AUTO(Arow, matrix_outer_index(A));
+    BOOST_AUTO(Acol, matrix_inner_index(A));
+    BOOST_AUTO(Aval, matrix_values(A));
+
+#pragma omp parallel for schedule(dynamic, 1024)
+    for(index_t i = 0; i < n; ++i) {
+        index_t beg = Arow[i];
+        index_t end = Arow[i + 1];
+        insertion_sort(Acol + beg, Aval + beg, end - beg);
+    }
+}
+
 } // namespace sparse
 } // namespace amgcl
 

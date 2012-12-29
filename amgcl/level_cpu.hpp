@@ -157,6 +157,111 @@ struct gauss_seidel {
     };
 };
 
+struct ilu {
+    struct params {
+        float damping;
+        params(float w = 0.72) : damping(w) {}
+    };
+
+    template <typename value_t, typename index_t>
+    struct instance {
+        instance() {}
+
+        template <class spmat>
+        instance(spmat &A)
+            : diag(sparse::matrix_rows(A))
+        {
+            sparse::sort_rows(A);
+
+            const index_t n = sparse::matrix_rows(A);
+
+            BOOST_AUTO(Arow, matrix_outer_index(A));
+            BOOST_AUTO(Acol, matrix_inner_index(A));
+            BOOST_AUTO(Aval, matrix_values(A));
+
+            luval.assign(Aval, Aval + Arow[n]);
+
+            std::vector<index_t> work(n, -1);
+
+            for(index_t i = 0; i < n; ++i) {
+                index_t row_beg = Arow[i];
+                index_t row_end = Arow[i + 1];
+
+                for(index_t j = row_beg; j < row_end; ++j)
+                    work[Acol[j]] = j;
+
+                for(index_t j = row_beg; j < row_end; ++j) {
+                    index_t c = Acol[j];
+
+                    // Exit if diagonal is reached
+                    if (c >= i) {
+                        if (c != i)
+                            throw std::runtime_error("No diagonal?");
+                        if (fabs(luval[j]) < 1e-32)
+                            throw std::runtime_error("Zero pivot in ILU");
+
+                        diag[i]  = j;
+                        luval[j] = 1 / luval[j];
+                        break;
+                    }
+
+                    // Compute the multiplier for jrow
+                    value_t tl = luval[j] * luval[diag[c]];
+                    luval[j] = tl;
+
+                    // Perform linear combination
+                    for(index_t k = diag[c] + 1; k < Arow[c + 1]; ++k) {
+                        index_t w = work[Acol[k]];
+                        if (w >= 0) luval[w] -= tl * luval[k];
+                    }
+                }
+
+                // Refresh work
+                for(index_t j = row_beg; j < row_end; ++j)
+                    work[Acol[j]] = -1;
+            }
+        }
+
+        template <class spmat, class vector1, class vector2, class vector3>
+        void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
+            const index_t n = sparse::matrix_rows(A);
+
+            BOOST_AUTO(Arow, matrix_outer_index(A));
+            BOOST_AUTO(Acol, matrix_inner_index(A));
+            BOOST_AUTO(Aval, matrix_values(A));
+
+#pragma omp parallel for schedule(dynamic, 1024)
+            for(index_t i = 0; i < n; i++) {
+                value_t buf = rhs[i];
+                for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
+                    buf -= Aval[j] * x[Acol[j]];
+                tmp[i] = buf;
+            }
+
+            for(index_t i = 0; i < n; i++) {
+                for(index_t j = Arow[i], e = diag[i]; j < e; ++j)
+                    tmp[i] -= luval[j] * tmp[Acol[j]];
+            }
+
+            for(index_t i = n - 1; i >= 0; --i) {
+                for(index_t j = diag[i] + 1, e = Arow[i + 1]; j < e; ++j)
+                    tmp[i] -= luval[j] * tmp[Acol[j]];
+                tmp[i] *= luval[diag[i]];
+            }
+
+#pragma omp parallel for schedule(dynamic, 1024)
+            for(int i = 0; i < n; i++) x[i] += prm.damping * tmp[i];
+        }
+
+        template <class spmat, class vector1, class vector2, class vector3>
+        void apply_post(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
+            apply_pre(A, rhs, x, tmp, prm);
+        }
+
+        std::vector<value_t> luval;
+        std::vector<index_t> diag;
+    };
+};
 struct relax_scheme;
 
 /// Parameters for CPU-based level storage scheme.
@@ -411,6 +516,11 @@ struct cpu<relax::damped_jacobi>::relax_scheme {
 template <>
 struct cpu<relax::gauss_seidel>::relax_scheme {
     typedef cpu<relax::gauss_seidel>::gauss_seidel type;
+};
+
+template <>
+struct cpu<relax::ilu>::relax_scheme {
+    typedef cpu<relax::ilu>::ilu type;
 };
 
 
