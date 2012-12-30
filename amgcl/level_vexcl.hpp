@@ -33,6 +33,7 @@ THE SOFTWARE.
 
 #include <amgcl/level_params.hpp>
 #include <amgcl/spmat.hpp>
+#include <amgcl/spai.hpp>
 #include <amgcl/operations_vexcl.hpp>
 
 #include <vexcl/vexcl.hpp>
@@ -83,31 +84,9 @@ struct spai0 {
         instance() {}
 
         template <class spmat>
-        instance(const std::vector<cl::CommandQueue> &queue, const spmat &A) {
-            const index_t n = sparse::matrix_rows(A);
-
-            BOOST_AUTO(Arow, matrix_outer_index(A));
-            BOOST_AUTO(Acol, matrix_inner_index(A));
-            BOOST_AUTO(Aval, matrix_values(A));
-
-            std::vector<value_t> m(n);
-
-#pragma omp parallel for schedule(dynamic, 1024)
-            for(index_t i = 0; i < n; ++i) {
-                value_t num = 0;
-                value_t den = 0;
-
-                for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
-                    value_t v = Aval[j];
-                    den += v * v;
-                    if (Acol[j] == i) num += v;
-                }
-
-                m[i] = num / den;
-            }
-
-            M.resize(queue, m);
-        }
+        instance(const std::vector<cl::CommandQueue> &queue, const spmat &A)
+            : M(queue, spai::level0(A))
+        { }
 
         template <class spmat, class vector>
         void apply(const spmat &A, const vector &rhs, vector &x, vector &tmp, const params &prm) const {

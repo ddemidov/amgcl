@@ -169,6 +169,9 @@ include files.
     T. F. Chan et al.</em> Templates for the Solution of Linear Systems:
     Building Blocks for Iterative Methods, 2nd Edition, SIAM, Philadelphia, PA,
     1994.
+ -# \anchor spai_2002 <em>O. Broeker, M. Grote,</em> Sparse approximate inverse
+    smoothers for geometric and algebraic multigrid, Applied Numerical
+    Mathematics, Volume 41, Issue 1, April 2002, Pages 61–80.
 */
 
 #include <iostream>

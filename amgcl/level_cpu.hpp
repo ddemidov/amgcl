@@ -38,6 +38,7 @@ THE SOFTWARE.
 
 #include <amgcl/level_params.hpp>
 #include <amgcl/spmat.hpp>
+#include <amgcl/spai.hpp>
 
 namespace amgcl {
 
@@ -74,14 +75,18 @@ struct damped_jacobi {
         void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
             const index_t n = sparse::matrix_rows(A);
 
+            BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
+            BOOST_AUTO(Acol, sparse::matrix_inner_index(A));
+            BOOST_AUTO(Aval, sparse::matrix_values(A));
+
 #pragma omp parallel for schedule(dynamic, 1024)
             for(index_t i = 0; i < n; ++i) {
                 value_t temp = rhs[i];
                 value_t diag = 1;
 
-                for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
-                    index_t c = A.col[j];
-                    value_t v = A.val[j];
+                for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
+                    index_t c = Acol[j];
+                    value_t v = Aval[j];
 
                     temp -= v * x[c];
 
@@ -125,9 +130,9 @@ struct gauss_seidel {
 #define GS_INNER_LOOP \
                 value_t temp = rhs[i]; \
                 value_t diag = 1; \
-                for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) { \
-                    index_t c = A.col[j]; \
-                    value_t v = A.val[j]; \
+                for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) { \
+                    index_t c = Acol[j]; \
+                    value_t v = Aval[j]; \
                     if (c == i) \
                         diag = v; \
                     else \
@@ -139,6 +144,10 @@ struct gauss_seidel {
         void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
             const index_t n = sparse::matrix_rows(A);
 
+            BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
+            BOOST_AUTO(Acol, sparse::matrix_inner_index(A));
+            BOOST_AUTO(Aval, sparse::matrix_values(A));
+
             for(index_t i = 0; i < n; ++i) {
                 GS_INNER_LOOP;
             }
@@ -147,6 +156,10 @@ struct gauss_seidel {
         template <class spmat, class vector1, class vector2, class vector3>
         void apply_post(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
             const index_t n = A.rows;
+
+            BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
+            BOOST_AUTO(Acol, sparse::matrix_inner_index(A));
+            BOOST_AUTO(Aval, sparse::matrix_values(A));
 
             for(index_t i = n - 1; i >= 0; --i) {
                 GS_INNER_LOOP;
@@ -168,16 +181,14 @@ struct ilu {
         instance() {}
 
         template <class spmat>
-        instance(spmat &A)
-            : diag(sparse::matrix_rows(A))
-        {
+        instance(spmat &A) : diag(sparse::matrix_rows(A)) {
             sparse::sort_rows(A);
 
             const index_t n = sparse::matrix_rows(A);
 
-            BOOST_AUTO(Arow, matrix_outer_index(A));
-            BOOST_AUTO(Acol, matrix_inner_index(A));
-            BOOST_AUTO(Aval, matrix_values(A));
+            BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
+            BOOST_AUTO(Acol, sparse::matrix_inner_index(A));
+            BOOST_AUTO(Aval, sparse::matrix_values(A));
 
             luval.assign(Aval, Aval + Arow[n]);
 
@@ -226,9 +237,9 @@ struct ilu {
         void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
             const index_t n = sparse::matrix_rows(A);
 
-            BOOST_AUTO(Arow, matrix_outer_index(A));
-            BOOST_AUTO(Acol, matrix_inner_index(A));
-            BOOST_AUTO(Aval, matrix_values(A));
+            BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
+            BOOST_AUTO(Acol, sparse::matrix_inner_index(A));
+            BOOST_AUTO(Aval, sparse::matrix_values(A));
 
 #pragma omp parallel for schedule(dynamic, 1024)
             for(index_t i = 0; i < n; i++) {
@@ -271,35 +282,15 @@ struct spai0 {
         instance() {}
 
         template <class spmat>
-        instance(const spmat &A) : m(sparse::matrix_rows(A)) {
-            const index_t n = sparse::matrix_rows(A);
-
-            BOOST_AUTO(Arow, matrix_outer_index(A));
-            BOOST_AUTO(Acol, matrix_inner_index(A));
-            BOOST_AUTO(Aval, matrix_values(A));
-
-#pragma omp parallel for schedule(dynamic, 1024)
-            for(index_t i = 0; i < n; ++i) {
-                value_t num = 0;
-                value_t den = 0;
-
-                for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
-                    value_t v = Aval[j];
-                    den += v * v;
-                    if (Acol[j] == i) num += v;
-                }
-
-                m[i] = num / den;
-            }
-        }
+        instance(const spmat &A) : m(spai::level0(A)) { }
 
         template <class spmat, class vector1, class vector2, class vector3>
         void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
             const index_t n = sparse::matrix_rows(A);
 
-            BOOST_AUTO(Arow, matrix_outer_index(A));
-            BOOST_AUTO(Acol, matrix_inner_index(A));
-            BOOST_AUTO(Aval, matrix_values(A));
+            BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
+            BOOST_AUTO(Acol, sparse::matrix_inner_index(A));
+            BOOST_AUTO(Aval, sparse::matrix_values(A));
 
 #pragma omp parallel for schedule(dynamic, 1024)
             for(index_t i = 0; i < n; i++) {
@@ -571,18 +562,18 @@ class instance {
 
 };
 
-#define REGISTER_RELAX_METHOD(name) \
+#define REGISTER_RELAX_SCHEME(name) \
 template <> \
 struct cpu<relax::name>::relax_scheme { \
     typedef cpu<relax::name>::name type; \
 }
 
-REGISTER_RELAX_METHOD(damped_jacobi);
-REGISTER_RELAX_METHOD(gauss_seidel);
-REGISTER_RELAX_METHOD(ilu);
-REGISTER_RELAX_METHOD(spai0);
+REGISTER_RELAX_SCHEME(damped_jacobi);
+REGISTER_RELAX_SCHEME(gauss_seidel);
+REGISTER_RELAX_SCHEME(ilu);
+REGISTER_RELAX_SCHEME(spai0);
 
-#undef REGISTER_RELAX_METHOD
+#undef REGISTER_RELAX_SCHEME
 
 } // namespace level
 } // namespace amgcl
