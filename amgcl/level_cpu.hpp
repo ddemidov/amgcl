@@ -563,9 +563,8 @@ class instance {
 };
 
 #define REGISTER_RELAX_SCHEME(name) \
-template <> \
-struct cpu<relax::name>::relax_scheme { \
-    typedef cpu<relax::name>::name type; \
+template <> struct cpu<relax::name>::relax_scheme { \
+    typedef name type; \
 }
 
 REGISTER_RELAX_SCHEME(damped_jacobi);

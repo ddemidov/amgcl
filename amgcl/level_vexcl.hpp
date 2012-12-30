@@ -101,8 +101,7 @@ struct spai0 {
 struct relax_scheme;
 
 /// Parameters for VexCL-based level storage scheme.
-struct params
-    : public amgcl::level::params
+struct params : public amgcl::level::params
 {
     vex::Context *ctx;  ///< VexCL Context for VexCL objects creation.
     typename relax_scheme::type::params relax;
@@ -277,9 +276,8 @@ class instance {
 };
 
 #define REGISTER_RELAX_SCHEME(name) \
-template <> \
-struct vexcl<relax::name>::relax_scheme { \
-    typedef vexcl<relax::name>::name type; \
+template <> struct vexcl<relax::name>::relax_scheme { \
+    typedef name type; \
 }
 
 REGISTER_RELAX_SCHEME(damped_jacobi);

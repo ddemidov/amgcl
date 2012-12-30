@@ -37,6 +37,7 @@ THE SOFTWARE.
 
 #include <amgcl/level_params.hpp>
 #include <amgcl/spmat.hpp>
+#include <amgcl/spai.hpp>
 #include <amgcl/operations_viennacl.hpp>
 
 #include <viennacl/vector.hpp>
@@ -74,6 +75,68 @@ struct matrix_format<CL_MATRIX_HYB, value_type> {
     typedef viennacl::hyb_matrix<value_type> type;
 };
 
+struct viennacl_damped_jacobi {
+    struct params {
+        float damping;
+        params(float w = 0.72) : damping(w) {}
+    };
+
+    template <typename value_t, typename index_t>
+    struct instance {
+        instance() {}
+
+        template <class spmat>
+        instance(const spmat &A) : dia(sparse::matrix_rows(A)) {
+            ::viennacl::fast_copy(sparse::diagonal(A), dia);
+        }
+
+        template <class spmat, class vector>
+        void apply(const spmat &A, const vector &rhs, vector &x, vector &tmp, const params &prm) const {
+            tmp = ::viennacl::linalg::prod(A, x);
+            tmp = rhs - tmp;
+            x += prm.damping * (::viennacl::linalg::element_div(tmp, dia));
+        }
+
+        ::viennacl::vector<value_t> dia;
+    };
+};
+
+struct viennacl_spai0 {
+    struct params { };
+
+    template <typename value_t, typename index_t>
+    struct instance {
+        instance() {}
+
+        template <class spmat>
+        instance(const spmat &A) : M(sparse::matrix_rows(A)) {
+            ::viennacl::fast_copy(spai::level0(A), M);
+        }
+
+        template <class spmat, class vector>
+        void apply(const spmat &A, const vector &rhs, vector &x, vector &tmp, const params &prm) const {
+            tmp = ::viennacl::linalg::prod(A, x);
+            tmp = rhs - tmp;
+            x += ::viennacl::linalg::element_prod(M, tmp);
+        }
+
+        ::viennacl::vector<value_t> M;
+    };
+};
+
+template <relax::scheme Relaxation>
+struct viennacl_relax_scheme;
+
+template <>
+struct viennacl_relax_scheme <relax::damped_jacobi> {
+    typedef viennacl_damped_jacobi type;
+};
+
+template <>
+struct viennacl_relax_scheme <relax::spai0> {
+    typedef viennacl_spai0 type;
+};
+
 /// ViennaCL-based AMG hierarchy.
 /**
  * Level of an AMG hierarchy for use with ViennaCL vectors. ViennaCL provides
@@ -84,13 +147,14 @@ struct matrix_format<CL_MATRIX_HYB, value_type> {
  *
  * \ingroup levels
  */
-template <cl_matrix_format Format = CL_MATRIX_HYB>
+template <cl_matrix_format Format = CL_MATRIX_HYB, relax::scheme Relaxation = relax::damped_jacobi>
 struct viennacl {
 
 /// Parameters for CPU-based level storage scheme.
-struct params
-    : public amgcl::level::params
-{ };
+struct params : public amgcl::level::params
+{
+    typename viennacl_relax_scheme<Relaxation>::type::params relax;
+};
 
 template <typename value_t, typename index_t = long long>
 class instance {
@@ -103,13 +167,11 @@ class instance {
         // prolongation (p) and restriction (r) operators.
         // The matrices are moved into the local members.
         instance(cpu_matrix &a, cpu_matrix &p, cpu_matrix &r, const params &prm, unsigned nlevel)
-            : d(a.rows), t(a.rows), nnz(sparse::matrix_nonzeros(a))
+            : t(a.rows), nnz(sparse::matrix_nonzeros(a)), relax(a)
         {
             ::viennacl::copy(sparse::viennacl_map(a), A);
             ::viennacl::copy(sparse::viennacl_map(p), P);
             ::viennacl::copy(sparse::viennacl_map(r), R);
-
-            ::viennacl::fast_copy(diagonal(a), d);
 
             if (nlevel) {
                 u.resize(a.rows);
@@ -128,13 +190,11 @@ class instance {
         // Construct the coarsest hierarchy level from system matrix (a) and
         // its inverse (ai).
         instance(cpu_matrix &a, cpu_matrix &ai, const params &prm, unsigned nlevel)
-            : d(a.rows), u(a.rows), f(a.rows), t(a.rows),
+            : u(a.rows), f(a.rows), t(a.rows),
               nnz(sparse::matrix_nonzeros(a))
         {
             ::viennacl::copy(sparse::viennacl_map(a),  A);
             ::viennacl::copy(sparse::viennacl_map(ai), Ainv);
-
-            ::viennacl::fast_copy(diagonal(a), d);
 
             a.clear();
             ai.clear();
@@ -143,16 +203,6 @@ class instance {
         // Returns reference to the system matrix
         const matrix& get_matrix() const {
             return A;
-        }
-
-        // Perform one relaxation (smoothing) step.
-        void relax(const vector &rhs, vector &x, const params &prm) const {
-            const index_t n = x.size();
-
-            t = ::viennacl::linalg::prod(A, x);
-            t = rhs - t;
-            t = ::viennacl::linalg::element_div(t, d);
-            x += prm.relax_factor * t;
         }
 
         // Compute residual value.
@@ -176,7 +226,8 @@ class instance {
 
             if (pnxt != end) {
                 for(unsigned j = 0; j < prm.ncycle; ++j) {
-                    for(unsigned i = 0; i < prm.npre; ++i) lvl->relax(rhs, x, prm);
+                    for(unsigned i = 0; i < prm.npre; ++i)
+                        lvl->relax.apply(lvl->A, rhs, x, lvl->t, prm.relax);
 
                     lvl->t = ::viennacl::linalg::prod(lvl->A, x);
                     lvl->t = rhs - lvl->t;
@@ -191,7 +242,8 @@ class instance {
                     lvl->t = ::viennacl::linalg::prod(lvl->P, nxt->u);
                     x += lvl->t;
 
-                    for(unsigned i = 0; i < prm.npost; ++i) lvl->relax(rhs, x, prm);
+                    for(unsigned i = 0; i < prm.npost; ++i)
+                        lvl->relax.apply(lvl->A, rhs, x, lvl->t, prm.relax);
                 }
             } else {
                 x = ::viennacl::linalg::prod(lvl->Ainv, rhs);
@@ -254,11 +306,11 @@ class instance {
         matrix R;
         matrix Ainv;
 
-        vector d;
-
         mutable vector u;
         mutable vector f;
         mutable vector t;
+
+        typename viennacl_relax_scheme<Relaxation>::type::template instance<value_t, index_t> relax;
 
         mutable boost::array<vector, 4> cg;
 
