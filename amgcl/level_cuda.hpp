@@ -41,6 +41,7 @@ THE SOFTWARE.
 
 #include <amgcl/level_params.hpp>
 #include <amgcl/spmat.hpp>
+#include <amgcl/spai.hpp>
 #include <amgcl/common.hpp>
 
 #include <thrust/device_vector.h>
@@ -367,17 +368,130 @@ struct axpy {
 
 namespace level {
 
+struct cuda_damped_jacobi {
+    struct params {
+        float damping;
+        params(float w = 0.72) : damping(w) {}
+    };
+
+    template <typename value_t, typename index_t>
+    struct instance {
+        instance() {}
+
+        template <class spmat>
+        instance(const spmat &A) : dia(sparse::matrix_rows(A)) {
+            BOOST_AUTO(d, sparse::diagonal(A));
+            thrust::copy(d.begin(), d.end(), dia.begin());
+        }
+
+        template <class spmat, class vector>
+        void apply(const spmat &A, const vector &rhs, vector &x, vector &tmp, const params &prm) const {
+            thrust::copy(rhs.begin(), rhs.end(), tmp.begin());;
+            A.mul(-1, x, 1, tmp);
+
+            thrust::for_each(
+                    thrust::make_zip_iterator(
+                        thrust::make_tuple( x.begin(), tmp.begin(), dia.begin() )
+                        ),
+                    thrust::make_zip_iterator(
+                        thrust::make_tuple( x.end(), tmp.end(), dia.end() )
+                        ),
+                    smoother_functor(prm.damping)
+                    );
+        }
+
+        struct smoother_functor {
+            value_t w;
+
+            smoother_functor(value_t w) : w(w) {}
+
+            template <class T>
+            __host__ __device__
+            void operator()(T zip) const {
+                value_t t = thrust::get<1>(zip);
+                value_t d = thrust::get<2>(zip);
+
+                thrust::get<0>(zip) += w * t / d;
+            }
+        };
+
+        thrust::device_vector<value_t> dia;
+    };
+};
+
+struct cuda_spai0 {
+    struct params { };
+
+    template <typename value_t, typename index_t>
+    struct instance {
+        instance() {}
+
+        template <class spmat>
+        instance(const spmat &A) : M(sparse::matrix_rows(A)) {
+            BOOST_AUTO(m, spai::level0(A));
+            thrust::copy(m.begin(), m.end(), M.begin());
+        }
+
+        template <class spmat, class vector>
+        void apply(const spmat &A, const vector &rhs, vector &x, vector &tmp, const params &prm) const {
+            thrust::copy(rhs.begin(), rhs.end(), tmp.begin());;
+            A.mul(-1, x, 1, tmp);
+
+            thrust::for_each(
+                    thrust::make_zip_iterator(
+                        thrust::make_tuple( x.begin(), M.begin(), tmp.begin() )
+                        ),
+                    thrust::make_zip_iterator(
+                        thrust::make_tuple( x.end(), M.end(), tmp.end() )
+                        ),
+                    smoother_functor()
+                    );
+        }
+
+        struct smoother_functor {
+            template <class T>
+            __host__ __device__
+            void operator()(T zip) const {
+                value_t M = thrust::get<1>(zip);
+                value_t t = thrust::get<2>(zip);
+
+                thrust::get<0>(zip) += M * t;
+            }
+        };
+
+        thrust::device_vector<value_t> M;
+    };
+};
+
+template <relax::scheme Relaxation>
+struct cuda_relax_scheme;
+
+template <>
+struct cuda_relax_scheme <relax::damped_jacobi> {
+    typedef cuda_damped_jacobi type;
+};
+
+template <>
+struct cuda_relax_scheme <relax::spai0> {
+    typedef cuda_spai0 type;
+};
+
 /// Thrust/CUSPARSE based AMG hierarchy.
 /**
  * Level of an AMG hierarchy for use with Thrust/CUSPARSE data structures. Uses
  * NVIDIA CUDA technology for acceleration.
  * \ingroup levels
  */
-template <sparse::cuda_matrix_format format = sparse::CUDA_MATRIX_HYB>
+template <
+    sparse::cuda_matrix_format format = sparse::CUDA_MATRIX_HYB,
+    relax::scheme Relaxation = relax::damped_jacobi
+    >
 struct cuda {
 
 /// Parameters for CUSPARSE-based level storage scheme.
-class params : public amgcl::level::params {};
+struct params : public amgcl::level::params {
+    typename cuda_relax_scheme<Relaxation>::type::params relax;
+};
 
 template <typename T>
 static T norm(const thrust::device_vector<T> &x) {
@@ -393,13 +507,8 @@ class instance {
         typedef sparse::cuda_matrix<value_t, format> matrix;
 
         instance(cpu_matrix &a, cpu_matrix &p, cpu_matrix &r, const params &prm, unsigned nlevel)
-            : A(a), P(p), R(r), d(a.rows), t(a.rows)
+            : A(a), P(p), R(r), t(a.rows), relax(a)
         {
-            {
-                BOOST_AUTO(dia, diagonal(a));
-                thrust::copy(dia.begin(), dia.end(), d.begin());
-            }
-
             if (nlevel) {
                 u.resize(a.rows);
                 f.resize(a.rows);
@@ -415,13 +524,8 @@ class instance {
         }
 
         instance(cpu_matrix &a, cpu_matrix &ai, const params &prm, unsigned nlevel)
-            : A(a), Ainv(ai), d(a.rows), u(a.rows), f(a.rows), t(a.rows)
+            : A(a), Ainv(ai), u(a.rows), f(a.rows), t(a.rows)
         {
-            {
-                BOOST_AUTO(dia, diagonal(a));
-                thrust::copy(dia.begin(), dia.end(), d.begin());
-            }
-
             a.clear();
             ai.clear();
         }
@@ -429,41 +533,6 @@ class instance {
         // Returns reference to the system matrix
         const matrix& get_matrix() const {
             return A;
-        }
-
-        struct relax_functor {
-            value_t w;
-
-            relax_functor(value_t w) : w(w) {}
-
-            template <class T>
-            __host__ __device__
-            void operator()(T zip) const {
-                value_t t = thrust::get<1>(zip);
-                value_t d = thrust::get<2>(zip);
-
-                thrust::get<0>(zip) += w * t / d;
-            }
-        };
-
-        // Perform one relaxation (smoothing) step.
-        void relax(const thrust::device_vector<value_t> &rhs,
-                thrust::device_vector<value_t> &x, const params &prm) const
-        {
-            const index_t n = x.size();
-
-            thrust::copy(rhs.begin(), rhs.end(), t.begin());;
-            A.mul(-1, x, 1, t);
-
-            thrust::for_each(
-                    thrust::make_zip_iterator(
-                        thrust::make_tuple( x.begin(), t.begin(), d.begin() )
-                        ),
-                    thrust::make_zip_iterator(
-                        thrust::make_tuple( x.end(), t.end(), d.end() )
-                        ),
-                    relax_functor(prm.relax_factor)
-                    );
         }
 
         // Compute residual value.
@@ -489,7 +558,8 @@ class instance {
 
             if (pnxt != end) {
                 for(unsigned j = 0; j < prm.ncycle; ++j) {
-                    for(unsigned i = 0; i < prm.npre; ++i) lvl->relax(rhs, x, prm);
+                    for(unsigned i = 0; i < prm.npre; ++i)
+                        lvl->relax.apply(lvl->A, rhs, x, lvl->t, prm.relax);
 
                     thrust::copy(rhs.begin(), rhs.end(), lvl->t.begin());;
                     lvl->A.mul(-1, x, 1, lvl->t);
@@ -503,7 +573,8 @@ class instance {
 
                     lvl->P.mul(1, nxt->u, 1, x);
 
-                    for(unsigned i = 0; i < prm.npost; ++i) lvl->relax(rhs, x, prm);
+                    for(unsigned i = 0; i < prm.npost; ++i)
+                        lvl->relax.apply(lvl->A, rhs, x, lvl->t, prm.relax);
                 }
             } else {
                 lvl->Ainv.mul(1, rhs, 0, x);
@@ -571,13 +642,13 @@ class instance {
         sparse::cuda_matrix<value_t, format> R;
         sparse::cuda_matrix<value_t, format> Ainv;
 
-        thrust::device_vector<value_t> d;
-
         mutable boost::array<thrust::device_vector<value_t>, 4> cg;
 
         mutable thrust::device_vector<value_t> u;
         mutable thrust::device_vector<value_t> f;
         mutable thrust::device_vector<value_t> t;
+
+        typename cuda_relax_scheme<Relaxation>::type::template instance<value_t, index_t> relax;
 };
 
 };
