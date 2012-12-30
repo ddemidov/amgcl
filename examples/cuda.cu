@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
         amgcl::level::cuda<amgcl::sparse::CUDA_MATRIX_HYB, amgcl::relax::spai0>
         > AMG;
 
-    typename AMG::params prm;
+    AMG::params prm;
     prm.level.kcycle = 1;
 
     amgcl::sparse::matrix_map<real, int> A(

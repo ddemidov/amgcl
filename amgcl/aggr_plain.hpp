@@ -44,7 +44,10 @@ namespace amgcl {
 /// Aggregation related types and functions.
 namespace aggr {
 
-/** \defgroup aggregation Aggregation */
+/**
+ * \defgroup aggregation Aggregation
+ * \brief Possible aggregation strategies.
+ */
 
 /// Plain aggregation.
 /**

@@ -112,7 +112,7 @@ int main() {
 
     // The parameters. Most of the parameters have some reasonable defaults.
     // VexCL backend needs to know what context to use:
-    typename AMG::params prm;
+    AMG::params prm;
     prm.level.ctx = &ctx;
 
     // Here we construct the hierarchy:
@@ -225,6 +225,7 @@ namespace relax {
 /// Possible relaxation (smoothing) schemes.
 /**
  * Each backend may support only a limited subset of these.
+ * \sa relax_vs_backend
  */
 enum scheme {
     damped_jacobi, ///< Damped Jacobi.

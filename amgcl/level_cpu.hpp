@@ -46,7 +46,10 @@ namespace amgcl {
 /// Storage schemes for levels of AMG hierarchy.
 namespace level {
 
-/** \defgroup levels Level storage backends */
+/**
+ * \defgroup levels Level storage backends
+ * \brief Provided storage and acceleration backends.
+ */
 
 struct cpu_damped_jacobi {
     struct params {

@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
         > AMG;
 
     // Use K-Cycle on each level to improve convergence:
-    typename AMG::params prm;
+    AMG::params prm;
     prm.level.kcycle = 1;
 
     prof.tic("setup");

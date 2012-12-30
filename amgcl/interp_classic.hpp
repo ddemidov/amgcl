@@ -43,7 +43,10 @@ namespace amgcl {
 
 namespace interp {
 
-/** \defgroup interpolation Interpolation */
+/**
+ * \defgroup interpolation Interpolation
+ * \brief Possible interpolation schemes.
+ */
 
 /// Direct interpolation scheme based on \ref Stuben_1999 "Stuben (1999)".
 /** \ingroup interpolation */

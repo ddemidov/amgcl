@@ -32,7 +32,7 @@ THE SOFTWARE.
  */
 
 namespace amgcl {
-    
+
 /// Control parameters for Conjugate Gradient method.
 struct cg_tag {
     int maxiter; ///< Maximum number of iterations.
@@ -55,9 +55,15 @@ struct bicg_tag {
 
 template <class T, class Enable = void> struct value_type;
 
-#define AMGCL_REGISTER_RELAX_SCHEME(level, name) \
-template <> struct level ## _relax_scheme<relax::name> { \
-    typedef level ## _ ## name type; \
+/**
+ * \defgroup relax_vs_backend Relaxation scheme support
+ * \brief Relaxation schemes supported by each backend.
+ */
+
+#define AMGCL_REGISTER_RELAX_SCHEME(level_name, relax_name) \
+/** \brief relax::##relax_name scheme for level::##level_name \ingroup relax_vs_backend */ \
+template <> struct level_name ## _relax_scheme<relax::relax_name> { \
+    typedef level_name ## _ ## relax_name type; \
 }
 
 } // namespace amgcl

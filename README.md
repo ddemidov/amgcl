@@ -87,7 +87,7 @@ int main() {
 
     // The parameters. Most of the parameters have some reasonable defaults.
     // VexCL backend needs to know what context to use:
-    typename AMG::params prm;
+    AMG::params prm;
     prm.level.ctx = &ctx;
 
     // Here we construct the hierarchy:

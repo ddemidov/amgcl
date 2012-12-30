@@ -38,8 +38,11 @@ THE SOFTWARE.
 #include <amgcl/common.hpp>
 
 namespace amgcl {
-    
-/** \defgroup iterative Iterative solvers */
+
+/**
+ * \defgroup iterative Iterative solvers
+ * \brief List of provided iterative solvers.
+ */
 
 /// Conjugate Gradient method.
 /**

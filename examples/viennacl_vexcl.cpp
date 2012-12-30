@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
         amgcl::level::vexcl<amgcl::relax::damped_jacobi>
         > AMG;
 
-    typename AMG::params prm;
+    AMG::params prm;
     // Provide vex::Context for level construction:
     prm.level.ctx = &ctx;
     // Use K-Cycle on each level to improve convergence:

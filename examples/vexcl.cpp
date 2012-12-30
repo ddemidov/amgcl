@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
         amgcl::level::vexcl<amgcl::relax::spai0>
         > AMG;
 
-    typename AMG::params prm;
+    AMG::params prm;
     // Provide vex::Context for level construction:
     prm.level.ctx = &ctx;
     // Use K-Cycle on each level to improve convergence:
