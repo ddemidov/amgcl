@@ -137,7 +137,7 @@ template <class interp_t, class spmat, class vector>
 void run_vexcl_test(const spmat &A, const vector &rhs, const options &op) {
     typedef amgcl::solver<
         real, int, interp_t,
-        amgcl::level::vexcl
+        amgcl::level::vexcl<amgcl::relax::damped_jacobi>
     > AMG;
 
     prof.tic("OpenCL initialization");

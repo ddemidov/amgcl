@@ -72,7 +72,7 @@ struct damped_jacobi {
 
         template <class spmat, class vector1, class vector2, class vector3>
         void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
-            const index_t n = A.rows;
+            const index_t n = sparse::matrix_rows(A);
 
 #pragma omp parallel for schedule(dynamic, 1024)
             for(index_t i = 0; i < n; ++i) {
@@ -137,7 +137,7 @@ struct gauss_seidel {
 
         template <class spmat, class vector1, class vector2, class vector3>
         void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
-            const index_t n = A.rows;
+            const index_t n = sparse::matrix_rows(A);
 
             for(index_t i = 0; i < n; ++i) {
                 GS_INNER_LOOP;
@@ -262,6 +262,69 @@ struct ilu {
         std::vector<index_t> diag;
     };
 };
+
+struct spai0 {
+    struct params { };
+
+    template <typename value_t, typename index_t>
+    struct instance {
+        instance() {}
+
+        template <class spmat>
+        instance(const spmat &A) : m(sparse::matrix_rows(A)) {
+            const index_t n = sparse::matrix_rows(A);
+
+            BOOST_AUTO(Arow, matrix_outer_index(A));
+            BOOST_AUTO(Acol, matrix_inner_index(A));
+            BOOST_AUTO(Aval, matrix_values(A));
+
+#pragma omp parallel for schedule(dynamic, 1024)
+            for(index_t i = 0; i < n; ++i) {
+                value_t num = 0;
+                value_t den = 0;
+
+                for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
+                    value_t v = Aval[j];
+                    den += v * v;
+                    if (Acol[j] == i) num += v;
+                }
+
+                m[i] = num / den;
+            }
+        }
+
+        template <class spmat, class vector1, class vector2, class vector3>
+        void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
+            const index_t n = sparse::matrix_rows(A);
+
+            BOOST_AUTO(Arow, matrix_outer_index(A));
+            BOOST_AUTO(Acol, matrix_inner_index(A));
+            BOOST_AUTO(Aval, matrix_values(A));
+
+#pragma omp parallel for schedule(dynamic, 1024)
+            for(index_t i = 0; i < n; i++) {
+                value_t buf = rhs[i];
+                for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
+                    buf -= Aval[j] * x[Acol[j]];
+                tmp[i] = buf;
+            }
+
+#pragma omp parallel for schedule(dynamic, 1024)
+            for(index_t i = 0; i < n; ++i) {
+                x[i] += m[i] * tmp[i];
+            }
+        }
+
+        template <class spmat, class vector1, class vector2, class vector3>
+        void apply_post(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
+            apply_pre(A, rhs, x, tmp, prm);
+        }
+
+
+        std::vector<value_t> m;
+    };
+};
+
 struct relax_scheme;
 
 /// Parameters for CPU-based level storage scheme.
@@ -508,21 +571,18 @@ class instance {
 
 };
 
-template <>
-struct cpu<relax::damped_jacobi>::relax_scheme {
-    typedef cpu<relax::damped_jacobi>::damped_jacobi type;
-};
+#define REGISTER_RELAX_METHOD(name) \
+template <> \
+struct cpu<relax::name>::relax_scheme { \
+    typedef cpu<relax::name>::name type; \
+}
 
-template <>
-struct cpu<relax::gauss_seidel>::relax_scheme {
-    typedef cpu<relax::gauss_seidel>::gauss_seidel type;
-};
+REGISTER_RELAX_METHOD(damped_jacobi);
+REGISTER_RELAX_METHOD(gauss_seidel);
+REGISTER_RELAX_METHOD(ilu);
+REGISTER_RELAX_METHOD(spai0);
 
-template <>
-struct cpu<relax::ilu>::relax_scheme {
-    typedef cpu<relax::ilu>::ilu type;
-};
-
+#undef REGISTER_RELAX_METHOD
 
 } // namespace level
 } // namespace amgcl

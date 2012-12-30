@@ -225,7 +225,7 @@ namespace relax {
  */
 enum scheme {
     damped_jacobi, ///< Damped Jacobi.
-    spai,          ///< Sparse approximate inverse.
+    spai0,         ///< SPAI-0 algorithm.
     gauss_seidel,  ///< Gauss-Seidel.
     ilu            ///< Incomplete LU decomposition.
 };

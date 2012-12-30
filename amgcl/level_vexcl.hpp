@@ -47,13 +47,86 @@ namespace level {
  * CPUs).
  * \ingroup levels
  */
+template <relax::scheme Relaxation = relax::damped_jacobi>
 struct vexcl {
+
+struct damped_jacobi {
+    struct params {
+        float damping;
+        params(float w = 0.72) : damping(w) {}
+    };
+
+    template <typename value_t, typename index_t>
+    struct instance {
+        instance() {}
+
+        template <class spmat>
+        instance(const std::vector<cl::CommandQueue> &queue, const spmat &A)
+            : dia(queue, sparse::diagonal(A))
+        {}
+
+        template <class spmat, class vector>
+        void apply(const spmat &A, const vector &rhs, vector &x, vector &tmp, const params &prm) const {
+            tmp = rhs - A * x;
+            x += prm.damping * tmp / dia;
+        }
+
+        vex::vector<value_t> dia;
+    };
+};
+
+struct spai0 {
+    struct params { };
+
+    template <typename value_t, typename index_t>
+    struct instance {
+        instance() {}
+
+        template <class spmat>
+        instance(const std::vector<cl::CommandQueue> &queue, const spmat &A) {
+            const index_t n = sparse::matrix_rows(A);
+
+            BOOST_AUTO(Arow, matrix_outer_index(A));
+            BOOST_AUTO(Acol, matrix_inner_index(A));
+            BOOST_AUTO(Aval, matrix_values(A));
+
+            std::vector<value_t> m(n);
+
+#pragma omp parallel for schedule(dynamic, 1024)
+            for(index_t i = 0; i < n; ++i) {
+                value_t num = 0;
+                value_t den = 0;
+
+                for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
+                    value_t v = Aval[j];
+                    den += v * v;
+                    if (Acol[j] == i) num += v;
+                }
+
+                m[i] = num / den;
+            }
+
+            M.resize(queue, m);
+        }
+
+        template <class spmat, class vector>
+        void apply(const spmat &A, const vector &rhs, vector &x, vector &tmp, const params &prm) const {
+            tmp = rhs - A * x;
+            x += M * tmp;
+        }
+
+        vex::vector<value_t> M;
+    };
+};
+
+struct relax_scheme;
 
 /// Parameters for VexCL-based level storage scheme.
 struct params
     : public amgcl::level::params
 {
     vex::Context *ctx;  ///< VexCL Context for VexCL objects creation.
+    typename relax_scheme::type::params relax;
 
     params() : ctx(0) { }
 };
@@ -75,12 +148,10 @@ class instance {
                       p.rows, p.cols, p.row.data(), p.col.data(), p.val.data()),
               R(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
                           r.rows, r.cols, r.row.data(), r.col.data(), r.val.data()),
-              d(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
               t(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
-              sum(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue())
+              sum(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue()),
+              relax(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a)
         {
-            vex::copy(diagonal(a), d);
-
             if (nlevel) {
                 u.resize(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows);
                 f.resize(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows);
@@ -101,14 +172,11 @@ class instance {
                         a.rows, a.cols, a.row.data(), a.col.data(), a.val.data()),
               Ainv(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
                           ai.rows, ai.cols, ai.row.data(), ai.col.data(), ai.val.data()),
-              d(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
               u(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
               f(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
               t(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
               sum(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue())
         {
-            vex::copy(diagonal(a), d);
-
             a.clear();
             ai.clear();
         }
@@ -116,14 +184,6 @@ class instance {
         // Returns reference to the system matrix
         const matrix& get_matrix() const {
             return A;
-        }
-
-        // Perform one relaxation (smoothing) step.
-        void relax(const vector &rhs, vector &x, const params &prm) const {
-            const index_t n = x.size();
-
-            t = rhs - A * x;
-            x += prm.relax_factor * t / d;
         }
 
         // Compute residual value.
@@ -146,7 +206,8 @@ class instance {
 
             if (pnxt != end) {
                 for(unsigned j = 0; j < prm.ncycle; ++j) {
-                    for(unsigned i = 0; i < prm.npre; ++i) lvl->relax(rhs, x, prm);
+                    for(unsigned i = 0; i < prm.npre; ++i)
+                        lvl->relax.apply(lvl->A, rhs, x, lvl->t, prm.relax);
 
                     lvl->t = rhs - lvl->A * x;
                     nxt->f = lvl->R * lvl->t;
@@ -159,7 +220,8 @@ class instance {
 
                     x += lvl->P * nxt->u;
 
-                    for(unsigned i = 0; i < prm.npost; ++i) lvl->relax(rhs, x, prm);
+                    for(unsigned i = 0; i < prm.npost; ++i)
+                        lvl->relax.apply(lvl->A, rhs, x, lvl->t, prm.relax);
                 }
             } else {
                 x = lvl->Ainv * rhs;
@@ -222,18 +284,29 @@ class instance {
         matrix R;
         matrix Ainv;
 
-        vector d;
-
         vex::Reductor<value_t, vex::SUM> sum;
 
         mutable vector u;
         mutable vector f;
         mutable vector t;
 
+        typename relax_scheme::type::template instance<value_t, index_t> relax;
+
         mutable vex::multivector<value_t,4> cg;
 };
 
 };
+
+#define REGISTER_RELAX_SCHEME(name) \
+template <> \
+struct vexcl<relax::name>::relax_scheme { \
+    typedef vexcl<relax::name>::name type; \
+}
+
+REGISTER_RELAX_SCHEME(damped_jacobi);
+REGISTER_RELAX_SCHEME(spai0);
+
+#undef REGISTER_RELAX_SCHEME
 
 } // namespace level
 } // namespace amgcl
