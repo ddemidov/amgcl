@@ -41,17 +41,7 @@ THE SOFTWARE.
 namespace amgcl {
 namespace level {
 
-/// VexCL-based AMG hierarchy.
-/**
- * Level of an AMG hierarchy for use with VexCL vectors. Uses OpenCL technology
- * for acceleration and is able to run on OpenCL-compatible devices (GPUs or
- * CPUs).
- * \ingroup levels
- */
-template <relax::scheme Relaxation = relax::damped_jacobi>
-struct vexcl {
-
-struct damped_jacobi {
+struct vexcl_damped_jacobi {
     struct params {
         float damping;
         params(float w = 0.72) : damping(w) {}
@@ -76,7 +66,7 @@ struct damped_jacobi {
     };
 };
 
-struct spai0 {
+struct vexcl_spai0 {
     struct params { };
 
     template <typename value_t, typename index_t>
@@ -98,13 +88,29 @@ struct spai0 {
     };
 };
 
-struct relax_scheme;
+template <relax::scheme Relaxation>
+struct vexcl_relax_scheme;
+
+AMGCL_REGISTER_RELAX_SCHEME(vexcl, damped_jacobi);
+AMGCL_REGISTER_RELAX_SCHEME(vexcl, spai0);
+
+/// VexCL-based AMG hierarchy.
+/**
+ * Level of an AMG hierarchy for use with VexCL vectors. Uses OpenCL technology
+ * for acceleration and is able to run on OpenCL-compatible devices (GPUs or
+ * CPUs).
+ * \ingroup levels
+ *
+ * \param Relaxation Relaxation scheme (smoother) to use inside V-cycles.
+ */
+template <relax::scheme Relaxation = relax::damped_jacobi>
+struct vexcl {
 
 /// Parameters for VexCL-based level storage scheme.
 struct params : public amgcl::level::params
 {
     vex::Context *ctx;  ///< VexCL Context for VexCL objects creation.
-    typename relax_scheme::type::params relax;
+    typename vexcl_relax_scheme<Relaxation>::type::params relax;
 
     params() : ctx(0) { }
 };
@@ -268,22 +274,12 @@ class instance {
         mutable vector f;
         mutable vector t;
 
-        typename relax_scheme::type::template instance<value_t, index_t> relax;
+        typename vexcl_relax_scheme<Relaxation>::type::template instance<value_t, index_t> relax;
 
         mutable vex::multivector<value_t,4> cg;
 };
 
 };
-
-#define REGISTER_RELAX_SCHEME(name) \
-template <> struct vexcl<relax::name>::relax_scheme { \
-    typedef name type; \
-}
-
-REGISTER_RELAX_SCHEME(damped_jacobi);
-REGISTER_RELAX_SCHEME(spai0);
-
-#undef REGISTER_RELAX_SCHEME
 
 } // namespace level
 } // namespace amgcl

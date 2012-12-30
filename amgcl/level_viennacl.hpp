@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include <boost/array.hpp>
 #include <boost/typeof/typeof.hpp>
 
+#include <amgcl/common.hpp>
 #include <amgcl/level_params.hpp>
 #include <amgcl/spmat.hpp>
 #include <amgcl/spai.hpp>
@@ -127,15 +128,8 @@ struct viennacl_spai0 {
 template <relax::scheme Relaxation>
 struct viennacl_relax_scheme;
 
-template <>
-struct viennacl_relax_scheme <relax::damped_jacobi> {
-    typedef viennacl_damped_jacobi type;
-};
-
-template <>
-struct viennacl_relax_scheme <relax::spai0> {
-    typedef viennacl_spai0 type;
-};
+AMGCL_REGISTER_RELAX_SCHEME(viennacl, damped_jacobi);
+AMGCL_REGISTER_RELAX_SCHEME(viennacl, spai0);
 
 /// ViennaCL-based AMG hierarchy.
 /**
@@ -144,10 +138,14 @@ struct viennacl_relax_scheme <relax::spai0> {
  * hardware.
  *
  * \param Format Matrix storage format.
+ * \param Relaxation Relaxation scheme (smoother) to use inside V-cycles.
  *
  * \ingroup levels
  */
-template <cl_matrix_format Format = CL_MATRIX_HYB, relax::scheme Relaxation = relax::damped_jacobi>
+template <
+    cl_matrix_format Format = CL_MATRIX_HYB,
+    relax::scheme Relaxation = relax::damped_jacobi
+    >
 struct viennacl {
 
 /// Parameters for CPU-based level storage scheme.

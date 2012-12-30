@@ -55,6 +55,11 @@ struct bicg_tag {
 
 template <class T, class Enable = void> struct value_type;
 
+#define AMGCL_REGISTER_RELAX_SCHEME(level, name) \
+template <> struct level ## _relax_scheme<relax::name> { \
+    typedef level ## _ ## name type; \
+}
+
 } // namespace amgcl
 
 #endif

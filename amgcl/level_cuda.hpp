@@ -466,24 +466,20 @@ struct cuda_spai0 {
 template <relax::scheme Relaxation>
 struct cuda_relax_scheme;
 
-template <>
-struct cuda_relax_scheme <relax::damped_jacobi> {
-    typedef cuda_damped_jacobi type;
-};
-
-template <>
-struct cuda_relax_scheme <relax::spai0> {
-    typedef cuda_spai0 type;
-};
+AMGCL_REGISTER_RELAX_SCHEME(cuda, damped_jacobi);
+AMGCL_REGISTER_RELAX_SCHEME(cuda, spai0);
 
 /// Thrust/CUSPARSE based AMG hierarchy.
 /**
  * Level of an AMG hierarchy for use with Thrust/CUSPARSE data structures. Uses
  * NVIDIA CUDA technology for acceleration.
  * \ingroup levels
+ *
+ * \param Format Matrix storage format to use on each level.
+ * \param Relaxation Relaxation scheme (smoother) to use inside V-cycles.
  */
 template <
-    sparse::cuda_matrix_format format = sparse::CUDA_MATRIX_HYB,
+    sparse::cuda_matrix_format Format = sparse::CUDA_MATRIX_HYB,
     relax::scheme Relaxation = relax::damped_jacobi
     >
 struct cuda {
@@ -504,7 +500,7 @@ template <typename value_t, typename index_t = long long>
 class instance {
     public:
         typedef sparse::matrix<value_t, index_t> cpu_matrix;
-        typedef sparse::cuda_matrix<value_t, format> matrix;
+        typedef sparse::cuda_matrix<value_t, Format> matrix;
 
         instance(cpu_matrix &a, cpu_matrix &p, cpu_matrix &r, const params &prm, unsigned nlevel)
             : A(a), P(p), R(r), t(a.rows), relax(a)
@@ -637,10 +633,10 @@ class instance {
             return A.nonzeros();
         }
     private:
-        sparse::cuda_matrix<value_t, format> A;
-        sparse::cuda_matrix<value_t, format> P;
-        sparse::cuda_matrix<value_t, format> R;
-        sparse::cuda_matrix<value_t, format> Ainv;
+        sparse::cuda_matrix<value_t, Format> A;
+        sparse::cuda_matrix<value_t, Format> P;
+        sparse::cuda_matrix<value_t, Format> R;
+        sparse::cuda_matrix<value_t, Format> Ainv;
 
         mutable boost::array<thrust::device_vector<value_t>, 4> cg;
 
@@ -672,9 +668,9 @@ class instance {
  *
  * \ingroup iterative
  */
-template <class value_t, sparse::cuda_matrix_format format, class precond>
+template <class value_t, sparse::cuda_matrix_format Format, class precond>
 std::pair< int, value_t > solve(
-        const sparse::cuda_matrix<value_t, format> &A,
+        const sparse::cuda_matrix<value_t, Format> &A,
         const thrust::device_vector<value_t> &rhs,
         const precond &P,
         thrust::device_vector<value_t> &x,
@@ -690,7 +686,7 @@ std::pair< int, value_t > solve(
     A.mul(-1, x, 1, r);
 
     value_t rho1 = 0, rho2 = 0;
-    value_t norm_of_rhs = level::cuda<format>::norm(rhs);
+    value_t norm_of_rhs = level::cuda<Format>::norm(rhs);
 
     if (norm_of_rhs == 0) {
         thrust::fill(x.begin(), x.end(), zero);
@@ -701,7 +697,7 @@ std::pair< int, value_t > solve(
     value_t res;
     for(
             iter = 0;
-            (res = level::cuda<format>::norm(r) / norm_of_rhs) > prm.tol && iter < prm.maxiter;
+            (res = level::cuda<Format>::norm(r) / norm_of_rhs) > prm.tol && iter < prm.maxiter;
             ++iter
        )
     {
@@ -729,7 +725,6 @@ std::pair< int, value_t > solve(
 
     return std::make_pair(iter, res);
 }
-
 
 } // namespace amgcl
 

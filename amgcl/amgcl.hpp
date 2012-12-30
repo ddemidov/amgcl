@@ -103,7 +103,7 @@ int main() {
     // No data is copied here:
     auto A = amgcl::sparse::map(size, size, row.data(), col.data(), val.data());
 
-    // The AMG builder type:
+    // The AMG builder type. Note the use of damped Jacobi relaxation (smoothing) on each level.
     typedef amgcl::solver<
         double, int,
         amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,

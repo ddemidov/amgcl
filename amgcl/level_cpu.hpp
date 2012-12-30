@@ -36,6 +36,7 @@ THE SOFTWARE.
 #include <boost/array.hpp>
 #include <boost/typeof/typeof.hpp>
 
+#include <amgcl/common.hpp>
 #include <amgcl/level_params.hpp>
 #include <amgcl/spmat.hpp>
 #include <amgcl/spai.hpp>
@@ -47,18 +48,7 @@ namespace level {
 
 /** \defgroup levels Level storage backends */
 
-/// CPU-based AMG hierarchy.
-/**
- * Level of an AMG hierarchy for use with arrays located in main (CPU) memory.
- * Employs OpenMP parallelization.
- * \ingroup levels
- *
- * \param Relaxation Relaxation scheme (smoother) to use inside V-cycles.
- */
-template <relax::scheme Relaxation = relax::damped_jacobi>
-struct cpu {
-
-struct damped_jacobi {
+struct cpu_damped_jacobi {
     struct params {
         float damping;
         params(float w = 0.72) : damping(w) {}
@@ -117,7 +107,7 @@ struct damped_jacobi {
     };
 };
 
-struct gauss_seidel {
+struct cpu_gauss_seidel {
     struct params { };
 
     template <typename value_t, typename index_t>
@@ -170,7 +160,7 @@ struct gauss_seidel {
     };
 };
 
-struct ilu {
+struct cpu_ilu {
     struct params {
         float damping;
         params(float w = 0.72) : damping(w) {}
@@ -274,7 +264,7 @@ struct ilu {
     };
 };
 
-struct spai0 {
+struct cpu_spai0 {
     struct params { };
 
     template <typename value_t, typename index_t>
@@ -316,13 +306,30 @@ struct spai0 {
     };
 };
 
-struct relax_scheme;
+template <relax::scheme Relaxation>
+struct cpu_relax_scheme;
+
+AMGCL_REGISTER_RELAX_SCHEME(cpu, damped_jacobi);
+AMGCL_REGISTER_RELAX_SCHEME(cpu, gauss_seidel);
+AMGCL_REGISTER_RELAX_SCHEME(cpu, ilu);
+AMGCL_REGISTER_RELAX_SCHEME(cpu, spai0);
+
+/// CPU-based AMG hierarchy.
+/**
+ * Level of an AMG hierarchy for use with arrays located in main (CPU) memory.
+ * Employs OpenMP parallelization.
+ * \ingroup levels
+ *
+ * \param Relaxation Relaxation scheme (smoother) to use inside V-cycles.
+ */
+template <relax::scheme Relaxation = relax::damped_jacobi>
+struct cpu {
 
 /// Parameters for CPU-based level storage scheme.
 struct params
     : public amgcl::level::params
 {
-    typename relax_scheme::type::params relax;
+    typename cpu_relax_scheme<Relaxation>::type::params relax;
 };
 
 template <typename value_t, typename index_t>
@@ -538,11 +545,11 @@ class instance {
 
         matrix Ai;
 
-        typename relax_scheme::type::template instance<value_t, index_t> relax;
-
         mutable std::vector<value_t> u;
         mutable std::vector<value_t> f;
         mutable std::vector<value_t> t;
+
+        typename cpu_relax_scheme<Relaxation>::type::template instance<value_t, index_t> relax;
 
         mutable boost::array<std::vector<value_t>, 4> cg;
 
@@ -561,18 +568,6 @@ class instance {
 };
 
 };
-
-#define REGISTER_RELAX_SCHEME(name) \
-template <> struct cpu<relax::name>::relax_scheme { \
-    typedef name type; \
-}
-
-REGISTER_RELAX_SCHEME(damped_jacobi);
-REGISTER_RELAX_SCHEME(gauss_seidel);
-REGISTER_RELAX_SCHEME(ilu);
-REGISTER_RELAX_SCHEME(spai0);
-
-#undef REGISTER_RELAX_SCHEME
 
 } // namespace level
 } // namespace amgcl
