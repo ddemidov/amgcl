@@ -133,6 +133,11 @@ struct matrix {
         rows(rows), cols(cols), row(rows + 1), col(nnz), val(nnz)
     {}
 
+    /// Resizes matrix.
+    void resize(index_t rows, index_t cols, index_t nnz = 0) {
+        matrix(rows, cols, nnz).swap(*this);
+    }
+
     /// Copy constructor.
     matrix(const matrix &A) :
         rows(A.rows),

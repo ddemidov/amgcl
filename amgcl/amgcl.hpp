@@ -391,12 +391,10 @@ class solver {
                 TIC("construct level");
 
                 TIC("interp");
-                matrix P = interp_t::interp(A, prm.interp);
+                BOOST_AUTO(PR, interp_t::interp(A, prm.interp));
+                matrix &P = PR.first;
+                matrix &R = PR.second;
                 TOC("interp");
-
-                TIC("transp");
-                matrix R = sparse::transpose(P);
-                TOC("transp");
 
                 TIC("coarse operator");
                 matrix a = interp::coarse_operator<interp_t>::type::apply(

@@ -98,10 +98,11 @@ class classic {
          * \returns interpolation operator.
          */
         template < class value_t, class index_t >
-        static sparse::matrix<value_t, index_t> interp(
-                const sparse::matrix<value_t, index_t> &A, const params &prm
-                )
-        {
+        static std::pair<
+            sparse::matrix<value_t, index_t>,
+            sparse::matrix<value_t, index_t>
+            >
+        interp(const sparse::matrix<value_t, index_t> &A, const params &prm) {
             const index_t n = sparse::matrix_rows(A);
 
             std::vector<char> cf(n, 'U');
@@ -125,7 +126,15 @@ class classic {
             BOOST_AUTO(Acol, sparse::matrix_inner_index(A));
             BOOST_AUTO(Aval, sparse::matrix_values(A));
 
-            sparse::matrix<value_t, index_t> P(n, nc);
+            std::pair<
+                sparse::matrix<value_t, index_t>,
+                sparse::matrix<value_t, index_t>
+            > PR;
+
+            sparse::matrix<value_t, index_t> &P = PR.first;
+            sparse::matrix<value_t, index_t> &R = PR.second;
+
+            P.resize(n, nc);
             std::fill(P.row.begin(), P.row.end(), static_cast<index_t>(0));
 
             std::vector<value_t> Amin, Amax;
@@ -238,7 +247,8 @@ class classic {
             }
             TOC("interpolation");
 
-            return P;
+            sparse::transpose(P).swap(R);
+            return PR;
         }
 
     private:

@@ -89,10 +89,11 @@ struct params {
  * \returns interpolation operator.
  */
 template < class value_t, class index_t >
-static sparse::matrix<value_t, index_t> interp(
-        const sparse::matrix<value_t, index_t> &A, const params &prm
-        )
-{
+static std::pair<
+    sparse::matrix<value_t, index_t>,
+    sparse::matrix<value_t, index_t>
+    >
+interp(const sparse::matrix<value_t, index_t> &A, const params &prm) {
     const index_t n = sparse::matrix_rows(A);
 
     TIC("aggregates");
@@ -105,8 +106,15 @@ static sparse::matrix<value_t, index_t> interp(
             );
 
     TIC("interpolation");
-    sparse::matrix<value_t, index_t> P(n, nc);
+    static std::pair<
+        sparse::matrix<value_t, index_t>,
+        sparse::matrix<value_t, index_t>
+    > PR;
 
+    sparse::matrix<value_t, index_t> &P = PR.first;
+    sparse::matrix<value_t, index_t> &R = PR.second;
+
+    P.resize(n, nc);
     P.col.reserve(n);
     P.val.reserve(n);
 
@@ -122,7 +130,8 @@ static sparse::matrix<value_t, index_t> interp(
     }
     TOC("interpolation");
 
-    return P;
+    sparse::transpose(P).swap(R);
+    return PR;
 }
 
 };

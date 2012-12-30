@@ -104,10 +104,11 @@ struct params {
  * \returns interpolation operator.
  */
 template < class value_t, class index_t >
-static sparse::matrix<value_t, index_t> interp(
-        const sparse::matrix<value_t, index_t> &A, const params &prm
-        )
-{
+static std::pair<
+    sparse::matrix<value_t, index_t>,
+    sparse::matrix<value_t, index_t>
+    >
+interp(const sparse::matrix<value_t, index_t> &A, const params &prm) {
     const index_t n = sparse::matrix_rows(A);
 
     BOOST_AUTO(S, aggr::connect(A, prm.eps_strong));
@@ -123,7 +124,15 @@ static sparse::matrix<value_t, index_t> interp(
             );
 
     TIC("interpolation");
-    sparse::matrix<value_t, index_t> P(n, nc);
+    std::pair<
+        sparse::matrix<value_t, index_t>,
+        sparse::matrix<value_t, index_t>
+        > PR;
+
+    sparse::matrix<value_t, index_t> &P = PR.first;
+    sparse::matrix<value_t, index_t> &R = PR.second;
+
+    P.resize(n, nc);
     std::fill(P.row.begin(), P.row.end(), static_cast<index_t>(0));
 
     BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
@@ -213,7 +222,8 @@ static sparse::matrix<value_t, index_t> interp(
     }
     TOC("interpolation");
 
-    return P;
+    sparse::transpose(P).swap(R);
+    return PR;
 }
 
 };
