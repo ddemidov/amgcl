@@ -64,9 +64,9 @@ int main(int argc, char *argv[]) {
         real, int,
         amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
 #if defined(VIENNACL_WITH_OPENCL) || defined(VIENNACL_WITH_CUDA)
-        amgcl::level::viennacl<amgcl::level::CL_MATRIX_HYB>
+        amgcl::level::viennacl<amgcl::GPU_MATRIX_HYB>
 #else
-        amgcl::level::viennacl<amgcl::level::CL_MATRIX_CRS>
+        amgcl::level::viennacl<amgcl::GPU_MATRIX_CRS>
 #endif
         > AMG;
 

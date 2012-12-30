@@ -51,28 +51,21 @@ THE SOFTWARE.
 namespace amgcl {
 namespace level {
 
-/// Possible matrix storage formats.
-enum cl_matrix_format {
-    CL_MATRIX_CRS, ///< Compressed matrix. Fastest construction, slowest operation (on a GPU). Best suited for CPU compute devices.
-    CL_MATRIX_ELL, ///< ELL format. Ideal for matrices with constant number of nonzeros per row on GPU compute devices.
-    CL_MATRIX_HYB  ///< Hybrid ELL format. Best choice for general matrices on GPU compute devices.
-};
-
-template <cl_matrix_format Format, typename value_type>
+template <gpu_matrix_format Format, typename value_type>
 struct matrix_format;
 
 template <typename value_type>
-struct matrix_format<CL_MATRIX_CRS, value_type> {
+struct matrix_format<GPU_MATRIX_CRS, value_type> {
     typedef viennacl::compressed_matrix<value_type> type;
 };
 
 template <typename value_type>
-struct matrix_format<CL_MATRIX_ELL, value_type> {
+struct matrix_format<GPU_MATRIX_ELL, value_type> {
     typedef viennacl::ell_matrix<value_type> type;
 };
 
 template <typename value_type>
-struct matrix_format<CL_MATRIX_HYB, value_type> {
+struct matrix_format<GPU_MATRIX_HYB, value_type> {
     typedef viennacl::hyb_matrix<value_type> type;
 };
 
@@ -138,13 +131,13 @@ AMGCL_REGISTER_RELAX_SCHEME(viennacl, spai0);
  * hardware.
  * \ingroup levels
  *
- * \param Format Matrix storage \ref cl_matrix_format "format" to use on each
+ * \param Format Matrix storage \ref gpu_matrix_format "format" to use on each
  *               level.
  * \param Relaxation Relaxation \ref relax::scheme "scheme" (smoother) to use
  *               inside V-cycles.
  */
 template <
-    cl_matrix_format Format = CL_MATRIX_HYB,
+    gpu_matrix_format Format = GPU_MATRIX_HYB,
     relax::scheme Relaxation = relax::damped_jacobi
     >
 struct viennacl {

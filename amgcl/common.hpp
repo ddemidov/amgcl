@@ -55,6 +55,13 @@ struct bicg_tag {
 
 template <class T, class Enable = void> struct value_type;
 
+/// Possible matrix storage formats for GPGPU backends.
+enum gpu_matrix_format {
+    GPU_MATRIX_CRS, ///< Compressed matrix. Fastest construction, slowest operation (on a GPU). Best suited for CPU compute devices.
+    GPU_MATRIX_ELL, ///< ELL format. Ideal for matrices with constant number of nonzeros per row on GPU compute devices.
+    GPU_MATRIX_HYB  ///< Hybrid ELL format. Best choice for general matrices on GPU compute devices.
+};
+
 /**
  * \defgroup relax_vs_backend Relaxation scheme support
  * \brief Relaxation schemes supported by each backend.

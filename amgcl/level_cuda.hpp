@@ -52,19 +52,13 @@ namespace amgcl {
 
 namespace sparse {
 
-/// Possible matrix storage formats.
-enum cuda_matrix_format {
-    CUDA_MATRIX_CRS, ///< Compressed matrix. Fastest construction, slowest operation (on a GPU). Best suited for CPU compute devices.
-    CUDA_MATRIX_HYB  ///< Hybrid ELL format. Best choice for general matrices on GPU compute devices.
-};
-
 /// Wrapper around CUSPARSE matrix
-template <typename value_type, cuda_matrix_format>
+template <typename value_type, gpu_matrix_format>
 class cuda_matrix;
 
 /// Wrapper around CUSPARSE matrix in Hybrid format
 template <typename value_type>
-class cuda_matrix<value_type, CUDA_MATRIX_HYB> {
+class cuda_matrix<value_type, GPU_MATRIX_HYB> {
     public:
         /// Empty constructor.
         cuda_matrix() : rows(0), cols(0), nnz(0), desc(0), mat(0) {}
@@ -225,7 +219,7 @@ class cuda_matrix<value_type, CUDA_MATRIX_HYB> {
 
 /// Wrapper around CUSPARSE matrix in CRS format
 template <typename value_type>
-class cuda_matrix<value_type, CUDA_MATRIX_CRS> {
+class cuda_matrix<value_type, GPU_MATRIX_CRS> {
     public:
         /// Empty constructor.
         cuda_matrix() : rows(0), cols(0), nnz(0), desc(0) {}
@@ -349,10 +343,10 @@ class cuda_matrix<value_type, CUDA_MATRIX_CRS> {
 
 
 template <typename value_type>
-cusparseHandle_t cuda_matrix<value_type, CUDA_MATRIX_HYB>::cusp_handle = 0;
+cusparseHandle_t cuda_matrix<value_type, GPU_MATRIX_HYB>::cusp_handle = 0;
 
 template <typename value_type>
-cusparseHandle_t cuda_matrix<value_type, CUDA_MATRIX_CRS>::cusp_handle = 0;
+cusparseHandle_t cuda_matrix<value_type, GPU_MATRIX_CRS>::cusp_handle = 0;
 
 } // namespace sparse
 
@@ -475,13 +469,13 @@ AMGCL_REGISTER_RELAX_SCHEME(cuda, spai0);
  * NVIDIA CUDA technology for acceleration.
  * \ingroup levels
  *
- * \param Format Matrix storage \ref sparse::cuda_matrix_format "format" to use
+ * \param Format Matrix storage \ref gpu_matrix_format "format" to use
  *               on each level.
  * \param Relaxation Relaxation \ref relax::scheme "scheme" (smoother) to use
  *               inside V-cycles.
  */
 template <
-    sparse::cuda_matrix_format Format = sparse::CUDA_MATRIX_HYB,
+    gpu_matrix_format Format = GPU_MATRIX_HYB,
     relax::scheme Relaxation = relax::damped_jacobi
     >
 struct cuda {
@@ -670,7 +664,7 @@ class instance {
  *
  * \ingroup iterative
  */
-template <class value_t, sparse::cuda_matrix_format Format, class precond>
+template <class value_t, gpu_matrix_format Format, class precond>
 std::pair< int, value_t > solve(
         const sparse::cuda_matrix<value_t, Format> &A,
         const thrust::device_vector<value_t> &rhs,
