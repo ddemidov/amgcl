@@ -140,10 +140,8 @@ struct aggregated_operator {
         BOOST_AUTO(a, sparse::prod(sparse::prod(R, A), P));
 
         if (prm.over_interp > 1.0f)
-            std::transform(a.val.begin(), a.val.end(), a.val.begin(),
-                    [&prm](value_t v) {
-                        return v / prm.over_interp;
-                    });
+            for(BOOST_AUTO(v, a.val.begin()); v != a.val.end(); ++v)
+                *v /= prm.over_interp;
 
         return a;
     }
