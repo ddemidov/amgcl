@@ -107,7 +107,7 @@ int main() {
     typedef amgcl::solver<
         double, int,
         amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
-        amgcl::level::vexcl
+        amgcl::level::vexcl<amgcl::relax::damped_jacobi>
     > AMG;
 
     // The parameters. Most of the parameters have some reasonable defaults.

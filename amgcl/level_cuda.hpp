@@ -475,8 +475,10 @@ AMGCL_REGISTER_RELAX_SCHEME(cuda, spai0);
  * NVIDIA CUDA technology for acceleration.
  * \ingroup levels
  *
- * \param Format Matrix storage format to use on each level.
- * \param Relaxation Relaxation scheme (smoother) to use inside V-cycles.
+ * \param Format Matrix storage \ref sparse::cuda_matrix_format "format" to use
+ *               on each level.
+ * \param Relaxation Relaxation \ref relax::scheme "scheme" (smoother) to use
+ *               inside V-cycles.
  */
 template <
     sparse::cuda_matrix_format Format = sparse::CUDA_MATRIX_HYB,

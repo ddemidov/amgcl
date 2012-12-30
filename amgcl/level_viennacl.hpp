@@ -136,11 +136,12 @@ AMGCL_REGISTER_RELAX_SCHEME(viennacl, spai0);
  * Level of an AMG hierarchy for use with ViennaCL vectors. ViennaCL provides
  * several backends (OpenCL, CUDA, OpenMP) and is thus able to run on various
  * hardware.
- *
- * \param Format Matrix storage format.
- * \param Relaxation Relaxation scheme (smoother) to use inside V-cycles.
- *
  * \ingroup levels
+ *
+ * \param Format Matrix storage \ref cl_matrix_format "format" to use on each
+ *               level.
+ * \param Relaxation Relaxation \ref relax::scheme "scheme" (smoother) to use
+ *               inside V-cycles.
  */
 template <
     cl_matrix_format Format = CL_MATRIX_HYB,

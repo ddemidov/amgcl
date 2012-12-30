@@ -320,7 +320,8 @@ AMGCL_REGISTER_RELAX_SCHEME(cpu, spai0);
  * Employs OpenMP parallelization.
  * \ingroup levels
  *
- * \param Relaxation Relaxation scheme (smoother) to use inside V-cycles.
+ * \param Relaxation Relaxation \ref relax::scheme "scheme" (smoother) to use
+ *                   inside V-cycles.
  */
 template <relax::scheme Relaxation = relax::damped_jacobi>
 struct cpu {
