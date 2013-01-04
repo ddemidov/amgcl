@@ -78,7 +78,7 @@ struct params {
     params() : over_interp(1.5f), eps_strong(0.1f) {}
 };
 
-/// Constructs coarse level by agregation.
+/// Constructs coarse level by aggregation.
 /**
  * Returns interpolation operator, which is enough to construct system matrix
  * at coarser level.

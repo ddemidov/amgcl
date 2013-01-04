@@ -28,7 +28,7 @@ THE SOFTWARE.
 /**
  * \file   interp_smoothed_aggr.hpp
  * \author Denis Demidov <ddemidov@ksu.ru>
- * \brief  Smoothed aggregates-based interpolation scheme.
+ * \brief  Interpolation scheme based on smoothed aggregation.
  */
 
 #include <vector>
@@ -44,7 +44,7 @@ namespace amgcl {
 
 namespace interp {
 
-/// Smoothed aggregation-based interpolation scheme.
+/// Interpolation scheme based on smoothed aggregation.
 /**
  * See \ref Vanek_1996 "Vanek (1996)"
  *
@@ -93,7 +93,7 @@ struct params {
     params() : relax(2.0f / 3.0f), eps_strong(0.08f) {}
 };
 
-/// Constructs coarse level by agregation.
+/// Constructs coarse level by aggregation.
 /**
  * Returns interpolation operator, which is enough to construct system matrix
  * at coarser level.
