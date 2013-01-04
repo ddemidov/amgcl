@@ -6,7 +6,7 @@
 #include <Eigen/SparseCore>
 
 #include <amgcl/amgcl.hpp>
-#include <amgcl/interp_smoothed_aggr.hpp>
+#include <amgcl/interp_sa_emin.hpp>
 #include <amgcl/aggr_plain.hpp>
 #include <amgcl/level_cpu.hpp>
 #include <amgcl/operations_eigen.hpp>
@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     // Build the preconditioner:
     typedef amgcl::solver<
         real, int,
-        amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
+        amgcl::interp::sa_emin<amgcl::aggr::plain>,
         amgcl::level::cpu<amgcl::relax::damped_jacobi>
         > AMG;
 

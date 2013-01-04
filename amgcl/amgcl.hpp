@@ -172,6 +172,9 @@ include files.
  -# \anchor spai_2002 <em>O. Broeker, M. Grote,</em> Sparse approximate inverse
     smoothers for geometric and algebraic multigrid, Applied Numerical
     Mathematics, Volume 41, Issue 1, April 2002, Pages 61–80.
+ -# \anchor Sala_2008 <em>M. Sala, R. Tuminaro,</em> A new Petrov-Galerkin
+    smoothed aggregation preconditioner for nonsymmetric linear systems.
+    SIAM J. Sci. Comput. 2008, Vol. 31, No.1, pp. 143-166.
 */
 
 #include <iostream>
