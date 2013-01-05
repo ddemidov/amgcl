@@ -99,23 +99,8 @@ interp(const sparse::matrix<value_t, index_t> &A, const params &prm) {
             *std::max_element(aggr.begin(), aggr.end()) + static_cast<index_t>(1)
             );
 
-    TIC("tentative interpolation");
-    sparse::matrix<value_t, index_t> P_tent(n, nc);
-    P_tent.col.reserve(n);
-    P_tent.val.reserve(n);
-
-    P_tent.row[0] = 0;
-    for(index_t i = 0; i < n; ++i) {
-        if (aggr[i] >= 0) {
-            P_tent.row[i + 1] = P_tent.row[i] + 1;
-            P_tent.col.push_back(aggr[i]);
-            P_tent.val.push_back(static_cast<value_t>(1));
-        } else {
-            P_tent.row[i + 1] = P_tent.row[i];
-        }
-    }
-    BOOST_AUTO(R_tent, sparse::transpose(P_tent));
-    TOC("tentative interpolation");
+    BOOST_AUTO(Dinv, sparse::diagonal(A));
+    for(index_t i = 0; i < n; ++i) Dinv[i] = 1 / Dinv[i];
 
     // Compute smoothed nterpolation and restriction operators.
     static std::pair<
@@ -124,12 +109,12 @@ interp(const sparse::matrix<value_t, index_t> &A, const params &prm) {
     > PR;
 
     TIC("smoothed interpolation");
-    improve_tentative_interp(A, P_tent, aggr).swap(PR.first);
+    improve_tentative_interp(A, Dinv, aggr, nc).swap(PR.first);
     TOC("smoothed interpolation");
 
     TIC("smoothed restriction");
     sparse::transpose(
-            improve_tentative_interp(sparse::transpose(A), P_tent, aggr)
+            improve_tentative_interp(sparse::transpose(A), Dinv, aggr, nc)
             ).swap(PR.second);
     TOC("smoothed restriction");
 
@@ -207,22 +192,59 @@ colwise_norm(const spmat &A) {
     return sum;
 }
 
-template <class spmat>
-static spmat improve_tentative_interp(const spmat &A, const spmat &P_tent,
-        const std::vector<typename sparse::matrix_index<spmat>::type> &aggr)
+template <typename value_t, typename index_t>
+static sparse::matrix<value_t, index_t>
+improve_tentative_interp(const sparse::matrix<value_t, index_t> &A,
+        const std::vector<value_t> &Dinv, const std::vector<index_t> &aggr,
+        index_t nc)
 {
-    typedef typename sparse::matrix_value<spmat>::type value_t;
-    typedef typename sparse::matrix_index<spmat>::type index_t;
-
     const index_t n = sparse::matrix_rows(A);
-    const index_t m = sparse::matrix_cols(P_tent);
 
-    BOOST_AUTO(D, sparse::diagonal(A));
-    BOOST_AUTO(AP, sparse::prod(A, P_tent));
+    sparse::matrix<value_t, index_t> AP(n, nc);
+
+    // Compute A * P_tent product. P_tent is stored implicitly in aggr.
+    // 1. Structure of the product result:
+    std::vector<index_t> marker(nc, static_cast<index_t>(-1));
+    std::fill(AP.row.begin(), AP.row.end(), static_cast<index_t>(0));
+    for(index_t i = 0; i < n; ++i) {
+        for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
+            index_t g = aggr[A.col[j]];
+            if (g < 0) continue;
+
+            if (marker[g] != i) {
+                marker[g] = i;
+                ++AP.row[i + 1];
+            }
+        }
+    }
+
+    std::partial_sum(AP.row.begin(), AP.row.end(), AP.row.begin());
+    std::fill(marker.begin(), marker.end(), static_cast<index_t>(-1));
+
+    AP.reserve(AP.row.back());
+
+    // 2. Compute the product result.
+    for(index_t i = 0; i < n; ++i) {
+        index_t row_beg = AP.row[i];
+        index_t row_end = row_beg;
+        for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
+            index_t g = aggr[A.col[j]];
+            if (g < 0) continue;
+
+            if (marker[g] < row_beg) {
+                marker[g] = row_end;
+                AP.col[row_end] = g;
+                AP.val[row_end] = A.val[j];
+                ++row_end;
+            } else {
+                AP.val[marker[g]] += A.val[j];
+            }
+        }
+    }
+
     BOOST_AUTO(DAP, AP);
     for(index_t i = 0; i < n; ++i) {
-        value_t dinv = 1 / D[i];
-        D[i] = dinv;
+        value_t dinv = Dinv[i];
         for(index_t j = DAP.row[i], e = DAP.row[i + 1]; j < e; ++j)
             DAP.val[j] *= dinv;
     }
@@ -234,7 +256,7 @@ static spmat improve_tentative_interp(const spmat &A, const spmat &P_tent,
     BOOST_AUTO(num, colwise_inner_prod(AP, ADAP));
     BOOST_AUTO(den, colwise_norm(ADAP));
 
-    std::vector<value_t> omega(m);
+    std::vector<value_t> omega(nc);
     std::transform(num.begin(), num.end(), den.begin(), omega.begin(),
             std::divides<value_t>());
 
