@@ -123,10 +123,15 @@ interp(const sparse::matrix<value_t, index_t> &A, const params &prm) {
         sparse::matrix<value_t, index_t>
     > PR;
 
+    TIC("smoothed interpolation");
     improve_tentative_interp(A, P_tent, aggr).swap(PR.first);
+    TOC("smoothed interpolation");
+
+    TIC("smoothed restriction");
     sparse::transpose(
             improve_tentative_interp(sparse::transpose(A), P_tent, aggr)
             ).swap(PR.second);
+    TOC("smoothed restriction");
 
     return PR;
 }
@@ -212,7 +217,6 @@ static spmat improve_tentative_interp(const spmat &A, const spmat &P_tent,
     const index_t n = sparse::matrix_rows(A);
     const index_t m = sparse::matrix_cols(P_tent);
 
-    TIC("local damping");
     BOOST_AUTO(D, sparse::diagonal(A));
     BOOST_AUTO(AP, sparse::prod(A, P_tent));
     BOOST_AUTO(DAP, AP);
@@ -233,7 +237,6 @@ static spmat improve_tentative_interp(const spmat &A, const spmat &P_tent,
     std::vector<value_t> omega(m);
     std::transform(num.begin(), num.end(), den.begin(), omega.begin(),
             std::divides<value_t>());
-    TOC("local damping");
 
     // Update DAP to obtain P.
     for(index_t i = 0; i < n; ++i) {
