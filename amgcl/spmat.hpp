@@ -260,7 +260,7 @@ transpose(const spmat &A) {
         }
     }
 
-    std::copy(T.row.rbegin() + 1, T.row.rend(), T.row.rbegin());
+    std::rotate(T.row.begin(), T.row.end() - 1, T.row.end());
     T.row[0] = 0;
 
     return T;
