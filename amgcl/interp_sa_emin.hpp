@@ -108,14 +108,14 @@ interp(const sparse::matrix<value_t, index_t> &A, const params &prm) {
         sparse::matrix<value_t, index_t>
     > PR;
 
+    std::vector<value_t> omega;
+
     TIC("smoothed interpolation");
-    improve_tentative_interp(A, Dinv, aggr, nc).swap(PR.first);
+    smoothed_interpolation(A, Dinv, aggr, nc, omega).swap(PR.first);
     TOC("smoothed interpolation");
 
     TIC("smoothed restriction");
-    sparse::transpose(
-            improve_tentative_interp(sparse::transpose(A), Dinv, aggr, nc)
-            ).swap(PR.second);
+    smoothed_restriction(A, Dinv, aggr, nc, omega).swap(PR.second);
     TOC("smoothed restriction");
 
     return PR;
@@ -194,9 +194,9 @@ colwise_norm(const spmat &A) {
 
 template <typename value_t, typename index_t>
 static sparse::matrix<value_t, index_t>
-improve_tentative_interp(const sparse::matrix<value_t, index_t> &A,
+smoothed_interpolation(const sparse::matrix<value_t, index_t> &A,
         const std::vector<value_t> &Dinv, const std::vector<index_t> &aggr,
-        index_t nc)
+        index_t nc, std::vector<value_t> &omega)
 {
     const index_t n = sparse::matrix_rows(A);
 
@@ -226,8 +226,7 @@ improve_tentative_interp(const sparse::matrix<value_t, index_t> &A,
         // 1. Structure of the product result:
         for(index_t i = chunk_start; i < chunk_end; ++i) {
             for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
-                index_t g = aggr[A.col[j]];
-                if (g < 0) continue;
+                index_t g = aggr[A.col[j]]; if (g < 0) continue;
 
                 if (marker[g] != i) {
                     marker[g] = i;
@@ -250,8 +249,7 @@ improve_tentative_interp(const sparse::matrix<value_t, index_t> &A,
             index_t row_beg = AP.row[i];
             index_t row_end = row_beg;
             for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
-                index_t g = aggr[A.col[j]];
-                if (g < 0) continue;
+                index_t g = aggr[A.col[j]]; if (g < 0) continue;
 
                 if (marker[g] < row_beg) {
                     marker[g] = row_end;
@@ -321,7 +319,7 @@ improve_tentative_interp(const sparse::matrix<value_t, index_t> &A,
     sparse::sort_rows(AP);
     sparse::sort_rows(ADAP);
 
-    std::vector<value_t> omega, denum;
+    std::vector<value_t> denum;
 
 #pragma omp parallel sections
     {
@@ -350,6 +348,111 @@ improve_tentative_interp(const sparse::matrix<value_t, index_t> &A,
     }
 
     return AP;
+}
+
+template <typename value_t, typename index_t>
+static sparse::matrix<value_t, index_t>
+smoothed_restriction(const sparse::matrix<value_t, index_t> &A,
+        const std::vector<value_t> &Dinv, const std::vector<index_t> &aggr,
+        index_t nc, const std::vector<value_t> &omega)
+{
+    const index_t n = sparse::matrix_rows(A);
+
+    // Get structure of R_tent from aggr
+    std::vector<index_t> R_tent_row(nc + 1, static_cast<index_t>(0));
+    for(index_t i = 0; i < n; ++i) {
+        index_t g = aggr[i]; if (g < 0) continue;
+        ++R_tent_row[g + 1];
+    }
+
+    std::partial_sum(R_tent_row.begin(), R_tent_row.end(), R_tent_row.begin());
+    std::vector<index_t> R_tent_col(R_tent_row.back());
+
+    for(index_t i = 0; i < n; ++i) {
+        index_t g = aggr[i]; if (g < 0) continue;
+        R_tent_col[R_tent_row[g]++] = i;
+    }
+
+    std::rotate(R_tent_row.begin(), R_tent_row.end() - 1, R_tent_row.end());
+    R_tent_row[0] = 0;
+
+    sparse::matrix<value_t, index_t> R(nc, n);
+    std::fill(R.row.begin(), R.row.end(), static_cast<index_t>(0));
+
+    // Compute R_tent * A * Dinv.
+#pragma omp parallel
+    {
+#ifdef _OPENMP
+        int nt  = omp_get_num_threads();
+        int tid = omp_get_thread_num();
+
+        index_t chunk_size  = (nc + nt - 1) / nt;
+        index_t chunk_start = tid * chunk_size;
+        index_t chunk_end   = std::min(nc, chunk_start + chunk_size);
+#else
+        index_t chunk_start = 0;
+        index_t chunk_end   = nc;
+#endif
+
+        std::vector<index_t> marker(n, static_cast<index_t>(-1));
+        for(index_t ir = chunk_start; ir < chunk_end; ++ir) {
+            for(index_t jr = R_tent_row[ir], er = R_tent_row[ir + 1]; jr < er; ++jr) {
+                index_t cr = R_tent_col[jr];
+                for(index_t ja = A.row[cr], ea = A.row[cr + 1]; ja < ea; ++ja) {
+                    index_t ca = A.col[ja];
+
+                    if (marker[ca] != ir) {
+                        marker[ca] = ir;
+                        ++R.row[ir + 1];
+                    }
+                }
+            }
+        }
+
+        std::fill(marker.begin(), marker.end(), static_cast<index_t>(-1));
+
+#pragma omp barrier
+#pragma omp single
+        {
+            std::partial_sum(R.row.begin(), R.row.end(), R.row.begin());
+            R.reserve(R.row.back());
+        }
+
+        for(index_t ir = chunk_start; ir < chunk_end; ++ir) {
+            index_t row_beg = R.row[ir];
+            index_t row_end = row_beg;
+
+            for(index_t jr = R_tent_row[ir], er = R_tent_row[ir + 1]; jr < er; ++jr) {
+                index_t cr = R_tent_col[jr];
+
+                for(index_t ja = A.row[cr], ea = A.row[cr + 1]; ja < ea; ++ja) {
+                    index_t ca = A.col[ja];
+                    value_t va = A.val[ja] * Dinv[ca];
+
+                    if (marker[ca] < row_beg) {
+                        marker[ca] = row_end;
+                        R.col[row_end] = ca;
+                        R.val[row_end] = va;
+                        ++row_end;
+                    } else {
+                        R.val[marker[ca]] += va;
+                    }
+                }
+            }
+        }
+    }
+
+    // Update R.
+    for(index_t i = 0; i < nc; ++i) {
+        value_t om = omega[i];
+        for(index_t j = R.row[i], e = R.row[i + 1]; j < e; ++j) {
+            index_t c = R.col[j];
+            R.val[j] *= -om;
+            if (aggr[c] == i) R.val[j] += 1;
+        }
+    }
+
+    return R;
 }
 
 };
