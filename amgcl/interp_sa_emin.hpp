@@ -153,29 +153,14 @@ interp(const sparse::matrix<value_t, index_t> &A, const params &prm) {
     sparse::matrix<value_t, index_t> &R = PR.second;
 
     P.swap(DAP);
-    std::vector<index_t> marker(nc, static_cast<index_t>(-1));
+
     for(index_t i = 0; i < n; ++i) {
-        value_t dinv = D[i];
+        for(index_t j = P.row[i], e = P.row[i + 1]; j < e; ++j) {
+            index_t c = P.col[j];
 
-        index_t row_beg = P.row[i];
-        index_t row_end = row_beg;
-        for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
-            index_t c = Acol[j];
-
-            // Skip columns not beloning to any aggregate.
-            index_t g = aggr[c];
-            if (g < 0) continue;
-
-            value_t v = (c == i ? 1 : 0) - omega[g] * dinv * Aval[j];
-
-            if (marker[g] < row_beg) {
-                marker[g] = row_end;
-                P.col[row_end] = g;
-                P.val[row_end] = v;
-                ++row_end;
-            } else {
-                P.val[marker[g]] += v;
-            }
+            P.val[j] *= -omega[c];
+            
+            if (c == aggr[i]) P.val[j] += 1;
         }
     }
 
