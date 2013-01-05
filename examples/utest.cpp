@@ -14,6 +14,7 @@
 #include <amgcl/aggr_plain.hpp>
 #include <amgcl/interp_aggr.hpp>
 #include <amgcl/interp_smoothed_aggr.hpp>
+#include <amgcl/interp_sa_emin.hpp>
 #include <amgcl/interp_classic.hpp>
 #include <amgcl/level_cpu.hpp>
 #include <amgcl/level_vexcl.hpp>
@@ -37,7 +38,8 @@ using amgcl::prof;
 enum interp_t {
     classic              = 1,
     aggregation          = 2,
-    smoothed_aggregation = 3
+    smoothed_aggregation = 3,
+    sa_emin              = 4
 };
 
 enum level_t {
@@ -185,7 +187,7 @@ int main(int argc, char *argv[]) {
         ("help", "Show help")
         ("interp", po::value<int>(&interp)->default_value(smoothed_aggregation),
             "Interpolation: classic(1), aggregation(2), "
-            "smoothed_aggregation (3)"
+            "smoothed_aggregation (3), smoothed aggregation with energy minimization (4)"
             )
         ("level", po::value<int>(&level)->default_value(vexcl_lvl),
             "Backend: vexcl(1), cpu(2)"
@@ -250,6 +252,10 @@ int main(int argc, char *argv[]) {
                     run_vexcl_test< amgcl::interp::smoothed_aggregation< amgcl::aggr::plain > >(
                             A, rhs, op);
                     break;
+                case sa_emin:
+                    run_vexcl_test< amgcl::interp::sa_emin< amgcl::aggr::plain > >(
+                            A, rhs, op);
+                    break;
                 default:
                     throw std::invalid_argument("Unsupported interpolation scheme");
             }
@@ -266,6 +272,10 @@ int main(int argc, char *argv[]) {
                     break;
                 case smoothed_aggregation:
                     run_cpu_test< amgcl::interp::smoothed_aggregation< amgcl::aggr::plain > >(
+                            A, rhs, op);
+                    break;
+                case sa_emin:
+                    run_cpu_test< amgcl::interp::sa_emin< amgcl::aggr::plain > >(
                             A, rhs, op);
                     break;
                 default:
