@@ -87,16 +87,12 @@ static std::pair<
     sparse::matrix<value_t, index_t>
     >
 interp(const sparse::matrix<value_t, index_t> &A, const params &prm) {
-    const index_t n = sparse::matrix_rows(A);
-
-    BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
-    BOOST_AUTO(Acol, sparse::matrix_inner_index(A));
-    BOOST_AUTO(Aval, sparse::matrix_values(A));
-
     TIC("aggregates");
     BOOST_AUTO(aggr, aggr_type::aggregates(A, aggr::connect(A, prm.eps_strong)));
     prm.eps_strong *= 0.5;
     TOC("aggregates");
+
+    const index_t n = sparse::matrix_rows(A);
 
     index_t nc = std::max(
             static_cast<index_t>(0),
@@ -118,53 +114,20 @@ interp(const sparse::matrix<value_t, index_t> &A, const params &prm) {
             P_tent.row[i + 1] = P_tent.row[i];
         }
     }
+    BOOST_AUTO(R_tent, sparse::transpose(P_tent));
     TOC("tentative interpolation");
 
-    TIC("local damping");
-    BOOST_AUTO(D, sparse::diagonal(A));
-    BOOST_AUTO(AP, sparse::prod(A, P_tent));
-    BOOST_AUTO(DAP, AP);
-    for(index_t i = 0; i < n; ++i) {
-        value_t dinv = 1 / D[i];
-        D[i] = dinv;
-        for(index_t j = DAP.row[i], e = DAP.row[i + 1]; j < e; ++j)
-            DAP.val[j] *= dinv;
-    }
-    BOOST_AUTO(ADAP, sparse::prod(A, DAP));
-
-    sparse::sort_rows(AP);
-    sparse::sort_rows(ADAP);
-
-    BOOST_AUTO(num, colwise_inner_prod(AP, ADAP));
-    BOOST_AUTO(den, colwise_norm(ADAP));
-
-    std::vector<value_t> omega(nc);
-    std::transform(num.begin(), num.end(), den.begin(), omega.begin(),
-            std::divides<value_t>());
-    TOC("local damping");
-
-    // Ready to compute the interpolation.
+    // Compute smoothed nterpolation and restriction operators.
     static std::pair<
         sparse::matrix<value_t, index_t>,
         sparse::matrix<value_t, index_t>
     > PR;
 
-    sparse::matrix<value_t, index_t> &P = PR.first;
-    sparse::matrix<value_t, index_t> &R = PR.second;
+    improve_tentative_interp(A, P_tent, aggr).swap(PR.first);
+    sparse::transpose(
+            improve_tentative_interp(sparse::transpose(A), P_tent, aggr)
+            ).swap(PR.second);
 
-    P.swap(DAP);
-
-    for(index_t i = 0; i < n; ++i) {
-        for(index_t j = P.row[i], e = P.row[i + 1]; j < e; ++j) {
-            index_t c = P.col[j];
-
-            P.val[j] *= -omega[c];
-            
-            if (c == aggr[i]) P.val[j] += 1;
-        }
-    }
-
-    sparse::transpose(P).swap(R);
     return PR;
 }
 
@@ -237,6 +200,51 @@ colwise_norm(const spmat &A) {
             sum[Acol[j]] += Aval[j] * Aval[j];
 
     return sum;
+}
+
+template <class spmat>
+static spmat improve_tentative_interp(const spmat &A, const spmat &P_tent,
+        const std::vector<typename sparse::matrix_index<spmat>::type> &aggr)
+{
+    typedef typename sparse::matrix_value<spmat>::type value_t;
+    typedef typename sparse::matrix_index<spmat>::type index_t;
+
+    const index_t n = sparse::matrix_rows(A);
+    const index_t m = sparse::matrix_cols(P_tent);
+
+    TIC("local damping");
+    BOOST_AUTO(D, sparse::diagonal(A));
+    BOOST_AUTO(AP, sparse::prod(A, P_tent));
+    BOOST_AUTO(DAP, AP);
+    for(index_t i = 0; i < n; ++i) {
+        value_t dinv = 1 / D[i];
+        D[i] = dinv;
+        for(index_t j = DAP.row[i], e = DAP.row[i + 1]; j < e; ++j)
+            DAP.val[j] *= dinv;
+    }
+    BOOST_AUTO(ADAP, sparse::prod(A, DAP));
+
+    sparse::sort_rows(AP);
+    sparse::sort_rows(ADAP);
+
+    BOOST_AUTO(num, colwise_inner_prod(AP, ADAP));
+    BOOST_AUTO(den, colwise_norm(ADAP));
+
+    std::vector<value_t> omega(m);
+    std::transform(num.begin(), num.end(), den.begin(), omega.begin(),
+            std::divides<value_t>());
+    TOC("local damping");
+
+    // Update DAP to obtain P.
+    for(index_t i = 0; i < n; ++i) {
+        for(index_t j = DAP.row[i], e = DAP.row[i + 1]; j < e; ++j) {
+            index_t c = DAP.col[j];
+            DAP.val[j] *= -omega[c];
+            if (c == aggr[i]) DAP.val[j] += 1;
+        }
+    }
+
+    return DAP;
 }
 
 };
