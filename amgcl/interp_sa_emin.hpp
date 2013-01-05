@@ -201,75 +201,155 @@ improve_tentative_interp(const sparse::matrix<value_t, index_t> &A,
     const index_t n = sparse::matrix_rows(A);
 
     sparse::matrix<value_t, index_t> AP(n, nc);
-
-    // Compute A * P_tent product. P_tent is stored implicitly in aggr.
-    // 1. Structure of the product result:
-    std::vector<index_t> marker(nc, static_cast<index_t>(-1));
     std::fill(AP.row.begin(), AP.row.end(), static_cast<index_t>(0));
-    for(index_t i = 0; i < n; ++i) {
-        for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
-            index_t g = aggr[A.col[j]];
-            if (g < 0) continue;
 
-            if (marker[g] != i) {
-                marker[g] = i;
-                ++AP.row[i + 1];
+    sparse::matrix<value_t, index_t> ADAP(n, nc);
+    std::fill(ADAP.row.begin(), ADAP.row.end(), static_cast<index_t>(0));
+
+#pragma omp parallel
+    {
+#ifdef _OPENMP
+        int nt  = omp_get_num_threads();
+        int tid = omp_get_thread_num();
+
+        index_t chunk_size  = (n + nt - 1) / nt;
+        index_t chunk_start = tid * chunk_size;
+        index_t chunk_end   = std::min(n, chunk_start + chunk_size);
+#else
+        index_t chunk_start = 0;
+        index_t chunk_end   = n;
+#endif
+
+        std::vector<index_t> marker(nc, static_cast<index_t>(-1));
+
+        // Compute A * P_tent product. P_tent is stored implicitly in aggr.
+        // 1. Structure of the product result:
+        for(index_t i = chunk_start; i < chunk_end; ++i) {
+            for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
+                index_t g = aggr[A.col[j]];
+                if (g < 0) continue;
+
+                if (marker[g] != i) {
+                    marker[g] = i;
+                    ++AP.row[i + 1];
+                }
+            }
+        }
+
+        std::fill(marker.begin(), marker.end(), static_cast<index_t>(-1));
+
+#pragma omp barrier
+#pragma omp single
+        {
+            std::partial_sum(AP.row.begin(), AP.row.end(), AP.row.begin());
+            AP.reserve(AP.row.back());
+        }
+
+        // 2. Compute the product result.
+        for(index_t i = chunk_start; i < chunk_end; ++i) {
+            index_t row_beg = AP.row[i];
+            index_t row_end = row_beg;
+            for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
+                index_t g = aggr[A.col[j]];
+                if (g < 0) continue;
+
+                if (marker[g] < row_beg) {
+                    marker[g] = row_end;
+                    AP.col[row_end] = g;
+                    AP.val[row_end] = A.val[j];
+                    ++row_end;
+                } else {
+                    AP.val[marker[g]] += A.val[j];
+                }
+            }
+        }
+
+        std::fill(marker.begin(), marker.end(), static_cast<index_t>(-1));
+
+#pragma omp barrier
+
+        // Compute A * Dinv * AP
+        for(index_t ia = chunk_start; ia < chunk_end; ++ia) {
+            for(index_t ja = A.row[ia], ea = A.row[ia + 1]; ja < ea; ++ja) {
+                index_t ca = A.col[ja];
+                for(index_t jb = AP.row[ca], eb = AP.row[ca + 1]; jb < eb; ++jb) {
+                    index_t cb = AP.col[jb];
+
+                    if (marker[cb] != ia) {
+                        marker[cb] = ia;
+                        ++ADAP.row[ia + 1];
+                    }
+                }
+            }
+        }
+
+        std::fill(marker.begin(), marker.end(), static_cast<index_t>(-1));
+
+#pragma omp barrier
+#pragma omp single
+        {
+            std::partial_sum(ADAP.row.begin(), ADAP.row.end(), ADAP.row.begin());
+            ADAP.reserve(ADAP.row.back());
+        }
+
+        for(index_t ia = chunk_start; ia < chunk_end; ++ia) {
+            index_t row_beg = ADAP.row[ia];
+            index_t row_end = row_beg;
+
+            for(index_t ja = A.row[ia], ea = A.row[ia + 1]; ja < ea; ++ja) {
+                index_t ca = A.col[ja];
+                value_t va = A.val[ja];
+                value_t di = Dinv[ca];
+
+                for(index_t jb = AP.row[ca], eb = AP.row[ca + 1]; jb < eb; ++jb) {
+                    index_t cb = AP.col[jb];
+                    value_t vb = AP.val[jb] * di;
+
+                    if (marker[cb] < row_beg) {
+                        marker[cb] = row_end;
+                        ADAP.col[row_end] = cb;
+                        ADAP.val[row_end] = va * vb;
+                        ++row_end;
+                    } else {
+                        ADAP.val[marker[cb]] += va * vb;
+                    }
+                }
             }
         }
     }
-
-    std::partial_sum(AP.row.begin(), AP.row.end(), AP.row.begin());
-    std::fill(marker.begin(), marker.end(), static_cast<index_t>(-1));
-
-    AP.reserve(AP.row.back());
-
-    // 2. Compute the product result.
-    for(index_t i = 0; i < n; ++i) {
-        index_t row_beg = AP.row[i];
-        index_t row_end = row_beg;
-        for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
-            index_t g = aggr[A.col[j]];
-            if (g < 0) continue;
-
-            if (marker[g] < row_beg) {
-                marker[g] = row_end;
-                AP.col[row_end] = g;
-                AP.val[row_end] = A.val[j];
-                ++row_end;
-            } else {
-                AP.val[marker[g]] += A.val[j];
-            }
-        }
-    }
-
-    BOOST_AUTO(DAP, AP);
-    for(index_t i = 0; i < n; ++i) {
-        value_t dinv = Dinv[i];
-        for(index_t j = DAP.row[i], e = DAP.row[i + 1]; j < e; ++j)
-            DAP.val[j] *= dinv;
-    }
-    BOOST_AUTO(ADAP, sparse::prod(A, DAP));
 
     sparse::sort_rows(AP);
     sparse::sort_rows(ADAP);
 
-    BOOST_AUTO(num, colwise_inner_prod(AP, ADAP));
-    BOOST_AUTO(den, colwise_norm(ADAP));
+    std::vector<value_t> omega, denum;
 
-    std::vector<value_t> omega(nc);
-    std::transform(num.begin(), num.end(), den.begin(), omega.begin(),
-            std::divides<value_t>());
-
-    // Update DAP to obtain P.
-    for(index_t i = 0; i < n; ++i) {
-        for(index_t j = DAP.row[i], e = DAP.row[i + 1]; j < e; ++j) {
-            index_t c = DAP.col[j];
-            DAP.val[j] *= -omega[c];
-            if (c == aggr[i]) DAP.val[j] += 1;
+#pragma omp parallel sections
+    {
+#pragma omp section
+        {
+            colwise_inner_prod(AP, ADAP).swap(omega);
+        }
+#pragma omp section
+        {
+            colwise_norm(ADAP).swap(denum);
         }
     }
 
-    return DAP;
+    std::transform(omega.begin(), omega.end(), denum.begin(), omega.begin(),
+            std::divides<value_t>());
+
+    // Update AP to obtain P.
+#pragma omp parallel for schedule(dynamic, 1024)
+    for(index_t i = 0; i < n; ++i) {
+        value_t di = Dinv[i];
+        for(index_t j = AP.row[i], e = AP.row[i + 1]; j < e; ++j) {
+            index_t c = AP.col[j];
+            AP.val[j] *= -omega[c] * di;
+            if (c == aggr[i]) AP.val[j] += 1;
+        }
+    }
+
+    return AP;
 }
 
 };
