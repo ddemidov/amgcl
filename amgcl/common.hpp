@@ -53,6 +53,20 @@ struct bicg_tag {
     {}
 };
 
+/// Control parameters for GMRES method.
+/**
+ * \param M Number of iterations before restart.
+ */
+template <size_t M = 30>
+struct gmres_tag {
+    int maxiter; ///< Maximum number of iterations.
+    double tol;  ///< The desired precision.
+
+    gmres_tag(int maxiter = 100, double tol = 1e-8)
+        : maxiter(maxiter), tol(tol)
+    {}
+};
+
 template <class T, class Enable = void> struct value_type;
 
 /// Possible matrix storage formats for GPGPU backends.

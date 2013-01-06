@@ -79,13 +79,10 @@ solve(const matrix &A, const vector &rhs, const precond &P, vector &x, cg_tag pr
         return std::make_pair(0, norm_of_rhs);
     }
 
-    int     iter;
+    int     iter = 0;
     value_t res;
-    for(
-            iter = 0;
-            (res = norm(r) / norm_of_rhs) > prm.tol && iter < prm.maxiter;
-            ++iter
-       )
+
+    for(; (res = norm(r) / norm_of_rhs) > prm.tol && iter < prm.maxiter; ++iter)
     {
         clear(s);
         P.apply(r, s);

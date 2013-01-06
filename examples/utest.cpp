@@ -22,6 +22,7 @@
 #include <amgcl/operations_eigen.hpp>
 #include <amgcl/cg.hpp>
 #include <amgcl/bicgstab.hpp>
+#include <amgcl/gmres.hpp>
 
 #include "read.hpp"
 
@@ -50,8 +51,11 @@ enum level_t {
 enum solver_t {
     cg         = 1,
     bicg       = 2,
-    standalone = 3,
+    gmres      = 3,
+    standalone = 4
 };
+
+#define GMRES_M 30
 
 enum relax_t {
     damped_jacobi = 1,
@@ -88,6 +92,9 @@ void solve(
             break;
         case bicg:
             cnv = amgcl::solve(A, rhs, amg, x, amgcl::bicg_tag(op.lp.maxiter, op.lp.tol));
+            break;
+        case gmres:
+            cnv = amgcl::solve(A, rhs, amg, x, amgcl::gmres_tag<GMRES_M>(op.lp.maxiter, op.lp.tol));
             break;
         case standalone:
             cnv = amg.solve(rhs, x);
@@ -195,7 +202,7 @@ int main(int argc, char *argv[]) {
             "Backend: vexcl(1), cpu(2)"
             )
         ("solver", po::value<int>(&op.solver)->default_value(cg),
-            "Iterative solver: cg(1), bicgstab(2), standalone(3)")
+            "Iterative solver: cg(1), bicgstab(2), gmres(3), standalone(4)")
         ("relax", po::value<int>(&relax)->default_value(damped_jacobi),
             "Iterative solver: damped jacobi(1), spai0(2), gauss-seidel (3), ilu(4)")
 
