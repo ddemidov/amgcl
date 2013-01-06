@@ -68,9 +68,27 @@ struct params {
      */
     mutable float eps_strong;
 
+    /// Controls whether system matrix should be filtered.
+    /**
+     * If set, interpolation and resriction operators will be based on the
+     * filtered system matrix given by
+     * \f[
+     * a_{ij}^F = \begin{cases} a_{ij}, \quad \text{if} j \in
+     * N_i^l(\varepsilon_{str}) \\ 0, \quad \text{otherwise}  \end{cases},
+     * \quad \text{if} i\neq j, \quad a_{ii}^F = a_ii - \sum\limits_{j\neq i}
+     * \left( a_{ij} - a_{ij}^F \right).
+     * \f]
+     */
+    bool filter_matrix;
+
+    /// Controls whether restriction should use its own damping parameters.
+    /**
+     * If not set, restriction operator reuses damping parameters computed for
+     * prolongation operator, thus reducing the setup cost.
+     */
     bool separate_damping;
 
-    params() : eps_strong(0.08f), separate_damping(false) {}
+    params() : eps_strong(0.08f), filter_matrix(false), separate_damping(false) {}
 };
 
 /// Constructs coarse level by aggregation.
@@ -89,22 +107,61 @@ static std::pair<
     sparse::matrix<value_t, index_t>
     >
 interp(const sparse::matrix<value_t, index_t> &A, const params &prm) {
-    TIC("aggregates");
-    BOOST_AUTO(aggr, aggr_type::aggregates(A, aggr::connect(A, prm.eps_strong)));
-    prm.eps_strong *= 0.5;
-    TOC("aggregates");
-
     const index_t n = sparse::matrix_rows(A);
+
+    BOOST_AUTO(S, aggr::connect(A, prm.eps_strong));
+    prm.eps_strong *= 0.5;
+
+    TIC("aggregates");
+    BOOST_AUTO(aggr, aggr_type::aggregates(A, S));
+    TOC("aggregates");
 
     index_t nc = std::max(
             static_cast<index_t>(0),
             *std::max_element(aggr.begin(), aggr.end()) + static_cast<index_t>(1)
             );
 
-    BOOST_AUTO(Dinv, sparse::diagonal(A));
-    for(index_t i = 0; i < n; ++i) Dinv[i] = 1 / Dinv[i];
+    // Filtered matrix and its diagonal.
+    sparse::matrix<value_t, index_t> Af;
+    std::vector<value_t> Dinv;
 
-    // Compute smoothed nterpolation and restriction operators.
+    if (prm.filter_matrix) {
+        Af.resize(n, n);
+        Dinv.resize(n);
+
+        Af.col.reserve(sparse::matrix_nonzeros(A));
+        Af.val.reserve(sparse::matrix_nonzeros(A));
+
+        Af.row[0] = 0;
+        for(index_t i = 0; i < n; ++i) {
+            value_t dia = 0;
+            for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
+                index_t c = A.col[j];
+                value_t v = A.val[j];
+
+                if (c == i)
+                    dia += v;
+                else if (!S[j])
+                    dia -= v;
+                else {
+                    Af.col.push_back(c);
+                    Af.val.push_back(v);
+                }
+            }
+
+            Dinv[i] = 1 / dia;
+
+            Af.col.push_back(i);
+            Af.val.push_back(dia);
+
+            Af.row[i + 1] = Af.col.size();
+        }
+    } else {
+        sparse::diagonal(A).swap(Dinv);
+        for(BOOST_AUTO(d, Dinv.begin()); d != Dinv.end(); ++d) *d = 1 / *d;
+    }
+
+    // Compute smoothed interpolation and restriction operators.
     static std::pair<
         sparse::matrix<value_t, index_t>,
         sparse::matrix<value_t, index_t>
@@ -113,16 +170,19 @@ interp(const sparse::matrix<value_t, index_t> &A, const params &prm) {
     std::vector<value_t> omega(n);
 
     TIC("smoothed interpolation");
-    smoothed_interpolation(A, Dinv, aggr, nc, omega).swap(PR.first);
+    smoothed_interpolation(prm.filter_matrix ? Af : A,
+            Dinv, aggr, nc, omega).swap(PR.first);
     TOC("smoothed interpolation");
 
     TIC("smoothed restriction");
     if (prm.separate_damping)
         sparse::transpose(
-                smoothed_interpolation(sparse::transpose(A), Dinv, aggr, nc, omega)
+                smoothed_interpolation(sparse::transpose(prm.filter_matrix ? Af : A),
+                    Dinv, aggr, nc, omega)
                 ).swap(PR.second);
     else
-        smoothed_restriction(A, Dinv, aggr, nc, omega).swap(PR.second);
+        smoothed_restriction(prm.filter_matrix ? Af : A,
+                Dinv, aggr, nc, omega).swap(PR.second);
     TOC("smoothed restriction");
 
     return PR;
