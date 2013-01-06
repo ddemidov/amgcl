@@ -110,7 +110,7 @@ interp(const sparse::matrix<value_t, index_t> &A, const params &prm) {
         sparse::matrix<value_t, index_t>
     > PR;
 
-    std::vector<value_t> omega;
+    std::vector<value_t> omega(n);
 
     TIC("smoothed interpolation");
     smoothed_interpolation(A, Dinv, aggr, nc, omega).swap(PR.first);
@@ -326,13 +326,14 @@ smoothed_interpolation(const sparse::matrix<value_t, index_t> &A,
     sparse::sort_rows(AP);
     sparse::sort_rows(ADAP);
 
+    std::vector<value_t> omega_p;
     std::vector<value_t> denum;
 
 #pragma omp parallel sections
     {
 #pragma omp section
         {
-            colwise_inner_prod(AP, ADAP).swap(omega);
+            colwise_inner_prod(AP, ADAP).swap(omega_p);
         }
 #pragma omp section
         {
@@ -340,18 +341,26 @@ smoothed_interpolation(const sparse::matrix<value_t, index_t> &A,
         }
     }
 
-    std::transform(omega.begin(), omega.end(), denum.begin(), omega.begin(),
+    std::transform(omega_p.begin(), omega_p.end(), denum.begin(), omega_p.begin(),
             std::divides<value_t>());
+
+    // Convert omega from (4.13) to (4.14) (Sala, Tuminaro, 2008):
+#pragma omp parallel for schedule(dynamic, 1024)
+    for(index_t i = 0; i < n; ++i) {
+        value_t w = -1;
+        for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
+            index_t g = aggr[A.col[j]]; if (g < 0) continue;
+            if (omega_p[g] < w || w < 0) w = omega_p[g];
+        }
+        omega[i] = std::max(w, static_cast<value_t>(0));
+    }
 
     // Update AP to obtain P.
 #pragma omp parallel for schedule(dynamic, 1024)
     for(index_t i = 0; i < n; ++i) {
-        value_t di = Dinv[i];
-        for(index_t j = AP.row[i], e = AP.row[i + 1]; j < e; ++j) {
-            index_t c = AP.col[j];
-            AP.val[j] *= -omega[c] * di;
-            if (c == aggr[i]) AP.val[j] += 1;
-        }
+        value_t wd = omega[i] * Dinv[i];
+        for(index_t j = AP.row[i], e = AP.row[i + 1]; j < e; ++j)
+            AP.val[j] = (AP.col[j] == aggr[i] ? 1 : 0) - wd * AP.val[j];
     }
 
     return AP;
@@ -450,12 +459,11 @@ smoothed_restriction(const sparse::matrix<value_t, index_t> &A,
     }
 
     // Update R.
+#pragma omp parallel for schedule(dynamic, 1024)
     for(index_t i = 0; i < nc; ++i) {
-        value_t om = omega[i];
         for(index_t j = R.row[i], e = R.row[i + 1]; j < e; ++j) {
             index_t c = R.col[j];
-            R.val[j] *= -om;
-            if (aggr[c] == i) R.val[j] += 1;
+            R.val[j] = (aggr[c] == i ? 1 : 0) - omega[c] * R.val[j];
         }
     }
 
