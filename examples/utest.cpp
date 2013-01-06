@@ -16,10 +16,10 @@
 #include <amgcl/interp_smoothed_aggr.hpp>
 #include <amgcl/interp_sa_emin.hpp>
 #include <amgcl/interp_classic.hpp>
-#include <amgcl/level_cpu.hpp>
-#include <amgcl/level_vexcl.hpp>
 #include <amgcl/operations_vexcl.hpp>
 #include <amgcl/operations_eigen.hpp>
+#include <amgcl/level_cpu.hpp>
+#include <amgcl/level_vexcl.hpp>
 #include <amgcl/cg.hpp>
 #include <amgcl/bicgstab.hpp>
 #include <amgcl/gmres.hpp>
