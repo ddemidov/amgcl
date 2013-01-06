@@ -68,7 +68,9 @@ struct params {
      */
     mutable float eps_strong;
 
-    params() : eps_strong(0.08f) {}
+    bool separate_damping;
+
+    params() : eps_strong(0.08f), separate_damping(false) {}
 };
 
 /// Constructs coarse level by aggregation.
@@ -115,7 +117,12 @@ interp(const sparse::matrix<value_t, index_t> &A, const params &prm) {
     TOC("smoothed interpolation");
 
     TIC("smoothed restriction");
-    smoothed_restriction(A, Dinv, aggr, nc, omega).swap(PR.second);
+    if (prm.separate_damping)
+        sparse::transpose(
+                smoothed_interpolation(sparse::transpose(A), Dinv, aggr, nc, omega)
+                ).swap(PR.second);
+    else
+        smoothed_restriction(A, Dinv, aggr, nc, omega).swap(PR.second);
     TOC("smoothed restriction");
 
     return PR;
