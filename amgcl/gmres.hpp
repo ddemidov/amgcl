@@ -97,7 +97,6 @@ void update(
 /**
  * Implementation is based on \ref Templates_1994 "Barrett (1994)"
  *
- * \param M   Number of iterations before restart.
  * \param A   The system matrix.
  * \param rhs The right-hand side.
  * \param P   The preconditioner. Should provide apply(rhs, x) method.
