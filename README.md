@@ -3,10 +3,9 @@ amgcl
 
 amgcl is a simple and generic algebraic [multigrid][amg] (AMG) hierarchy builder
 (and a work in progress).  The constructed hierarchy may be used as a
-standalone solver or as a preconditioner with some iterative solver.  Conjugate
-Gradient and Stabilized BiConjugate Gradient iterative solvers are provided.
-It is also possible to use generic solvers from other libraries, e.g.
-[ViennaCL][ViennaCL].
+standalone solver or as a preconditioner with some iterative solver.  Several
+[iterative solvers][solvers] are provided, and it is also possible to use
+generic solvers from other libraries, e.g. [ViennaCL][ViennaCL].
 
 The setup phase is completely CPU-based. The constructed levels of AMG
 hierarchy may be stored and used through several [backends][levels]. This
@@ -19,6 +18,7 @@ backends.
 Doxygen-generated documentation is available at http://ddemidov.github.com/amgcl.
 
 [amg]:      http://en.wikipedia.org/wiki/Multigrid_method
+[solvers]:  http://ddemidov.github.com/amgcl/group__iterative.html
 [levels]:   http://ddemidov.github.com/amgcl/group__levels.html
 [interp]:   http://ddemidov.github.com/amgcl/group__interpolation.html
 [ex1]:      https://github.com/ddemidov/amgcl/blob/master/examples/vexcl.cpp

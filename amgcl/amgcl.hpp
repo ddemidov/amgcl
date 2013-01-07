@@ -38,9 +38,9 @@ amgcl is a simple and generic algebraic
 <a href="http://en.wikipedia.org/wiki/Multigrid_method">multigrid</a> (AMG)
 hierarchy builder (and a work in progress).  The constructed hierarchy may be
 used as a standalone solver or as a preconditioner with some iterative solver.
-Conjugate Gradient and Stabilized BiConjugate Gradient iterative solvers are
-provided.  It is also possible to use generic solvers from other libraries,
-e.g. <a href="http://viennacl.sourceforge.net">ViennaCL</a>.
+Several \ref iterative "iterative solvers" are provided, and it is also
+possible to use generic solvers from other libraries, e.g.
+<a href="http://viennacl.sourceforge.net">ViennaCL</a>.
 
 The setup phase is completely CPU-based. The constructed levels of AMG
 hierarchy may be stored and used through several \ref levels "backends". This
