@@ -26,7 +26,7 @@ THE SOFTWARE.
 */
 
 /**
- * \file   cg.hpp
+ * \file   gmres.hpp
  * \author Denis Demidov <ddemidov@ksu.ru>
  * \brief  GMRES method.
  *
