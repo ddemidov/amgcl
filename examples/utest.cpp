@@ -203,7 +203,7 @@ int main(int argc, char *argv[]) {
             )
         ("solver", po::value<int>(&op.solver)->default_value(cg),
             "Iterative solver: cg(1), bicgstab(2), gmres(3), standalone(4)")
-        ("relax", po::value<int>(&relax)->default_value(damped_jacobi),
+        ("relax", po::value<int>(&relax)->default_value(spai0),
             "Iterative solver: damped jacobi(1), spai0(2), gauss-seidel (3), ilu(4)")
 
         ("problem",
