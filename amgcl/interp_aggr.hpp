@@ -75,7 +75,9 @@ struct params {
      */
     float eps_strong;
 
-    params() : over_interp(1.5f), eps_strong(0.1f) {}
+    unsigned dof_per_node;
+
+    params() : over_interp(1.5f), eps_strong(0.1f), dof_per_node(1) {}
 };
 
 /// Constructs coarse level by aggregation.
@@ -96,9 +98,24 @@ static std::pair<
 interp(const sparse::matrix<value_t, index_t> &A, const params &prm) {
     const index_t n = sparse::matrix_rows(A);
 
-    TIC("aggregates");
-    BOOST_AUTO(aggr, aggr_type::aggregates(A, aggr::connect(A, prm.eps_strong)));
-    TOC("aggregates");
+    std::vector<index_t> aggr;
+
+    assert(prm.dof_per_node > 0);
+
+    if (prm.dof_per_node == 1) {
+        // Scalar system. Nothing fancy.
+        TIC("aggregates");
+        aggr_type::aggregates(A, aggr::connect(A, prm.eps_strong)).swap(aggr);
+        TOC("aggregates");
+    } else {
+        // Non-scalar system.
+        // Build reduced matrix, find connections and aggregates with it,
+        // restore the vectors to full size.
+
+        BOOST_AUTO(S_aggr, aggr::pointwise_coarsening<aggr_type>(
+                    A, prm.eps_strong, prm.dof_per_node));
+        aggr.swap(S_aggr.second);
+    }
 
     index_t nc = std::max(
             static_cast<index_t>(0),

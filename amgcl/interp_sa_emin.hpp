@@ -113,37 +113,23 @@ interp(const sparse::matrix<value_t, index_t> &A, const params &prm) {
         TIC("aggregates");
         aggr_type::aggregates(A, S).swap(aggr);
         TOC("aggregates");
-
-        nc = std::max(
-                static_cast<index_t>(0),
-                *std::max_element(aggr.begin(), aggr.end()) + static_cast<index_t>(1)
-                );
     } else {
         // Non-scalar system.
         // Build reduced matrix, find connections and aggregates with it,
         // restore the vectors to full size.
 
-        TIC("reduce matrix");
-        BOOST_AUTO(Ap, aggr::pointwise_matrix(A, prm.dof_per_node));
-        TOC("reduce matrix");
-
-        TIC("connections");
-        BOOST_AUTO(Sp, aggr::connect(Ap, prm.eps_strong));
-
-        S.resize(sparse::matrix_nonzeros(A), true);
-        TOC("connections");
-
-        TIC("aggregates");
-        BOOST_AUTO(aggr_p, aggr_type::aggregates(Ap, Sp));
-
-        aggr.resize(n);
-        for(index_t i = 0, ip = 0, np = n / prm.dof_per_node; ip < np; ++ip)
-            for(index_t k = 0; k < prm.dof_per_node; ++k, ++i)
-                aggr[i] = aggr[ip];
-        TOC("aggregates");
+        BOOST_AUTO(S_aggr, aggr::pointwise_coarsening<aggr_type>(
+                    A, prm.eps_strong, prm.dof_per_node));
+        S.swap(S_aggr.first);
+        aggr.swap(S_aggr.second);
     }
 
     prm.eps_strong *= 0.5;
+
+    nc = std::max(
+            static_cast<index_t>(0),
+            *std::max_element(aggr.begin(), aggr.end()) + static_cast<index_t>(1)
+            );
 
     // Compute smoothed interpolation and restriction operators.
     static std::pair<
