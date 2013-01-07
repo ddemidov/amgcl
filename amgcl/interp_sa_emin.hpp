@@ -270,8 +270,10 @@ smoothed_interpolation(const sparse::matrix<value_t, index_t> &A,
     sparse::matrix<value_t, index_t> AP(n, nc);
     std::fill(AP.row.begin(), AP.row.end(), static_cast<index_t>(0));
 
-    sparse::matrix<value_t, index_t> ADAP(n, nc);
-    std::fill(ADAP.row.begin(), ADAP.row.end(), static_cast<index_t>(0));
+
+    std::vector<value_t> omega_p(nc, static_cast<value_t>(0));
+    std::vector<value_t> denum(nc, static_cast<value_t>(0));
+
 
 #pragma omp parallel
     {
@@ -327,40 +329,22 @@ smoothed_interpolation(const sparse::matrix<value_t, index_t> &A,
                     AP.val[marker[g]] += A.val[j];
                 }
             }
+
+            sparse::insertion_sort(&AP.col[row_beg], &AP.val[row_beg], row_end - row_beg);
         }
 
         std::fill(marker.begin(), marker.end(), static_cast<index_t>(-1));
+        std::vector< std::pair<index_t, value_t> > adap(128);
 
 #pragma omp barrier
 
-        // Compute A * Dinv * AP
+        // Compute A * Dinv * AP row by row and compute columnwise scalar products
+        // necessary for computation of omega_p. The actual results of
+        // matrix-matrix product are not stored.
         for(index_t ia = chunk_start; ia < chunk_end; ++ia) {
-            for(index_t ja = A.row[ia], ea = A.row[ia + 1]; ja < ea; ++ja) {
-                index_t ca = A.col[ja];
-                for(index_t jb = AP.row[ca], eb = AP.row[ca + 1]; jb < eb; ++jb) {
-                    index_t cb = AP.col[jb];
+            adap.clear();
 
-                    if (marker[cb] != ia) {
-                        marker[cb] = ia;
-                        ++ADAP.row[ia + 1];
-                    }
-                }
-            }
-        }
-
-        std::fill(marker.begin(), marker.end(), static_cast<index_t>(-1));
-
-#pragma omp barrier
-#pragma omp single
-        {
-            std::partial_sum(ADAP.row.begin(), ADAP.row.end(), ADAP.row.begin());
-            ADAP.reserve(ADAP.row.back());
-        }
-
-        for(index_t ia = chunk_start; ia < chunk_end; ++ia) {
-            index_t row_beg = ADAP.row[ia];
-            index_t row_end = row_beg;
-
+            // Form current row of ADAP matrix.
             for(index_t ja = A.row[ia], ea = A.row[ia + 1]; ja < ea; ++ja) {
                 index_t ca = A.col[ja];
                 value_t va = A.val[ja];
@@ -370,34 +354,48 @@ smoothed_interpolation(const sparse::matrix<value_t, index_t> &A,
                     index_t cb = AP.col[jb];
                     value_t vb = AP.val[jb] * di;
 
-                    if (marker[cb] < row_beg) {
-                        marker[cb] = row_end;
-                        ADAP.col[row_end] = cb;
-                        ADAP.val[row_end] = va * vb;
-                        ++row_end;
+                    if (marker[cb] < 0) {
+                        marker[cb] = adap.size();
+                        adap.push_back(std::make_pair(cb, va * vb));
                     } else {
-                        ADAP.val[marker[cb]] += va * vb;
+                        adap[marker[cb]].second += va * vb;
                     }
                 }
             }
-        }
-    }
 
-    sparse::sort_rows(AP);
-    sparse::sort_rows(ADAP);
+            std::sort(adap.begin(), adap.end());
 
-    std::vector<value_t> omega_p;
-    std::vector<value_t> denum;
+            // Update columnwise scalar products (AP,ADAP) and (ADAP,ADAP).
+            // 1. (AP, ADAP)
+            for(
+                    index_t ja = AP.row[ia], ea = AP.row[ia + 1],
+                    jb = 0, eb = adap.size();
+                    ja < ea && jb < eb;
+               )
+            {
+                index_t ca = AP.col[ja];
+                index_t cb = adap[jb].first;
 
-#pragma omp parallel sections
-    {
-#pragma omp section
-        {
-            colwise_inner_prod(AP, ADAP).swap(omega_p);
-        }
-#pragma omp section
-        {
-            colwise_norm(ADAP).swap(denum);
+                if (ca < cb)
+                    ++ja;
+                else if (cb < ca)
+                    ++jb;
+                else /*ca == cb*/ {
+#pragma omp atomic
+                    omega_p[ca] += AP.val[ja] * adap[jb].second;
+                    ++ja;
+                    ++jb;
+                }
+            }
+
+            // 2. (ADAP, ADAP) (and clear marker)
+            for(index_t j = 0, e = adap.size(); j < e; ++j) {
+                index_t c = adap[j].first;
+                value_t v = adap[j].second;
+#pragma omp atomic
+                denum[c] += v * v;
+                marker[c] = -1;
+            }
         }
     }
 
