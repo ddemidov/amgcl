@@ -68,27 +68,7 @@ struct params {
      */
     mutable float eps_strong;
 
-    /// Controls whether system matrix should be filtered.
-    /**
-     * If set, interpolation and resriction operators will be based on the
-     * filtered system matrix given by
-     * \f[
-     * a_{ij}^F = \begin{cases} a_{ij}, \quad \text{if} j \in
-     * N_i^l(\varepsilon_{str}) \\ 0, \quad \text{otherwise}  \end{cases},
-     * \quad \text{if} i\neq j, \quad a_{ii}^F = a_ii - \sum\limits_{j\neq i}
-     * \left( a_{ij} - a_{ij}^F \right).
-     * \f]
-     */
-    bool filter_matrix;
-
-    /// Controls whether restriction should use its own damping parameters.
-    /**
-     * If not set, restriction operator reuses damping parameters computed for
-     * prolongation operator, thus reducing the setup cost.
-     */
-    bool separate_damping;
-
-    params() : eps_strong(0.08f), filter_matrix(false), separate_damping(false) {}
+    params() : eps_strong(0.08f) {}
 };
 
 /// Constructs coarse level by aggregation.
@@ -121,46 +101,6 @@ interp(const sparse::matrix<value_t, index_t> &A, const params &prm) {
             *std::max_element(aggr.begin(), aggr.end()) + static_cast<index_t>(1)
             );
 
-    // Filtered matrix and its diagonal.
-    sparse::matrix<value_t, index_t> Af;
-    std::vector<value_t> Dinv;
-
-    if (prm.filter_matrix) {
-        Af.resize(n, n);
-        Dinv.resize(n);
-
-        Af.col.reserve(sparse::matrix_nonzeros(A));
-        Af.val.reserve(sparse::matrix_nonzeros(A));
-
-        Af.row[0] = 0;
-        for(index_t i = 0; i < n; ++i) {
-            value_t dia = 0;
-            for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
-                index_t c = A.col[j];
-                value_t v = A.val[j];
-
-                if (c == i)
-                    dia += v;
-                else if (!S[j])
-                    dia -= v;
-                else {
-                    Af.col.push_back(c);
-                    Af.val.push_back(v);
-                }
-            }
-
-            Dinv[i] = 1 / dia;
-
-            Af.col.push_back(i);
-            Af.val.push_back(dia);
-
-            Af.row[i + 1] = Af.col.size();
-        }
-    } else {
-        sparse::diagonal(A).swap(Dinv);
-        for(BOOST_AUTO(d, Dinv.begin()); d != Dinv.end(); ++d) *d = 1 / *d;
-    }
-
     // Compute smoothed interpolation and restriction operators.
     static std::pair<
         sparse::matrix<value_t, index_t>,
@@ -170,19 +110,11 @@ interp(const sparse::matrix<value_t, index_t> &A, const params &prm) {
     std::vector<value_t> omega(n);
 
     TIC("smoothed interpolation");
-    smoothed_interpolation(prm.filter_matrix ? Af : A,
-            Dinv, aggr, nc, omega).swap(PR.first);
+    smoothed_interpolation(A, S, aggr, nc, omega).swap(PR.first);
     TOC("smoothed interpolation");
 
     TIC("smoothed restriction");
-    if (prm.separate_damping)
-        sparse::transpose(
-                smoothed_interpolation(sparse::transpose(prm.filter_matrix ? Af : A),
-                    Dinv, aggr, nc, omega)
-                ).swap(PR.second);
-    else
-        smoothed_restriction(prm.filter_matrix ? Af : A,
-                Dinv, aggr, nc, omega).swap(PR.second);
+    smoothed_restriction(A, S, aggr, nc, omega).swap(PR.second);
     TOC("smoothed restriction");
 
     return PR;
@@ -192,8 +124,10 @@ private:
 
 template <typename value_t, typename index_t>
 static sparse::matrix<value_t, index_t>
-smoothed_interpolation(const sparse::matrix<value_t, index_t> &A,
-        const std::vector<value_t> &Dinv, const std::vector<index_t> &aggr,
+smoothed_interpolation(
+        const sparse::matrix<value_t, index_t> &A,
+        const std::vector<char> &S,
+        const std::vector<index_t> &aggr,
         index_t nc, std::vector<value_t> &omega)
 {
     const index_t n = sparse::matrix_rows(A);
@@ -201,10 +135,10 @@ smoothed_interpolation(const sparse::matrix<value_t, index_t> &A,
     sparse::matrix<value_t, index_t> AP(n, nc);
     std::fill(AP.row.begin(), AP.row.end(), static_cast<index_t>(0));
 
-
     std::vector<value_t> omega_p(nc, static_cast<value_t>(0));
     std::vector<value_t> denum(nc, static_cast<value_t>(0));
 
+    std::vector<value_t> D(n);
 
 #pragma omp parallel
     {
@@ -222,11 +156,32 @@ smoothed_interpolation(const sparse::matrix<value_t, index_t> &A,
 
         std::vector<index_t> marker(nc, static_cast<index_t>(-1));
 
+        // Diagonal of filtered matrix.
+        for(index_t i = chunk_start; i < chunk_end; ++i) {
+            value_t dia = 0;
+            for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
+                index_t c = A.col[j];
+                value_t v = A.val[j];
+
+                if (c == i)
+                    dia += v;
+                else if (!S[j])
+                    dia -= v;
+            }
+
+            D[i] = dia;
+        }
+
+#pragma omp barrier
+
         // Compute A * P_tent product. P_tent is stored implicitly in aggr.
         // 1. Structure of the product result:
         for(index_t i = chunk_start; i < chunk_end; ++i) {
             for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
-                index_t g = aggr[A.col[j]]; if (g < 0) continue;
+                index_t c = A.col[j];
+
+                if (c != i && !S[j]) continue;
+                index_t g = aggr[c]; if (g < 0) continue;
 
                 if (marker[g] != i) {
                     marker[g] = i;
@@ -249,18 +204,24 @@ smoothed_interpolation(const sparse::matrix<value_t, index_t> &A,
             index_t row_beg = AP.row[i];
             index_t row_end = row_beg;
             for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
-                index_t g = aggr[A.col[j]]; if (g < 0) continue;
+                index_t c = A.col[j];
+
+                if (c != i && !S[j]) continue;
+                index_t g = aggr[c]; if (g < 0) continue;
+
+                value_t v = (c == i ? D[i] : A.val[j]);
 
                 if (marker[g] < row_beg) {
                     marker[g] = row_end;
                     AP.col[row_end] = g;
-                    AP.val[row_end] = A.val[j];
+                    AP.val[row_end] = v;
                     ++row_end;
                 } else {
-                    AP.val[marker[g]] += A.val[j];
+                    AP.val[marker[g]] += v;
                 }
             }
 
+            // Sort columns in the new row.
             sparse::insertion_sort(&AP.col[row_beg], &AP.val[row_beg], row_end - row_beg);
         }
 
@@ -278,12 +239,15 @@ smoothed_interpolation(const sparse::matrix<value_t, index_t> &A,
             // Form current row of ADAP matrix.
             for(index_t ja = A.row[ia], ea = A.row[ia + 1]; ja < ea; ++ja) {
                 index_t ca = A.col[ja];
-                value_t va = A.val[ja];
-                value_t di = Dinv[ca];
+
+                if (ca != ia && !S[ja]) continue;
+
+                value_t dia = D[ca];
+                value_t va = (ca == ia ? dia : A.val[ja]);
 
                 for(index_t jb = AP.row[ca], eb = AP.row[ca + 1]; jb < eb; ++jb) {
                     index_t cb = AP.col[jb];
-                    value_t vb = AP.val[jb] * di;
+                    value_t vb = AP.val[jb] / dia;
 
                     if (marker[cb] < 0) {
                         marker[cb] = adap.size();
@@ -338,7 +302,9 @@ smoothed_interpolation(const sparse::matrix<value_t, index_t> &A,
     for(index_t i = 0; i < n; ++i) {
         value_t w = -1;
         for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
-            index_t g = aggr[A.col[j]]; if (g < 0) continue;
+            index_t c = A.col[j];
+            if (c != i && !S[j]) continue;
+            index_t g = aggr[c]; if (g < 0) continue;
             if (omega_p[g] < w || w < 0) w = omega_p[g];
         }
         omega[i] = std::max(w, static_cast<value_t>(0));
@@ -347,7 +313,7 @@ smoothed_interpolation(const sparse::matrix<value_t, index_t> &A,
     // Update AP to obtain P.
 #pragma omp parallel for schedule(dynamic, 1024)
     for(index_t i = 0; i < n; ++i) {
-        value_t wd = omega[i] * Dinv[i];
+        value_t wd = omega[i] / D[i];
         for(index_t j = AP.row[i], e = AP.row[i + 1]; j < e; ++j)
             AP.val[j] = (AP.col[j] == aggr[i] ? 1 : 0) - wd * AP.val[j];
     }
@@ -357,8 +323,10 @@ smoothed_interpolation(const sparse::matrix<value_t, index_t> &A,
 
 template <typename value_t, typename index_t>
 static sparse::matrix<value_t, index_t>
-smoothed_restriction(const sparse::matrix<value_t, index_t> &A,
-        const std::vector<value_t> &Dinv, const std::vector<index_t> &aggr,
+smoothed_restriction(
+        const sparse::matrix<value_t, index_t> &A,
+        const std::vector<char> &S,
+        const std::vector<index_t> &aggr,
         index_t nc, const std::vector<value_t> &omega)
 {
     const index_t n = sparse::matrix_rows(A);
@@ -384,6 +352,24 @@ smoothed_restriction(const sparse::matrix<value_t, index_t> &A,
     sparse::matrix<value_t, index_t> R(nc, n);
     std::fill(R.row.begin(), R.row.end(), static_cast<index_t>(0));
 
+    // Diagonal of filtered matrix.
+    std::vector<value_t> Dinv(n);
+#pragma omp parallel for schedule(dynamic, 1024)
+    for(index_t i = 0; i < n; ++i) {
+        value_t dia = 0;
+        for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
+            index_t c = A.col[j];
+            value_t v = A.val[j];
+
+            if (c == i)
+                dia += v;
+            else if (!S[j])
+                dia -= v;
+        }
+
+        Dinv[i] = 1 / dia;
+    }
+
     // Compute R_tent * A * Dinv.
 #pragma omp parallel
     {
@@ -405,6 +391,7 @@ smoothed_restriction(const sparse::matrix<value_t, index_t> &A,
                 index_t cr = R_tent_col[jr];
                 for(index_t ja = A.row[cr], ea = A.row[cr + 1]; ja < ea; ++ja) {
                     index_t ca = A.col[ja];
+                    if (ca != cr && !S[ja]) continue;
 
                     if (marker[ca] != ir) {
                         marker[ca] = ir;
@@ -432,7 +419,8 @@ smoothed_restriction(const sparse::matrix<value_t, index_t> &A,
 
                 for(index_t ja = A.row[cr], ea = A.row[cr + 1]; ja < ea; ++ja) {
                     index_t ca = A.col[ja];
-                    value_t va = A.val[ja] * Dinv[ca];
+                    if (ca != cr && !S[ja]) continue;
+                    value_t va = (ca == cr ? 1 : A.val[ja] * Dinv[ca]);
 
                     if (marker[ca] < row_beg) {
                         marker[ca] = row_end;
