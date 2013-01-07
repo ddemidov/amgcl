@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include <vector>
 #include <algorithm>
 #include <functional>
+#include <cassert>
 
 #include <boost/typeof/typeof.hpp>
 
@@ -68,7 +69,15 @@ struct params {
      */
     mutable float eps_strong;
 
-    params() : eps_strong(0.08f) {}
+    /// Number of degrees of freedom (number of unknowns) per grid node.
+    /**
+     * Should be used with non-scalar systems of equations. Equations are
+     * assumed to be ordered by nodes (not by unknowns).
+     * \note This is assumed to be constant for all nodes.
+     */
+    unsigned dof_per_node;
+
+    params() : eps_strong(0.08f), dof_per_node(1) {}
 };
 
 /// Constructs coarse level by aggregation.
@@ -89,17 +98,52 @@ static std::pair<
 interp(const sparse::matrix<value_t, index_t> &A, const params &prm) {
     const index_t n = sparse::matrix_rows(A);
 
-    BOOST_AUTO(S, aggr::connect(A, prm.eps_strong));
+    index_t nc;
+    std::vector<char>    S;
+    std::vector<index_t> aggr;
+
+    assert(prm.dof_per_node > 0);
+
+    if (prm.dof_per_node == 1) {
+        // Scalar system. Nothing fancy.
+        TIC("connections");
+        aggr::connect(A, prm.eps_strong).swap(S);
+        TOC("connections");
+
+        TIC("aggregates");
+        aggr_type::aggregates(A, S).swap(aggr);
+        TOC("aggregates");
+
+        nc = std::max(
+                static_cast<index_t>(0),
+                *std::max_element(aggr.begin(), aggr.end()) + static_cast<index_t>(1)
+                );
+    } else {
+        // Non-scalar system.
+        // Build reduced matrix, find connections and aggregates with it,
+        // restore the vectors to full size.
+
+        TIC("reduce matrix");
+        BOOST_AUTO(Ap, aggr::pointwise_matrix(A, prm.dof_per_node));
+        TOC("reduce matrix");
+
+        TIC("connections");
+        BOOST_AUTO(Sp, aggr::connect(Ap, prm.eps_strong));
+
+        S.resize(sparse::matrix_nonzeros(A), true);
+        TOC("connections");
+
+        TIC("aggregates");
+        BOOST_AUTO(aggr_p, aggr_type::aggregates(Ap, Sp));
+
+        aggr.resize(n);
+        for(index_t i = 0, ip = 0, np = n / prm.dof_per_node; ip < np; ++ip)
+            for(index_t k = 0; k < prm.dof_per_node; ++k, ++i)
+                aggr[i] = aggr[ip];
+        TOC("aggregates");
+    }
+
     prm.eps_strong *= 0.5;
-
-    TIC("aggregates");
-    BOOST_AUTO(aggr, aggr_type::aggregates(A, S));
-    TOC("aggregates");
-
-    index_t nc = std::max(
-            static_cast<index_t>(0),
-            *std::max_element(aggr.begin(), aggr.end()) + static_cast<index_t>(1)
-            );
 
     // Compute smoothed interpolation and restriction operators.
     static std::pair<
