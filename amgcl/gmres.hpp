@@ -44,35 +44,10 @@ namespace amgcl {
 namespace gmres {
 
 //---------------------------------------------------------------------------
-template <typename value_t>
-void apply_plane_rotation(value_t &dx, value_t &dy, value_t cs, value_t sn) {
-    value_t tmp = cs * dx + sn * dy;
-    dy = -sn * dx + cs * dy;
-    dx = tmp;
-}
-
-//---------------------------------------------------------------------------
-template <typename value_t>
-void generate_plane_rotation(value_t dx, value_t dy, value_t &cs, value_t &sn) {
-    if (dy == 0) {
-	cs = 1;
-	sn = 0;
-    } else if (fabs(dy) > fabs(dx)) {
-	value_t tmp = dx / dy;
-	sn = 1 / sqrt(1 + tmp * tmp);
-	cs = tmp * sn;
-    } else {
-	value_t tmp = dy / dx;
-	cs = 1 / sqrt(1 + tmp * tmp);
-	sn = tmp * cs;
-    }
-}
-
-//---------------------------------------------------------------------------
 template <class vector>
 void update(
         vector &x, int M, int k,
-        std::vector<typename value_type<vector>::type> &h,
+        const std::vector<typename value_type<vector>::type> &h,
         const std::vector<typename value_type<vector>::type> &s,
         const std::vector<vector> &v,
         std::vector<typename value_type<vector>::type> &y
