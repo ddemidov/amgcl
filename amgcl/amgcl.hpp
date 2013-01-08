@@ -53,7 +53,7 @@ for examples of
 using amgcl with
 <a href="https://github.com/ddemidov/vexcl">VexCL</a>,
 <a href="http://viennacl.sourceforge.net">ViennaCL</a>, or
-<a href="http://eigen.tuxfamily.org">Eigen</a> backends.
+CPU backends.
 
 \section overview Overview
 

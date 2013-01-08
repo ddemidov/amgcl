@@ -12,7 +12,7 @@ hierarchy may be stored and used through several [backends][levels]. This
 allows for transparent acceleration of the solution phase with help of OpenCL,
 CUDA, or OpenMP technologies.  See [examples/vexcl.cpp][ex1],
 [examples/viennacl.cpp][ex2] and [examples/eigen.cpp][ex3] for examples of
-using amgcl with [VexCL][VexCL], [ViennaCL][ViennaCL], or [Eigen][Eigen]
+using amgcl with [VexCL][VexCL], [ViennaCL][ViennaCL], and CPU
 backends.
 
 Doxygen-generated documentation is available at http://ddemidov.github.com/amgcl.

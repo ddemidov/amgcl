@@ -98,6 +98,8 @@ map(const boost::numeric::ublas::compressed_matrix<T, boost::numeric::ublas::row
 
 } // namespace amgcl
 
+/// Sparse matrix-vector product operator overload for ublas types.
+/** Necessary for ublas types to work with amgcl::solve() functions. */
 template <typename real>
 boost::numeric::ublas::vector<real> operator*(
         const boost::numeric::ublas::compressed_matrix<real, boost::numeric::ublas::row_major> &matrix,
