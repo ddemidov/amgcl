@@ -46,6 +46,7 @@ THE SOFTWARE.
 
 #include <thrust/device_vector.h>
 #include <thrust/inner_product.h>
+#include <thrust/iterator/zip_iterator.h>
 #include <cusparse_v2.h>
 
 namespace amgcl {
@@ -359,6 +360,38 @@ struct axpy {
 
     __device__ __host__ T operator()(T x, T y) const {
         return a * x + y;
+    }
+};
+
+template <typename T>
+struct axpby {
+    T a;
+    T b;
+
+    axpby(T a, T b) : a(a), b(b) {}
+
+    template <class Tuple>
+    __device__ __host__ void operator()(Tuple t) const {
+        thrust::get<0>(t) =
+            a * thrust::get<1>(t) +
+            b * thrust::get<2>(t);
+    }
+};
+
+template <typename T>
+struct axpbypcz {
+    T a;
+    T b;
+    T c;
+
+    axpbypcz(T a, T b, T c) : a(a), b(b), c(c) {}
+
+    template <class Tuple>
+    __device__ __host__ void operator()(Tuple t) const {
+        thrust::get<0>(t) =
+            a * thrust::get<1>(t) +
+            b * thrust::get<2>(t) +
+            c * thrust::get<3>(t);
     }
 };
 
@@ -717,6 +750,129 @@ std::pair< int, value_t > solve(
                 level::axpy<value_t>(alpha));
         thrust::transform(q.begin(), q.end(), r.begin(), r.begin(),
                 level::axpy<value_t>(-alpha));
+    }
+
+    return std::make_pair(iter, res);
+}
+
+/// Stabilized BiConjugate Gradient method for Thrust/CUSPARSE combination.
+/**
+ * Implementation is based on \ref Templates_1994 "Barrett (1994)"
+ *
+ * \param A   The system matrix.
+ * \param rhs The right-hand side.
+ * \param P   The preconditioner. Should provide apply(rhs, x) method.
+ * \param x   The solution. Contains an initial approximation on input, and
+ *            the approximated solution on output.
+ * \param prm The control parameters.
+ *
+ * \returns a pair containing number of iterations made and precision
+ * achieved.
+ *
+ * \ingroup iterative
+ */
+template <class value_t, gpu_matrix_format Format, class precond>
+std::pair< int, value_t > solve(
+        const sparse::cuda_matrix<value_t, Format> &A,
+        const thrust::device_vector<value_t> &rhs,
+        const precond &P,
+        thrust::device_vector<value_t> &x,
+        bicg_tag prm = bicg_tag()
+        )
+{
+    const size_t n = x.size();
+    static const value_t zero = 0;
+
+    thrust::device_vector<value_t> r (n);
+    thrust::device_vector<value_t> p (n);
+    thrust::device_vector<value_t> v (n);
+    thrust::device_vector<value_t> s (n);
+    thrust::device_vector<value_t> t (n);
+    thrust::device_vector<value_t> rh(n);
+    thrust::device_vector<value_t> ph(n);
+    thrust::device_vector<value_t> sh(n);
+
+    thrust::copy(rhs.begin(), rhs.end(), r.begin());
+    A.mul(-1, x, 1, r);
+    thrust::copy(r.begin(), r.end(), rh.begin());
+
+    value_t rho1  = 0, rho2  = 0;
+    value_t alpha = 0, omega = 0;
+
+    value_t norm_of_rhs = level::cuda<Format>::norm(rhs);
+
+    int     iter;
+    value_t res = 2 * prm.tol;
+    for(iter = 0; res > prm.tol && iter < prm.maxiter; ++iter) {
+        rho2 = rho1;
+        rho1 = thrust::inner_product(r.begin(), r.end(), rh.begin(), zero);
+
+        if (fabs(rho1) < 1e-32)
+            throw std::logic_error("Zero rho in BiCGStab");
+
+        if (iter)
+            thrust::for_each(
+                    thrust::make_zip_iterator(thrust::make_tuple(
+                            p.begin(), r.begin(), p.begin(), v.begin())),
+                    thrust::make_zip_iterator(thrust::make_tuple(
+                            p.end(), r.end(), p.end(), v.end())),
+                    level::axpbypcz<value_t>(1, rho1 * alpha / (rho2 * omega), -rho1 * alpha / rho2)
+                    );
+        else
+            thrust::copy(r.begin(), r.end(), p.begin());
+
+        thrust::fill(ph.begin(), ph.end(), zero);
+        P.apply(p, ph);
+
+        A.mul(1, ph, 0, v);
+
+        alpha = rho1 / thrust::inner_product(rh.begin(), rh.end(), v.begin(), zero);
+
+        thrust::for_each(
+                thrust::make_zip_iterator(thrust::make_tuple(
+                        s.begin(), r.begin(), v.begin())),
+                thrust::make_zip_iterator(thrust::make_tuple(
+                        s.end(), r.end(), v.end())),
+                level::axpby<value_t>(1, -alpha)
+                );
+
+        if ((res = level::cuda<Format>::norm(s) / norm_of_rhs) < prm.tol) {
+            thrust::for_each(
+                    thrust::make_zip_iterator(thrust::make_tuple(
+                            x.begin(), x.begin(), ph.begin())),
+                    thrust::make_zip_iterator(thrust::make_tuple(
+                            x.end(), x.end(), ph.end())),
+                    level::axpby<value_t>(1, alpha)
+                    );
+        } else {
+            thrust::fill(sh.begin(), sh.end(), zero);
+            P.apply(s, sh);
+
+            A.mul(1, sh, 0, t);
+
+            omega = thrust::inner_product(t.begin(), t.end(), s.begin(), zero)
+                  / thrust::inner_product(t.begin(), t.end(), t.begin(), zero);
+
+            if (fabs(omega) < 1e-32)
+                throw std::logic_error("Zero omega in BiCGStab");
+
+            thrust::for_each(
+                    thrust::make_zip_iterator(thrust::make_tuple(
+                            x.begin(), x.begin(), ph.begin(), sh.begin())),
+                    thrust::make_zip_iterator(thrust::make_tuple(
+                            x.end(), x.end(), ph.end(), sh.end())),
+                    level::axpbypcz<value_t>(1, alpha, omega)
+                    );
+            thrust::for_each(
+                    thrust::make_zip_iterator(thrust::make_tuple(
+                            r.begin(), s.begin(), t.begin())),
+                    thrust::make_zip_iterator(thrust::make_tuple(
+                            r.end(), s.end(), t.end())),
+                    level::axpby<value_t>(1, -omega)
+                    );
+
+            res = level::cuda<Format>::norm(r) / norm_of_rhs;
+        }
     }
 
     return std::make_pair(iter, res);

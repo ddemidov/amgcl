@@ -49,7 +49,8 @@ int main(int argc, char *argv[]) {
     thrust::device_vector<real> x(n, 0);
 
     prof.tic("solve");
-    std::pair<int, real> cnv = amgcl::solve(amg.top_matrix(), f, amg, x, amgcl::cg_tag());
+    std::pair<int, real> cnv = amgcl::solve(amg.top_matrix(), f, amg, x,
+            amgcl::bicg_tag());
     prof.toc("solve");
 
     std::cout << "Iterations: " << cnv.first  << std::endl
