@@ -163,7 +163,7 @@ struct cpu_gauss_seidel {
     };
 };
 
-struct cpu_ilu {
+struct cpu_ilu0 {
     struct params {
         float damping;
         params(float w = 0.72) : damping(w) {}
@@ -314,7 +314,7 @@ struct cpu_relax_scheme;
 
 AMGCL_REGISTER_RELAX_SCHEME(cpu, damped_jacobi);
 AMGCL_REGISTER_RELAX_SCHEME(cpu, gauss_seidel);
-AMGCL_REGISTER_RELAX_SCHEME(cpu, ilu);
+AMGCL_REGISTER_RELAX_SCHEME(cpu, ilu0);
 AMGCL_REGISTER_RELAX_SCHEME(cpu, spai0);
 
 /// CPU-based AMG hierarchy.

@@ -61,7 +61,7 @@ enum relax_t {
     damped_jacobi = 1,
     spai0         = 2,
     gauss_seidel  = 3,
-    ilu           = 4
+    ilu0          = 4
 };
 
 struct options {
@@ -204,7 +204,7 @@ int main(int argc, char *argv[]) {
         ("solver", po::value<int>(&op.solver)->default_value(cg),
             "Iterative solver: cg(1), bicgstab(2), gmres(3), standalone(4)")
         ("relax", po::value<int>(&relax)->default_value(spai0),
-            "Iterative solver: damped jacobi(1), spai0(2), gauss-seidel (3), ilu(4)")
+            "Iterative solver: damped jacobi(1), spai0(2), gauss-seidel (3), ilu0(4)")
 
         ("problem",
             po::value<std::string>(&op.pfile)->default_value("problem.dat"),
@@ -368,22 +368,22 @@ int main(int argc, char *argv[]) {
                             throw std::invalid_argument("Unsupported interpolation scheme");
                     }
                     break;
-                case ilu:
+                case ilu0:
                     switch(static_cast<interp_t>(interp)) {
                         case classic:
-                            run_cpu_test< amgcl::interp::classic, amgcl::relax::ilu >(
+                            run_cpu_test< amgcl::interp::classic, amgcl::relax::ilu0 >(
                                     A, rhs, op);
                             break;
                         case aggregation:
-                            run_cpu_test< amgcl::interp::aggregation< amgcl::aggr::plain >, amgcl::relax::ilu >(
+                            run_cpu_test< amgcl::interp::aggregation< amgcl::aggr::plain >, amgcl::relax::ilu0 >(
                                     A, rhs, op);
                             break;
                         case smoothed_aggregation:
-                            run_cpu_test< amgcl::interp::smoothed_aggregation< amgcl::aggr::plain >, amgcl::relax::ilu >(
+                            run_cpu_test< amgcl::interp::smoothed_aggregation< amgcl::aggr::plain >, amgcl::relax::ilu0 >(
                                     A, rhs, op);
                             break;
                         case sa_emin:
-                            run_cpu_test< amgcl::interp::sa_emin< amgcl::aggr::plain >, amgcl::relax::ilu >(
+                            run_cpu_test< amgcl::interp::sa_emin< amgcl::aggr::plain >, amgcl::relax::ilu0 >(
                                     A, rhs, op);
                             break;
                         default:
