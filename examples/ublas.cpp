@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
 
     // Build the preconditioner:
     typedef amgcl::solver<
-        real, int,
+        real, ptrdiff_t,
         amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
         amgcl::level::cpu<amgcl::relax::spai0>
         > AMG;
