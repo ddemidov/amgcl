@@ -350,6 +350,8 @@ cusparseHandle_t cuda_matrix<value_type, GPU_MATRIX_CRS>::cusp_handle = 0;
 
 } // namespace sparse
 
+namespace level {
+
 template <typename T>
 struct axpy {
     T a;
@@ -359,8 +361,6 @@ struct axpy {
         return a * x + y;
     }
 };
-
-namespace level {
 
 struct cuda_damped_jacobi {
     struct params {
@@ -705,7 +705,7 @@ std::pair< int, value_t > solve(
 
         if (iter)
             thrust::transform(p.begin(), p.end(), s.begin(), p.begin(),
-                    axpy<value_t>(rho1 / rho2));
+                    level::axpy<value_t>(rho1 / rho2));
         else
             thrust::copy(s.begin(), s.end(), p.begin());
 
@@ -714,9 +714,9 @@ std::pair< int, value_t > solve(
         value_t alpha = rho1 / thrust::inner_product(q.begin(), q.end(), p.begin(), zero);
 
         thrust::transform(p.begin(), p.end(), x.begin(), x.begin(),
-                axpy<value_t>(alpha));
+                level::axpy<value_t>(alpha));
         thrust::transform(q.begin(), q.end(), r.begin(), r.begin(),
-                axpy<value_t>(-alpha));
+                level::axpy<value_t>(-alpha));
     }
 
     return std::make_pair(iter, res);
