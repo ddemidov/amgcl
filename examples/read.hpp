@@ -29,9 +29,9 @@ inline int read_problem(const std::string &fname,
     val.resize(row.back());
     rhs.resize(n);
 
-    f.read((char*)col.data(), col.size() * sizeof(int));
-    f.read((char*)val.data(), val.size() * sizeof(double));
-    f.read((char*)rhs.data(), rhs.size() * sizeof(double));
+    f.read((char*)&col[0], col.size() * sizeof(int));
+    f.read((char*)&val[0], val.size() * sizeof(double));
+    f.read((char*)&rhs[0], rhs.size() * sizeof(double));
 
     std::cout << "Done\n" << std::endl;
 

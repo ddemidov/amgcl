@@ -42,6 +42,9 @@ if (EIGEN_INCLUDE)
     target_link_libraries(eigen ${Boost_CHRONO_LIBRARY})
 endif (EIGEN_INCLUDE)
 
+add_executable(ublas ublas.cpp)
+target_link_libraries(ublas ${Boost_CHRONO_LIBRARY})
+
 if (VIENNACL_INCLUDE AND EIGEN_INCLUDE)
     add_executable(viennacl_eigen viennacl_eigen.cpp)
     target_link_libraries(viennacl_eigen ${Boost_CHRONO_LIBRARY})
