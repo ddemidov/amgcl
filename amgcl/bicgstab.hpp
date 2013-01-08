@@ -73,7 +73,8 @@ solve(const matrix &A, const vector &rhs, const precond &P, vector &x, bicg_tag 
     vector ph(n);
     vector sh(n);
 
-    rh = r = rhs - A * x;
+    residual(A, x, rhs, r);
+    rh = r;
 
     value_t rho1  = 0, rho2  = 0;
     value_t alpha = 0, omega = 0;
@@ -97,7 +98,7 @@ solve(const matrix &A, const vector &rhs, const precond &P, vector &x, bicg_tag 
         clear(ph);
         P.apply(p, ph);
 
-        v = A * ph;
+        axpy(A, ph, v);
 
         alpha = rho1 / inner_prod(rh, v);
 
@@ -109,7 +110,7 @@ solve(const matrix &A, const vector &rhs, const precond &P, vector &x, bicg_tag 
             clear(sh);
             P.apply(s, sh);
 
-            t = A * sh;
+            axpy(A, sh, t);
 
             omega = inner_prod(t, s) / inner_prod(t, t);
 

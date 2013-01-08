@@ -123,7 +123,7 @@ solve(const matrix &A, const vector &rhs, const precond &P, vector &x, gmres_tag
     std::vector<vector> v(M + 1);
     for(BOOST_AUTO(vp, v.begin()); vp != v.end(); ++vp) vp->resize(n);
 
-    w = rhs - A * x;
+    residual(A, x, rhs, w);
     clear(r);
     P.apply(w, r);
 
@@ -132,7 +132,7 @@ solve(const matrix &A, const vector &rhs, const precond &P, vector &x, gmres_tag
 
     while(iter < prm.maxiter && res > prm.tol) {
         if (iter > 0) {
-            w = rhs - A * x;
+            residual(A, x, rhs, w);
             clear(r);
             P.apply(w, r);
             res = norm(r);
@@ -144,7 +144,7 @@ solve(const matrix &A, const vector &rhs, const precond &P, vector &x, gmres_tag
         s[0] = res;
 
         for(int i = 0; i < M && iter < prm.maxiter; ++i, ++iter) {
-            r = A * v[i];
+            axpy(A, v[i], r);
             clear(w);
             P.apply(r, w);
 

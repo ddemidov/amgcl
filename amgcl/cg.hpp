@@ -69,7 +69,7 @@ solve(const matrix &A, const vector &rhs, const precond &P, vector &x, cg_tag pr
     const size_t n = x.size();
 
     vector r(n), s(n), p(n), q(n);
-    r = rhs - A * x;
+    residual(A, x, rhs, r);
 
     value_t rho1 = 0, rho2 = 0;
     value_t norm_of_rhs = norm(rhs);
@@ -95,7 +95,7 @@ solve(const matrix &A, const vector &rhs, const precond &P, vector &x, cg_tag pr
         else
             p = s;
 
-        q = A * p;
+        axpy(A, p, q);
 
         value_t alpha = rho1 / inner_prod(q, p);
 

@@ -38,6 +38,7 @@ THE SOFTWARE.
 #include <boost/numeric/ublas/operation_sparse.hpp>
 #include <boost/numeric/ublas/operation.hpp>
 
+#include <boost/typeof/typeof.hpp>
 #include <boost/utility/enable_if.hpp>
 #include <boost/type_traits/is_arithmetic.hpp>
 
@@ -96,18 +97,55 @@ map(const boost::numeric::ublas::compressed_matrix<T, boost::numeric::ublas::row
 
 } // namespace sparse
 
-} // namespace amgcl
-
-/// Sparse matrix-vector product operator overload for ublas types.
+/// Specialization of residual operation for ublas types.
 /** Necessary for ublas types to work with amgcl::solve() functions. */
 template <typename real>
-boost::numeric::ublas::vector<real> operator*(
-        const boost::numeric::ublas::compressed_matrix<real, boost::numeric::ublas::row_major> &matrix,
-        const boost::numeric::ublas::vector<real> &vector)
+void residual(
+        const boost::numeric::ublas::compressed_matrix<real, boost::numeric::ublas::row_major> &A,
+        const boost::numeric::ublas::vector<real> &x,
+        const boost::numeric::ublas::vector<real> &f,
+        boost::numeric::ublas::vector<real> &y
+        )
 {
-    boost::numeric::ublas::vector<real> result(vector.size());
-    axpy_prod(matrix, vector, result, true);
-    return result;
+    const size_t n = A.size1();
+
+    BOOST_AUTO(Arow, A.index1_data().begin());
+    BOOST_AUTO(Acol, A.index2_data().begin());
+    BOOST_AUTO(Aval, A.value_data().begin());
+
+#pragma omp parallel for schedule(dynamic, 1024)
+    for(size_t i = 0; i < n; ++i) {
+        real buf = f[i];
+        for(size_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
+            buf -= Aval[j] * x[Acol[j]];
+        y[i] = buf;
+    }
 }
+
+/// Specialization of matrix-vector product for ublas types.
+/** Necessary for ublas types to work with amgcl::solve() functions. */
+template <typename real>
+void axpy(
+        const boost::numeric::ublas::compressed_matrix<real, boost::numeric::ublas::row_major> &A,
+        const boost::numeric::ublas::vector<real> &x,
+        boost::numeric::ublas::vector<real> &y
+        )
+{
+    const size_t n = A.size1();
+
+    BOOST_AUTO(Arow, A.index1_data().begin());
+    BOOST_AUTO(Acol, A.index2_data().begin());
+    BOOST_AUTO(Aval, A.value_data().begin());
+
+#pragma omp parallel for schedule(dynamic, 1024)
+    for(size_t i = 0; i < n; ++i) {
+        real buf = 0;
+        for(size_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
+            buf += Aval[j] * x[Acol[j]];
+        y[i] = buf;
+    }
+}
+
+} // namespace amgcl
 
 #endif

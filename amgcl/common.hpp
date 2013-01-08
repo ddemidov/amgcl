@@ -84,6 +84,18 @@ template <> struct level_name ## _relax_scheme<relax::relax_name> { \
     typedef level_name ## _ ## relax_name type; \
 }
 
+/// Computes residual f - A * x and stores the result in y.
+template <class spmat, class VectorX, class VectorF, class VectorY>
+void residual(const spmat &A, const VectorX &x, const VectorF &f, VectorY &y) {
+    y = f - A * x;
+}
+
+/// Computes y = A * x (not really an axpy, I know).
+template <class spmat, class VectorX, class VectorY>
+void axpy(const spmat &A, const VectorX &x, VectorY &y) {
+    y = A * x;
+}
+
 } // namespace amgcl
 
 #endif
