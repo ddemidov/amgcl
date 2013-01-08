@@ -54,16 +54,13 @@ struct bicg_tag {
 };
 
 /// Control parameters for GMRES method.
-/**
- * \param M Number of iterations before restart.
- */
-template <size_t M = 30>
 struct gmres_tag {
+    int M;       ///< Number of iterations before restart.
     int maxiter; ///< Maximum number of iterations.
     double tol;  ///< The desired precision.
 
-    gmres_tag(int maxiter = 100, double tol = 1e-8)
-        : maxiter(maxiter), tol(tol)
+    gmres_tag(int M = 30, int maxiter = 100, double tol = 1e-8)
+        : M(M), maxiter(maxiter), tol(tol)
     {}
 };
 

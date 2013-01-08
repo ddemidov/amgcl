@@ -33,10 +33,9 @@ THE SOFTWARE.
  * Implementation is based on \ref Templates_1994 "Barrett (1994)"
  */
 
+#include <vector>
 #include <utility>
 #include <algorithm>
-
-#include <boost/array.hpp>
 
 #include <amgcl/common.hpp>
 
@@ -70,21 +69,21 @@ void generate_plane_rotation(value_t dx, value_t dy, value_t &cs, value_t &sn) {
 }
 
 //---------------------------------------------------------------------------
-template <size_t M, class vector>
+template <class vector>
 void update(
-        vector &x, int k,
-        boost::array<boost::array<typename value_type<vector>::type, M>, M + 1> &h,
-        const boost::array<typename value_type<vector>::type, M + 1> &s,
-        const boost::array<vector, M + 1> &v,
-        boost::array<typename value_type<vector>::type, M + 1> &y
+        vector &x, int M, int k,
+        std::vector<typename value_type<vector>::type> &h,
+        const std::vector<typename value_type<vector>::type> &s,
+        const std::vector<vector> &v,
+        std::vector<typename value_type<vector>::type> &y
         )
 {
     std::copy(s.begin(), s.end(), y.begin());
 
     for (int i = k; i >= 0; --i) {
-	y[i] /= h[i][i];
+	y[i] /= h[i * M + i];
 	for (int j = i - 1; j >= 0; --j)
-	    y[j] -= h[j][i] * y[i];
+	    y[j] -= h[j * M + i] * y[i];
     }
 
     for (int j = 0; j <= k; j++)
@@ -109,19 +108,19 @@ void update(
  *
  * \ingroup iterative
  */
-template <size_t M, class matrix, class vector, class precond>
+template <class matrix, class vector, class precond>
 std::pair< int, typename value_type<vector>::type >
-solve(const matrix &A, const vector &rhs, const precond &P, vector &x, gmres_tag<M> prm = gmres_tag<M>())
+solve(const matrix &A, const vector &rhs, const precond &P, vector &x, gmres_tag prm = gmres_tag())
 {
     typedef typename value_type<vector>::type value_t;
     const size_t n = x.size();
+    const size_t M = prm.M;
 
-
-    boost::array<boost::array<value_t, M>, M + 1> H;
-    boost::array<value_t, M + 1> s, cs, sn, y;
+    std::vector<value_t> H(M * (M + 1));
+    std::vector<value_t> s(M + 1), cs(M + 1), sn(M + 1), y(M + 1);
 
     vector r(n), w(n);
-    boost::array<vector, M + 1> v;
+    std::vector<vector> v(M + 1);
     for(BOOST_AUTO(vp, v.begin()); vp != v.end(); ++vp) vp->resize(n);
 
     w = rhs - A * x;
@@ -150,30 +149,30 @@ solve(const matrix &A, const vector &rhs, const precond &P, vector &x, gmres_tag
             P.apply(r, w);
 
             for(int k = 0; k <= i; ++k) {
-                H[k][i] = inner_prod(w, v[k]);
-                w -= H[k][i] * v[k];
+                H[k * M + i] = inner_prod(w, v[k]);
+                w -= H[k * M + i] * v[k];
             }
 
-            H[i+1][i] = norm(w);
+            H[(i+1) * M + i] = norm(w);
 
-            v[i+1] = w / H[i+1][i];
+            v[i+1] = w / H[(i+1) * M + i];
 
             for(int k = 0; k < i; ++k)
-                gmres::apply_plane_rotation(H[k][i], H[k+1][i], cs[k], sn[k]);
+                gmres::apply_plane_rotation(H[k * M + i], H[(k+1) * M + i], cs[k], sn[k]);
 
-            gmres::generate_plane_rotation(H[i][i], H[i+1][i], cs[i], sn[i]);
-            gmres::apply_plane_rotation(H[i][i], H[i+1][i], cs[i], sn[i]);
+            gmres::generate_plane_rotation(H[i * M + i], H[(i+1) * M + i], cs[i], sn[i]);
+            gmres::apply_plane_rotation(H[i * M + i], H[(i+1) * M + i], cs[i], sn[i]);
             gmres::apply_plane_rotation(s[i], s[i+1], cs[i], sn[i]);
 
 	    res = fabs(s[i+1]);
 
 	    if (res < prm.tol) {
-                gmres::update(x, i, H, s, v, y);
+                gmres::update(x, M, i, H, s, v, y);
 		return std::make_pair(iter + 1, res);
 	    };
 	}
 
-        gmres::update(x, M - 1, H, s, v, y);
+        gmres::update(x, M, M - 1, H, s, v, y);
     }
 
     return std::make_pair(iter, res);

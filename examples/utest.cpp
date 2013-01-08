@@ -94,7 +94,7 @@ void solve(
             cnv = amgcl::solve(A, rhs, amg, x, amgcl::bicg_tag(op.lp.maxiter, op.lp.tol));
             break;
         case gmres:
-            cnv = amgcl::solve(A, rhs, amg, x, amgcl::gmres_tag<GMRES_M>(op.lp.maxiter, op.lp.tol));
+            cnv = amgcl::solve(A, rhs, amg, x, amgcl::gmres_tag(GMRES_M, op.lp.maxiter, op.lp.tol));
             break;
         case standalone:
             cnv = amg.solve(rhs, x);
