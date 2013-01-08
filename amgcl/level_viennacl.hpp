@@ -138,7 +138,7 @@ AMGCL_REGISTER_RELAX_SCHEME(viennacl, spai0);
  */
 template <
     gpu_matrix_format Format = GPU_MATRIX_HYB,
-    relax::scheme Relaxation = relax::damped_jacobi
+    relax::scheme Relaxation = relax::spai0
     >
 struct viennacl {
 

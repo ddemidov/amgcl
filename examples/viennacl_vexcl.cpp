@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
     typedef amgcl::solver<
         real, int,
         amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
-        amgcl::level::vexcl<amgcl::relax::damped_jacobi>
+        amgcl::level::vexcl<amgcl::relax::spai0>
         > AMG;
 
     AMG::params prm;
