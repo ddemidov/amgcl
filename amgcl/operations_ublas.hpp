@@ -59,21 +59,39 @@ T1 inner_prod(const boost::numeric::ublas::vector<T1> &x,
               const boost::numeric::ublas::vector<T2> &y
         )
 {
-    return boost::numeric::ublas::inner_prod(x, y);
+    const size_t n = x.size();
+    T1 sum = 0;
+
+#pragma omp parallel for schedule(dynamic, 1024) reduction(+:sum)
+    for(size_t i = 0; i < n; ++i)
+        sum += x[i] * y[i];
+
+    return sum;
 }
 
 /// Returns norm of an ublas vector.
 /** Necessary for ublas types to work with amgcl::solve() functions. */
 template <typename T>
 T norm(const boost::numeric::ublas::vector<T> &x) {
-    return boost::numeric::ublas::norm_2(x);
+    const size_t n = x.size();
+    T sum = 0;
+
+#pragma omp parallel for schedule(dynamic, 1024) reduction(+:sum)
+    for(size_t i = 0; i < n; ++i)
+        sum += x[i] * x[i];
+
+    return sqrt(sum);
 }
 
 /// Clears (sets elements to zero) an ublas vector.
 /** Necessary for ublas types to work with amgcl::solve() functions. */
 template <typename T>
 void clear(boost::numeric::ublas::vector<T> &x) {
-    x.clear();
+    const size_t n = x.size();
+
+#pragma omp parallel for schedule(dynamic, 1024)
+    for(size_t i = 0; i < n; ++i)
+        x[i] = 0;
 }
 
 
