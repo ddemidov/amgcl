@@ -639,18 +639,16 @@ std::pair< int, value_t > solve(
         )
 {
     const size_t n = x.size();
-    static const value_t zero = 0;
 
     thrust::device_vector<value_t> r(n), s(n), p(n), q(n);
 
-    thrust::copy(rhs.begin(), rhs.end(), r.begin());
-    A.mul(-1, x, 1, r);
+    residual(A, x, rhs, r);
 
     value_t rho1 = 0, rho2 = 0;
     value_t norm_of_rhs = norm(rhs);
 
     if (norm_of_rhs == 0) {
-        thrust::fill(x.begin(), x.end(), zero);
+        clear(x);
         return std::make_pair(0, norm_of_rhs);
     }
 
@@ -662,11 +660,11 @@ std::pair< int, value_t > solve(
             ++iter
        )
     {
-        thrust::fill(s.begin(), s.end(), zero);
+        clear(s);
         P.apply(r, s);
 
         rho2 = rho1;
-        rho1 = thrust::inner_product(r.begin(), r.end(), s.begin(), zero);
+        rho1 = inner_prod(r, s);
 
         if (iter)
             thrust::for_each(
@@ -681,7 +679,7 @@ std::pair< int, value_t > solve(
 
         A.mul(1, p, 0, q);
 
-        value_t alpha = rho1 / thrust::inner_product(q.begin(), q.end(), p.begin(), zero);
+        value_t alpha = rho1 / inner_prod(q, p);
 
         thrust::for_each(
                 thrust::make_zip_iterator(thrust::make_tuple(
@@ -728,7 +726,6 @@ std::pair< int, value_t > solve(
         )
 {
     const size_t n = x.size();
-    static const value_t zero = 0;
 
     thrust::device_vector<value_t> r (n);
     thrust::device_vector<value_t> p (n);
@@ -739,8 +736,7 @@ std::pair< int, value_t > solve(
     thrust::device_vector<value_t> ph(n);
     thrust::device_vector<value_t> sh(n);
 
-    thrust::copy(rhs.begin(), rhs.end(), r.begin());
-    A.mul(-1, x, 1, r);
+    residual(A, x, rhs, r);
     thrust::copy(r.begin(), r.end(), rh.begin());
 
     value_t rho1  = 0, rho2  = 0;
@@ -752,7 +748,7 @@ std::pair< int, value_t > solve(
     value_t res = 2 * prm.tol;
     for(iter = 0; res > prm.tol && iter < prm.maxiter; ++iter) {
         rho2 = rho1;
-        rho1 = thrust::inner_product(r.begin(), r.end(), rh.begin(), zero);
+        rho1 = inner_prod(r, rh);
 
         if (fabs(rho1) < 1e-32)
             throw std::logic_error("Zero rho in BiCGStab");
@@ -768,12 +764,12 @@ std::pair< int, value_t > solve(
         else
             thrust::copy(r.begin(), r.end(), p.begin());
 
-        thrust::fill(ph.begin(), ph.end(), zero);
+        clear(ph);
         P.apply(p, ph);
 
         A.mul(1, ph, 0, v);
 
-        alpha = rho1 / thrust::inner_product(rh.begin(), rh.end(), v.begin(), zero);
+        alpha = rho1 / inner_prod(rh, v);
 
         thrust::for_each(
                 thrust::make_zip_iterator(thrust::make_tuple(
@@ -792,13 +788,12 @@ std::pair< int, value_t > solve(
                     cuda_ops::axpby<value_t>(1, alpha)
                     );
         } else {
-            thrust::fill(sh.begin(), sh.end(), zero);
+            clear(sh);
             P.apply(s, sh);
 
             A.mul(1, sh, 0, t);
 
-            omega = thrust::inner_product(t.begin(), t.end(), s.begin(), zero)
-                  / thrust::inner_product(t.begin(), t.end(), t.begin(), zero);
+            omega = inner_prod(t, s) / inner_prod(t, t);
 
             if (fabs(omega) < 1e-32)
                 throw std::logic_error("Zero omega in BiCGStab");
