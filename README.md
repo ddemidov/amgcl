@@ -125,9 +125,9 @@ Performance
 -----------
 
 Here is output of `utest` benchmark (see examples folder), solving 2D 2048x2048
-Poisson problem generated with `./genproblem 2048`.
+Poisson problem generated with `./genproblem2d 2048`.
 
-The first run is CPU-only (`--level=2`, see `./utest -help` for the options
+The first run is CPU-only (`--level=2`, see `./utest --help` for the options
 list). The CPU is Intel Core i7 920:
 ```
 $ ./utest --level 2
@@ -147,14 +147,15 @@ level     unknowns       nonzeros
     4          988           9362 ( 0.03%)
     5          115           1149 ( 0.00%)
 
-Iterations: 25
-Error:      6.679105e-09
+Iterations: 23
+Error:      4.12031e-09
 
-[Profile:            7.562 sec.] (100.00%)
-[ self:              0.011 sec.] (  0.15%)
-[  Read problem:     0.130 sec.] (  1.72%)
-[  setup:            1.020 sec.] ( 13.49%)
-[  solve:            6.401 sec.] ( 84.65%)
+
+[utest:              7.159 sec.] (100.00%)
+[ self:              0.010 sec.] (  0.14%)
+[  Read problem:     0.131 sec.] (  1.82%)
+[  setup:            1.104 sec.] ( 15.42%)
+[  solve:            5.915 sec.] ( 82.62%)
 ```
 
 The second run is VexCL-based, the GPU is NVIDIA Tesla C2075:
@@ -178,15 +179,16 @@ level     unknowns       nonzeros
     4          988           9362 ( 0.03%)
     5          115           1149 ( 0.00%)
 
-Iterations: 25
-Error:      6.679105e-09
+Iterations: 23
+Error:      4.12031e-09
 
-[Profile:                     3.592 sec.] (100.00%)
-[ self:                       0.437 sec.] ( 12.16%)
-[  OpenCL initialization:     0.051 sec.] (  1.41%)
-[  Read problem:              0.130 sec.] (  3.61%)
-[  setup:                     2.179 sec.] ( 60.65%)
-[  solve:                     0.796 sec.] ( 22.16%)
+
+[utest:                       3.030 sec.] (100.00%)
+[ self:                       0.028 sec.] (  0.93%)
+[  OpenCL initialization:     0.062 sec.] (  2.05%)
+[  Read problem:              0.133 sec.] (  4.37%)
+[  setup:                     2.082 sec.] ( 68.72%)
+[  solve:                     0.725 sec.] ( 23.93%)
 ```
 
 Setup time has increased, because data structures have to be transfered to GPU

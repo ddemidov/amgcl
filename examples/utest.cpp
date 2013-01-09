@@ -23,6 +23,7 @@
 #include <amgcl/cg.hpp>
 #include <amgcl/bicgstab.hpp>
 #include <amgcl/gmres.hpp>
+#include <amgcl/profiler.hpp>
 
 #include "read.hpp"
 
