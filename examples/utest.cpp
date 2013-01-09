@@ -184,6 +184,78 @@ void run_vexcl_test(const spmat &A, const vector &rhs, const options &op) {
 }
 
 //---------------------------------------------------------------------------
+template <class interp, class spmat, class vector>
+void run_vexcl_test(int relax, const spmat &A, const vector &rhs, const options &op) {
+    switch (static_cast<relax_t>(relax)) {
+        case damped_jacobi:
+            run_vexcl_test<interp, amgcl::relax::damped_jacobi>(A, rhs, op);
+            break;
+        case spai0:
+            run_vexcl_test<interp, amgcl::relax::spai0>(A, rhs, op);
+            break;
+        default:
+            throw std::invalid_argument("Unsupported relaxation scheme for vexcl level");
+    }
+}
+
+//---------------------------------------------------------------------------
+template <class interp, class spmat, class vector>
+void run_cpu_test(int relax, const spmat &A, const vector &rhs, const options &op) {
+    switch (static_cast<relax_t>(relax)) {
+        case damped_jacobi:
+            run_cpu_test<interp, amgcl::relax::damped_jacobi>(A, rhs, op);
+            break;
+        case spai0:
+            run_cpu_test<interp, amgcl::relax::spai0>(A, rhs, op);
+            break;
+        case gauss_seidel:
+            run_cpu_test<interp, amgcl::relax::gauss_seidel>(A, rhs, op);
+            break;
+        case ilu0:
+            run_cpu_test<interp, amgcl::relax::ilu0>(A, rhs, op);
+            break;
+        default:
+            throw std::invalid_argument("Unsupported relaxation scheme");
+    }
+}
+
+//---------------------------------------------------------------------------
+template <class interp, class spmat, class vector>
+void run_test(int level, int relax, const spmat &A, const vector &rhs, const options &op) {
+    switch(static_cast<level_t>(level)) {
+        case vexcl_lvl:
+            run_vexcl_test<interp>(relax, A, rhs, op);
+            break;
+        case cpu_lvl:
+            run_cpu_test<interp>(relax, A, rhs, op);
+            break;
+        default:
+            throw std::invalid_argument("Unsupported backend");
+    }
+}
+
+//---------------------------------------------------------------------------
+template <class spmat, class vector>
+void run_test(int interp, int level, int relax, const spmat &A, const vector &rhs, const options &op) {
+    switch(static_cast<interp_t>(interp)) {
+        case classic:
+            run_test< amgcl::interp::classic >(level, relax, A, rhs, op);
+            break;
+        case aggregation:
+            run_test< amgcl::interp::aggregation< amgcl::aggr::plain > >(level, relax, A, rhs, op);
+            break;
+        case smoothed_aggregation:
+            run_test< amgcl::interp::smoothed_aggregation< amgcl::aggr::plain > >(level, relax, A, rhs, op);
+            break;
+        case sa_emin:
+            run_test< amgcl::interp::sa_emin< amgcl::aggr::plain > >(level, relax, A, rhs, op);
+            break;
+        default:
+            throw std::invalid_argument("Unsupported interpolation scheme");
+    }
+}
+
+//---------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
     int interp;
     int level;
@@ -250,154 +322,7 @@ int main(int argc, char *argv[]) {
 
     auto A = amgcl::sparse::map(n, n, row.data(), col.data(), val.data());
 
-    switch(static_cast<level_t>(level)) {
-        case vexcl_lvl:
-            switch (static_cast<relax_t>(relax)) {
-                case damped_jacobi:
-                    switch(static_cast<interp_t>(interp)) {
-                        case classic:
-                            run_vexcl_test< amgcl::interp::classic, amgcl::relax::damped_jacobi >(
-                                    A, rhs, op);
-                            break;
-                        case aggregation:
-                            run_vexcl_test< amgcl::interp::aggregation< amgcl::aggr::plain >, amgcl::relax::damped_jacobi >(
-                                    A, rhs, op);
-                            break;
-                        case smoothed_aggregation:
-                            run_vexcl_test< amgcl::interp::smoothed_aggregation< amgcl::aggr::plain >, amgcl::relax::damped_jacobi >(
-                                    A, rhs, op);
-                            break;
-                        case sa_emin:
-                            run_vexcl_test< amgcl::interp::sa_emin< amgcl::aggr::plain >, amgcl::relax::damped_jacobi >(
-                                    A, rhs, op);
-                            break;
-                        default:
-                            throw std::invalid_argument("Unsupported interpolation scheme");
-                    }
-                    break;
-                case spai0:
-                    switch(static_cast<interp_t>(interp)) {
-                        case classic:
-                            run_vexcl_test< amgcl::interp::classic, amgcl::relax::spai0 >(
-                                    A, rhs, op);
-                            break;
-                        case aggregation:
-                            run_vexcl_test< amgcl::interp::aggregation< amgcl::aggr::plain >, amgcl::relax::spai0 >(
-                                    A, rhs, op);
-                            break;
-                        case smoothed_aggregation:
-                            run_vexcl_test< amgcl::interp::smoothed_aggregation< amgcl::aggr::plain >, amgcl::relax::spai0 >(
-                                    A, rhs, op);
-                            break;
-                        case sa_emin:
-                            run_vexcl_test< amgcl::interp::sa_emin< amgcl::aggr::plain >, amgcl::relax::spai0 >(
-                                    A, rhs, op);
-                            break;
-                        default:
-                            throw std::invalid_argument("Unsupported interpolation scheme");
-                    }
-                    break;
-                default:
-                    throw std::invalid_argument("Unsupported relaxation scheme for vexcl level");
-            }
-            break;
-        case cpu_lvl:
-            switch (static_cast<relax_t>(relax)) {
-                case damped_jacobi:
-                    switch(static_cast<interp_t>(interp)) {
-                        case classic:
-                            run_cpu_test< amgcl::interp::classic, amgcl::relax::damped_jacobi >(
-                                    A, rhs, op);
-                            break;
-                        case aggregation:
-                            run_cpu_test< amgcl::interp::aggregation< amgcl::aggr::plain >, amgcl::relax::damped_jacobi >(
-                                    A, rhs, op);
-                            break;
-                        case smoothed_aggregation:
-                            run_cpu_test< amgcl::interp::smoothed_aggregation< amgcl::aggr::plain >, amgcl::relax::damped_jacobi >(
-                                    A, rhs, op);
-                            break;
-                        case sa_emin:
-                            run_cpu_test< amgcl::interp::sa_emin< amgcl::aggr::plain >, amgcl::relax::damped_jacobi >(
-                                    A, rhs, op);
-                            break;
-                        default:
-                            throw std::invalid_argument("Unsupported interpolation scheme");
-                    }
-                    break;
-                case spai0:
-                    switch(static_cast<interp_t>(interp)) {
-                        case classic:
-                            run_cpu_test< amgcl::interp::classic, amgcl::relax::spai0 >(
-                                    A, rhs, op);
-                            break;
-                        case aggregation:
-                            run_cpu_test< amgcl::interp::aggregation< amgcl::aggr::plain >, amgcl::relax::spai0 >(
-                                    A, rhs, op);
-                            break;
-                        case smoothed_aggregation:
-                            run_cpu_test< amgcl::interp::smoothed_aggregation< amgcl::aggr::plain >, amgcl::relax::spai0 >(
-                                    A, rhs, op);
-                            break;
-                        case sa_emin:
-                            run_cpu_test< amgcl::interp::sa_emin< amgcl::aggr::plain >, amgcl::relax::spai0 >(
-                                    A, rhs, op);
-                            break;
-                        default:
-                            throw std::invalid_argument("Unsupported interpolation scheme");
-                    }
-                    break;
-                case gauss_seidel:
-                    switch(static_cast<interp_t>(interp)) {
-                        case classic:
-                            run_cpu_test< amgcl::interp::classic, amgcl::relax::gauss_seidel >(
-                                    A, rhs, op);
-                            break;
-                        case aggregation:
-                            run_cpu_test< amgcl::interp::aggregation< amgcl::aggr::plain >, amgcl::relax::gauss_seidel >(
-                                    A, rhs, op);
-                            break;
-                        case smoothed_aggregation:
-                            run_cpu_test< amgcl::interp::smoothed_aggregation< amgcl::aggr::plain >, amgcl::relax::gauss_seidel >(
-                                    A, rhs, op);
-                            break;
-                        case sa_emin:
-                            run_cpu_test< amgcl::interp::sa_emin< amgcl::aggr::plain >, amgcl::relax::gauss_seidel >(
-                                    A, rhs, op);
-                            break;
-                        default:
-                            throw std::invalid_argument("Unsupported interpolation scheme");
-                    }
-                    break;
-                case ilu0:
-                    switch(static_cast<interp_t>(interp)) {
-                        case classic:
-                            run_cpu_test< amgcl::interp::classic, amgcl::relax::ilu0 >(
-                                    A, rhs, op);
-                            break;
-                        case aggregation:
-                            run_cpu_test< amgcl::interp::aggregation< amgcl::aggr::plain >, amgcl::relax::ilu0 >(
-                                    A, rhs, op);
-                            break;
-                        case smoothed_aggregation:
-                            run_cpu_test< amgcl::interp::smoothed_aggregation< amgcl::aggr::plain >, amgcl::relax::ilu0 >(
-                                    A, rhs, op);
-                            break;
-                        case sa_emin:
-                            run_cpu_test< amgcl::interp::sa_emin< amgcl::aggr::plain >, amgcl::relax::ilu0 >(
-                                    A, rhs, op);
-                            break;
-                        default:
-                            throw std::invalid_argument("Unsupported interpolation scheme");
-                    }
-                    break;
-                default:
-                    throw std::invalid_argument("Unsupported relaxation scheme");
-            }
-            break;
-        default:
-            throw std::invalid_argument("Unsupported backend");
-    }
+    run_test(interp, level, relax, A, rhs, op);
 
     std::cout << prof << std::endl;
 }
