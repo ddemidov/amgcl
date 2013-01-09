@@ -72,7 +72,6 @@ void clear(Eigen::MatrixBase<T> &x) {
     x.setZero();
 }
 
-
 namespace sparse {
 
 /// Maps Eigen sparse matrix to format supported by amgcl.

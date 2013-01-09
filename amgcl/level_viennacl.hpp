@@ -32,7 +32,6 @@ THE SOFTWARE.
  */
 
 
-#include <boost/array.hpp>
 #include <boost/smart_ptr/scoped_ptr.hpp>
 #include <boost/typeof/typeof.hpp>
 

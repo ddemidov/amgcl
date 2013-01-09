@@ -95,26 +95,6 @@ void clear(boost::numeric::ublas::vector<T> &x) {
 }
 
 
-namespace sparse {
-
-/// Maps ublas compressed matrix to format supported by amgcl.
-/** No data is copied here. */
-template <class T>
-matrix_map<T, ptrdiff_t>
-map(const boost::numeric::ublas::compressed_matrix<T, boost::numeric::ublas::row_major> &A) {
-    return matrix_map<T, ptrdiff_t>(
-            A.size1(),
-            A.size2(),
-            // amgcl expects signed type for row and col data. This should work
-            // for decently sized matrices:
-            reinterpret_cast<const ptrdiff_t*>(A.index1_data().begin()),
-            reinterpret_cast<const ptrdiff_t*>(A.index2_data().begin()),
-            A.value_data().begin()
-            );
-}
-
-} // namespace sparse
-
 /// Specialization of residual operation for ublas types.
 /** Necessary for ublas types to work with amgcl::solve() functions. */
 template <typename real>
@@ -163,6 +143,26 @@ void axpy(
         y[i] = buf;
     }
 }
+
+namespace sparse {
+
+/// Maps ublas compressed matrix to format supported by amgcl.
+/** No data is copied here. */
+template <class T>
+matrix_map<T, ptrdiff_t>
+map(const boost::numeric::ublas::compressed_matrix<T, boost::numeric::ublas::row_major> &A) {
+    return matrix_map<T, ptrdiff_t>(
+            A.size1(),
+            A.size2(),
+            // amgcl expects signed type for row and col data. This should work
+            // for decently sized matrices:
+            reinterpret_cast<const ptrdiff_t*>(A.index1_data().begin()),
+            reinterpret_cast<const ptrdiff_t*>(A.index2_data().begin()),
+            A.value_data().begin()
+            );
+}
+
+} // namespace sparse
 
 } // namespace amgcl
 

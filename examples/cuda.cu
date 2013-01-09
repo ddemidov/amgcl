@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
 
     prof.tic("solve");
     std::pair<int, real> cnv = amgcl::solve(amg.top_matrix(), f, amg, x,
-            amgcl::cg_tag());
+            amgcl::gmres_tag());
     prof.toc("solve");
 
     std::cout << "Iterations: " << cnv.first  << std::endl
