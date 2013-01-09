@@ -51,6 +51,11 @@ THE SOFTWARE.
 
 namespace amgcl {
 
+template <typename T>
+struct value_type< thrust::device_vector<T> > {
+    typedef T type;
+};
+
 namespace sparse {
 
 /// Wrapper around CUSPARSE matrix
