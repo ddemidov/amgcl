@@ -203,3 +203,11 @@ The library is header-only, so there is nothing to compile or link to. You just
 need to copy amgcl folder somewhere and tell your compiler to scan it for
 include files.
 
+Projects using amgcl
+--------------------
+
+1. [Kratos Multi-Physics][kratos] (an open source framework for the
+   implementation of numerical methods for the solution of engineering
+   problems) is using amgcl for solution of discretized PDEs. 
+
+[kratos]: http://www.cimne.com/kratos
