@@ -255,6 +255,14 @@ class instance {
 
         vex::Reductor<value_t, vex::SUM> sum;
 
+        mutable vector u;
+        mutable vector f;
+        mutable vector t;
+
+        typename vexcl_relax_scheme<Relaxation>::type::template instance<value_t, index_t> relax;
+
+        mutable std::unique_ptr< gmres_data<vector> > gmres;
+
         template <class Iterator>
         struct cycle_precond {
             cycle_precond(Iterator lvl, Iterator end, const params &prm)
@@ -267,14 +275,6 @@ class instance {
             Iterator lvl, end;
             const params &prm;
         };
-
-        mutable vector u;
-        mutable vector f;
-        mutable vector t;
-
-        typename vexcl_relax_scheme<Relaxation>::type::template instance<value_t, index_t> relax;
-
-        mutable std::unique_ptr< gmres_data<vector> > gmres;
 };
 
 };

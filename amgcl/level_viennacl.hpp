@@ -33,6 +33,7 @@ THE SOFTWARE.
 
 
 #include <boost/array.hpp>
+#include <boost/smart_ptr/scoped_ptr.hpp>
 #include <boost/typeof/typeof.hpp>
 
 #include <amgcl/common.hpp>
@@ -40,6 +41,7 @@ THE SOFTWARE.
 #include <amgcl/spmat.hpp>
 #include <amgcl/spai.hpp>
 #include <amgcl/operations_viennacl.hpp>
+#include <amgcl/gmres.hpp>
 
 #include <viennacl/vector.hpp>
 #include <viennacl/compressed_matrix.hpp>
@@ -170,8 +172,7 @@ class instance {
                 f.resize(a.rows);
 
                 if (prm.kcycle && nlevel % prm.kcycle == 0)
-                    for(BOOST_AUTO(v, cg.begin()); v != cg.end(); v++)
-                        v->resize(a.rows);
+                    gmres.reset(new gmres_data<vector>(2, a.rows));
             }
 
             a.clear();
@@ -226,7 +227,7 @@ class instance {
                     nxt->f = ::viennacl::linalg::prod(lvl->R, lvl->t);
                     nxt->u.clear();
 
-                    if (nxt->cg[0].size())
+                    if (nxt->gmres)
                         kcycle(pnxt, end, prm, nxt->f, nxt->u);
                     else
                         cycle(pnxt, end, prm, nxt->f, nxt->u);
@@ -252,34 +253,14 @@ class instance {
             instance *nxt = pnxt->get();
 
             if (pnxt != end) {
-                vector &r = lvl->cg[0];
-                vector &s = lvl->cg[1];
-                vector &p = lvl->cg[2];
-                vector &q = lvl->cg[3];
+                cycle_precond<Iterator> p(plvl, end, prm);
 
-                r = rhs;
+                lvl->gmres->restart(lvl->A, rhs, p, x);
 
-                value_t rho1 = 0, rho2 = 0;
+                for(int i = 0; i < lvl->gmres->M; ++i)
+                    lvl->gmres->iteration(lvl->A, p, i);
 
-                for(int iter = 0; iter < 2; ++iter) {
-                    s.clear();
-                    cycle(plvl, end, prm, r, s);
-
-                    rho2 = rho1;
-                    rho1 = ::viennacl::linalg::inner_prod(r, s);
-
-                    if (iter)
-                        p = s + (rho1 / rho2) * p;
-                    else
-                        p = s;
-
-                    q = ::viennacl::linalg::prod(lvl->A, p);
-
-                    value_t alpha = rho1 / ::viennacl::linalg::inner_prod(q, p);
-
-                    x += alpha * p;
-                    r -= alpha * q;
-                }
+                lvl->gmres->update(x, lvl->gmres->M - 1);
             } else {
                 x = ::viennacl::linalg::prod(lvl->Ainv, rhs);
             }
@@ -304,9 +285,22 @@ class instance {
 
         typename viennacl_relax_scheme<Relaxation>::type::template instance<value_t, index_t> relax;
 
-        mutable boost::array<vector, 4> cg;
+        mutable boost::scoped_ptr< gmres_data<vector> > gmres;
 
         index_t nnz;
+
+        template <class Iterator>
+        struct cycle_precond {
+            cycle_precond(Iterator lvl, Iterator end, const params &prm)
+                : lvl(lvl), end(end), prm(prm) {}
+
+            void apply(const vector &r, vector &x) const {
+                cycle(lvl, end, prm, r, x);
+            }
+
+            Iterator lvl, end;
+            const params &prm;
+        };
 };
 
 };

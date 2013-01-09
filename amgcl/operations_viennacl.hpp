@@ -33,9 +33,57 @@ THE SOFTWARE.
 
 #include <amgcl/spmat.hpp>
 #include <viennacl/compressed_matrix.hpp>
+#include <viennacl/vector.hpp>
+#include <viennacl/linalg/prod.hpp>
+#include "viennacl/linalg/inner_prod.hpp"
+#include <viennacl/linalg/norm_2.hpp>
 #include <viennacl/traits/clear.hpp>
 
 namespace amgcl {
+
+template <typename T>
+struct value_type< viennacl::vector<T> > {
+    typedef T type;
+};
+
+template <typename T>
+void clear(viennacl::vector<T> &x) {
+    viennacl::traits::clear(x);
+}
+
+template <typename T>
+T inner_prod(const viennacl::vector<T> &x, const viennacl::vector<T> &y) {
+    return viennacl::linalg::inner_prod(x, y);
+}
+
+template <typename T>
+T norm(const viennacl::vector<T> &x) {
+    return viennacl::linalg::norm_2(x);
+}
+
+template <class matrix, typename real>
+void residual(
+        const matrix &A,
+        const viennacl::vector<real> &x,
+        const viennacl::vector<real> &f,
+        viennacl::vector<real> &y
+        )
+{
+    y = viennacl::linalg::prod(A, x);
+    y = f - y;
+}
+
+/// Specialization of matrix-vector product for ublas types.
+/** Necessary for ublas types to work with amgcl::solve() functions. */
+template <class matrix, typename real>
+void axpy(
+        const matrix &A,
+        const viennacl::vector<real> &x,
+        viennacl::vector<real> &y
+        )
+{
+    y = viennacl::linalg::prod(A, x);
+}
 
 namespace sparse {
 
