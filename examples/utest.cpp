@@ -9,6 +9,7 @@
 #include <Eigen/SparseCore>
 
 #define AMGCL_PROFILING
+#define VIENNACL_WITH_OPENCL
 
 #include <amgcl/amgcl.hpp>
 #include <amgcl/aggr_plain.hpp>
@@ -18,8 +19,10 @@
 #include <amgcl/interp_classic.hpp>
 #include <amgcl/operations_vexcl.hpp>
 #include <amgcl/operations_eigen.hpp>
+#include <amgcl/operations_viennacl.hpp>
 #include <amgcl/level_cpu.hpp>
 #include <amgcl/level_vexcl.hpp>
+#include <amgcl/level_viennacl.hpp>
 #include <amgcl/cg.hpp>
 #include <amgcl/bicgstab.hpp>
 #include <amgcl/gmres.hpp>
@@ -45,8 +48,9 @@ enum interp_t {
 };
 
 enum level_t {
-    vexcl_lvl = 1,
-    cpu_lvl   = 2
+    cpu_lvl      = 1,
+    vexcl_lvl    = 2,
+    viennacl_lvl = 3
 };
 
 enum solver_t {
@@ -162,12 +166,13 @@ void run_vexcl_test(const spmat &A, const vector &rhs, const options &op) {
 
     prm.coarse_enough = op.coarse_enough;
 
-    prm.level.npre   = op.lp.npre;
-    prm.level.npost  = op.lp.npost;
-    prm.level.ncycle = op.lp.ncycle;
-    prm.level.kcycle = op.lp.kcycle;
-    prm.level.tol    = op.lp.tol;
-    prm.level.maxiter= op.lp.maxiter;
+    prm.level.ctx     = &ctx;
+    prm.level.npre    = op.lp.npre;
+    prm.level.npost   = op.lp.npost;
+    prm.level.ncycle  = op.lp.ncycle;
+    prm.level.kcycle  = op.lp.kcycle;
+    prm.level.tol     = op.lp.tol;
+    prm.level.maxiter = op.lp.maxiter;
 
 
     prof.tic("setup");
@@ -184,6 +189,52 @@ void run_vexcl_test(const spmat &A, const vector &rhs, const options &op) {
 }
 
 //---------------------------------------------------------------------------
+template <class Interp, amgcl::relax::scheme Relax, class spmat, class vector>
+void run_viennacl_test(const spmat &A, const vector &rhs, const options &op) {
+    typedef amgcl::solver<real, int, Interp, amgcl::level::viennacl<amgcl::GPU_MATRIX_HYB, Relax> > AMG;
+
+    // Use vexcl for simple OpenCL context setup.
+    prof.tic("OpenCL initialization");
+    vex::Context ctx( vex::Filter::Env && vex::Filter::DoublePrecision && vex::Filter::Count(1));
+    prof.toc("OpenCL initialization");
+
+    if (!ctx.size()) throw std::runtime_error("No available compute devices");
+    std::cout << ctx << std::endl;
+    std::vector<cl_device_id> dev_id(1, ctx.queue(0).getInfo<CL_QUEUE_DEVICE>()());
+    std::vector<cl_command_queue> queue_id(1, ctx.queue(0)());
+    viennacl::ocl::setup_context(0, ctx.context(0)(), dev_id, queue_id);
+
+    // Prevent double free from VienaCL
+    cl::detail::ReferenceHandler<cl_command_queue>::retain(ctx.queue(0)());
+
+    typename AMG::params prm;
+
+    prm.coarse_enough = op.coarse_enough;
+
+    prm.level.npre    = op.lp.npre;
+    prm.level.npost   = op.lp.npost;
+    prm.level.ncycle  = op.lp.ncycle;
+    prm.level.kcycle  = op.lp.kcycle;
+    prm.level.tol     = op.lp.tol;
+    prm.level.maxiter = op.lp.maxiter;
+
+
+    prof.tic("setup");
+    AMG amg(A, prm);
+    prof.toc("setup");
+
+    std::cout << amg << std::endl;
+
+    viennacl::vector<real> f(rhs.size());
+    viennacl::vector<real> x(rhs.size());
+
+    viennacl::fast_copy(&rhs[0], &rhs[0] + rhs.size(), f.begin());
+    viennacl::traits::clear(x);
+
+    solve(amg, amg.top_matrix(), f, x, op);
+}
+
+//---------------------------------------------------------------------------
 template <class interp, class spmat, class vector>
 void run_vexcl_test(int relax, const spmat &A, const vector &rhs, const options &op) {
     switch (static_cast<relax_t>(relax)) {
@@ -195,6 +246,21 @@ void run_vexcl_test(int relax, const spmat &A, const vector &rhs, const options 
             break;
         default:
             throw std::invalid_argument("Unsupported relaxation scheme for vexcl level");
+    }
+}
+
+//---------------------------------------------------------------------------
+template <class interp, class spmat, class vector>
+void run_viennacl_test(int relax, const spmat &A, const vector &rhs, const options &op) {
+    switch (static_cast<relax_t>(relax)) {
+        case damped_jacobi:
+            run_viennacl_test<interp, amgcl::relax::damped_jacobi>(A, rhs, op);
+            break;
+        case spai0:
+            run_viennacl_test<interp, amgcl::relax::spai0>(A, rhs, op);
+            break;
+        default:
+            throw std::invalid_argument("Unsupported relaxation scheme for viennacl level");
     }
 }
 
@@ -223,11 +289,14 @@ void run_cpu_test(int relax, const spmat &A, const vector &rhs, const options &o
 template <class interp, class spmat, class vector>
 void run_test(int level, int relax, const spmat &A, const vector &rhs, const options &op) {
     switch(static_cast<level_t>(level)) {
+        case cpu_lvl:
+            run_cpu_test<interp>(relax, A, rhs, op);
+            break;
         case vexcl_lvl:
             run_vexcl_test<interp>(relax, A, rhs, op);
             break;
-        case cpu_lvl:
-            run_cpu_test<interp>(relax, A, rhs, op);
+        case viennacl_lvl:
+            run_viennacl_test<interp>(relax, A, rhs, op);
             break;
         default:
             throw std::invalid_argument("Unsupported backend");
@@ -272,7 +341,7 @@ int main(int argc, char *argv[]) {
             "smoothed_aggregation (3), smoothed aggregation with energy minimization (4)"
             )
         ("level", po::value<int>(&level)->default_value(vexcl_lvl),
-            "Backend: vexcl(1), cpu(2)"
+            "Backend: cpu(1), vexcl(2), viennacl(3)"
             )
         ("solver", po::value<int>(&op.solver)->default_value(cg),
             "Iterative solver: cg(1), bicgstab(2), gmres(3), standalone(4)")
