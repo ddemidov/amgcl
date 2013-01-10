@@ -171,7 +171,7 @@ class instance {
                 f.resize(a.rows);
 
                 if (prm.kcycle && nlevel % prm.kcycle == 0)
-                    gmres.reset(new gmres_data<vector>(2, a.rows));
+                    gmres.reset(new gmres_data<vector>(prm.kcycle_iterations, a.rows));
             }
 
             a.clear();

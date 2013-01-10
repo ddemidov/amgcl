@@ -485,7 +485,9 @@ class instance {
                 f.resize(a.rows);
 
                 if (prm.kcycle && nlevel % prm.kcycle == 0)
-                    gmres.reset(new gmres_data<thrust::device_vector<value_t> >(2, a.rows));
+                    gmres.reset(
+                            new gmres_data<thrust::device_vector<value_t> >(
+                                prm.kcycle_iterations, a.rows));
             }
 
             a.clear();
