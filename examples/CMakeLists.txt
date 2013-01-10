@@ -20,6 +20,7 @@ find_path(VIENNACL_INCLUDE viennacl/vector.hpp)
 find_path(VEXCL_INCLUDE vexcl/vexcl.hpp)
 
 find_package(CUDA QUIET)
+set(CUDA_COMPUTE_CAPABILITY "20" CACHE STRING "CUDA Compute Capability")
 
 if (EIGEN_INCLUDE)
     include_directories(${EIGEN_INCLUDE})
@@ -77,7 +78,7 @@ if (VIENNACL_INCLUDE AND CUDA_FOUND)
         ${CMAKE_CURRENT_SOURCE_DIR}
         )
     cuda_add_executable(viennacl_cuda ${CMAKE_CURRENT_BINARY_DIR}/viennacl.cu
-        OPTIONS "-DVIENNACL_WITH_CUDA;-arch=sm_20")
+        OPTIONS "-DVIENNACL_WITH_CUDA;-arch=sm_${CUDA_COMPUTE_CAPABILITY}")
     target_link_libraries(viennacl_cuda ${Boost_CHRONO_LIBRARY})
 endif (VIENNACL_INCLUDE AND CUDA_FOUND)
 
@@ -92,6 +93,6 @@ if (VEXCL_INCLUDE AND EIGEN_INCLUDE AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL 
 endif (VEXCL_INCLUDE AND EIGEN_INCLUDE AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 
 if (CUDA_FOUND)
-    cuda_add_executable(cuda cuda.cu OPTIONS "-arch=sm_20")
+    cuda_add_executable(cuda cuda.cu OPTIONS "-arch=sm_${CUDA_COMPUTE_CAPABILITY}")
     target_link_libraries(cuda ${CUDA_cusparse_LIBRARY} ${Boost_CHRONO_LIBRARY})
 endif (CUDA_FOUND)

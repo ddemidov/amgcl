@@ -13,10 +13,28 @@ typedef double real;
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <problem.dat>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <problem.dat> [dev_id]" << std::endl;
         return 1;
     }
     amgcl::profiler<> prof(argv[0]);
+
+    int dev_cnt;
+    cudaGetDeviceCount(&dev_cnt);
+
+    int dev_id = (argc < 3 ? 0 : atoi(argv[2]));
+    if (dev_id < 0 || dev_id >= dev_cnt) {
+        std::cerr << "Incorrect device id [0:" << dev_cnt << ")" << std::endl;
+        return 1;
+    }
+
+    cudaSetDevice(dev_id);
+
+    for(int d = 0; d < dev_cnt; ++d) {
+        cudaDeviceProp p;
+        cudaGetDeviceProperties(&p, d);
+        std::cout << d << (d == dev_id ? "* " : "  ") << p.name << std::endl;
+    }
+    std::cout << std::endl;
 
     // Read matrix and rhs from a binary file.
     std::vector<int>  row;
