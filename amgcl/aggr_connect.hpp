@@ -238,7 +238,7 @@ pointwise_coarsening(const spmat &A, float eps_strong, unsigned dof_per_node) {
 
     aggr.resize(n);
     for(index_t i = 0, ip = 0; ip < Ap.rows; ++ip)
-        for(index_t k = 0; k < dof_per_node; ++k, ++i)
+        for(unsigned k = 0; k < dof_per_node; ++k, ++i)
             aggr[i] = aggr_p[ip] * dof_per_node + k;
     TOC("aggregates");
 

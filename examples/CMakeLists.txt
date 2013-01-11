@@ -1,4 +1,10 @@
-find_package(Boost COMPONENTS program_options chrono)
+if (WIN32)
+    set(Boost_USE_STATIC_LIBS ON)
+    find_package(Boost COMPONENTS program_options thread chrono date_time serialization system)
+else (WIN32)
+    find_package(Boost COMPONENTS program_options chrono)
+endif (WIN32)
+
 include_directories(${Boost_INCLUDE_DIRS})
 
 find_package(OpenMP)
@@ -35,37 +41,47 @@ if (VIENNACL_INCLUDE)
 endif (VIENNACL_INCLUDE)
 
 if (VEXCL_INCLUDE OR VIENNACL_INCLUDE)
-    find_library(OPENCL_LIBRARY OpenCL)
+    if (WIN32)
+	find_library(OPENCL_LIBRARY OpenCL "$ENV{CUDA_LIB_PATH}")
+	find_path(OPENCL_INCLUDE CL/opencl.h "$ENV{CUDA_INC_PATH}")
+	include_directories(${OPENCL_INCLUDE})
+    else (WIN32)
+	find_library(OPENCL_LIBRARY OpenCL)
+    endif (WIN32)
 endif (VEXCL_INCLUDE OR VIENNACL_INCLUDE)
 
 if (EIGEN_INCLUDE)
     add_executable(eigen eigen.cpp)
-    target_link_libraries(eigen ${Boost_CHRONO_LIBRARY})
+    target_link_libraries(eigen ${Boost_LIBRARIES})
 endif (EIGEN_INCLUDE)
 
 add_executable(ublas ublas.cpp)
-target_link_libraries(ublas ${Boost_CHRONO_LIBRARY})
+target_link_libraries(ublas ${Boost_LIBRARIES})
 
 if (VIENNACL_INCLUDE AND EIGEN_INCLUDE)
     add_executable(viennacl_eigen viennacl_eigen.cpp)
-    target_link_libraries(viennacl_eigen ${Boost_CHRONO_LIBRARY})
+    target_link_libraries(viennacl_eigen ${Boost_LIBRARIES})
 endif (VIENNACL_INCLUDE AND EIGEN_INCLUDE)
 
 if (VEXCL_INCLUDE)
     add_executable(vexcl vexcl.cpp)
-    set_target_properties(vexcl PROPERTIES COMPILE_FLAGS "-std=c++0x")
-    target_link_libraries(vexcl ${OPENCL_LIBRARY} ${Boost_CHRONO_LIBRARY})
+    if (NOT WIN32)
+	set_target_properties(vexcl PROPERTIES COMPILE_FLAGS "-std=c++0x")
+    endif (NOT WIN32)
+    target_link_libraries(vexcl ${OPENCL_LIBRARY} ${Boost_LIBRARIES})
 endif (VEXCL_INCLUDE)
 
 if (VIENNACL_INCLUDE AND VEXCL_INCLUDE)
     add_executable(viennacl viennacl.cpp)
     set_target_properties(viennacl PROPERTIES
         COMPILE_FLAGS "-std=c++0x -DVIENNACL_WITH_OPENCL")
-    target_link_libraries(viennacl ${OPENCL_LIBRARY} ${Boost_CHRONO_LIBRARY})
+    target_link_libraries(viennacl ${OPENCL_LIBRARY} ${Boost_LIBRARIES})
 
     add_executable(viennacl_vexcl viennacl_vexcl.cpp)
-    set_target_properties(viennacl_vexcl PROPERTIES COMPILE_FLAGS "-std=c++0x")
-    target_link_libraries(viennacl_vexcl ${OPENCL_LIBRARY} ${Boost_CHRONO_LIBRARY})
+    if (NOT WIN32)
+	set_target_properties(viennacl_vexcl PROPERTIES COMPILE_FLAGS "-std=c++0x")
+    endif (NOT WIN32)
+    target_link_libraries(viennacl_vexcl ${OPENCL_LIBRARY} ${Boost_LIBRARIES})
 endif (VIENNACL_INCLUDE AND VEXCL_INCLUDE)
 
 if (VIENNACL_INCLUDE AND CUDA_FOUND)
@@ -79,20 +95,21 @@ if (VIENNACL_INCLUDE AND CUDA_FOUND)
         )
     cuda_add_executable(viennacl_cuda ${CMAKE_CURRENT_BINARY_DIR}/viennacl.cu
         OPTIONS "-DVIENNACL_WITH_CUDA;-arch=sm_${CUDA_COMPUTE_CAPABILITY}")
-    target_link_libraries(viennacl_cuda ${Boost_CHRONO_LIBRARY})
+    target_link_libraries(viennacl_cuda ${Boost_LIBRARIES})
 endif (VIENNACL_INCLUDE AND CUDA_FOUND)
 
 if (VEXCL_INCLUDE AND EIGEN_INCLUDE AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     add_executable(utest utest.cpp)
-    set_target_properties(utest PROPERTIES COMPILE_FLAGS "-std=c++0x")
+    if (NOT WIN32)
+	set_target_properties(utest PROPERTIES COMPILE_FLAGS "-std=c++0x")
+    endif (NOT WIN32)
     target_link_libraries(utest
         ${OPENCL_LIBRARY}
-        ${Boost_PROGRAM_OPTIONS_LIBRARY}
-        ${Boost_CHRONO_LIBRARY}
+        ${Boost_LIBRARIES}
         )
 endif (VEXCL_INCLUDE AND EIGEN_INCLUDE AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 
 if (CUDA_FOUND)
     cuda_add_executable(cuda cuda.cu OPTIONS "-arch=sm_${CUDA_COMPUTE_CAPABILITY}")
-    target_link_libraries(cuda ${CUDA_cusparse_LIBRARY} ${Boost_CHRONO_LIBRARY})
+    target_link_libraries(cuda ${CUDA_cusparse_LIBRARY} ${Boost_LIBRARIES})
 endif (CUDA_FOUND)

@@ -385,7 +385,7 @@ class solver {
     private:
         void build_level(matrix &A, const params &prm, unsigned nlevel = 0)
         {
-            if (A.rows <= prm.coarse_enough) {
+            if (static_cast<size_t>(A.rows) <= prm.coarse_enough) {
                 TIC("coarsest level");
                 matrix Ai = sparse::inverse(A);
                 hier.push_back( boost::shared_ptr<level_type>(new level_type(A, Ai, prm.level, nlevel) ) );

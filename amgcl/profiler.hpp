@@ -54,7 +54,7 @@ namespace amgcl {
  */
 template <
     class clock = boost::chrono::high_resolution_clock,
-    uint SHIFT_WIDTH = 2
+    unsigned SHIFT_WIDTH = 2
     >
 class profiler {
     public:
