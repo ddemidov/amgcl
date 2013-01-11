@@ -59,11 +59,11 @@ T1 inner_prod(const boost::numeric::ublas::vector<T1> &x,
               const boost::numeric::ublas::vector<T2> &y
         )
 {
-    const size_t n = x.size();
+    const ptrdiff_t n = x.size();
     T1 sum = 0;
 
 #pragma omp parallel for schedule(dynamic, 1024) reduction(+:sum)
-    for(size_t i = 0; i < n; ++i)
+    for(ptrdiff_t i = 0; i < n; ++i)
         sum += x[i] * y[i];
 
     return sum;
@@ -73,11 +73,11 @@ T1 inner_prod(const boost::numeric::ublas::vector<T1> &x,
 /** Necessary for ublas types to work with amgcl::solve() functions. */
 template <typename T>
 T norm(const boost::numeric::ublas::vector<T> &x) {
-    const size_t n = x.size();
+    const ptrdiff_t n = x.size();
     T sum = 0;
 
 #pragma omp parallel for schedule(dynamic, 1024) reduction(+:sum)
-    for(size_t i = 0; i < n; ++i)
+    for(ptrdiff_t i = 0; i < n; ++i)
         sum += x[i] * x[i];
 
     return sqrt(sum);
@@ -87,10 +87,10 @@ T norm(const boost::numeric::ublas::vector<T> &x) {
 /** Necessary for ublas types to work with amgcl::solve() functions. */
 template <typename T>
 void clear(boost::numeric::ublas::vector<T> &x) {
-    const size_t n = x.size();
+    const ptrdiff_t n = x.size();
 
 #pragma omp parallel for schedule(dynamic, 1024)
-    for(size_t i = 0; i < n; ++i)
+    for(ptrdiff_t i = 0; i < n; ++i)
         x[i] = 0;
 }
 
@@ -105,14 +105,14 @@ void residual(
         boost::numeric::ublas::vector<real> &y
         )
 {
-    const size_t n = A.size1();
+    const ptrdiff_t n = A.size1();
 
     BOOST_AUTO(Arow, A.index1_data().begin());
     BOOST_AUTO(Acol, A.index2_data().begin());
     BOOST_AUTO(Aval, A.value_data().begin());
 
 #pragma omp parallel for schedule(dynamic, 1024)
-    for(size_t i = 0; i < n; ++i) {
+    for(ptrdiff_t i = 0; i < n; ++i) {
         real buf = f[i];
         for(size_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
             buf -= Aval[j] * x[Acol[j]];
@@ -129,14 +129,14 @@ void axpy(
         boost::numeric::ublas::vector<real> &y
         )
 {
-    const size_t n = A.size1();
+    const ptrdiff_t n = A.size1();
 
     BOOST_AUTO(Arow, A.index1_data().begin());
     BOOST_AUTO(Acol, A.index2_data().begin());
     BOOST_AUTO(Aval, A.value_data().begin());
 
 #pragma omp parallel for schedule(dynamic, 1024)
-    for(size_t i = 0; i < n; ++i) {
+    for(ptrdiff_t i = 0; i < n; ++i) {
         real buf = 0;
         for(size_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
             buf += Aval[j] * x[Acol[j]];

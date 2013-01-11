@@ -254,7 +254,7 @@ struct cpu_ilu0 {
             }
 
 #pragma omp parallel for schedule(dynamic, 1024)
-            for(int i = 0; i < n; i++) x[i] += prm.damping * tmp[i];
+            for(index_t i = 0; i < n; i++) x[i] += prm.damping * tmp[i];
         }
 
         template <class spmat, class vector1, class vector2, class vector3>
