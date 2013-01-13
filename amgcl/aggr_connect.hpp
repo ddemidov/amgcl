@@ -188,11 +188,11 @@ pointwise_coarsening(const spmat &A, float eps_strong, unsigned dof_per_node) {
     std::vector<index_t> &aggr = S_aggr.second;
 
     TIC("reduce matrix");
-    BOOST_AUTO(Ap, aggr::pointwise_matrix(A, dof_per_node));
+    BOOST_AUTO(Ap, pointwise_matrix(A, dof_per_node));
     TOC("reduce matrix");
 
     TIC("connections");
-    BOOST_AUTO(Sp, aggr::connect(Ap, eps_strong));
+    BOOST_AUTO(Sp, connect(Ap, eps_strong));
 
     S.resize(sparse::matrix_nonzeros(A));
 
