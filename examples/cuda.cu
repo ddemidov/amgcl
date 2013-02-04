@@ -21,13 +21,20 @@ int main(int argc, char *argv[]) {
     int dev_cnt;
     cudaGetDeviceCount(&dev_cnt);
 
-    int dev_id = (argc < 3 ? 0 : atoi(argv[2]));
-    if (dev_id < 0 || dev_id >= dev_cnt) {
-        std::cerr << "Incorrect device id [0:" << dev_cnt << ")" << std::endl;
-        return 1;
+    int dev_id;
+    if (argc >= 3) {
+        dev_id = atoi(argv[2]);
+        if (dev_id < 0 || dev_id >= dev_cnt) {
+            std::cerr << "Incorrect device id [0:" << dev_cnt << ")" << std::endl;
+            return 1;
+        }
+        cudaSetDevice(dev_id);
     }
 
-    cudaSetDevice(dev_id);
+    {
+        thrust::device_vector<int> dummy(1);
+        cudaGetDevice(&dev_id);
+    }
 
     for(int d = 0; d < dev_cnt; ++d) {
         cudaDeviceProp p;
