@@ -11,7 +11,6 @@ using namespace std;
 int main(int argc, char *argv[]) {
     int    n   = argc > 1 ? atoi(argv[1]) : 64;
     int    n3  = n * n * n;
-    double h   = 1.0 / (n - 1);
     double h2i = (n - 1) * (n - 1);
 
     vector<int>    row;

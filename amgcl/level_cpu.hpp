@@ -62,7 +62,7 @@ struct cpu_damped_jacobi {
         instance() {}
 
         template <class spmat>
-        instance(const spmat &A) {}
+        instance(const spmat&) {}
 
         template <class spmat, class vector1, class vector2, class vector3>
         void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
@@ -118,7 +118,7 @@ struct cpu_gauss_seidel {
         instance() {}
 
         template <class spmat>
-        instance(const spmat &A) {}
+        instance(const spmat&) {}
 
 #define GS_INNER_LOOP \
                 value_t temp = rhs[i]; \
@@ -134,7 +134,7 @@ struct cpu_gauss_seidel {
                 x[i] = temp / diag
 
         template <class spmat, class vector1, class vector2, class vector3>
-        void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
+        void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3& /*tmp*/, const params&) const {
             const index_t n = sparse::matrix_rows(A);
 
             BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
@@ -147,7 +147,7 @@ struct cpu_gauss_seidel {
         }
 
         template <class spmat, class vector1, class vector2, class vector3>
-        void apply_post(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
+        void apply_post(const spmat &A, const vector1 &rhs, vector2 &x, vector3& /*tmp*/, const params&) const {
             const index_t n = A.rows;
 
             BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
@@ -278,7 +278,7 @@ struct cpu_spai0 {
         instance(const spmat &A) : m(spai::level0(A)) { }
 
         template <class spmat, class vector1, class vector2, class vector3>
-        void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
+        void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params&) const {
             const index_t n = sparse::matrix_rows(A);
 
             BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
@@ -365,7 +365,7 @@ class instance {
 
         // Construct the coarsest hierarchy level from system matrix (a) and
         // its inverse (ai).
-        instance(matrix &a, matrix &ai, const params &prm, unsigned nlevel)
+        instance(matrix &a, matrix &ai, const params&, unsigned /*nlevel*/)
             : u(a.rows), f(a.rows), t(a.rows)
         {
             A.swap(a);
@@ -476,7 +476,6 @@ class instance {
             Iterator pnxt = plvl; ++pnxt;
 
             instance *lvl = plvl->get();
-            instance *nxt = pnxt->get();
 
             const index_t n = lvl->A.rows;
 

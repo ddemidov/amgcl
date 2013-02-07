@@ -77,10 +77,7 @@ class profiler {
         }
 
         /// Stops named timer.
-        /**
-         * \param name Timer name.
-         */
-        double toc(const std::string &name) {
+        double toc(const std::string& /*name*/) {
             BOOST_AUTO(top, stack.top());
             stack.pop();
 

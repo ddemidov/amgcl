@@ -83,7 +83,7 @@ struct vexcl_spai0 {
         { }
 
         template <class spmat, class vector>
-        void apply(const spmat &A, const vector &rhs, vector &x, vector &tmp, const params &prm) const {
+        void apply(const spmat &A, const vector &rhs, vector &x, vector &tmp, const params&) const {
             tmp = rhs - A * x;
             x += M * tmp;
         }
@@ -156,7 +156,7 @@ class instance {
 
         // Construct the coarsest hierarchy level from system matrix (a) and
         // its inverse (ai).
-        instance(cpu_matrix &a, cpu_matrix &ai, const params &prm, unsigned nlevel)
+        instance(cpu_matrix &a, cpu_matrix &ai, const params &prm, unsigned /*nlevel*/)
             : A(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
                         a.rows, a.cols, a.row.data(), a.col.data(), a.val.data()),
               Ainv(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
@@ -224,7 +224,6 @@ class instance {
             Iterator pnxt = plvl; ++pnxt;
 
             instance *lvl = plvl->get();
-            instance *nxt = pnxt->get();
 
             if (pnxt != end) {
                 cycle_precond<Iterator> p(plvl, end, prm);
@@ -253,11 +252,11 @@ class instance {
         matrix R;
         matrix Ainv;
 
-        vex::Reductor<value_t, vex::SUM> sum;
-
         mutable vector u;
         mutable vector f;
         mutable vector t;
+
+        vex::Reductor<value_t, vex::SUM> sum;
 
         typename vexcl_relax_scheme<Relaxation>::type::template instance<value_t, index_t> relax;
 

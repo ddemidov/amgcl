@@ -201,7 +201,7 @@ namespace interp {
 struct galerkin_operator {
     template <class spmat, class Params>
     static spmat apply(const spmat &R, const spmat &A, const spmat &P,
-            const Params &prm)
+            const Params&)
     {
         return sparse::prod(sparse::prod(R, A), P);
     }
@@ -309,8 +309,8 @@ class solver {
          */
         template <class vector1, class vector2>
         std::pair< int, value_t > solve(const vector1 &rhs, vector2 &x) const {
-            int     iter = 0;
-            value_t res  = 2 * prm.level.tol;
+            unsigned iter = 0;
+            value_t  res  = 2 * prm.level.tol;
 
             for(; res > prm.level.tol && iter < prm.level.maxiter; ++iter) {
                 apply(rhs, x);

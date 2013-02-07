@@ -87,8 +87,6 @@ void solve(
         const options      &op
         )
 {
-    const int n = rhs.size();
-
     std::pair<int,real> cnv;
     prof.tic("solve");
     switch (static_cast<solver_t>(op.solver)) {

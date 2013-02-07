@@ -416,7 +416,7 @@ struct cuda_spai0 {
         }
 
         template <class spmat, class vector>
-        void apply(const spmat &A, const vector &rhs, vector &x, vector &tmp, const params &prm) const {
+        void apply(const spmat &A, const vector &rhs, vector &x, vector &tmp, const params&) const {
             residual(A, x, rhs, tmp);
 
             thrust::for_each(
@@ -495,7 +495,7 @@ class instance {
             r.clear();
         }
 
-        instance(cpu_matrix &a, cpu_matrix &ai, const params &prm, unsigned nlevel)
+        instance(cpu_matrix &a, cpu_matrix &ai, const params&, unsigned /*nlevel*/)
             : A(a), Ainv(ai), u(a.rows), f(a.rows), t(a.rows)
         {
             a.clear();
@@ -558,7 +558,6 @@ class instance {
             Iterator pnxt = plvl; ++pnxt;
 
             instance *lvl = plvl->get();
-            instance *nxt = pnxt->get();
 
             if (pnxt != end) {
                 cycle_precond<Iterator> p(plvl, end, prm);

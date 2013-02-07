@@ -109,7 +109,7 @@ struct viennacl_spai0 {
         }
 
         template <class spmat, class vector>
-        void apply(const spmat &A, const vector &rhs, vector &x, vector &tmp, const params &prm) const {
+        void apply(const spmat &A, const vector &rhs, vector &x, vector &tmp, const params&) const {
             tmp = ::viennacl::linalg::prod(A, x);
             tmp = rhs - tmp;
             x += ::viennacl::linalg::element_prod(M, tmp);
@@ -160,7 +160,7 @@ class instance {
         // prolongation (p) and restriction (r) operators.
         // The matrices are moved into the local members.
         instance(cpu_matrix &a, cpu_matrix &p, cpu_matrix &r, const params &prm, unsigned nlevel)
-            : t(a.rows), nnz(sparse::matrix_nonzeros(a)), relax(a)
+            : t(a.rows), relax(a), nnz(sparse::matrix_nonzeros(a))
         {
             ::viennacl::copy(sparse::viennacl_map(a), A);
             ::viennacl::copy(sparse::viennacl_map(p), P);
@@ -181,7 +181,7 @@ class instance {
 
         // Construct the coarsest hierarchy level from system matrix (a) and
         // its inverse (ai).
-        instance(cpu_matrix &a, cpu_matrix &ai, const params &prm, unsigned nlevel)
+        instance(cpu_matrix &a, cpu_matrix &ai, const params&, unsigned /*nlevel*/)
             : u(a.rows), f(a.rows), t(a.rows),
               nnz(sparse::matrix_nonzeros(a))
         {
@@ -249,7 +249,6 @@ class instance {
             Iterator pnxt = plvl; ++pnxt;
 
             instance *lvl = plvl->get();
-            instance *nxt = pnxt->get();
 
             if (pnxt != end) {
                 cycle_precond<Iterator> p(plvl, end, prm);

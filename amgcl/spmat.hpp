@@ -369,7 +369,7 @@ void gaussj(index_t n, value_t *a) {
     std::vector<char>    ipiv(n, false);
 
     for(index_t i = 0; i < n; ++i) {
-        index_t irow, icol;
+        index_t irow = 0, icol = 0;
 
         value_t big = zero;
         for(index_t j = 0; j < n; ++j) {
