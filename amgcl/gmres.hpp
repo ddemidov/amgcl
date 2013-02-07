@@ -187,8 +187,8 @@ solve(const matrix &A, const vector &rhs, const precond &P, vector &x, gmres_tag
 
     gmres_data<vector> gmres(prm.M, n);
 
-    unsigned iter = 0;
-    value_t  res;
+    int     iter = 0;
+    value_t res;
 
     do {
         res = gmres.restart(A, rhs, P, x);
