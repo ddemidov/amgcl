@@ -38,7 +38,6 @@ THE SOFTWARE.
 #include <stack>
 
 #include <boost/chrono.hpp>
-#include <boost/typeof/typeof.hpp>
 
 
 namespace amgcl {
@@ -78,7 +77,7 @@ class profiler {
 
         /// Stops named timer.
         double toc(const std::string& /*name*/) {
-            BOOST_AUTO(top, stack.top());
+            profile_unit *top = stack.top();
             stack.pop();
 
             double delta = boost::chrono::duration<double>(
@@ -95,14 +94,14 @@ class profiler {
 
             double children_time() const {
                 double s = 0;
-                for(BOOST_AUTO(c, children.begin()); c != children.end(); c++)
+                for(typename std::map<std::string, profile_unit>::const_iterator c = children.begin(); c != children.end(); c++)
                     s += c->second.length;
                 return s;
             }
 
             size_t total_width(const std::string &name, int level) const {
                 size_t w = name.size() + level;
-                for(BOOST_AUTO(c, children.begin()); c != children.end(); c++)
+                for(typename std::map<std::string, profile_unit>::const_iterator c = children.begin(); c != children.end(); c++)
                     w = std::max(w, c->second.total_width(c->first, level + SHIFT_WIDTH));
                 return w;
             }
@@ -125,7 +124,7 @@ class profiler {
                     }
                 }
 
-                for(BOOST_AUTO(c, children.begin()); c != children.end(); c++)
+                for(typename std::map<std::string, profile_unit>::const_iterator c = children.begin(); c != children.end(); c++)
                     c->second.print(out, c->first, level + SHIFT_WIDTH, total, width);
             }
 
@@ -160,8 +159,8 @@ class profiler {
             root.length += boost::chrono::duration<double>(
                     clock::now() - root.start_time).count();
 
-            BOOST_AUTO(ff, out.flags());
-            BOOST_AUTO(pp, out.precision());
+            std::ios_base::fmtflags ff = out.flags();
+            std::streamsize         pp = out.precision();
 
             root.print(out, name, 0, root.length, root.total_width(name, 0));
 

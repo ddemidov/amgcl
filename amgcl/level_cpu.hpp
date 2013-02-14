@@ -34,7 +34,6 @@ THE SOFTWARE.
 #include <vector>
 
 #include <boost/array.hpp>
-#include <boost/typeof/typeof.hpp>
 
 #include <amgcl/common.hpp>
 #include <amgcl/level_params.hpp>
@@ -68,9 +67,9 @@ struct cpu_damped_jacobi {
         void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
             const index_t n = sparse::matrix_rows(A);
 
-            BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
-            BOOST_AUTO(Acol, sparse::matrix_inner_index(A));
-            BOOST_AUTO(Aval, sparse::matrix_values(A));
+            const index_t *Arow = sparse::matrix_outer_index(A);
+            const index_t *Acol = sparse::matrix_inner_index(A);
+            const value_t *Aval = sparse::matrix_values(A);
 
 #pragma omp parallel for schedule(dynamic, 1024)
             for(index_t i = 0; i < n; ++i) {
@@ -137,9 +136,9 @@ struct cpu_gauss_seidel {
         void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3& /*tmp*/, const params&) const {
             const index_t n = sparse::matrix_rows(A);
 
-            BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
-            BOOST_AUTO(Acol, sparse::matrix_inner_index(A));
-            BOOST_AUTO(Aval, sparse::matrix_values(A));
+            const index_t *Arow = sparse::matrix_outer_index(A);
+            const index_t *Acol = sparse::matrix_inner_index(A);
+            const value_t *Aval = sparse::matrix_values(A);
 
             for(index_t i = 0; i < n; ++i) {
                 GS_INNER_LOOP;
@@ -150,9 +149,9 @@ struct cpu_gauss_seidel {
         void apply_post(const spmat &A, const vector1 &rhs, vector2 &x, vector3& /*tmp*/, const params&) const {
             const index_t n = A.rows;
 
-            BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
-            BOOST_AUTO(Acol, sparse::matrix_inner_index(A));
-            BOOST_AUTO(Aval, sparse::matrix_values(A));
+            const index_t *Arow = sparse::matrix_outer_index(A);
+            const index_t *Acol = sparse::matrix_inner_index(A);
+            const value_t *Aval = sparse::matrix_values(A);
 
             for(index_t i = n - 1; i >= 0; --i) {
                 GS_INNER_LOOP;
@@ -179,9 +178,9 @@ struct cpu_ilu0 {
 
             const index_t n = sparse::matrix_rows(A);
 
-            BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
-            BOOST_AUTO(Acol, sparse::matrix_inner_index(A));
-            BOOST_AUTO(Aval, sparse::matrix_values(A));
+            const index_t *Arow = sparse::matrix_outer_index(A);
+            const index_t *Acol = sparse::matrix_inner_index(A);
+            const value_t *Aval = sparse::matrix_values(A);
 
             luval.assign(Aval, Aval + Arow[n]);
 
@@ -230,9 +229,9 @@ struct cpu_ilu0 {
         void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
             const index_t n = sparse::matrix_rows(A);
 
-            BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
-            BOOST_AUTO(Acol, sparse::matrix_inner_index(A));
-            BOOST_AUTO(Aval, sparse::matrix_values(A));
+            const index_t *Arow = sparse::matrix_outer_index(A);
+            const index_t *Acol = sparse::matrix_inner_index(A);
+            const value_t *Aval = sparse::matrix_values(A);
 
 #pragma omp parallel for schedule(dynamic, 1024)
             for(index_t i = 0; i < n; i++) {
@@ -281,9 +280,9 @@ struct cpu_spai0 {
         void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params&) const {
             const index_t n = sparse::matrix_rows(A);
 
-            BOOST_AUTO(Arow, sparse::matrix_outer_index(A));
-            BOOST_AUTO(Acol, sparse::matrix_inner_index(A));
-            BOOST_AUTO(Aval, sparse::matrix_values(A));
+            const index_t *Arow = sparse::matrix_outer_index(A);
+            const index_t *Acol = sparse::matrix_inner_index(A);
+            const value_t *Aval = sparse::matrix_values(A);
 
 #pragma omp parallel for schedule(dynamic, 1024)
             for(index_t i = 0; i < n; i++) {
@@ -356,8 +355,7 @@ class instance {
                 f.resize(A.rows);
 
                 if (prm.kcycle && nlevel % prm.kcycle == 0)
-                    for(BOOST_AUTO(v, cg.begin()); v != cg.end(); ++v)
-                        v->resize(A.rows);
+                    for(size_t i = 0; i < cg.size(); ++i) cg[i].resize(A.rows);
             }
 
             t.resize(A.rows);
