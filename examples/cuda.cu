@@ -5,7 +5,11 @@
 #include <amgcl/aggr_plain.hpp>
 #include <amgcl/interp_smoothed_aggr.hpp>
 #include <amgcl/level_cuda.hpp>
-#include <amgcl/profiler.hpp>
+
+#ifndef WIN32
+// Boost.chrono used in profiler does not work with nvcc/windows combination.
+#  include <amgcl/profiler.hpp>
+#endif
 
 #include "read.hpp"
 
@@ -16,7 +20,9 @@ int main(int argc, char *argv[]) {
         std::cerr << "Usage: " << argv[0] << " <problem.dat> [dev_id]" << std::endl;
         return 1;
     }
+#ifndef WIN32
     amgcl::profiler<> prof(argv[0]);
+#endif
 
     int dev_cnt;
     cudaGetDeviceCount(&dev_cnt);
@@ -64,22 +70,31 @@ int main(int argc, char *argv[]) {
             n, n, row.data(), col.data(), val.data()
             );
 
+#ifndef WIN32
     prof.tic("setup");
+#endif
     AMG amg(A, prm);
+#ifndef WIN32
     prof.toc("setup");
+#endif
 
     std::cout << amg  << std::endl;
 
     thrust::device_vector<real> f(rhs.begin(), rhs.end());
     thrust::device_vector<real> x(n, 0);
 
+#ifndef WIN32
     prof.tic("solve");
+#endif
     std::pair<int, real> cnv = amgcl::solve(amg.top_matrix(), f, amg, x,
             amgcl::gmres_tag());
+#ifndef WIN32
     prof.toc("solve");
+#endif
 
     std::cout << "Iterations: " << cnv.first  << std::endl
-              << "Error:      " << cnv.second << std::endl
-              << std::endl
-              << prof << std::endl;
+              << "Error:      " << cnv.second << std::endl;
+#ifndef WIN32
+    std::cout << std::endl << prof << std::endl;
+#endif
 }
