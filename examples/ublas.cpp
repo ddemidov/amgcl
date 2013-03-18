@@ -19,12 +19,16 @@ typedef double real;
 typedef boost::numeric::ublas::compressed_matrix<real, boost::numeric::ublas::row_major> ublas_matrix;
 typedef boost::numeric::ublas::vector<real> ublas_vector;
 
+namespace amgcl {
+    profiler<> prof("ublas");
+}
+using amgcl::prof;
+
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <problem.dat>" << std::endl;
         return 1;
     }
-    amgcl::profiler<> prof(argv[0]);
 
     // Read matrix and rhs from a binary file.
     std::vector<int>  row;
