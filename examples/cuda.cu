@@ -1,6 +1,10 @@
 #include <iostream>
 #include <cstdlib>
 
+#ifdef WIN32
+#  undef AMGCL_PROFILING
+#endif
+
 #include <amgcl/amgcl.hpp>
 #include <amgcl/aggr_plain.hpp>
 #include <amgcl/interp_smoothed_aggr.hpp>
@@ -15,14 +19,18 @@
 
 typedef double real;
 
+#ifndef WIN32
+namespace amgcl {
+    profiler<> prof("cuda");
+}
+using amgcl::prof;
+#endif
+
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <problem.dat> [dev_id]" << std::endl;
         return 1;
     }
-#ifndef WIN32
-    amgcl::profiler<> prof(argv[0]);
-#endif
 
     int dev_cnt;
     cudaGetDeviceCount(&dev_cnt);

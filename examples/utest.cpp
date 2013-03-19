@@ -8,7 +8,6 @@
 #include <Eigen/Dense>
 #include <Eigen/SparseCore>
 
-#define AMGCL_PROFILING
 #define VIENNACL_WITH_OPENCL
 
 #include <amgcl/amgcl.hpp>

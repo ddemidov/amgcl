@@ -25,13 +25,16 @@
 
 typedef double real;
 
+namespace amgcl {
+    profiler<> prof("viennacl");
+}
+using amgcl::prof;
+
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <problem.dat>" << std::endl;
         return 1;
     }
-
-    amgcl::profiler<> prof(argv[0]);
 
 #ifdef VIENNACL_WITH_OPENCL
     // There is no easy way to select compute device in ViennaCL, so just use

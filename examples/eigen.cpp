@@ -18,12 +18,16 @@
 typedef double real;
 typedef Eigen::Matrix<real, Eigen::Dynamic, 1> EigenVector;
 
+namespace amgcl {
+    profiler<> prof("eigen");
+}
+using amgcl::prof;
+
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <problem.dat>" << std::endl;
         return 1;
     }
-    amgcl::profiler<> prof(argv[0]);
 
     // Read matrix and rhs from a binary file.
     std::vector<int>  row;
