@@ -15,12 +15,12 @@ CUDA, or OpenMP technologies.  See [examples/vexcl.cpp][ex1],
 using amgcl with [VexCL][VexCL], [ViennaCL][ViennaCL], and CPU
 backends.
 
-Doxygen-generated documentation is available at http://ddemidov.github.com/amgcl.
+Doxygen-generated documentation is available at http://ddemidov.github.io/amgcl.
 
 [amg]:      http://en.wikipedia.org/wiki/Multigrid_method
-[solvers]:  http://ddemidov.github.com/amgcl/group__iterative.html
-[levels]:   http://ddemidov.github.com/amgcl/group__levels.html
-[interp]:   http://ddemidov.github.com/amgcl/group__interpolation.html
+[solvers]:  http://ddemidov.github.io/amgcl/group__iterative.html
+[levels]:   http://ddemidov.github.io/amgcl/group__levels.html
+[interp]:   http://ddemidov.github.io/amgcl/group__interpolation.html
 [ex1]:      https://github.com/ddemidov/amgcl/blob/master/examples/vexcl.cpp
 [ex2]:      https://github.com/ddemidov/amgcl/blob/master/examples/viennacl.cpp
 [ex3]:      https://github.com/ddemidov/amgcl/blob/master/examples/eigen.cpp
