@@ -106,9 +106,4 @@ int main(int argc, char *argv[]) {
               << "Error:      " << tag.error() << std::endl;
 
     std::cout << prof;
-
-#ifdef VIENNACL_WITH_OPENCL
-    // Prevent ViennaCL from segfaulting:
-    exit(0);
-#endif
 }
