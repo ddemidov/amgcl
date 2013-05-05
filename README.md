@@ -1,5 +1,4 @@
-amgcl
-=====
+# amgcl
 
 amgcl is a simple and generic algebraic [multigrid][amg] (AMG) hierarchy builder
 (and a work in progress).  The constructed hierarchy may be used as a
@@ -17,19 +16,7 @@ backends.
 
 Doxygen-generated documentation is available at http://ddemidov.github.io/amgcl.
 
-[amg]:      http://en.wikipedia.org/wiki/Multigrid_method
-[solvers]:  http://ddemidov.github.io/amgcl/group__iterative.html
-[levels]:   http://ddemidov.github.io/amgcl/group__levels.html
-[interp]:   http://ddemidov.github.io/amgcl/group__interpolation.html
-[ex1]:      https://github.com/ddemidov/amgcl/blob/master/examples/vexcl.cpp
-[ex2]:      https://github.com/ddemidov/amgcl/blob/master/examples/viennacl.cpp
-[ex3]:      https://github.com/ddemidov/amgcl/blob/master/examples/eigen.cpp
-[VexCL]:    https://github.com/ddemidov/vexcl
-[ViennaCL]: http://viennacl.sourceforge.net
-[Eigen]:    http://eigen.tuxfamily.org
-
-Overview
---------
+## Overview
 
 You can use amgcl to solve large sparse system of linear equations in three
 simple steps: first, you have to select method components (this is a compile
@@ -45,7 +32,7 @@ convergence rate is slower. They are well suited for GPU-accelerated backends,
 where the cost of the setup phase is much more important.
 
 Here is the complete code example showing each step in action:
-```C++
+~~~{.cpp}
 // First, we need to include relevant headers. Each header basically
 // corresponds to an AMG component. Let's say we want to use conjugate gradient
 // method preconditioned with smoothed aggregation AMG with VexCL backend:
@@ -110,26 +97,25 @@ int main() {
     // Copy the solution back to host:
     vex::copy(u, x);
 }
-```
+~~~
 The following command line would compile the example:
-```
+~~~
 g++ -o example -std=c++0x -O3 -fopenmp example.cpp -I<path/to/vexcl> -I<path/to/amgcl> -lOpenCL
-```
+~~~
 The C++11 support is enabled here (by `-std=c++0x` flag) because it is required
 by VexCL library. amgcl relies on Boost instead. Also note the use of
 `-fopenmp` switch. It enables an OpenMP-based parallelization of the setup
 stage.
 
 
-Performance
------------
+## Performance
 
 Here is output of `utest` benchmark (see examples folder), solving 2D 2048x2048
 Poisson problem generated with `./genproblem2d 2048`.
 
 The first run is CPU-only (`--level=2`, see `./utest --help` for the options
 list). The CPU is Intel Core i7 920:
-```
+~~~
 $ ./utest --level 2
 Reading "problem.dat"...
 Done
@@ -156,10 +142,10 @@ Error:      4.12031e-09
 [  Read problem:     0.131 sec.] (  1.82%)
 [  setup:            1.104 sec.] ( 15.42%)
 [  solve:            5.915 sec.] ( 82.62%)
-```
+~~~
 
 The second run is VexCL-based, the GPU is NVIDIA Tesla C2075:
-```
+~~~
 $ ./utest --level=1
 Reading "problem.dat"...
 Done
@@ -189,25 +175,70 @@ Error:      4.12031e-09
 [  Read problem:              0.133 sec.] (  4.37%)
 [  setup:                     2.082 sec.] ( 68.72%)
 [  solve:                     0.725 sec.] ( 23.93%)
-```
+~~~
 
 Setup time has increased, because data structures have to be transfered to GPU
 memory. But due to the accelerated solution the total time is reduced. Further
 time savings may be expected if the preconditioner is reused for solution with
 different right-hand sides.
 
-Installation
-------------
+## Installation
 
 The library is header-only, so there is nothing to compile or link to. You just
 need to copy amgcl folder somewhere and tell your compiler to scan it for
 include files.
 
-Projects using amgcl
---------------------
+## Projects using amgcl
 
 1. [Kratos Multi-Physics][kratos] (an open source framework for the
    implementation of numerical methods for the solution of engineering
    problems) is using amgcl for solution of discretized PDEs. 
+2. [PARALUTION][] (a library allowing to employ various sparse iterative
+   solvers and preconditioners on multi/many-core CPU and GPU devices) uses
+   adopted amgcl code to build an algebraic multigrid hierarchy.
+
+## References
+
+1. _U. Trottenberg, C. Oosterlee, A. Shuller,_ Multigrid, Academic Press,
+   London, 2001.
+2. _K. Stuben,_ Algebraic multigrid (AMG): an introduction with applications,
+   Journal of Computational and Applied Mathematics,  2001, Vol. 128, Pp.
+   281-309.
+3. _P. Vanek, J. Mandel, M. Brezina,_ Algebraic multigrid by smoothed
+   aggregation for second and fourth order elliptic problems, Computing 56,
+   1996, Pp. 179-196.
+4. _Y. Notay, P. Vassilevski,_ Recursive Krylov-based multigrid cycles, Numer.
+   Linear Algebra Appl. 2008; 15:473-487.
+5. _R. Barrett, M. Berry, T. F. Chan et al._ Templates for the Solution of
+   Linear Systems: Building Blocks for Iterative Methods, 2nd Edition, SIAM,
+   Philadelphia, PA, 1994.
+6. _O. Broeker, M. Grote,_ Sparse approximate inverse smoothers for geometric
+   and algebraic multigrid, Applied Numerical Mathematics, Volume 41, Issue 1,
+   April 2002, Pages 61–80.
+7. _M. Sala, R. Tuminaro,_ A new Petrov-Galerkin smoothed aggregation
+   preconditioner for nonsymmetric linear systems.  SIAM J. Sci. Comput. 2008,
+   Vol. 31, No.1, pp. 143-166.
+
+
+[amg]:      http://en.wikipedia.org/wiki/Multigrid_method
+[solvers]:  http://ddemidov.github.io/amgcl/group__iterative.html
+[levels]:   http://ddemidov.github.io/amgcl/group__levels.html
+[interp]:   http://ddemidov.github.io/amgcl/group__interpolation.html
+[ex1]:      https://github.com/ddemidov/amgcl/blob/master/examples/vexcl.cpp
+[ex2]:      https://github.com/ddemidov/amgcl/blob/master/examples/viennacl.cpp
+[ex3]:      https://github.com/ddemidov/amgcl/blob/master/examples/eigen.cpp
+[VexCL]:    https://github.com/ddemidov/vexcl
+[ViennaCL]: http://viennacl.sourceforge.net
+[Eigen]:    http://eigen.tuxfamily.org
 
 [kratos]: http://www.cimne.com/kratos
+[PARALUTION]: http://www.paralution.com/
+
+[jscc]: http://www.jscc.ru/eng/index.shtml
+[kpfu]: http://www.kpfu.ru
+
+----------------------------
+_This work is a joint effort of [Supercomputer Center of Russian Academy of
+Sciences][jscc] (Kazan branch) and [Kazan Federal University][kpfu]. It is
+partially supported by RFBR grants No 12-07-0007 and 12-01-00033._
+
