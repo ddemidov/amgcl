@@ -80,7 +80,7 @@ class profiler {
             profile_unit *top = stack.top();
             stack.pop();
 
-            double delta = boost::chrono::duration<double>(
+            double delta = typename clock::duration(
                     clock::now() - top->start_time).count();
 
             top->length += delta;
@@ -141,7 +141,7 @@ class profiler {
                     << endl;
             }
 
-            boost::chrono::time_point<clock> start_time;
+            typename clock::time_point start_time;
 
             double length;
 
@@ -156,7 +156,7 @@ class profiler {
             if (stack.top() != &root)
                 out << "Warning! Profile is incomplete." << std::endl;
 
-            root.length += boost::chrono::duration<double>(
+            root.length += typename clock::duration(
                     clock::now() - root.start_time).count();
 
             std::ios_base::fmtflags ff = out.flags();
