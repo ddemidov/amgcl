@@ -80,15 +80,19 @@ class profiler {
             profile_unit *top = stack.top();
             stack.pop();
 
-            double delta = typename clock::duration(
-                    clock::now() - top->start_time).count();
-
+            double delta = seconds(top->start_time, clock::now());
             top->length += delta;
-
             return delta;
         }
 
     private:
+        static double seconds(typename clock::time_point begin, typename clock::time_point end) {
+            return static_cast<double>(clock::duration::period::num)
+                * typename clock::duration(end - begin).count()
+                / clock::duration::period::den;
+
+        }
+
         struct profile_unit {
             profile_unit() : length(0) {}
 
@@ -156,8 +160,7 @@ class profiler {
             if (stack.top() != &root)
                 out << "Warning! Profile is incomplete." << std::endl;
 
-            root.length += typename clock::duration(
-                    clock::now() - root.start_time).count();
+            root.length += seconds(root.start_time, clock::now());
 
             std::ios_base::fmtflags ff = out.flags();
             std::streamsize         pp = out.precision();
