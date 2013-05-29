@@ -40,6 +40,7 @@ THE SOFTWARE.
 #include <boost/smart_ptr/shared_ptr.hpp>
 #include <boost/smart_ptr/make_shared.hpp>
 #include <boost/type_traits/is_signed.hpp>
+#include <boost/io/ios_state.hpp>
 
 #include <amgcl/spmat.hpp>
 #include <amgcl/tictoc.hpp>
@@ -194,8 +195,7 @@ class solver {
 
         /// Output some general information about the AMG hierarchy.
         std::ostream& print(std::ostream &os) const {
-            std::ios_base::fmtflags ff = os.flags();
-            std::streamsize         pp = os.precision();
+            boost::io::ios_all_saver stream_state(os);
 
             index_t sum_dof = 0;
             index_t sum_nnz = 0;
@@ -221,8 +221,6 @@ class solver {
                    << 100.0 * (*lvl)->nonzeros() / sum_nnz
                    << "%)" << std::endl;
 
-            os.flags(ff);
-            os.precision(pp);
             return os;
         }
 

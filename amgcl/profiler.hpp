@@ -38,6 +38,7 @@ THE SOFTWARE.
 #include <stack>
 
 #include <boost/chrono.hpp>
+#include <boost/io/ios_state.hpp>
 
 
 namespace amgcl {
@@ -162,13 +163,8 @@ class profiler {
 
             root.length += seconds(root.start_time, clock::now());
 
-            std::ios_base::fmtflags ff = out.flags();
-            std::streamsize         pp = out.precision();
-
+            boost::io::ios_all_saver stream_state(out);
             root.print(out, name, 0, root.length, root.total_width(name, 0));
-
-            out.flags(ff);
-            out.precision(pp);
         }
 
         /// Sends formatted profiling data to an output stream.
