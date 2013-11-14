@@ -56,7 +56,7 @@ struct vexcl_damped_jacobi {
         instance() {}
 
         template <class spmat>
-        instance(const std::vector<cl::CommandQueue> &queue, const spmat &A)
+        instance(const std::vector<vex::command_queue> &queue, const spmat &A)
             : dia(queue, sparse::diagonal(A))
         {}
 
@@ -78,7 +78,7 @@ struct vexcl_spai0 {
         instance() {}
 
         template <class spmat>
-        instance(const std::vector<cl::CommandQueue> &queue, const spmat &A)
+        instance(const std::vector<vex::command_queue> &queue, const spmat &A)
             : M(queue, spai::level0(A))
         { }
 
