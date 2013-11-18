@@ -130,7 +130,7 @@ class solver {
         };
 
         /// Constructs the AMG hierarchy from the system matrix.
-        /** 
+        /**
          * The input matrix is copied here and may be freed afterwards.
          *
          * \param A   The system matrix. Should be convertible to
@@ -150,7 +150,7 @@ class solver {
         }
 
         /// The AMG hierarchy is used as a standalone solver.
-        /** 
+        /**
          * The vector types should be compatible with level_t:
          *
          * -# Any type with operator[] should work on a CPU.
