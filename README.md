@@ -1,6 +1,7 @@
 # amgcl
 
 [![Build Status](https://travis-ci.org/ddemidov/amgcl.png?branch=master)](https://travis-ci.org/ddemidov/amgcl)
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/ddemidov/amgcl/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
 
 amgcl is a simple and generic algebraic [multigrid][amg] (AMG) hierarchy builder
 (and a work in progress).  The constructed hierarchy may be used as a
