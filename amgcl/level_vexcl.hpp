@@ -56,7 +56,7 @@ struct vexcl_damped_jacobi {
         instance() {}
 
         template <class spmat>
-        instance(const std::vector<vex::command_queue> &queue, const spmat &A)
+        instance(const std::vector<vex::command_queue> &queue, const spmat &A, const params&)
             : dia(queue, sparse::diagonal(A))
         {}
 
@@ -78,7 +78,7 @@ struct vexcl_spai0 {
         instance() {}
 
         template <class spmat>
-        instance(const std::vector<vex::command_queue> &queue, const spmat &A)
+        instance(const std::vector<vex::command_queue> &queue, const spmat &A, const params&)
             : M(queue, spai::level0(A))
         { }
 
@@ -131,19 +131,16 @@ class instance {
         // prolongation (p) and restriction (r) operators.
         // The matrices are moved into the local members.
         instance(cpu_matrix &a, cpu_matrix &p, cpu_matrix &r, const params &prm, unsigned nlevel)
-            : A(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
-                    a.rows, a.cols, a.row.data(), a.col.data(), a.val.data()),
-              P(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
-                      p.rows, p.cols, p.row.data(), p.col.data(), p.val.data()),
-              R(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
-                          r.rows, r.cols, r.row.data(), r.col.data(), r.val.data()),
-              t(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
-              sum(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue()),
-              relax(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a)
+            : A    (prm.ctx ? *prm.ctx : vex::StaticContext<>::get(), a.rows, a.cols, a.row.data(), a.col.data(), a.val.data()),
+              P    (prm.ctx ? *prm.ctx : vex::StaticContext<>::get(), p.rows, p.cols, p.row.data(), p.col.data(), p.val.data()),
+              R    (prm.ctx ? *prm.ctx : vex::StaticContext<>::get(), r.rows, r.cols, r.row.data(), r.col.data(), r.val.data()),
+              t    (prm.ctx ? *prm.ctx : vex::StaticContext<>::get(), a.rows),
+              sum  (prm.ctx ? *prm.ctx : vex::StaticContext<>::get()),
+              relax(prm.ctx ? *prm.ctx : vex::StaticContext<>::get(), a, prm.relax)
         {
             if (nlevel) {
-                u.resize(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows);
-                f.resize(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows);
+                u.resize(prm.ctx ? *prm.ctx : vex::StaticContext<>::get(), a.rows);
+                f.resize(prm.ctx ? *prm.ctx : vex::StaticContext<>::get(), a.rows);
 
                 if (prm.kcycle && nlevel % prm.kcycle == 0)
                     gmres.reset(new gmres_data<vector>(prm.kcycle_iterations, a.rows));
@@ -157,14 +154,12 @@ class instance {
         // Construct the coarsest hierarchy level from system matrix (a) and
         // its inverse (ai).
         instance(cpu_matrix &a, cpu_matrix &ai, const params &prm, unsigned /*nlevel*/)
-            : A(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
-                        a.rows, a.cols, a.row.data(), a.col.data(), a.val.data()),
-              Ainv(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(),
-                          ai.rows, ai.cols, ai.row.data(), ai.col.data(), ai.val.data()),
-              u(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
-              f(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
-              t(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue(), a.rows),
-              sum(prm.ctx ? prm.ctx->queue() : vex::StaticContext<>::get().queue())
+            : A   (prm.ctx ? *prm.ctx : vex::StaticContext<>::get(), a.rows, a.cols, a.row.data(), a.col.data(), a.val.data()),
+              Ainv(prm.ctx ? *prm.ctx : vex::StaticContext<>::get(), ai.rows, ai.cols, ai.row.data(), ai.col.data(), ai.val.data()),
+              u   (prm.ctx ? *prm.ctx : vex::StaticContext<>::get(), a.rows),
+              f   (prm.ctx ? *prm.ctx : vex::StaticContext<>::get(), a.rows),
+              t   (prm.ctx ? *prm.ctx : vex::StaticContext<>::get(), a.rows),
+              sum (prm.ctx ? *prm.ctx : vex::StaticContext<>::get())
         {
             a.clear();
             ai.clear();

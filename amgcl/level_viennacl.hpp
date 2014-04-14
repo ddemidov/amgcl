@@ -80,7 +80,7 @@ struct viennacl_damped_jacobi {
         instance() {}
 
         template <class spmat>
-        instance(const spmat &A) : dia(sparse::matrix_rows(A)) {
+        instance(const spmat &A, const params&) : dia(sparse::matrix_rows(A)) {
             ::viennacl::fast_copy(sparse::diagonal(A), dia);
         }
 
@@ -103,7 +103,7 @@ struct viennacl_spai0 {
         instance() {}
 
         template <class spmat>
-        instance(const spmat &A) : M(sparse::matrix_rows(A)) {
+        instance(const spmat &A, const params&) : M(sparse::matrix_rows(A)) {
             ::viennacl::fast_copy(spai::level0(A), M);
         }
 
@@ -159,7 +159,7 @@ class instance {
         // prolongation (p) and restriction (r) operators.
         // The matrices are moved into the local members.
         instance(cpu_matrix &a, cpu_matrix &p, cpu_matrix &r, const params &prm, unsigned nlevel)
-            : t(a.rows), relax(a), nnz(sparse::matrix_nonzeros(a))
+            : t(a.rows), relax(a, prm.relax), nnz(sparse::matrix_nonzeros(a))
         {
             ::viennacl::copy(sparse::viennacl_map(a), A);
             ::viennacl::copy(sparse::viennacl_map(p), P);

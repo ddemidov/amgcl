@@ -62,7 +62,7 @@ struct cpu_damped_jacobi {
         instance() {}
 
         template <class spmat>
-        instance(const spmat&) {}
+        instance(const spmat&, const params&) {}
 
         template <class spmat, class vector1, class vector2, class vector3>
         void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
@@ -118,7 +118,7 @@ struct cpu_gauss_seidel {
         instance() {}
 
         template <class spmat>
-        instance(const spmat&) {}
+        instance(const spmat&, const params&) {}
 
 #define GS_INNER_LOOP \
                 value_t temp = rhs[i]; \
@@ -174,7 +174,7 @@ struct cpu_ilu0 {
         instance() {}
 
         template <class spmat>
-        instance(spmat &A) : diag(sparse::matrix_rows(A)) {
+        instance(const spmat &A, const params&) : diag(sparse::matrix_rows(A)) {
             sparse::sort_rows(A);
 
             const index_t n = sparse::matrix_rows(A);
@@ -275,7 +275,7 @@ struct cpu_spai0 {
         instance() {}
 
         template <class spmat>
-        instance(const spmat &A) : m(spai::level0(A)) { }
+        instance(const spmat &A, const params&) : m(spai::level0(A)) { }
 
         template <class spmat, class vector1, class vector2, class vector3>
         void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params&) const {
@@ -345,7 +345,7 @@ class instance {
         // prolongation (p) and restriction (r) operators.
         // The matrices are moved into the local members.
         instance(matrix &a, matrix &p, matrix &r, const params &prm, unsigned nlevel)
-            : t(a.rows), relax(a)
+            : t(a.rows), relax(a, prm.relax)
         {
             A.swap(a);
             P.swap(p);

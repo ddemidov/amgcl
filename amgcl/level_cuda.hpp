@@ -364,7 +364,7 @@ struct cuda_damped_jacobi {
         instance() {}
 
         template <class spmat>
-        instance(const spmat &A) : dia(sparse::matrix_rows(A)) {
+        instance(const spmat &A, const params&) : dia(sparse::matrix_rows(A)) {
             std::vector<value_t> d = sparse::diagonal(A);
             thrust::copy(d.begin(), d.end(), dia.begin());
         }
@@ -409,7 +409,7 @@ struct cuda_spai0 {
         instance() {}
 
         template <class spmat>
-        instance(const spmat &A) : M(sparse::matrix_rows(A)) {
+        instance(const spmat &A, const params&) : M(sparse::matrix_rows(A)) {
             std::vector<value_t> m = spai::level0(A);
             thrust::copy(m.begin(), m.end(), M.begin());
         }
@@ -477,7 +477,7 @@ class instance {
         typedef sparse::cuda_matrix<value_t, Format> matrix;
 
         instance(cpu_matrix &a, cpu_matrix &p, cpu_matrix &r, const params &prm, unsigned nlevel)
-            : A(a), P(p), R(r), t(a.rows), relax(a)
+            : A(a), P(p), R(r), t(a.rows), relax(a, prm.relax)
         {
             if (nlevel) {
                 u.resize(a.rows);
