@@ -60,6 +60,9 @@ endif ()
 if (EIGEN_INCLUDE)
     add_executable(eigen eigen.cpp)
     target_link_libraries(eigen ${Boost_LIBRARIES})
+
+    add_executable(eigen_mm eigen_mm.cpp)
+    target_link_libraries(eigen_mm ${Boost_LIBRARIES})
 endif ()
 
 add_executable(ublas ublas.cpp)
