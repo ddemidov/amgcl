@@ -174,7 +174,7 @@ struct cpu_ilu0 {
         instance() {}
 
         template <class spmat>
-        instance(const spmat &A, const params&) : diag(sparse::matrix_rows(A)) {
+        instance(spmat &A, const params&) : diag(sparse::matrix_rows(A)) {
             sparse::sort_rows(A);
 
             const index_t n = sparse::matrix_rows(A);
