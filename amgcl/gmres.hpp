@@ -4,7 +4,7 @@
 /*
 The MIT License
 
-Copyright (c) 2012-2013 Denis Demidov <ddemidov@ksu.ru>
+Copyright (c) 2012-2014 Denis Demidov <dennis.demidov@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,7 @@ THE SOFTWARE.
 
 /**
  * \file   gmres.hpp
- * \author Denis Demidov <ddemidov@ksu.ru>
+ * \author Denis Demidov <dennis.demidov@gmail.com>
  * \brief  GMRES method.
  *
  * Implementation is based on \ref Templates_1994 "Barrett (1994)"
