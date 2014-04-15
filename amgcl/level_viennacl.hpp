@@ -118,11 +118,55 @@ struct viennacl_spai0 {
     };
 };
 
+struct viennacl_chebyshev {
+    struct params {
+        unsigned degree;
+        float    lower;
+
+        params(unsigned degree = 5, float lower = 1.0f / 30.0f)
+            : degree(degree), lower(lower)
+        {}
+    };
+
+    template <typename value_t, typename index_t>
+    struct instance {
+        instance() {}
+
+        template <class spmat>
+        instance(const spmat &A, const params &prm)
+            : p(sparse::matrix_rows(A)), q(sparse::matrix_rows(A))
+        {
+            value_t r = spectral_radius(A);
+            C = chebyshev_coefficients(prm.degree, r * prm.lower, r);
+        }
+
+        template <class spmat, class vector>
+        void apply(const spmat &A, const vector &rhs, vector &x, vector &res, const params&) const {
+            res = ::viennacl::linalg::prod(A, x);
+            res = rhs - res;
+
+            p = C[0] * res;
+
+            typedef typename std::vector<value_t>::const_iterator ci;
+            for(ci c = C.begin() + 1; c != C.end(); ++c) {
+                q = ::viennacl::linalg::prod(A, p);
+                p = (*c) * res + q;
+            }
+
+            x += p;
+        }
+
+        std::vector<value_t> C;
+        mutable ::viennacl::vector<value_t> p, q;
+    };
+};
+
 template <relax::scheme Relaxation>
 struct viennacl_relax_scheme;
 
 AMGCL_REGISTER_RELAX_SCHEME(viennacl, damped_jacobi);
 AMGCL_REGISTER_RELAX_SCHEME(viennacl, spai0);
+AMGCL_REGISTER_RELAX_SCHEME(viennacl, chebyshev);
 
 /// ViennaCL-based AMG hierarchy.
 /**

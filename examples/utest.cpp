@@ -62,7 +62,8 @@ enum relax_t {
     damped_jacobi = 1,
     spai0         = 2,
     gauss_seidel  = 3,
-    ilu0          = 4
+    ilu0          = 4,
+    chebyshev     = 5
 };
 
 struct options {
@@ -192,6 +193,8 @@ void run_vexcl_test(int relax, const spmat &A, const vector &rhs, const options 
         case spai0:
             run_vexcl_test<interp, amgcl::relax::spai0>(A, rhs, op);
             break;
+        case chebyshev:
+            run_vexcl_test<interp, amgcl::relax::chebyshev>(A, rhs, op);
             break;
         default:
             throw std::invalid_argument("Unsupported relaxation scheme for vexcl level");
@@ -213,6 +216,9 @@ void run_cpu_test(int relax, const spmat &A, const vector &rhs, const options &o
             break;
         case ilu0:
             run_cpu_test<interp, amgcl::relax::ilu0>(A, rhs, op);
+            break;
+        case chebyshev:
+            run_cpu_test<interp, amgcl::relax::chebyshev>(A, rhs, op);
             break;
         default:
             throw std::invalid_argument("Unsupported relaxation scheme");
@@ -277,7 +283,7 @@ int main(int argc, char *argv[]) {
         ("solver", po::value<int>(&op.solver)->default_value(cg),
             "Iterative solver: cg(1), bicgstab(2), gmres(3), standalone(4)")
         ("relax", po::value<int>(&relax)->default_value(spai0),
-            "Iterative solver: damped jacobi(1), spai0(2), gauss-seidel (3), ilu0(4)")
+            "Iterative solver: damped jacobi(1), spai0(2), gauss-seidel (3), ilu0(4), chebyshev(5)")
 
         ("problem",
             po::value<std::string>(&op.pfile)->default_value("problem.dat"),

@@ -46,6 +46,7 @@ THE SOFTWARE.
 #include <amgcl/level_params.hpp>
 #include <amgcl/spmat.hpp>
 #include <amgcl/spai.hpp>
+#include <amgcl/chebyshev.hpp>
 #include <amgcl/operations_cuda.hpp>
 #include <amgcl/gmres.hpp>
 
@@ -442,11 +443,78 @@ struct cuda_spai0 {
     };
 };
 
+struct cuda_chebyshev {
+    struct params {
+        unsigned degree;
+        float    lower;
+
+        params(unsigned degree = 5, float lower = 1.0f / 30.0f)
+            : degree(degree), lower(lower)
+        {}
+    };
+
+    template <typename value_t, typename index_t>
+    struct instance {
+        instance() {}
+
+        template <class spmat>
+        instance(const spmat &A, const params &prm)
+            : p(sparse::matrix_rows(A)), q(sparse::matrix_rows(A))
+        {
+            value_t r = spectral_radius(A);
+            C = chebyshev_coefficients(prm.degree, r * prm.lower, r);
+        }
+
+        template <class spmat, class vector>
+        void apply(const spmat &A, const vector &rhs, vector &x, vector &res, const params&) const {
+            residual(A, x, rhs, res);
+
+            thrust::for_each(
+                    thrust::make_zip_iterator(
+                        thrust::make_tuple(p.begin(), res.begin())
+                        ),
+                    thrust::make_zip_iterator(
+                        thrust::make_tuple(p.end(), res.end())
+                        ),
+                    cuda_ops::ax<value_t>(C[0])
+                    );
+
+            typedef typename std::vector<value_t>::const_iterator ci;
+            for(ci c = C.begin() + 1; c != C.end(); ++c) {
+                A.mul(1, p, 0, q);
+                thrust::for_each(
+                        thrust::make_zip_iterator(
+                            thrust::make_tuple(p.begin(), res.begin(), q.begin())
+                            ),
+                        thrust::make_zip_iterator(
+                            thrust::make_tuple(p.end(), res.end(), q.end())
+                            ),
+                        cuda_ops::axpby<value_t>(*c, 1)
+                        );
+            }
+
+            thrust::for_each(
+                    thrust::make_zip_iterator(
+                        thrust::make_tuple(x.begin(), x.begin(), p.begin())
+                        ),
+                    thrust::make_zip_iterator(
+                        thrust::make_tuple(x.end(), x.end(), p.end())
+                        ),
+                    cuda_ops::axpby<value_t>(1, 1)
+                    );
+        }
+
+        std::vector<value_t> C;
+        mutable thrust::device_vector<value_t> p, q;
+    };
+};
+
 template <relax::scheme Relaxation>
 struct cuda_relax_scheme;
 
 AMGCL_REGISTER_RELAX_SCHEME(cuda, damped_jacobi);
 AMGCL_REGISTER_RELAX_SCHEME(cuda, spai0);
+AMGCL_REGISTER_RELAX_SCHEME(cuda, chebyshev);
 
 /// Thrust/CUSPARSE based AMG hierarchy.
 /**

@@ -412,7 +412,7 @@ void gaussj(index_t n, value_t *a) {
         }
     }
 
-    for(index_t i = n - 1; i >= 0; --i) {
+    for(index_t i = n; i-- > 0; ) {
         if (idxr[i] != idxc[i]) {
             for(index_t j = 0; j < n; ++j)
                 std::swap(a[j * n + idxr[i]], a[j * n + idxc[i]]);

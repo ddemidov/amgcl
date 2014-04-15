@@ -39,6 +39,7 @@ THE SOFTWARE.
 #include <amgcl/level_params.hpp>
 #include <amgcl/spmat.hpp>
 #include <amgcl/spai.hpp>
+#include <amgcl/chebyshev.hpp>
 #include <amgcl/tictoc.hpp>
 
 namespace amgcl {
@@ -286,7 +287,7 @@ struct cpu_spai0 {
             const value_t *Aval = sparse::matrix_values(A);
 
 #pragma omp parallel for schedule(dynamic, 1024)
-            for(index_t i = 0; i < n; i++) {
+            for(index_t i = 0; i < n; ++i) {
                 value_t buf = rhs[i];
                 for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
                     buf -= Aval[j] * x[Acol[j]];
@@ -309,6 +310,76 @@ struct cpu_spai0 {
     };
 };
 
+struct cpu_chebyshev {
+    struct params {
+        unsigned degree;
+        float    lower;
+
+        params(unsigned degree = 5, float lower = 1.0f / 30.0f)
+            : degree(degree), lower(lower)
+        {}
+    };
+
+    template <typename value_t, typename index_t>
+    struct instance {
+        instance() {}
+
+        template <class spmat>
+        instance(const spmat &A, const params &prm)
+            : p(sparse::matrix_rows(A)), q(sparse::matrix_rows(A))
+        {
+            value_t r = spectral_radius(A);
+            C = chebyshev_coefficients(prm.degree, r * prm.lower, r);
+        }
+
+        template <class spmat, class vector1, class vector2, class vector3>
+        void apply_pre(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &res, const params&) const {
+            const index_t n = sparse::matrix_rows(A);
+
+            const index_t *Arow = sparse::matrix_outer_index(A);
+            const index_t *Acol = sparse::matrix_inner_index(A);
+            const value_t *Aval = sparse::matrix_values(A);
+
+#pragma omp parallel for schedule(dynamic, 1024)
+            for(index_t i = 0; i < n; ++i) {
+                value_t buf = rhs[i];
+                for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
+                    buf -= Aval[j] * x[Acol[j]];
+                res[i] = buf;
+                p[i] = C[0] * buf;
+            }
+
+            typedef typename std::vector<value_t>::const_iterator ci;
+            for(ci c = C.begin() + 1; c != C.end(); ++c) {
+#pragma omp parallel for schedule(dynamic, 1024)
+                for(index_t i = 0; i < n; ++i) {
+                    value_t buf = 0;
+                    for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
+                        buf += Aval[j] * p[Acol[j]];
+                    q[i] = buf;
+                }
+
+#pragma omp parallel for schedule(dynamic, 1024)
+                for(index_t i = 0; i < n; ++i)
+                    p[i] = (*c) * res[i] + q[i];
+            }
+
+#pragma omp parallel for schedule(dynamic, 1024)
+            for(index_t i = 0; i < n; ++i)
+                x[i] += p[i];
+        }
+
+        template <class spmat, class vector1, class vector2, class vector3>
+        void apply_post(const spmat &A, const vector1 &rhs, vector2 &x, vector3 &tmp, const params &prm) const {
+            apply_pre(A, rhs, x, tmp, prm);
+        }
+
+
+        std::vector<value_t> C;
+        mutable std::vector<value_t> p, q;
+    };
+};
+
 template <relax::scheme Relaxation>
 struct cpu_relax_scheme;
 
@@ -316,6 +387,7 @@ AMGCL_REGISTER_RELAX_SCHEME(cpu, damped_jacobi);
 AMGCL_REGISTER_RELAX_SCHEME(cpu, gauss_seidel);
 AMGCL_REGISTER_RELAX_SCHEME(cpu, ilu0);
 AMGCL_REGISTER_RELAX_SCHEME(cpu, spai0);
+AMGCL_REGISTER_RELAX_SCHEME(cpu, chebyshev);
 
 /// CPU-based AMG hierarchy.
 /**

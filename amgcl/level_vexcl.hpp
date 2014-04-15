@@ -37,6 +37,7 @@ THE SOFTWARE.
 #include <amgcl/level_params.hpp>
 #include <amgcl/spmat.hpp>
 #include <amgcl/spai.hpp>
+#include <amgcl/chebyshev.hpp>
 #include <amgcl/operations_vexcl.hpp>
 #include <amgcl/gmres.hpp>
 
@@ -92,11 +93,54 @@ struct vexcl_spai0 {
     };
 };
 
+struct vexcl_chebyshev {
+    struct params {
+        unsigned degree;
+        float    lower;
+
+        params(unsigned degree = 5, float lower = 1.0f / 30.0f)
+            : degree(degree), lower(lower)
+        {}
+    };
+
+    template <typename value_t, typename index_t>
+    struct instance {
+        instance() {}
+
+        template <class spmat>
+        instance(const std::vector<vex::command_queue> &queue, const spmat &A, const params &prm)
+            : p(queue, sparse::matrix_rows(A)),
+              q(queue, sparse::matrix_rows(A))
+        {
+            value_t r = spectral_radius(A);
+            C = chebyshev_coefficients(prm.degree, r * prm.lower, r);
+        }
+
+        template <class spmat, class vector>
+        void apply(const spmat &A, const vector &rhs, vector &x, vector &res, const params&) const {
+            res = rhs - A * x;
+
+            p = C[0] * res;
+
+            for(auto c = C.begin() + 1; c != C.end(); ++c) {
+                q = A * p;
+                p = (*c) * res + q;
+            }
+
+            x += p;
+        }
+
+        std::vector<value_t> C;
+        mutable vex::vector<value_t> p, q;
+    };
+};
+
 template <relax::scheme Relaxation>
 struct vexcl_relax_scheme;
 
 AMGCL_REGISTER_RELAX_SCHEME(vexcl, damped_jacobi);
 AMGCL_REGISTER_RELAX_SCHEME(vexcl, spai0);
+AMGCL_REGISTER_RELAX_SCHEME(vexcl, chebyshev);
 
 /// VexCL-based AMG hierarchy.
 /**

@@ -88,7 +88,8 @@ enum scheme {
     damped_jacobi, ///< Damped Jacobi.
     spai0,         ///< SPAI-0 algorithm from \ref spai_2002 "Broeker (2002)".
     gauss_seidel,  ///< Gauss-Seidel.
-    ilu0           ///< Incomplete LU decomposition with zero fill-in.
+    ilu0,          ///< Incomplete LU decomposition with zero fill-in.
+    chebyshev      ///< Chebyshev polynomial smoother.
 };
 
 } // namespace relax.
