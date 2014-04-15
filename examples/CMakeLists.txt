@@ -117,7 +117,7 @@ if (VIENNACL_INCLUDE AND CUDA_FOUND)
     target_link_libraries(viennacl_cuda ${Boost_LIBRARIES})
 endif ()
 
-if (VEXCL_INCLUDE AND EIGEN_INCLUDE AND VIENNACL_INCLUDE AND OPENCL_FOUND AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+if (VEXCL_INCLUDE AND EIGEN_INCLUDE AND OPENCL_FOUND)
     add_executable(utest utest.cpp)
     if (NOT WIN32)
 	set_target_properties(utest PROPERTIES COMPILE_FLAGS "-std=c++0x")
