@@ -315,7 +315,7 @@ struct cpu_chebyshev {
         unsigned degree;
         float    lower;
 
-        params(unsigned degree = 5, float lower = 1.0f / 30.0f)
+        params(unsigned degree = 3, float lower = 1.0f / 30.0f)
             : degree(degree), lower(lower)
         {}
     };
