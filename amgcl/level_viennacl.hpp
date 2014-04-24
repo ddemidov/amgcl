@@ -87,8 +87,8 @@ struct viennacl_damped_jacobi {
         template <class spmat, class vector>
         void apply(const spmat &A, const vector &rhs, vector &x, vector &tmp, const params &prm) const {
             tmp = ::viennacl::linalg::prod(A, x);
-            tmp = rhs - tmp;
-            x += prm.damping * (::viennacl::linalg::element_div(tmp, dia));
+            x += static_cast<typename vector::value_type>(prm.damping) *
+                ::viennacl::linalg::element_div(rhs - tmp, dia);
         }
 
         ::viennacl::vector<value_t> dia;
