@@ -71,9 +71,6 @@ int main(int argc, char *argv[]) {
         amgcl::level::cuda<amgcl::GPU_MATRIX_HYB, amgcl::relax::spai0>
         > AMG;
 
-    AMG::params prm;
-    prm.level.kcycle = 1;
-
     amgcl::sparse::matrix_map<real, int> A(
             n, n, row.data(), col.data(), val.data()
             );
@@ -81,7 +78,7 @@ int main(int argc, char *argv[]) {
 #ifndef WIN32
     prof.tic("setup");
 #endif
-    AMG amg(A, prm);
+    AMG amg(A, AMG::params());
 #ifndef WIN32
     prof.toc("setup");
 #endif
@@ -95,7 +92,7 @@ int main(int argc, char *argv[]) {
     prof.tic("solve");
 #endif
     std::pair<int, real> cnv = amgcl::solve(amg.top_matrix(), f, amg, x,
-            amgcl::gmres_tag());
+            amgcl::cg_tag());
 #ifndef WIN32
     prof.toc("solve");
 #endif
