@@ -51,7 +51,7 @@ struct value_type<T,
 /** Necessary for vexcl types to work with amgcl::solve() functions. */
 template <typename T>
 T inner_prod(const vex::vector<T> &x, const vex::vector<T> &y) {
-    static vex::Reductor<T, vex::SUM> sum(vex::StaticContext<>::get().queue());
+    vex::Reductor<T, vex::SUM_Kahan> sum(x.queue_list());
     return sum(x * y);
 }
 

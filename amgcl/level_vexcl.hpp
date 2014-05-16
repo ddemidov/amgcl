@@ -295,7 +295,7 @@ class instance {
         mutable vector f;
         mutable vector t;
 
-        vex::Reductor<value_t, vex::SUM> sum;
+        vex::Reductor<value_t, vex::SUM_Kahan> sum;
 
         typename vexcl_relax_scheme<Relaxation>::type::template instance<value_t, index_t> relax;
 
