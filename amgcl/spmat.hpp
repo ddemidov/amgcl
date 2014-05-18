@@ -483,7 +483,7 @@ diagonal(const spmat &A) {
 
     std::vector<value_t> dia(n);
 
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
     for(index_t i = 0; i < n; ++i) {
         value_t d = 0;
         for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j) {
@@ -527,7 +527,7 @@ void sort_rows(spmat &A) {
     index_t *Acol = matrix_inner_index(A);
     value_t *Aval = matrix_values(A);
 
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
     for(index_t i = 0; i < n; ++i) {
         index_t beg = Arow[i];
         index_t end = Arow[i + 1];

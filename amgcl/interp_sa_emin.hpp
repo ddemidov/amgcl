@@ -326,7 +326,7 @@ smoothed_interpolation(
             std::divides<value_t>());
 
     // Convert omega from (4.13) to (4.14) (Sala, Tuminaro, 2008):
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
     for(index_t i = 0; i < n; ++i) {
         value_t w = -1;
         for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
@@ -339,7 +339,7 @@ smoothed_interpolation(
     }
 
     // Update AP to obtain P.
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
     for(index_t i = 0; i < n; ++i) {
         value_t wd = omega[i] / D[i];
         for(index_t j = AP.row[i], e = AP.row[i + 1]; j < e; ++j)
@@ -382,7 +382,7 @@ smoothed_restriction(
 
     // Diagonal of filtered matrix.
     std::vector<value_t> Dinv(n);
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
     for(index_t i = 0; i < n; ++i) {
         value_t dia = 0;
         for(index_t j = A.row[i], e = A.row[i + 1]; j < e; ++j) {
@@ -464,7 +464,7 @@ smoothed_restriction(
     }
 
     // Update R.
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
     for(index_t i = 0; i < nc; ++i) {
         for(index_t j = R.row[i], e = R.row[i + 1]; j < e; ++j) {
             index_t c = R.col[j];

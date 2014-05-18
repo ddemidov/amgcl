@@ -73,7 +73,7 @@ struct cpu_damped_jacobi {
             const index_t *Acol = sparse::matrix_inner_index(A);
             const value_t *Aval = sparse::matrix_values(A);
 
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
             for(index_t i = 0; i < n; ++i) {
                 value_t temp = rhs[i];
                 value_t diag = 1;
@@ -235,7 +235,7 @@ struct cpu_ilu0 {
             const index_t *Acol = sparse::matrix_inner_index(A);
             const value_t *Aval = sparse::matrix_values(A);
 
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
             for(index_t i = 0; i < n; i++) {
                 value_t buf = rhs[i];
                 for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
@@ -254,7 +254,7 @@ struct cpu_ilu0 {
                 tmp[i] *= luval[diag[i]];
             }
 
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
             for(index_t i = 0; i < n; i++) x[i] += prm.damping * tmp[i];
         }
 
@@ -286,7 +286,7 @@ struct cpu_spai0 {
             const index_t *Acol = sparse::matrix_inner_index(A);
             const value_t *Aval = sparse::matrix_values(A);
 
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
             for(index_t i = 0; i < n; ++i) {
                 value_t buf = rhs[i];
                 for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
@@ -294,7 +294,7 @@ struct cpu_spai0 {
                 tmp[i] = buf;
             }
 
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
             for(index_t i = 0; i < n; ++i) {
                 x[i] += m[i] * tmp[i];
             }
@@ -340,7 +340,7 @@ struct cpu_chebyshev {
             const index_t *Acol = sparse::matrix_inner_index(A);
             const value_t *Aval = sparse::matrix_values(A);
 
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
             for(index_t i = 0; i < n; ++i) {
                 value_t buf = rhs[i];
                 for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
@@ -351,7 +351,7 @@ struct cpu_chebyshev {
 
             typedef typename std::vector<value_t>::const_iterator ci;
             for(ci c = C.begin() + 1; c != C.end(); ++c) {
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
                 for(index_t i = 0; i < n; ++i) {
                     value_t buf = 0;
                     for(index_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
@@ -359,12 +359,12 @@ struct cpu_chebyshev {
                     q[i] = buf;
                 }
 
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
                 for(index_t i = 0; i < n; ++i)
                     p[i] = (*c) * res[i] + q[i];
             }
 
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
             for(index_t i = 0; i < n; ++i)
                 x[i] += p[i];
         }
@@ -455,7 +455,7 @@ class instance {
             const index_t n = A.rows;
             value_t norm = 0;
 
-#pragma omp parallel for reduction(+:norm) schedule(dynamic, 1024)
+#pragma omp parallel for reduction(+:norm)
             for(index_t i = 0; i < n; ++i) {
                 value_t temp = rhs[i];
 
@@ -493,7 +493,7 @@ class instance {
 
                     //lvl->t = rhs - lvl->A * x;
                     TIC("residual");
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
                     for(index_t i = 0; i < n; ++i) {
                         value_t temp = rhs[i];
 
@@ -506,7 +506,7 @@ class instance {
 
                     //nxt->f = lvl->R * lvl->t;
                     TIC("restrict");
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
                     for(index_t i = 0; i < nc; ++i) {
                         value_t temp = 0;
 
@@ -526,7 +526,7 @@ class instance {
 
                     //x += lvl->P * nxt->u;
                     TIC("prolongate");
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
                     for(index_t i = 0; i < n; ++i) {
                         value_t temp = 0;
 
@@ -585,7 +585,7 @@ class instance {
 
                     if (iter) {
                         value_t beta = rho1 / rho2;
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
                         for(index_t i = 0; i < n; ++i) {
                             p[i] = s[i] + beta * p[i];
                         }
@@ -593,7 +593,7 @@ class instance {
                         std::copy(&s[0], &s[0] + n, &p[0]);
                     }
 
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
                     for(index_t i = 0; i < n; ++i) {
                         value_t temp = 0;
 
@@ -605,7 +605,7 @@ class instance {
 
                     value_t alpha = rho1 / lvl->inner_prod(q, p);
 
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
                     for(index_t i = 0; i < n; ++i) {
                         x[i] += alpha * p[i];
                         r[i] -= alpha * q[i];
@@ -653,7 +653,7 @@ class instance {
 
             value_t sum = 0;
 
-#pragma omp parallel for reduction(+:sum) schedule(dynamic, 1024)
+#pragma omp parallel for reduction(+:sum)
             for(index_t i = 0; i < n; ++i)
                 sum += x[i] * y[i];
 

@@ -53,7 +53,7 @@ level0(const spmat &A) {
 
     std::vector<value_t> m(n);
 
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
     for(index_t i = 0; i < n; ++i) {
         value_t num = 0;
         value_t den = 0;

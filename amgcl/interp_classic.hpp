@@ -142,7 +142,7 @@ class classic {
                 Amax.resize(n);
             }
 
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
             for(index_t i = 0; i < n; ++i) {
                 if (cf[i] == 'C') {
                     ++P.row[i + 1];
@@ -179,7 +179,7 @@ class classic {
 
             P.reserve(P.row.back());
 
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
             for(index_t i = 0; i < n; ++i) {
                 index_t row_head = P.row[i];
 
@@ -268,7 +268,7 @@ class classic {
             const index_t *Acol = sparse::matrix_inner_index(A);
             const value_t *Aval = sparse::matrix_values(A);
 
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
             for(index_t i = 0; i < n; ++i) {
                 value_t a_min = 0;
 

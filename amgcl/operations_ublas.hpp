@@ -61,7 +61,7 @@ T1 inner_prod(const boost::numeric::ublas::vector<T1> &x,
     const ptrdiff_t n = x.size();
     T1 sum = 0;
 
-#pragma omp parallel for schedule(dynamic, 1024) reduction(+:sum)
+#pragma omp parallel for reduction(+:sum)
     for(ptrdiff_t i = 0; i < n; ++i)
         sum += x[i] * y[i];
 
@@ -75,7 +75,7 @@ T norm(const boost::numeric::ublas::vector<T> &x) {
     const ptrdiff_t n = x.size();
     T sum = 0;
 
-#pragma omp parallel for schedule(dynamic, 1024) reduction(+:sum)
+#pragma omp parallel for reduction(+:sum)
     for(ptrdiff_t i = 0; i < n; ++i)
         sum += x[i] * x[i];
 
@@ -88,7 +88,7 @@ template <typename T>
 void clear(boost::numeric::ublas::vector<T> &x) {
     const ptrdiff_t n = x.size();
 
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
     for(ptrdiff_t i = 0; i < n; ++i)
         x[i] = 0;
 }
@@ -110,7 +110,7 @@ void residual(
     const size_t *Acol = A.index2_data().begin();
     const real   *Aval = A.value_data().begin();
 
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
     for(ptrdiff_t i = 0; i < n; ++i) {
         real buf = f[i];
         for(size_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)
@@ -134,7 +134,7 @@ void axpy(
     const size_t *Acol = A.index2_data().begin();
     const real   *Aval = A.value_data().begin();
 
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
     for(ptrdiff_t i = 0; i < n; ++i) {
         real buf = 0;
         for(size_t j = Arow[i], e = Arow[i + 1]; j < e; ++j)

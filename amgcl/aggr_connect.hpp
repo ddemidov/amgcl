@@ -64,7 +64,7 @@ std::vector<char> connect(const spmat &A, float eps_strong) {
 
     value_t eps2 = eps_strong * eps_strong;
 
-#pragma omp parallel for schedule(dynamic, 1024)
+#pragma omp parallel for
     for(index_t i = 0; i < n; ++i) {
         value_t eps_dia_i = eps2 * dia[i];
 
