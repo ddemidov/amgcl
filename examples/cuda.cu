@@ -5,6 +5,8 @@
 #  undef AMGCL_PROFILING
 #endif
 
+#define BOOST_DISABLE_ASSERTS
+
 #include <amgcl/amgcl.hpp>
 #include <amgcl/aggr_plain.hpp>
 #include <amgcl/interp_smoothed_aggr.hpp>
