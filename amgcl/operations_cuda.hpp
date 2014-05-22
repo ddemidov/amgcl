@@ -138,6 +138,30 @@ template <typename value_type, gpu_matrix_format> class cuda_matrix;
 
 namespace gmres_ops {
 
+template <typename value_t>
+void apply_plane_rotation(value_t &dx, value_t &dy, value_t cs, value_t sn) {
+    value_t tmp = cs * dx + sn * dy;
+    dy = -sn * dx + cs * dy;
+    dx = tmp;
+}
+
+template <typename value_t>
+void generate_plane_rotation(value_t dx, value_t dy, value_t &cs, value_t &sn) {
+    if (dy == 0) {
+        cs = 1;
+        sn = 0;
+    } else if (fabs(dy) > fabs(dx)) {
+        value_t tmp = dx / dy;
+        sn = 1 / sqrt(1 + tmp * tmp);
+        cs = tmp * sn;
+    } else {
+        value_t tmp = dy / dx;
+        cs = 1 / sqrt(1 + tmp * tmp);
+        sn = tmp * cs;
+    }
+}
+
+
 template <class GMRES>
 void update(GMRES &gmres, thrust::device_vector<typename GMRES::value_t> &x, int k) {
     std::copy(gmres.s.begin(), gmres.s.end(), gmres.y.begin());
@@ -224,6 +248,87 @@ value_t iteration(GMRES &gmres, const sparse::cuda_matrix<value_t, format> &A, c
 }
 
 } // namespace gmres_ops
+
+template <class Vector>
+struct gmres_data {
+    typedef typename value_type<Vector>::type value_t;
+
+    int M;
+    std::vector<value_t> H, s, cs, sn, y;
+    Vector r, w;
+    std::vector<Vector> v;
+
+    gmres_data(int M, size_t n)
+        : M(M), H(M * (M + 1)), s(M + 1), cs(M + 1), sn(M + 1), y(M + 1),
+          r(n), w(n), v(M + 1)
+    {
+        for(typename std::vector<Vector>::iterator vp = v.begin(); vp != v.end(); ++vp)
+            vp->resize(n);
+    }
+
+    void update(Vector &x, int k) {
+        gmres_ops::update(*this, x, k);
+    }
+
+    template <class matrix, class precond>
+    value_t restart(
+            const matrix &A, const Vector &rhs, const precond &P, const Vector &x
+            )
+    {
+        return gmres_ops::restart(*this, A, rhs, P, x);
+    }
+
+    template <class matrix, class precond>
+    value_t iteration(const matrix &A, const precond &P, int i) {
+        return gmres_ops::iteration(*this, A, P, i);
+    }
+};
+
+/// GMRES method.
+/**
+ * Implementation is based on \ref Templates_1994 "Barrett (1994)"
+ *
+ * \param A   The system matrix.
+ * \param rhs The right-hand side.
+ * \param P   The preconditioner. Should provide apply(rhs, x) method.
+ * \param x   The solution. Contains an initial approximation on input, and
+ *            the approximated solution on output.
+ * \param prm The control parameters.
+ *
+ * \returns a pair containing number of iterations made and precision
+ * achieved.
+ *
+ * \ingroup iterative
+ */
+template <class matrix, class vector, class precond>
+std::pair< int, typename value_type<vector>::type >
+solve(const matrix &A, const vector &rhs, const precond &P, vector &x, gmres_tag prm = gmres_tag())
+{
+    typedef typename value_type<vector>::type value_t;
+    const size_t n = x.size();
+
+    gmres_data<vector> gmres(prm.M, n);
+
+    int     iter = 0;
+    value_t res;
+
+    do {
+        res = gmres.restart(A, rhs, P, x);
+
+        for(int i = 0; i < prm.M && iter < prm.maxiter; ++i, ++iter) {
+            res = gmres.iteration(A, P, i);
+
+	    if (res < prm.tol) {
+                gmres.update(x, i);
+		return std::make_pair(iter + 1, res);
+	    };
+	}
+
+        gmres.update(x, prm.M - 1);
+    } while (iter < prm.maxiter && res > prm.tol);
+
+    return std::make_pair(iter, res);
+}
 
 } // namespace amgcl
 

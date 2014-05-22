@@ -48,7 +48,6 @@ THE SOFTWARE.
 #include <amgcl/spai.hpp>
 #include <amgcl/chebyshev.hpp>
 #include <amgcl/operations_cuda.hpp>
-#include <amgcl/gmres.hpp>
 
 namespace amgcl {
 
