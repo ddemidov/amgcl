@@ -31,6 +31,7 @@ add_executable(genproblem3d genproblem3d.cpp)
 find_path(EIGEN_INCLUDE Eigen/SparseCore PATH_SUFFIXES eigen3)
 find_path(VIENNACL_INCLUDE viennacl/vector.hpp)
 find_path(VEXCL_INCLUDE vexcl/vexcl.hpp)
+find_path(BLAZE_INCLUDE blaze/Math.h)
 
 find_package(CUDA QUIET)
 set(CUDA_COMPUTE_CAPABILITY "20" CACHE STRING "CUDA Compute Capability")
@@ -45,6 +46,10 @@ endif ()
 
 if (VIENNACL_INCLUDE)
     include_directories(${VIENNACL_INCLUDE})
+endif ()
+
+if (BLAZE_INCLUDE)
+    include_directories(${BLAZE_INCLUDE})
 endif ()
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
@@ -130,6 +135,12 @@ if (VEXCL_INCLUDE AND EIGEN_INCLUDE AND OPENCL_FOUND)
         ${Boost_LIBRARIES}
         )
 endif ()
+
+if (BLAZE_INCLUDE)
+    add_executable(blaze blaze.cpp)
+    set_target_properties(blaze PROPERTIES COMPILE_FLAGS "-std=c++0x")
+    target_link_libraries(blaze ${Boost_LIBRARIES})
+endif()
 
 if (CUDA_FOUND)
     cuda_add_executable(cuda cuda.cu OPTIONS "-arch=sm_${CUDA_COMPUTE_CAPABILITY}")
