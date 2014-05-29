@@ -125,6 +125,13 @@ if (VIENNACL_INCLUDE AND CUDA_FOUND)
     target_link_libraries(viennacl_cuda ${Boost_LIBRARIES})
 endif ()
 
+if (VIENNACL_INCLUDE AND OPENMP_FOUND)
+    add_executable(viennacl_openmp viennacl.cpp)
+    set_target_properties(viennacl_openmp PROPERTIES
+        COMPILE_FLAGS "-std=c++0x -DVIENNACL_WITH_OPENMP")
+    target_link_libraries(viennacl_openmp ${Boost_LIBRARIES})
+endif ()
+
 if (VEXCL_INCLUDE AND EIGEN_INCLUDE AND OPENCL_FOUND)
     add_executable(utest utest.cpp)
     if (NOT WIN32)
