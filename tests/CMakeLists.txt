@@ -36,3 +36,5 @@ function(add_amgcl_test TEST_NAME TEST_SOURCE)
     target_link_libraries(${TEST_NAME} ${Boost_LIBRARIES})
     add_test(${TEST_NAME} ${TEST_NAME})
 endfunction()
+
+add_amgcl_test(backend backend.cpp)

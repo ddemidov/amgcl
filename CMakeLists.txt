@@ -24,7 +24,7 @@ set(BOOST_COMPONENTS
     chrono
     program_options
     system
-    #unit_test_framework
+    unit_test_framework
     )
 
 find_package(Boost COMPONENTS ${BOOST_COMPONENTS})
