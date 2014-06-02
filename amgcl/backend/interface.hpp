@@ -51,10 +51,7 @@ struct value_type {
  */
 template <class Matrix, class Enable = void>
 struct rows_impl {
-    static size_t get(const Matrix&) {
-        precondition(false, "nrows() not implemented");
-        return 0;
-    }
+    typedef typename Matrix::NOT_IMPLEMENTED type;
 };
 
 /// Returns number of rows in a matrix.
@@ -68,10 +65,7 @@ size_t rows(const Matrix &matrix) {
  */
 template <class Matrix, class Enable = void>
 struct cols_impl {
-    static size_t get(const Matrix&) {
-        precondition(false, "ncols() not implemented");
-        return 0;
-    }
+    typedef typename Matrix::NOT_IMPLEMENTED type;
 };
 
 /// Returns number of columns in a matrix.
@@ -85,10 +79,7 @@ size_t cols(const Matrix &matrix) {
  */
 template <class Matrix, class Enable = void>
 struct nonzeros_impl {
-    static size_t get(const Matrix&) {
-        precondition(false, "nonzeros() not implemented");
-        return 0;
-    }
+    typedef typename Matrix::NOT_IMPLEMENTED type;
 };
 
 /// Returns number of nonzero values in a matrix.
@@ -107,10 +98,7 @@ struct row_iterator {
 
 template <class Matrix, class Enable = void>
 struct row_begin_impl {
-    static typename row_iterator<Matrix>::type
-    get(const Matrix&, size_t) {
-        precondition(false, "row_begin() not implemented");
-    }
+    typedef typename Matrix::NOT_IMPLEMENTED type;
 };
 
 template <class Matrix>
@@ -121,12 +109,7 @@ row_begin(const Matrix &matrix, size_t row) {
 
 template <class Matrix, class Vector, class Enable = void>
 struct spmv_impl {
-    typedef typename value_type<Matrix>::type real;
-
-    static void apply(real, const Matrix&, const Vector&, real, Vector&)
-    {
-        precondition(false, "spmv() not implemented");
-    }
+    typedef typename Matrix::NOT_IMPLEMENTED type;
 };
 
 template <class Matrix, class Vector>
@@ -138,10 +121,7 @@ void spmv(typename value_type<Matrix>::type alpha, const Matrix &A,
 
 template <class Matrix, class Vector, class Enable = void>
 struct residual_impl {
-    static void apply(const Vector&, const Matrix&, const Vector&, Vector&)
-    {
-        precondition(false, "residual() not implemented");
-    }
+    typedef typename Matrix::NOT_IMPLEMENTED type;
 };
 
 template <class Matrix, class Vector>
@@ -152,10 +132,7 @@ void residual(const Vector &rhs, const Matrix &A, const Vector &x, Vector &r)
 
 template <class Vector, class Enable = void>
 struct clear_impl {
-    static void apply(Vector&)
-    {
-        precondition(false, "clear() not implemented");
-    }
+    typedef typename Vector::NOT_IMPLEMENTED type;
 };
 
 template <class Vector>
@@ -166,12 +143,7 @@ void clear(Vector &x)
 
 template <class Vector, class Enable = void>
 struct inner_product_impl {
-    static typename value_type<Vector>::type
-    get(const Vector&, const Vector&)
-    {
-        precondition(false, "inner_product() not implemented");
-        return typename value_type<Vector>::type();
-    }
+    typedef typename Vector::NOT_IMPLEMENTED type;
 };
 
 template <class Vector>
@@ -197,12 +169,7 @@ typename value_type<Vector>::type norm(const Vector &x)
 
 template <class Vector, class Enable = void>
 struct axpby_impl {
-    typedef typename value_type<Vector>::type val_type;
-
-    static void apply(val_type, const Vector&, val_type, Vector&)
-    {
-        precondition(false, "axpby() not implemented");
-    }
+    typedef typename Vector::NOT_IMPLEMENTED type;
 };
 
 template <class Vector>
@@ -215,12 +182,7 @@ void axpby(typename value_type<Vector>::type a, Vector const &x,
 
 template <class Vector, class Enable = void>
 struct vmul_impl {
-    typedef typename value_type<Vector>::type val_type;
-
-    static void apply(val_type, const Vector&, const Vector&, val_type, Vector&)
-    {
-        precondition(false, "axpby() not implemented");
-    }
+    typedef typename Vector::NOT_IMPLEMENTED type;
 };
 
 template <class Vector>
@@ -236,10 +198,7 @@ void vmul(
 
 template <class Vector, class Enable = void>
 struct copy_impl {
-    static void apply(const Vector&, Vector&)
-    {
-        precondition(false, "copy() not implemented");
-    }
+    typedef typename Vector::NOT_IMPLEMENTED type;
 };
 
 template <class Vector>

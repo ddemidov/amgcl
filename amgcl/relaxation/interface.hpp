@@ -40,7 +40,9 @@ enum scheme {
 };
 
 template <scheme Scheme, class Backend, class Enable = void>
-struct impl;
+struct impl {
+    typedef typename Backend::NOT_IMPLEMENTED type;
+};
 
 } // namespace relaxation
 } // namespace amgcl
