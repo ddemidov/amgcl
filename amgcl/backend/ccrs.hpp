@@ -390,9 +390,8 @@ class ccrs {
         }
 
         /// Number of nonzeros in the matrix.
-        size_t non_zeros() const {
+        size_t nonzeros() const {
             precondition(!builder, "Matrix has not been finalized");
-
             return nnz;
         }
 
@@ -563,6 +562,13 @@ template < typename V, typename C, typename P >
 struct cols_impl< ccrs<V, C, P> > {
     static size_t get(const ccrs<V, C, P> &A) {
         return A.cols();
+    }
+};
+
+template < typename V, typename C, typename P >
+struct nonzeros_impl< ccrs<V, C, P> > {
+    static size_t get(const ccrs<V, C, P> &A) {
+        return A.nonzeros();
     }
 };
 

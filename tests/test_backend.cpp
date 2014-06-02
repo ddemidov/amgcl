@@ -3,19 +3,37 @@
 
 #include <boost/test/unit_test.hpp>
 #include <boost/random.hpp>
-#include <boost/range.hpp>
-#include <boost/range/combine.hpp>
 #include <boost/foreach.hpp>
 #include <boost/mpl/list.hpp>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/backend/block_crs.hpp>
 #include <amgcl/backend/ccrs.hpp>
+
 #ifdef AMGCL_HAVE_EIGEN
 #include <amgcl/backend/eigen.hpp>
 #endif
+
 #ifdef AMGCL_HAVE_VEXCL
 #include <amgcl/backend/vexcl.hpp>
+#endif
+
+typedef boost::mpl::list<
+    amgcl::backend::block_crs<float>
+    , amgcl::backend::block_crs<double>
+    , amgcl::backend::compressed_crs<float>
+    , amgcl::backend::compressed_crs<double>
+#ifdef AMGCL_HAVE_EIGEN
+    , amgcl::backend::eigen<float>
+    , amgcl::backend::eigen<double>
+#endif
+    > cpu_backends;
+
+#ifdef AMGCL_HAVE_VEXCL
+typedef boost::mpl::list<
+    amgcl::backend::vexcl<float>,
+    amgcl::backend::vexcl<double>
+    > vexcl_backends;
 #endif
 
 template <typename P, typename C, typename V>
@@ -94,31 +112,15 @@ void test_backend(typename Backend::params const prm = typename Backend::params(
     BOOST_CHECK_SMALL(amgcl::backend::norm(*y), static_cast<V>(1e-4));
 }
 
-BOOST_AUTO_TEST_SUITE( backend_crs )
+BOOST_AUTO_TEST_SUITE( backend_ops )
 
-typedef boost::mpl::list<
-    amgcl::backend::block_crs<float>
-    , amgcl::backend::block_crs<double>
-    , amgcl::backend::compressed_crs<float>
-    , amgcl::backend::compressed_crs<double>
-#ifdef AMGCL_HAVE_EIGEN
-    , amgcl::backend::eigen<float>
-    , amgcl::backend::eigen<double>
-#endif
-    > backends;
-
-BOOST_AUTO_TEST_CASE_TEMPLATE(construct, Backend, backends)
+BOOST_AUTO_TEST_CASE_TEMPLATE(CpuBackends, Backend, cpu_backends)
 {
     test_backend<Backend>();
 }
 
 #ifdef AMGCL_HAVE_VEXCL
-typedef boost::mpl::list<
-    amgcl::backend::vexcl<float>,
-    amgcl::backend::vexcl<double>
-    > vexcl_backends;
-
-BOOST_AUTO_TEST_CASE_TEMPLATE(construct_vexcl, Backend, vexcl_backends)
+BOOST_AUTO_TEST_CASE_TEMPLATE(VexCLBackends, Backend, vexcl_backends)
 {
     vex::Context ctx( vex::Filter::Env && vex::Filter::DoublePrecision );
     std::cout << ctx << std::endl;
