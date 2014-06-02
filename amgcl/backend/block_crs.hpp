@@ -147,6 +147,13 @@ struct cols_impl< bcrs<V, C, P> > {
     }
 };
 
+template < typename V, typename C, typename P >
+struct nonzeros_impl< bcrs<V, C, P> > {
+    static size_t get(const bcrs<V, C, P> &A) {
+        return A.ptr.back() * A.block_size * A.block_size;
+    }
+};
+
 //---------------------------------------------------------------------------
 // block_crs backend definition
 //---------------------------------------------------------------------------
