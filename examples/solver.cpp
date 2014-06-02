@@ -2,7 +2,6 @@
 
 #include <amgcl/amgcl.hpp>
 
-#include <amgcl/backend/crs_tuple.hpp>
 #include <amgcl/backend/builtin.hpp>
 
 #include <amgcl/coarsening/aggregation.hpp>
@@ -29,17 +28,15 @@ int main() {
         amgcl::relaxation::damped_jacobi
         > AMG;
 
-    std::vector<int>    ptr;
-    std::vector<int>    col;
-    std::vector<double> val;
+    amgcl::backend::crs<double, int> A;
     std::vector<double> rhs;
 
     prof.tic("assemble");
-    int n = sample_problem(128, val, col, ptr, rhs);
+    int n = A.nrows = A.ncols = sample_problem(128, A.val, A.col, A.ptr, rhs);
     prof.toc("assemble");
 
     prof.tic("build");
-    AMG amg( boost::tie(n, n, val, col, ptr) );
+    AMG amg(A);
     prof.toc("build");
 
     std::cout << amg << std::endl;
