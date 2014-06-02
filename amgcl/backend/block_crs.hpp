@@ -226,17 +226,24 @@ struct spmv_impl< bcrs<V, C, P>, std::vector<V> >
 #pragma omp parallel for
         for(ptrdiff_t ib = 0; ib < static_cast<ptrdiff_t>(nb); ++ib) {
             for(P jb = A.ptr[ib], eb = A.ptr[ib + 1]; jb < eb; ++jb) {
-                const V *va = A.val.data() + jb * b2;
-                size_t ia = ib * b1;
-                size_t c0 = A.col[jb] * b1;
-                for(size_t k = 0; k < b1 && ia < na; ++k, ++ia) {
-                    V sum = 0;
-                    size_t ca = c0;
-                    for(size_t l = 0; l < b1; ++l, ++ca, ++va)
-                        if (ca < ma) sum += (*va) * x[ca];
-                    y[ia] += alpha * sum;
-                }
+                size_t x0 = A.col[jb] * b1;
+                size_t y0 = ib * b1;
+                block_prod(b1, std::min(b1, ma - x0), std::min(b1, na - y0),
+                        alpha, &A.val[jb * b2], &x[x0], &y[y0]
+                        );
             }
+        }
+    }
+
+    static void block_prod(size_t dim, size_t nx, size_t ny,
+            V alpha, const V *A, const V *x, V *y)
+    {
+        for(size_t i = 0; i < ny; ++i, ++y) {
+            const V * xx = x;
+            V sum = 0;
+            for(size_t j = 0; j < dim; ++j, ++A, ++xx)
+                if (j < nx) sum += (*A) * (*xx);
+            *y += alpha * sum;
         }
     }
 };
