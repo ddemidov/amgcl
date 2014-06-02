@@ -3,8 +3,7 @@
 #include <amgcl/amgcl.hpp>
 
 #include <amgcl/backend/crs_tuple.hpp>
-#include <amgcl/backend/block_crs.hpp>
-#include <amgcl/backend/eigen.hpp>
+#include <amgcl/backend/builtin.hpp>
 
 #include <amgcl/coarsening/aggregation.hpp>
 
@@ -25,7 +24,7 @@ int main() {
     using amgcl::prof;
 
     typedef amgcl::amg<
-        amgcl::backend::block_crs<double>,
+        amgcl::backend::builtin<double>,
         amgcl::coarsening::aggregation,
         amgcl::relaxation::damped_jacobi
         > AMG;

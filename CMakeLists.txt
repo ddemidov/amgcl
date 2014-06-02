@@ -45,13 +45,17 @@ endif ()
 find_path(EIGEN_INCLUDE Eigen/SparseCore PATH_SUFFIXES eigen3)
 if (EIGEN_INCLUDE)
     include_directories(${EIGEN_INCLUDE})
+    add_definitions(-DAMGCL_HAVE_EIGEN)
 endif()
 
 #----------------------------------------------------------------------------
 # Find VexCL
 #----------------------------------------------------------------------------
 set(VEXCL_ROOT $ENV{VEXCL_ROOT} CACHE STRING "VexCL root")
-include_directories( ${VEXCL_ROOT} )
+if (VEXCL_ROOT)
+    include_directories( ${VEXCL_ROOT} )
+    add_definitions(-DAMGCL_HAVE_VEXCL)
+endif()
 
 #----------------------------------------------------------------------------
 # Tests

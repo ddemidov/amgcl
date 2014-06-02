@@ -10,8 +10,10 @@
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/backend/block_crs.hpp>
-#include <amgcl/backend/eigen.hpp>
 #include <amgcl/backend/ccrs.hpp>
+#ifdef AMGCL_HAVE_EIGEN
+#include <amgcl/backend/eigen.hpp>
+#endif
 
 template <typename P, typename C, typename V>
 void random_problem(size_t n, size_t m, size_t nnz_per_row,
@@ -89,12 +91,14 @@ void test_backend() {
 BOOST_AUTO_TEST_SUITE( backend_crs )
 
 typedef boost::mpl::list<
-    amgcl::backend::block_crs<float>,
-    amgcl::backend::block_crs<double>,
-    amgcl::backend::eigen<float>,
-    amgcl::backend::eigen<double>,
-    amgcl::backend::compressed_crs<float>,
-    amgcl::backend::compressed_crs<double>
+    amgcl::backend::block_crs<float>
+    , amgcl::backend::block_crs<double>
+    , amgcl::backend::compressed_crs<float>
+    , amgcl::backend::compressed_crs<double>
+#ifdef AMGCL_HAVE_EIGEN
+    , amgcl::backend::eigen<float>
+    , amgcl::backend::eigen<double>
+#endif
     > backends;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(construct, Backend, backends)
