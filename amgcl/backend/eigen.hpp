@@ -43,21 +43,41 @@ namespace backend {
 //---------------------------------------------------------------------------
 // Builder interface implementation for Eigen types
 //---------------------------------------------------------------------------
+template <class T, class Enable = void>
+struct is_eigen_sparse_matrix : boost::false_type {};
+
+template <class T, class Enable = void>
+struct is_eigen_type : boost::false_type {};
+
 template <class T>
-struct is_eigen_sparse_matrix
-    : boost::is_base_of<Eigen::SparseMatrixBase<T>, T>::type
+struct is_eigen_sparse_matrix<
+    T,
+    typename boost::enable_if<
+            typename boost::mpl::and_<
+                typename boost::is_arithmetic<typename T::Scalar>::type,
+                typename boost::is_base_of<Eigen::SparseMatrixBase<T>, T>::type
+            >::type
+        >::type
+    > : boost::true_type
 {};
 
 template <class T>
-struct is_eigen_type
-    : boost::is_base_of<Eigen::EigenBase<T>, T>::type
+struct is_eigen_type<
+    T,
+    typename boost::enable_if<
+            typename boost::mpl::and_<
+                typename boost::is_arithmetic<typename T::Scalar>::type,
+                typename boost::is_base_of<Eigen::EigenBase<T>, T>::type
+            >::type
+        >::type
+    > : boost::true_type
 {};
 
 template <class T>
 struct value_type<
     T,
-    typename boost::enable_if_c<
-        is_eigen_type<T>::value>::type
+    typename boost::enable_if<
+        typename is_eigen_type<T>::type>::type
     >
 {
     typedef typename T::Scalar type;
@@ -66,7 +86,7 @@ struct value_type<
 template <class T>
 struct rows_impl<
     T,
-    typename boost::enable_if_c<is_eigen_sparse_matrix<T>::value>::type
+    typename boost::enable_if<typename is_eigen_sparse_matrix<T>::type>::type
     >
 {
     static size_t get(const T &matrix) {
@@ -77,7 +97,7 @@ struct rows_impl<
 template <class T>
 struct cols_impl<
     T,
-    typename boost::enable_if_c<is_eigen_sparse_matrix<T>::value>::type
+    typename boost::enable_if<typename is_eigen_sparse_matrix<T>::type>::type
     >
 {
     static size_t get(const T &matrix) {
@@ -88,7 +108,7 @@ struct cols_impl<
 template <class T>
 struct nonzeros_impl<
     T,
-    typename boost::enable_if_c<is_eigen_type<T>::value>::type
+    typename boost::enable_if<typename is_eigen_type<T>::type>::type
     >
 {
     static size_t get(const T &matrix) {
@@ -99,7 +119,7 @@ struct nonzeros_impl<
 template <class T>
 struct row_iterator <
     T,
-    typename boost::enable_if_c<is_eigen_sparse_matrix<T>::value>::type
+    typename boost::enable_if<typename is_eigen_sparse_matrix<T>::type>::type
     >
 {
     typedef typename T::InnerIterator type;
@@ -108,7 +128,7 @@ struct row_iterator <
 template <class T>
 struct row_begin_impl <
     T,
-    typename boost::enable_if_c<is_eigen_sparse_matrix<T>::value>::type
+    typename boost::enable_if<typename is_eigen_sparse_matrix<T>::type>::type
     >
 {
     typedef typename row_iterator<T>::type iterator;
@@ -183,9 +203,11 @@ template < class M, class V >
 struct spmv_impl<
     M,
     V,
-    typename boost::enable_if_c<
-            is_eigen_sparse_matrix<M>::value &&
-            is_eigen_type<V>::value
+    typename boost::enable_if<
+            typename boost::mpl::and_<
+                typename is_eigen_sparse_matrix<M>::type,
+                typename is_eigen_type<V>::type
+            >::type
         >::type
     >
 {
@@ -204,9 +226,11 @@ template < class M, class V >
 struct residual_impl<
     M,
     V,
-    typename boost::enable_if_c<
-            is_eigen_sparse_matrix<M>::value &&
-            is_eigen_type<V>::value
+    typename boost::enable_if<
+            typename boost::mpl::and_<
+                typename is_eigen_sparse_matrix<M>::type,
+                typename is_eigen_type<V>::type
+            >::type
         >::type
     >
 {
@@ -219,7 +243,7 @@ struct residual_impl<
 template < typename V >
 struct clear_impl<
     V,
-    typename boost::enable_if_c< is_eigen_type<V>::value >::type
+    typename boost::enable_if< typename is_eigen_type<V>::type >::type
     >
 {
     static void apply(V &x)
@@ -231,7 +255,7 @@ struct clear_impl<
 template < typename V >
 struct inner_product_impl<
     V,
-    typename boost::enable_if_c< is_eigen_type<V>::value >::type
+    typename boost::enable_if< typename is_eigen_type<V>::type >::type
     >
 {
     typedef typename value_type<V>::type real;
@@ -244,7 +268,7 @@ struct inner_product_impl<
 template < typename V >
 struct axpby_impl<
     V,
-    typename boost::enable_if_c< is_eigen_type<V>::value >::type
+    typename boost::enable_if< typename is_eigen_type<V>::type >::type
     >
 {
     typedef typename value_type<V>::type real;
@@ -261,7 +285,7 @@ struct axpby_impl<
 template < typename V >
 struct vmul_impl<
     V,
-    typename boost::enable_if_c< is_eigen_type<V>::value >::type
+    typename boost::enable_if< typename is_eigen_type<V>::type >::type
     >
 {
     typedef typename value_type<V>::type real;
@@ -278,7 +302,7 @@ struct vmul_impl<
 template < typename V >
 struct copy_impl<
     V,
-    typename boost::enable_if_c< is_eigen_type<V>::value >::type
+    typename boost::enable_if< typename is_eigen_type<V>::type >::type
     >
 {
     static void apply(const V &x, V &y)
