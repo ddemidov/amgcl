@@ -65,7 +65,6 @@ size_t aggregates(
         std::vector<Col> &G
         )
 {
-    typedef typename backend::crs<Val, Col, Ptr>::row_iterator row_iterator;
     const size_t n = rows(A);
 
     // Determine strong couplings for the matrix.

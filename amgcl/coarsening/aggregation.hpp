@@ -125,8 +125,9 @@ struct aggregation {
 
         *Ac = product(product(R, A), P);
 
-        if (prm.over_interp > 1.0f)
+        if (prm.over_interp > 1.0f) {
             BOOST_FOREACH(Val &v, Ac->val) v /= prm.over_interp;
+        }
 
         return Ac;
     }

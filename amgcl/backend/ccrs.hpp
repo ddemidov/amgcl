@@ -259,7 +259,7 @@ class ccrs {
 
                         size_t start = val.size();
 
-                        for(size_t k = r[j]; k < r[j+1]; ++k) {
+                        for(ptr_t k = r[j]; k < r[j+1]; ++k) {
                             col.push_back( c[k] - i );
                             val.push_back( v[k] );
                         }
@@ -303,6 +303,7 @@ class ccrs {
                 row_iterator& operator++() {
                     ++m_col;
                     ++m_val;
+                    return *this;
                 }
 
                 col_t col() const {

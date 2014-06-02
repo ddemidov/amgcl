@@ -42,7 +42,7 @@ struct impl<gauss_seidel, Backend> {
     struct params { };
 
     template <class Matrix>
-    impl( const Matrix&, const params &prm, const typename Backend::params&)
+    impl( const Matrix&, const params&, const typename Backend::params&)
     {}
 
     template <class Matrix, class VectorRHS, class VectorX>

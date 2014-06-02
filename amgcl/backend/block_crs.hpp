@@ -81,8 +81,8 @@ struct bcrs {
                     for(row_iterator a = backend::row_begin(A, ia); a; ++a) {
                         col_type cb = a.col() / block_size;
 
-                        if (marker[cb] != ib) {
-                            marker[cb] = ib;
+                        if (marker[cb] != static_cast<col_type>(ib)) {
+                            marker[cb]  = static_cast<col_type>(ib);
                             ++ptr[ib + 1];
                         }
                     }
@@ -220,11 +220,11 @@ struct spmv_impl< bcrs<V, C, P>, std::vector<V> >
         for(ptrdiff_t ib = 0; ib < static_cast<ptrdiff_t>(nb); ++ib) {
             for(P jb = A.ptr[ib], eb = A.ptr[ib + 1]; jb < eb; ++jb) {
                 const V *va = A.val.data() + jb * b2;
-                C ia = ib * b1;
-                C c0 = A.col[jb] * b1;
+                size_t ia = ib * b1;
+                size_t c0 = A.col[jb] * b1;
                 for(size_t k = 0; k < b1 && ia < na; ++k, ++ia) {
                     V sum = 0;
-                    C ca = c0;
+                    size_t ca = c0;
                     for(size_t l = 0; l < b1; ++l, ++ca, ++va)
                         if (ca < ma) sum += (*va) * x[ca];
                     y[ia] += alpha * sum;

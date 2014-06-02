@@ -81,9 +81,12 @@ struct crs {
       col(boost::begin(col_range), boost::end(col_range)),
       val(boost::begin(val_range), boost::end(val_range))
     {
-        precondition(ptr.size() == nrows + 1,  "Inconsistent sizes in crs constructor");
-        precondition(ptr.back() == col.size(), "Inconsistent sizes in crs constructor");
-        precondition(ptr.back() == val.size(), "Inconsistent sizes in crs constructor");
+        precondition(
+                ptr.size() == nrows + 1                       &&
+                static_cast<size_t>(ptr.back()) == col.size() &&
+                static_cast<size_t>(ptr.back()) == val.size(),
+                "Inconsistent sizes in crs constructor"
+                );
     }
 
     template <class Matrix>
@@ -114,6 +117,7 @@ struct crs {
             row_iterator& operator++() {
                 ++m_col;
                 ++m_val;
+                return *this;
             }
 
             col_type col() const {
@@ -125,7 +129,7 @@ struct crs {
             }
 
         private:
-            friend class crs;
+            friend struct crs;
 
             const col_type * m_col;
             const col_type * m_end;
@@ -215,8 +219,8 @@ struct crs {
             for(size_t ia = chunk_start; ia < chunk_end; ++ia) {
                 for(row_iterator a = A.row_begin(ia); a; ++a) {
                     for(row_iterator b = B.row_begin(a.col()); b; ++b) {
-                        if (marker[b.col()] != ia) {
-                            marker[b.col()] = ia;
+                        if (marker[b.col()] != static_cast<col_type>(ia)) {
+                            marker[b.col()]  = static_cast<col_type>(ia);
                             ++( C.ptr[ia + 1] );
                         }
                     }

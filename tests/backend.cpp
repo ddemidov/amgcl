@@ -14,6 +14,9 @@
 #ifdef AMGCL_HAVE_EIGEN
 #include <amgcl/backend/eigen.hpp>
 #endif
+#ifdef AMGCL_HAVE_VEXCL
+#include <amgcl/backend/vexcl.hpp>
+#endif
 
 template <typename P, typename C, typename V>
 void random_problem(size_t n, size_t m, size_t nnz_per_row,
@@ -50,13 +53,13 @@ void random_problem(size_t n, size_t m, size_t nnz_per_row,
 }
 
 template <class Backend>
-void test_backend() {
+void test_backend(typename Backend::params const prm = typename Backend::params())
+{
     typedef typename Backend::value_type V;
     typedef typename Backend::index_type I;
 
     typedef typename Backend::matrix  matrix;
     typedef typename Backend::vector  vector;
-    typedef typename Backend::params  params;
 
     typedef amgcl::backend::crs<V, I> ref_matrix;
 
@@ -68,8 +71,6 @@ void test_backend() {
     std::vector<V> vec;
 
     random_problem(n, n, 16, ptr, col, val, vec);
-
-    params prm;
 
     boost::shared_ptr<ref_matrix> Aref = boost::make_shared<ref_matrix>(n, n, ptr, col, val);
     boost::shared_ptr<matrix>     Atst = Backend::copy_matrix(Aref, prm);
@@ -85,7 +86,7 @@ void test_backend() {
     amgcl::backend::spmv(2, *Atst, *x,  1, *y);
 
     for(size_t i = 0; i < n; ++i)
-        BOOST_CHECK_CLOSE((*y)[i], y_ref[i], 1e-4);
+        BOOST_CHECK_CLOSE(static_cast<V>((*y)[i]), y_ref[i], 1e-4);
 }
 
 BOOST_AUTO_TEST_SUITE( backend_crs )
@@ -105,5 +106,23 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(construct, Backend, backends)
 {
     test_backend<Backend>();
 }
+
+#ifdef AMGCL_HAVE_VEXCL
+typedef boost::mpl::list<
+    amgcl::backend::vexcl<float>,
+    amgcl::backend::vexcl<double>
+    > vexcl_backends;
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(construct_vexcl, Backend, vexcl_backends)
+{
+    vex::Context ctx( vex::Filter::Env && vex::Filter::DoublePrecision );
+    std::cout << ctx << std::endl;
+
+    typename Backend::params prm;
+    prm.q = ctx;
+
+    test_backend<Backend>(prm);
+}
+#endif
 
 BOOST_AUTO_TEST_SUITE_END()

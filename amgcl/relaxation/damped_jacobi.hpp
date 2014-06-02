@@ -49,7 +49,7 @@ struct impl<damped_jacobi, Backend> {
     boost::shared_ptr<typename Backend::vector> dia;
 
     template <class Matrix>
-    impl( const Matrix &A, const params &prm, const typename Backend::params &backend_prm)
+    impl( const Matrix &A, const params &, const typename Backend::params &backend_prm)
         : dia( Backend::copy_vector( diagonal(A, true), backend_prm ) )
     {}
 

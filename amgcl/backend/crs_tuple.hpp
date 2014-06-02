@@ -151,6 +151,7 @@ struct row_iterator< boost::tuple<NR, NC, VRng, CRng, PRng> >
             type& operator++() {
                 ++m_col;
                 ++m_val;
+                return *this;
             }
 
             col_type col() const {

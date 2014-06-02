@@ -51,7 +51,7 @@ struct value_type {
  */
 template <class Matrix, class Enable = void>
 struct rows_impl {
-    static size_t get(const Matrix &matrix) {
+    static size_t get(const Matrix&) {
         precondition(false, "nrows() not implemented");
         return 0;
     }
@@ -68,7 +68,7 @@ size_t rows(const Matrix &matrix) {
  */
 template <class Matrix, class Enable = void>
 struct cols_impl {
-    static size_t get(const Matrix &matrix) {
+    static size_t get(const Matrix&) {
         precondition(false, "ncols() not implemented");
         return 0;
     }
@@ -85,7 +85,7 @@ size_t cols(const Matrix &matrix) {
  */
 template <class Matrix, class Enable = void>
 struct nonzeros_impl {
-    static size_t get(const Matrix &matrix) {
+    static size_t get(const Matrix&) {
         precondition(false, "nonzeros() not implemented");
         return 0;
     }
@@ -108,7 +108,7 @@ struct row_iterator {
 template <class Matrix, class Enable = void>
 struct row_begin_impl {
     static typename row_iterator<Matrix>::type
-    get(const Matrix &matrix, size_t row) {
+    get(const Matrix&, size_t) {
         precondition(false, "row_begin() not implemented");
     }
 };
@@ -123,8 +123,7 @@ template <class Matrix, class Vector, class Enable = void>
 struct spmv_impl {
     typedef typename value_type<Matrix>::type real;
 
-    static void apply(real alpha, const Matrix &A, const Vector &x,
-            real beta, Vector &y)
+    static void apply(real, const Matrix&, const Vector&, real, Vector&)
     {
         precondition(false, "spmv() not implemented");
     }
@@ -139,8 +138,7 @@ void spmv(typename value_type<Matrix>::type alpha, const Matrix &A,
 
 template <class Matrix, class Vector, class Enable = void>
 struct residual_impl {
-    static void apply(const Vector &rhs, const Matrix &A, const Vector &x,
-            Vector &r)
+    static void apply(const Vector&, const Matrix&, const Vector&, Vector&)
     {
         precondition(false, "residual() not implemented");
     }
@@ -154,7 +152,7 @@ void residual(const Vector &rhs, const Matrix &A, const Vector &x, Vector &r)
 
 template <class Vector, class Enable = void>
 struct clear_impl {
-    static void apply(Vector &x)
+    static void apply(Vector&)
     {
         precondition(false, "clear() not implemented");
     }
@@ -169,9 +167,10 @@ void clear(Vector &x)
 template <class Vector, class Enable = void>
 struct inner_product_impl {
     static typename value_type<Vector>::type
-    get(const Vector &x, const Vector &y)
+    get(const Vector&, const Vector&)
     {
         precondition(false, "inner_product() not implemented");
+        return typename value_type<Vector>::type();
     }
 };
 
@@ -200,7 +199,7 @@ template <class Vector, class Enable = void>
 struct axpby_impl {
     typedef typename value_type<Vector>::type val_type;
 
-    static void apply(val_type a, const Vector &x, val_type b, Vector &y)
+    static void apply(val_type, const Vector&, val_type, Vector&)
     {
         precondition(false, "axpby() not implemented");
     }
@@ -218,8 +217,7 @@ template <class Vector, class Enable = void>
 struct vmul_impl {
     typedef typename value_type<Vector>::type val_type;
 
-    static void apply(val_type alpha, const Vector &x, const Vector &y,
-            val_type beta, Vector &z)
+    static void apply(val_type, const Vector&, const Vector&, val_type, Vector&)
     {
         precondition(false, "axpby() not implemented");
     }
@@ -238,7 +236,7 @@ void vmul(
 
 template <class Vector, class Enable = void>
 struct copy_impl {
-    static void apply(const Vector &x, Vector &y)
+    static void apply(const Vector&, Vector&)
     {
         precondition(false, "copy() not implemented");
     }

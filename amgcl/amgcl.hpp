@@ -72,11 +72,11 @@ class amg {
             coarsening_params coarsening;
             relax_params      relax;
 
-            int coarse_enough;
+            unsigned coarse_enough;
 
-            int npre;
-            int npost;
-            int ncycle;
+            unsigned npre;
+            unsigned npost;
+            unsigned ncycle;
 
             params() :
                 coarse_enough( 300 ),
@@ -194,9 +194,9 @@ class amg {
                 backend::spmv(1, *lvl->A, rhs, 0, x);
                 TOC("coarse");
             } else {
-                for (int j = 0; j < prm.ncycle; ++j) {
+                for (size_t j = 0; j < prm.ncycle; ++j) {
                     TIC("relax");
-                    for(int i = 0; i < prm.npre; ++i)
+                    for(size_t i = 0; i < prm.npre; ++i)
                         lvl->relax->apply_pre(*lvl->A, rhs, x, *lvl->t, prm.relax);
                     TOC("relax");
 
@@ -216,7 +216,7 @@ class amg {
                     TOC("prolongate");
 
                     TIC("relax");
-                    for(int i = 0; i < prm.npre; ++i)
+                    for(size_t i = 0; i < prm.npre; ++i)
                         lvl->relax->apply_post(*lvl->A, rhs, x, *lvl->t, prm.relax);
                     TOC("relax");
                 }
