@@ -79,14 +79,19 @@ void test_backend(typename Backend::params const prm = typename Backend::params(
     boost::shared_ptr<vector> y = Backend::create_vector(n, prm);
 
     amgcl::backend::clear(*y);
+    for(size_t i = 0; i < n; ++i)
+        BOOST_CHECK_EQUAL(static_cast<V>((*y)[i]), V());
 
     std::vector<V> y_ref(n, 0);
 
-    amgcl::backend::spmv(2, *Aref, vec, 1, y_ref);
-    amgcl::backend::spmv(2, *Atst, *x,  1, *y);
+    amgcl::backend::spmv(1, *Aref, vec, 1, y_ref);
+    amgcl::backend::spmv(1, *Atst, *x,  1, *y);
 
     for(size_t i = 0; i < n; ++i)
         BOOST_CHECK_CLOSE(static_cast<V>((*y)[i]), y_ref[i], 1e-4);
+
+    amgcl::backend::residual(*y, *Atst, *x, *y);
+    BOOST_CHECK_SMALL(amgcl::backend::norm(*y), static_cast<V>(1e-4));
 }
 
 BOOST_AUTO_TEST_SUITE( backend_crs )
