@@ -123,12 +123,13 @@ class amg {
             TOC("move to backend")
         }
 
-        void apply(const vector &rhs, vector &x) const {
+        void cycle(const vector &rhs, vector &x) const {
             cycle(levels.begin(), rhs, x);
         }
 
         void operator()(const vector &rhs, vector &x) const {
-            apply(rhs, x);
+            backend::clear(x);
+            cycle(levels.begin(), rhs, x);
         }
 
         const matrix& top_matrix() const {

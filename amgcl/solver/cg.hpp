@@ -78,7 +78,6 @@ class cg {
 
             for(; (res = backend::norm(*r) / norm_of_rhs) > tol && iter < maxiter; ++iter)
             {
-                backend::clear(*s);
                 P(*r, *s);
 
                 rho2 = rho1;

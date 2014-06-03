@@ -19,6 +19,7 @@
 
 #include <amgcl/solver/cg.hpp>
 #include <amgcl/solver/bicgstab.hpp>
+#include <amgcl/solver/gmres.hpp>
 
 #include "sample_problem.hpp"
 
@@ -79,7 +80,7 @@ void test_solver(const typename Backend::params &prm = typename Backend::params(
               << "Error:      " << resid << std::endl
               << std::endl;
 
-    BOOST_CHECK((iters < 100) && (resid < 1e-8));
+    BOOST_CHECK(resid < 1e-4);
 }
 
 //---------------------------------------------------------------------------
@@ -103,8 +104,9 @@ template <class Backend, class Coarsening>
 struct relaxation_iterator {
     template <class Relax>
     void operator()(const Relax&) const {
-        run_test<Backend, Coarsening, Relax::value, amgcl::solver::cg>();
+        run_test<Backend, Coarsening, Relax::value, amgcl::solver::cg      >();
         run_test<Backend, Coarsening, Relax::value, amgcl::solver::bicgstab>();
+        run_test<Backend, Coarsening, Relax::value, amgcl::solver::gmres   >();
     }
 };
 

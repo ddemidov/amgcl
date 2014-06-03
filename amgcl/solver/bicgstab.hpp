@@ -94,7 +94,6 @@ class bicgstab {
                     backend::copy(*r, *p);
                 }
 
-                backend::clear(*ph);
                 P(*p, *ph);
 
                 backend::spmv(1, A, *ph, 0, *v);
@@ -106,7 +105,6 @@ class bicgstab {
                 if ((res = backend::norm(*s) / norm_of_rhs) < tol) {
                     backend::axpby(alpha, *ph, 1, x);
                 } else {
-                    backend::clear(*sh);
                     P(*s, *sh);
 
                     backend::spmv(1, A, *sh, 0, *t);
