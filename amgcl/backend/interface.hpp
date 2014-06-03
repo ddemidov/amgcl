@@ -181,6 +181,21 @@ void axpby(typename value_type<Vector>::type a, Vector const &x,
 }
 
 template <class Vector, class Enable = void>
+struct axpbypcz_impl {
+    typedef typename Vector::NOT_IMPLEMENTED type;
+};
+
+template <class Vector>
+void axpbypcz(
+        typename value_type<Vector>::type a, Vector const &x,
+        typename value_type<Vector>::type b, Vector const &y,
+        typename value_type<Vector>::type c, Vector       &z
+        )
+{
+    axpbypcz_impl<Vector>::apply(a, x, b, y, c, z);
+}
+
+template <class Vector, class Enable = void>
 struct vmul_impl {
     typedef typename Vector::NOT_IMPLEMENTED type;
 };

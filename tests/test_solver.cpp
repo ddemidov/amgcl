@@ -18,6 +18,7 @@
 #include <amgcl/relaxation/gauss_seidel.hpp>
 
 #include <amgcl/solver/cg.hpp>
+#include <amgcl/solver/bicgstab.hpp>
 
 #include "sample_problem.hpp"
 
@@ -78,9 +79,7 @@ void test_solver(const typename Backend::params &prm = typename Backend::params(
               << "Error:      " << resid << std::endl
               << std::endl;
 
-    amgcl::backend::spmv(-1, amg.top_matrix(), *x, 1, *y);
-
-    BOOST_CHECK_SMALL(amgcl::backend::norm(*y), precision<value_type>::get());
+    BOOST_CHECK((iters < 100) && (resid < 1e-8));
 }
 
 //---------------------------------------------------------------------------
@@ -105,6 +104,7 @@ struct relaxation_iterator {
     template <class Relax>
     void operator()(const Relax&) const {
         run_test<Backend, Coarsening, Relax::value, amgcl::solver::cg>();
+        run_test<Backend, Coarsening, Relax::value, amgcl::solver::bicgstab>();
     }
 };
 

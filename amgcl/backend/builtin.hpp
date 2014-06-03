@@ -584,6 +584,29 @@ struct axpby_impl< std::vector<V> > {
 };
 
 template < typename V >
+struct axpbypcz_impl< std::vector<V> > {
+    static void apply(
+            V a, const std::vector<V> &x,
+            V b, const std::vector<V> &y,
+            V c,       std::vector<V> &z
+            )
+    {
+        const size_t n = x.size();
+        if (c) {
+#pragma omp parallel for
+            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
+                z[i] = a * x[i] + b * y[i] + c * z[i];
+            }
+        } else {
+#pragma omp parallel for
+            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
+                z[i] = a * x[i] + b * y[i];
+            }
+        }
+    }
+};
+
+template < typename V >
 struct vmul_impl< std::vector<V> > {
     static void apply(V a, const std::vector<V> &x, const std::vector<V> &y,
             V b, std::vector<V> &z)

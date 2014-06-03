@@ -283,6 +283,27 @@ struct axpby_impl<
 };
 
 template < typename V >
+struct axpbypcz_impl<
+    V,
+    typename boost::enable_if< typename is_eigen_type<V>::type >::type
+    >
+{
+    typedef typename value_type<V>::type real;
+
+    static void apply(
+            real a, const V &x,
+            real b, const V &y,
+            real c,       V &z
+            )
+    {
+        if (c)
+            z = a * x + b * y + c * y;
+        else
+            z = a * x + b * y;
+    }
+};
+
+template < typename V >
 struct vmul_impl<
     V,
     typename boost::enable_if< typename is_eigen_type<V>::type >::type

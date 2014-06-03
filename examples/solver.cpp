@@ -9,7 +9,7 @@
 #include <amgcl/relaxation/gauss_seidel.hpp>
 #include <amgcl/relaxation/damped_jacobi.hpp>
 
-#include <amgcl/solver/cg.hpp>
+#include <amgcl/solver/bicgstab.hpp>
 
 #include <amgcl/profiler.hpp>
 
@@ -46,7 +46,7 @@ int main() {
 
     amgcl::backend::clear(*x);
 
-    amgcl::solver::cg<AMG::backend_type> solve(n);
+    amgcl::solver::bicgstab<AMG::backend_type> solve(n);
 
     prof.tic("solve");
     size_t iters;
