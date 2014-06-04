@@ -39,27 +39,29 @@ namespace relaxation {
 
 template <class Backend>
 struct impl<spai0, Backend> {
+    typedef typename Backend::value_type value_type;
+    typedef typename Backend::vector     vector;
+
     struct params {};
 
-    boost::shared_ptr<typename Backend::vector> M;
+    boost::shared_ptr<vector> M;
 
     template <class Matrix>
     impl( const Matrix &A, const params &, const typename Backend::params &backend_prm)
     {
-        typedef typename backend::value_type<Matrix>::type   V;
         typedef typename backend::row_iterator<Matrix>::type row_iterator;
 
         const size_t n = rows(A);
 
-        std::vector<V> m(n);
+        std::vector<value_type> m(n);
 
 #pragma omp parallel for
         for(size_t i = 0; i < n; ++i) {
-            V num = 0;
-            V den = 0;
+            value_type num = 0;
+            value_type den = 0;
 
             for(row_iterator a = backend::row_begin(A, i); a; ++a) {
-                V v = a.value();
+                value_type v = a.value();
                 den += v * v;
                 if (static_cast<size_t>(a.col()) == i) num += v;
             }

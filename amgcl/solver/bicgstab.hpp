@@ -35,6 +35,7 @@ THE SOFTWARE.
 
 #include <boost/tuple/tuple.hpp>
 #include <amgcl/backend/interface.hpp>
+#include <amgcl/util.hpp>
 
 namespace amgcl {
 namespace solver {
@@ -84,8 +85,7 @@ class bicgstab {
                 rho2 = rho1;
                 rho1 = backend::inner_product(*r, *rh);
 
-                if (fabs(rho1) < 1e-32)
-                    throw std::logic_error("Zero rho in BiCGStab");
+                precondition(rho1, "Zero rho in BiCGStab");
 
                 if (iter) {
                     value_type beta = (rho1 * alpha) / (rho2 * omega);
@@ -112,8 +112,7 @@ class bicgstab {
                     omega = backend::inner_product(*t, *s)
                           / backend::inner_product(*t, *t);
 
-                    if (fabs(omega) < 1e-32)
-                        throw std::logic_error("Zero omega in BiCGStab");
+                    precondition(omega, "Zero omega in BiCGStab");
 
                     backend::axpbypcz(alpha, *ph, omega, *sh, 1, x);
                     backend::axpbypcz(1, *s, -omega, *t, 0, *r);

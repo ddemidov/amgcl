@@ -37,7 +37,8 @@ namespace relaxation {
 enum scheme {
     gauss_seidel,
     damped_jacobi,
-    spai0
+    spai0,
+    chebyshev
 };
 
 template <scheme Scheme, class Backend, class Enable = void>

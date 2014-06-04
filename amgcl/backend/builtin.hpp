@@ -46,6 +46,7 @@ THE SOFTWARE.
 
 #include <amgcl/util.hpp>
 #include <amgcl/backend/interface.hpp>
+#include <amgcl/detail/gaussj.hpp>
 
 namespace amgcl {
 namespace backend {
@@ -315,65 +316,6 @@ struct crs {
         }
     }
 
-    static void gaussj(int n, val_type *a) {
-        std::vector<int>  idxc(n);
-        std::vector<int>  idxr(n);
-        std::vector<char> ipiv(n, false);
-
-        for(int i = 0; i < n; ++i) {
-            int irow = 0, icol = 0;
-
-            val_type big = 0;
-            for(int j = 0; j < n; ++j) {
-                if (ipiv[j]) continue;
-
-                for(int k = 0; k < n; ++k) {
-                    if (!ipiv[k] && fabs(a[j * n + k]) > big) {
-                        big  = fabs(a[j * n + k]);
-                        irow = j;
-                        icol = k;
-                    }
-                }
-            }
-
-            ipiv[icol] = true;
-
-            if (irow != icol)
-                std::swap_ranges(
-                        a + n * irow, a + n * (irow + 1),
-                        a + n * icol
-                        );
-
-            idxr[i] = irow;
-            idxc[i] = icol;
-
-            if (a[icol * n + icol] == 0)
-                throw std::logic_error("Singular matrix in gaussj");
-
-            val_type pivinv = 1 / a[icol * n + icol];
-            a[icol * n + icol] = 1;
-
-            for(val_type *v = a + icol * n, *e = a + (icol + 1) * n; v != e; ++v)
-                *v *= pivinv;
-
-            for(int k = 0; k < n; ++k) {
-                if (k != icol) {
-                    val_type dum = a[k * n + icol];
-                    a[k * n + icol] = 0;
-                    for(val_type *v1 = a + n * k, *v2 = a + n * icol, *e = a + n * (k + 1); v1 != e; ++v1, ++v2)
-                        *v1 -= *v2 * dum;
-                }
-            }
-        }
-
-        for(int i = n - 1; i >= 0; --i) {
-            if (idxr[i] != idxc[i]) {
-                for(int j = 0; j < n; ++j)
-                    std::swap(a[j * n + idxr[i]], a[j * n + idxc[i]]);
-            }
-        }
-    }
-
     friend crs inverse(const crs &A) {
         const size_t n = rows(A);
 
@@ -390,7 +332,7 @@ struct crs {
             for(row_iterator a = A.row_begin(i); a; ++a)
                 Ainv.val[i * n + a.col()] = a.value();
 
-        gaussj(n, Ainv.val.data());
+        detail::gaussj(n, Ainv.val.data());
 
         Ainv.ptr[0] = 0;
         for(size_t i = 0, idx = 0; i < n; ) {

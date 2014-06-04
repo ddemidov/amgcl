@@ -16,9 +16,10 @@
 #include <amgcl/coarsening/aggregation.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
 
+#include <amgcl/relaxation/gauss_seidel.hpp>
 #include <amgcl/relaxation/damped_jacobi.hpp>
 #include <amgcl/relaxation/spai.hpp>
-#include <amgcl/relaxation/gauss_seidel.hpp>
+#include <amgcl/relaxation/chebyshev.hpp>
 
 #include <amgcl/solver/cg.hpp>
 #include <amgcl/solver/bicgstab.hpp>
@@ -51,7 +52,8 @@ typedef boost::mpl::list<
 //---------------------------------------------------------------------------
 typedef boost::mpl::list<
     boost::mpl::integral_c<amgcl::relaxation::scheme, amgcl::relaxation::damped_jacobi>,
-    boost::mpl::integral_c<amgcl::relaxation::scheme, amgcl::relaxation::spai0>
+    boost::mpl::integral_c<amgcl::relaxation::scheme, amgcl::relaxation::spai0>,
+    boost::mpl::integral_c<amgcl::relaxation::scheme, amgcl::relaxation::chebyshev>
     > relax_list;
 
 //---------------------------------------------------------------------------
