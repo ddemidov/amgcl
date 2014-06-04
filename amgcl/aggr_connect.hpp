@@ -120,7 +120,7 @@ pointwise_matrix(const spmat &A, unsigned dof_per_node) {
         index_t chunk_end   = std::min(nc, chunk_start + chunk_size);
 #else
         index_t chunk_start = 0;
-        index_t chunk_end   = n;
+        index_t chunk_end   = nc;
 #endif
 
         // Count number of nonzeros in block matrix.
@@ -209,7 +209,7 @@ pointwise_coarsening(const spmat &A, float eps_strong, unsigned dof_per_node) {
         index_t chunk_end   = std::min(Ap.rows, chunk_start + chunk_size);
 #else
         index_t chunk_start = 0;
-        index_t chunk_end   = n;
+        index_t chunk_end   = Ap.rows;
 #endif
 
         for(index_t ip = chunk_start, ia = ip * dof_per_node; ip < chunk_end; ++ip) {
