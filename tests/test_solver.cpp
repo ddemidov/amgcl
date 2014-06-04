@@ -17,6 +17,7 @@
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
 
 #include <amgcl/relaxation/damped_jacobi.hpp>
+#include <amgcl/relaxation/spai.hpp>
 #include <amgcl/relaxation/gauss_seidel.hpp>
 
 #include <amgcl/solver/cg.hpp>
@@ -49,8 +50,9 @@ typedef boost::mpl::list<
 
 //---------------------------------------------------------------------------
 typedef boost::mpl::list<
-    boost::mpl::integral_c<amgcl::relaxation::scheme, amgcl::relaxation::damped_jacobi>
-    > cpu_relax_list;
+    boost::mpl::integral_c<amgcl::relaxation::scheme, amgcl::relaxation::damped_jacobi>,
+    boost::mpl::integral_c<amgcl::relaxation::scheme, amgcl::relaxation::spai0>
+    > relax_list;
 
 //---------------------------------------------------------------------------
 template <
@@ -122,7 +124,7 @@ template <class Backend, class Enable = void>
 struct coarsening_iterator {
     template <class Coarsening>
     void operator()(const Coarsening&) const {
-        boost::mpl::for_each<cpu_relax_list>(
+        boost::mpl::for_each<relax_list>(
                 relaxation_iterator<Backend, Coarsening>()
                 );
     }

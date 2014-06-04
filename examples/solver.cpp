@@ -9,6 +9,7 @@
 
 #include <amgcl/relaxation/gauss_seidel.hpp>
 #include <amgcl/relaxation/damped_jacobi.hpp>
+#include <amgcl/relaxation/spai.hpp>
 
 #include <amgcl/solver/bicgstab.hpp>
 
@@ -28,7 +29,7 @@ int main() {
         amgcl::coarsening::smoothed_aggregation<
             amgcl::coarsening::plain_aggregates
             >,
-        amgcl::relaxation::damped_jacobi
+        amgcl::relaxation::spai0
         > AMG;
 
     amgcl::backend::crs<double, int> A;

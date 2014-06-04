@@ -37,11 +37,65 @@ THE SOFTWARE.
 namespace amgcl {
 namespace relaxation {
 
-namespace detail {
-} //namespace detail
-
 template <class Backend>
 struct impl<spai0, Backend> {
+    struct params {};
+
+    boost::shared_ptr<typename Backend::vector> M;
+
+    template <class Matrix>
+    impl( const Matrix &A, const params &, const typename Backend::params &backend_prm)
+    {
+        typedef typename backend::value_type<Matrix>::type   V;
+        typedef typename backend::row_iterator<Matrix>::type row_iterator;
+
+        const size_t n = rows(A);
+
+        std::vector<V> m(n);
+
+#pragma omp parallel for
+        for(size_t i = 0; i < n; ++i) {
+            V num = 0;
+            V den = 0;
+
+            for(row_iterator a = backend::row_begin(A, i); a; ++a) {
+                V v = a.value();
+                den += v * v;
+                if (static_cast<size_t>(a.col()) == i) num += v;
+            }
+
+            m[i] = num / den;
+        }
+
+        M = Backend::copy_vector(m, backend_prm);
+    }
+
+    template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
+    void apply(
+            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp
+            ) const
+    {
+        backend::residual(rhs, A, x, tmp);
+        backend::vmul(1, *M, tmp, 1, x);
+    }
+
+    template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
+    void apply_pre(
+            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
+            const params&
+            ) const
+    {
+        apply(A, rhs, x, tmp);
+    }
+
+    template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
+    void apply_post(
+            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
+            const params&
+            ) const
+    {
+        apply(A, rhs, x, tmp);
+    }
 };
 
 } // namespace relaxation

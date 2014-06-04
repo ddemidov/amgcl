@@ -8,7 +8,7 @@
 #include <amgcl/backend/block_crs.hpp>
 #include <amgcl/coarsening/pointwise_aggregates.hpp>
 #include <amgcl/coarsening/aggregation.hpp>
-#include <amgcl/relaxation/damped_jacobi.hpp>
+#include <amgcl/relaxation/spai.hpp>
 #include <amgcl/solver/bicgstab.hpp>
 #include <amgcl/profiler.hpp>
 
@@ -24,7 +24,7 @@ int main() {
         amgcl::coarsening::aggregation<
             amgcl::coarsening::pointwise_aggregates
             >,
-        amgcl::relaxation::damped_jacobi
+        amgcl::relaxation::spai0
         > AMG;
 
     amgcl::backend::crs<double, long> A;
