@@ -450,7 +450,7 @@ class ccrs {
                             ++( ptr[c - chunk + 1] );
                     }
 
-                std::partial_sum(ptr.begin(), ptr.end(), ptr.begin());
+                boost::partial_sum(ptr, ptr.begin());
 
                 col.resize(ptr.back());
                 val.resize(ptr.back());

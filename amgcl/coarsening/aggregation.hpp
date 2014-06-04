@@ -37,39 +37,19 @@ THE SOFTWARE.
 #include <boost/make_shared.hpp>
 
 #include <amgcl/backend/builtin.hpp>
-#include <amgcl/coarsening/detail/aggregates.hpp>
+#include <amgcl/coarsening/detail/scaled_galerkin.hpp>
 #include <amgcl/tictoc.hpp>
 
 namespace amgcl {
 namespace coarsening {
 
+template <class Aggregates>
 struct aggregation {
     struct params {
-        /// Over-interpolation factor \f$\alpha\f$.
-        /**
-         * See \ref Stuben_1999 "Stuben (1999)", Section 9.1 "Re-scaling of the
-         * Galerkin operator". [In case of aggregation multigrid] Coarse-grid
-         * correction of smooth error, and by this the overall convergence, can
-         * often be substantially improved by using "over-interpolation", that
-         * is, by multiplying the actual correction (corresponding to piecewise
-         * constant interpolation) by some factor \f$\alpha>1\f$. Equivalently,
-         * this means that the coarse-level Galerkin operator is re-scaled by
-         * \f$1/\alpha\f$:
-         * \f[I_h^HA_hI_H^h \to \frac{1}{\alpha}I_h^HA_hI_H^h.\f]
-         */
         float over_interp;
-
-        /// Parameter \f$\varepsilon_{str}\f$ defining strong couplings.
-        /**
-         * Variable \f$i\f$ is defined to be strongly coupled to another variable,
-         * \f$j\f$, if \f[|a_{ij}| \geq \varepsilon_{str}\sqrt{a_{ii} a_{jj}}\quad
-         * \text{with fixed} \quad 0 < \varepsilon_{str} < 1.\f]
-         */
         float eps_strong;
 
-        unsigned dof_per_node;
-
-        params() : over_interp(1.5f), eps_strong(0.1f), dof_per_node(1) {}
+        params() : over_interp(1.5f), eps_strong(0.1f) {}
     };
 
     template <typename Val, typename Col, typename Ptr>
@@ -84,22 +64,21 @@ struct aggregation {
         typedef backend::crs<Val, Col, Ptr> matrix;
 
         const size_t n = rows(A);
-        // TODO: deal with case of (dof > 1).
-        std::vector<Col> G;
+
         TIC("aggregates");
-        const size_t nc = detail::aggregates(A, prm.eps_strong, G);
+        Aggregates aggr(A, prm.eps_strong);
         TOC("aggregates");
 
+        TIC("interpolation");
         boost::shared_ptr<matrix> P = boost::make_shared<matrix>();
         P->nrows = n;
-        P->ncols = nc;
+        P->ncols = aggr.count;
         P->ptr.reserve(n + 1);
         P->col.reserve(n);
 
-        TIC("interpolation");
         P->ptr.push_back(0);
         for(size_t i = 0; i < n; ++i) {
-            if (G[i] >= 0) P->col.push_back(G[i]);
+            if (aggr.id[i] >= 0) P->col.push_back(aggr.id[i]);
             P->ptr.push_back(P->col.size());
         }
         P->val.resize(n, static_cast<Val>(1));
@@ -120,16 +99,7 @@ struct aggregation {
             const params &prm
             )
     {
-        typedef backend::crs<Val, Col, Ptr> matrix;
-        boost::shared_ptr<matrix> Ac = boost::make_shared<matrix>();
-
-        *Ac = product(product(R, A), P);
-
-        if (prm.over_interp > 1.0f) {
-            BOOST_FOREACH(Val &v, Ac->val) v /= prm.over_interp;
-        }
-
-        return Ac;
+        return detail::scaled_galerkin(A, P, R, 1 / prm.over_interp);
     }
 };
 

@@ -4,7 +4,8 @@
 
 #include <amgcl/backend/builtin.hpp>
 
-#include <amgcl/coarsening/aggregation.hpp>
+#include <amgcl/coarsening/plain_aggregates.hpp>
+#include <amgcl/coarsening/smoothed_aggregation.hpp>
 
 #include <amgcl/relaxation/gauss_seidel.hpp>
 #include <amgcl/relaxation/damped_jacobi.hpp>
@@ -24,7 +25,9 @@ int main() {
 
     typedef amgcl::amg<
         amgcl::backend::builtin<double>,
-        amgcl::coarsening::aggregation,
+        amgcl::coarsening::smoothed_aggregation<
+            amgcl::coarsening::plain_aggregates
+            >,
         amgcl::relaxation::damped_jacobi
         > AMG;
 

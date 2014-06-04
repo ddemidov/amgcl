@@ -31,6 +31,9 @@ THE SOFTWARE.
  * \brief  Sparse matrix in block-CRS format.
  */
 
+#include <boost/range/algorithm.hpp>
+#include <boost/range/numeric.hpp>
+
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/backend/builtin.hpp>
 
@@ -60,7 +63,7 @@ struct bcrs {
     {
 #pragma omp parallel
         {
-            std::vector<col_type> marker(bcols, static_cast<col_type>(-1));
+            std::vector<long> marker(bcols, -1);
 
 #ifdef _OPENMP
             int nt  = omp_get_num_threads();
@@ -89,12 +92,12 @@ struct bcrs {
                 }
             }
 
-            std::fill(marker.begin(), marker.end(), static_cast<col_type>(-1));
+            boost::fill(marker, -1);
 
 #pragma omp barrier
 #pragma omp single
             {
-                std::partial_sum(ptr.begin(), ptr.end(), ptr.begin());
+                boost::partial_sum(ptr, ptr.begin());
                 col.resize(ptr.back());
                 val.resize(ptr.back() * block_size * block_size, 0);
             }

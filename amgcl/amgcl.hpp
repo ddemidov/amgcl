@@ -87,8 +87,7 @@ class amg {
         } prm;
 
         template <class Matrix>
-        amg(const Matrix &M, const params &prm = params())
-            : prm(prm)
+        amg(const Matrix &M, const params &p = params()) : prm(p)
         {
             precondition(
                     backend::rows(M) == backend::cols(M),
@@ -100,7 +99,8 @@ class amg {
 
             while( backend::rows(*A) > prm.coarse_enough) {
                 TIC("transfer operators");
-                boost::tie(P, R) = Coarsening::transfer_operators(*A, prm.coarsening);
+                boost::tie(P, R) = Coarsening::transfer_operators(
+                        *A, prm.coarsening);
                 TOC("transfer operators");
 
                 TIC("move to backend")

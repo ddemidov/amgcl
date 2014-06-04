@@ -12,7 +12,9 @@
 #include <amgcl/backend/eigen.hpp>
 #endif
 
+#include <amgcl/coarsening/plain_aggregates.hpp>
 #include <amgcl/coarsening/aggregation.hpp>
+#include <amgcl/coarsening/smoothed_aggregation.hpp>
 
 #include <amgcl/relaxation/damped_jacobi.hpp>
 #include <amgcl/relaxation/gauss_seidel.hpp>
@@ -37,7 +39,12 @@ typedef boost::mpl::list<
 
 //---------------------------------------------------------------------------
 typedef boost::mpl::list<
-        amgcl::coarsening::aggregation
+        amgcl::coarsening::aggregation<
+            amgcl::coarsening::plain_aggregates
+            >,
+        amgcl::coarsening::smoothed_aggregation<
+            amgcl::coarsening::plain_aggregates
+            >
     > coarsening_list;
 
 //---------------------------------------------------------------------------
@@ -137,7 +144,9 @@ BOOST_AUTO_TEST_CASE(test_gauss_seidel)
 
     test_solver<
         Backend,
-        amgcl::coarsening::aggregation,
+        amgcl::coarsening::aggregation<
+            amgcl::coarsening::plain_aggregates
+            >,
         amgcl::relaxation::gauss_seidel,
         amgcl::solver::cg<Backend>
         >();

@@ -41,6 +41,8 @@ THE SOFTWARE.
 #include <boost/range.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
+#include <boost/range/algorithm.hpp>
+#include <boost/range/numeric.hpp>
 
 #include <amgcl/util.hpp>
 #include <amgcl/backend/interface.hpp>
@@ -165,12 +167,12 @@ struct crs {
         T.col.resize(nnz);
         T.val.resize(nnz);
 
-        std::fill(T.ptr.begin(), T.ptr.end(), ptr_type());
+        boost::fill(T.ptr, ptr_type());
 
         for(size_t j = 0; j < nnz; ++j)
             ++( T.ptr[A.col[j] + 1] );
 
-        std::partial_sum(T.ptr.begin(), T.ptr.end(), T.ptr.begin());
+        boost::partial_sum(T.ptr, T.ptr.begin());
 
         for(size_t i = 0; i < n; i++) {
             for(ptr_type j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
@@ -198,11 +200,11 @@ struct crs {
         C.nrows = n;
         C.ncols = m;
         C.ptr.resize(n + 1);
-        std::fill(C.ptr.begin(), C.ptr.end(), ptr_type());
+        boost::fill(C.ptr, ptr_type());
 
 #pragma omp parallel
         {
-            std::vector<col_type> marker(m, static_cast<col_type>(-1));
+            std::vector<long> marker(m, -1);
 
 #ifdef _OPENMP
             int nt  = omp_get_num_threads();
@@ -227,12 +229,12 @@ struct crs {
                 }
             }
 
-            std::fill(marker.begin(), marker.end(), static_cast<col_type>(-1));
+            boost::fill(marker, -1);
 
 #pragma omp barrier
 #pragma omp single
             {
-                std::partial_sum(C.ptr.begin(), C.ptr.end(), C.ptr.begin());
+                boost::partial_sum(C.ptr, C.ptr.begin());
                 C.col.resize(C.ptr.back());
                 C.val.resize(C.ptr.back());
             }
@@ -382,7 +384,7 @@ struct crs {
         Ainv.col.resize(n * n);
         Ainv.val.resize(n * n);
 
-        std::fill(Ainv.val.begin(), Ainv.val.end(), static_cast<val_type>(0));
+        boost::fill(Ainv.val, val_type());
 
         for(size_t i = 0; i < n; ++i)
             for(row_iterator a = A.row_begin(i); a; ++a)
