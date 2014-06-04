@@ -33,6 +33,11 @@ THE SOFTWARE.
 
 #include <stdexcept>
 
+#define AMGCL_DEBUG_SHOW(x)                                                    \
+    std::cout << std::setw(20) << #x << ": "                                   \
+              << std::setw(15) << std::setprecision(8) << std::scientific      \
+              << (x) << std::endl
+
 namespace amgcl {
 
 /// Throws if @cond is not true.
