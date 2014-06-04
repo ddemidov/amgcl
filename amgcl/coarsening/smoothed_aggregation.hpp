@@ -48,10 +48,12 @@ namespace coarsening {
 template <class Aggregates>
 struct smoothed_aggregation {
     struct params {
+        typename Aggregates::params aggr;
         float relax;
-        float eps_strong;
 
-        params() : relax(0.666f), eps_strong(0.08f) {}
+        params() : relax(0.666f) {
+            aggr.eps_strong = 0.08f;
+        }
     };
 
     template <typename Val, typename Col, typename Ptr>
@@ -66,8 +68,8 @@ struct smoothed_aggregation {
         const size_t n = rows(A);
 
         TIC("aggregates");
-        Aggregates aggr(A, prm.eps_strong);
-        prm.eps_strong *= 0.5;
+        Aggregates aggr(A, prm.aggr);
+        prm.aggr.eps_strong *= 0.5;
         TOC("aggregates");
 
         TIC("interpolation");

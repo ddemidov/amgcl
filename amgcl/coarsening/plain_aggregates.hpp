@@ -39,6 +39,12 @@ namespace amgcl {
 namespace coarsening {
 
 struct plain_aggregates {
+    struct params {
+        float eps_strong;
+
+        params() : eps_strong(0.08f) {}
+    };
+
     static const long undefined = -1;
     static const long removed   = -2;
 
@@ -48,13 +54,13 @@ struct plain_aggregates {
     std::vector<long> id;
 
     template <class Matrix>
-    plain_aggregates(const Matrix &A, float eps_strong)
+    plain_aggregates(const Matrix &A, const params &prm)
         : count(0),
           strong_connection( backend::nonzeros(A) ),
           id( backend::rows(A) )
     {
         typedef typename backend::value_type<Matrix>::type V;
-        V eps_squared = eps_strong * eps_strong;
+        V eps_squared = prm.eps_strong * prm.eps_strong;
 
         const size_t n = rows(A);
 
