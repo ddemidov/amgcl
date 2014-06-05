@@ -31,15 +31,15 @@ THE SOFTWARE.
  * \brief  VexCL backend.
  */
 
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
+
 #include <vexcl/vexcl.hpp>
+
+#include <amgcl/backend/interface.hpp>
 
 namespace amgcl {
 namespace backend {
-
-template <typename V, typename C, typename P>
-struct value_type< vex::SpMat<V, C, P> > {
-    typedef V type;
-};
 
 template < typename V, typename C, typename P >
 struct rows_impl< vex::SpMat<V, C, P> > {
@@ -86,15 +86,15 @@ struct vexcl {
     }
 
     static boost::shared_ptr<vector>
-    copy_vector(boost::shared_ptr< typename builtin<real>::vector > x, const params &prm)
-    {
-        return boost::make_shared<vector>(prm.q, *x);
-    }
-
-    static boost::shared_ptr<vector>
     copy_vector(typename builtin<real>::vector const &x, const params &prm)
     {
         return boost::make_shared<vector>(prm.q, x);
+    }
+
+    static boost::shared_ptr<vector>
+    copy_vector(boost::shared_ptr< typename builtin<real>::vector > x, const params &prm)
+    {
+        return copy_vector(*x, prm);
     }
 
     static boost::shared_ptr<vector>

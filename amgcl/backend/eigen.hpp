@@ -177,19 +177,17 @@ struct eigen {
     }
 
     static boost::shared_ptr<vector>
-    copy_vector(boost::shared_ptr< typename builtin<real>::vector > x, const params&)
-    {
-        return boost::make_shared<vector>(
-                Eigen::Map<vector>(x->data(), x->size())
-                );
-    }
-
-    static boost::shared_ptr<vector>
     copy_vector(typename builtin<real>::vector const &x, const params&)
     {
         return boost::make_shared<vector>(
                 Eigen::Map<const vector>(x.data(), x.size())
                 );
+    }
+
+    static boost::shared_ptr<vector>
+    copy_vector(boost::shared_ptr< typename builtin<real>::vector > x, const params &prm)
+    {
+        return copy_vector(*x, prm);
     }
 
     static boost::shared_ptr<vector>

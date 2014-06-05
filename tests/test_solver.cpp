@@ -12,6 +12,10 @@
 #include <amgcl/backend/eigen.hpp>
 #endif
 
+#ifdef AMGCL_HAVE_VIENNACL
+#include <amgcl/backend/viennacl.hpp>
+#endif
+
 #include <amgcl/coarsening/plain_aggregates.hpp>
 #include <amgcl/coarsening/aggregation.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
@@ -36,6 +40,14 @@ typedef boost::mpl::list<
 #ifdef AMGCL_HAVE_EIGEN
     , amgcl::backend::eigen<float>
     , amgcl::backend::eigen<double>
+#endif
+#ifdef AMGCL_HAVE_VIENNACL
+    , amgcl::backend::viennacl< viennacl::compressed_matrix<float> >
+    , amgcl::backend::viennacl< viennacl::compressed_matrix<double> >
+    , amgcl::backend::viennacl< viennacl::ell_matrix<float> >
+    , amgcl::backend::viennacl< viennacl::ell_matrix<double> >
+    , amgcl::backend::viennacl< viennacl::hyb_matrix<float> >
+    , amgcl::backend::viennacl< viennacl::hyb_matrix<double> >
 #endif
     > cpu_backend_list;
 

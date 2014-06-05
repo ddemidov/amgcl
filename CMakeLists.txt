@@ -77,6 +77,16 @@ if (VEXCL_ROOT)
 endif()
 
 #----------------------------------------------------------------------------
+# Find ViennaCL
+#----------------------------------------------------------------------------
+find_path(VIENNACL_INCLUDE viennacl/forwards.h)
+if (VIENNACL_INCLUDE)
+    add_definitions(-DAMGCL_HAVE_VIENNACL)
+    add_definitions(-DVIENNACL_WITH_OPENMP)
+    include_directories(${VIENNACL_INCLUDE})
+endif()
+
+#----------------------------------------------------------------------------
 # Protect Visual Studio from itself
 #----------------------------------------------------------------------------
 if (WIN32)

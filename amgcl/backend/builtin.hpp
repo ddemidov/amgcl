@@ -410,15 +410,15 @@ struct builtin {
     }
 
     static boost::shared_ptr<vector>
-    copy_vector(boost::shared_ptr< vector > x, const params&)
-    {
-        return x;
-    }
-
-    static boost::shared_ptr<vector>
     copy_vector(const vector x, const params&)
     {
         return boost::make_shared<vector>(x);
+    }
+
+    static boost::shared_ptr<vector>
+    copy_vector(boost::shared_ptr< vector > x, const params&)
+    {
+        return x;
     }
 
     static boost::shared_ptr<vector>
