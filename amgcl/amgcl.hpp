@@ -44,7 +44,7 @@ THE SOFTWARE.
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/relaxation/interface.hpp>
-#include <amgcl/tictoc.hpp>
+#include <amgcl/util.hpp>
 
 namespace amgcl {
 

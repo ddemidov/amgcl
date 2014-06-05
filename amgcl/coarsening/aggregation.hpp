@@ -38,7 +38,7 @@ THE SOFTWARE.
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/coarsening/detail/scaled_galerkin.hpp>
-#include <amgcl/tictoc.hpp>
+#include <amgcl/util.hpp>
 
 namespace amgcl {
 namespace coarsening {

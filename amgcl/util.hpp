@@ -33,6 +33,30 @@ THE SOFTWARE.
 
 #include <stdexcept>
 
+
+/* Performance measurement macros
+ *
+ * If AMGCL_PROFILING macro is defined at compilation, then TIC(name) and
+ * TOC(name) macros correspond to prof.tic(name) and prof.toc(name).
+ * amgcl::prof should be an instance of amgcl::profiler<> defined in a user
+ * code similar to:
+ * \code
+ * namespace amgcl { profiler<> prof; }
+ * \endcode
+ * If AMGCL_PROFILING is undefined, then TIC and TOC are noop macros.
+ */
+#ifdef AMGCL_PROFILING
+#  include <amgcl/profiler.hpp>
+#  define TIC(name) amgcl::prof.tic(name);
+#  define TOC(name) amgcl::prof.toc(name);
+namespace amgcl {
+extern profiler<> prof;
+}
+#else
+#  define TIC(name)
+#  define TOC(name)
+#endif
+
 #define AMGCL_DEBUG_SHOW(x)                                                    \
     std::cout << std::setw(20) << #x << ": "                                   \
               << std::setw(15) << std::setprecision(8) << std::scientific      \
