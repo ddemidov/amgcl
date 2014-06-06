@@ -75,9 +75,7 @@ struct smoothed_aggregation {
         boost::shared_ptr<matrix> P = boost::make_shared<matrix>();
         P->nrows = n;
         P->ncols = aggr.count;
-        P->ptr.resize(n + 1);
-
-        boost::fill(P->ptr, 0);
+        P->ptr.resize(n + 1, 0);
 
 #pragma omp parallel
         {

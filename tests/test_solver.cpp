@@ -18,6 +18,7 @@
 #include <amgcl/coarsening/plain_aggregates.hpp>
 #include <amgcl/coarsening/aggregation.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
+#include <amgcl/coarsening/smoothed_aggr_emin.hpp>
 #include <amgcl/coarsening/ruge_stuben.hpp>
 
 #include <amgcl/relaxation/gauss_seidel.hpp>
@@ -55,6 +56,9 @@ typedef boost::mpl::list<
             amgcl::coarsening::plain_aggregates
             >,
         amgcl::coarsening::smoothed_aggregation<
+            amgcl::coarsening::plain_aggregates
+            >,
+        amgcl::coarsening::smoothed_aggr_emin<
             amgcl::coarsening::plain_aggregates
             >,
         amgcl::coarsening::ruge_stuben

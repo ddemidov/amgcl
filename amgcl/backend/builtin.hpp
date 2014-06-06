@@ -47,6 +47,7 @@ THE SOFTWARE.
 #include <amgcl/util.hpp>
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/detail/gaussj.hpp>
+#include <amgcl/detail/sort_row.hpp>
 
 namespace amgcl {
 namespace backend {
@@ -297,22 +298,7 @@ struct crs {
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
             ptr_type beg = A.ptr[i];
             ptr_type end = A.ptr[i + 1];
-            insertion_sort(A.col.data() + beg, A.val.data() + beg, end - beg);
-        }
-    }
-
-    static void insertion_sort(col_type *col, val_type *val, int n) {
-        for(int j = 1; j < n; ++j) {
-            col_type c = col[j];
-            val_type v = val[j];
-            int i = j - 1;
-            while(i >= 0 && col[i] > c) {
-                col[i + 1] = col[i];
-                val[i + 1] = val[i];
-                i--;
-            }
-            col[i + 1] = c;
-            val[i + 1] = v;
+            detail::sort_row(A.col.data() + beg, A.val.data() + beg, end - beg);
         }
     }
 
