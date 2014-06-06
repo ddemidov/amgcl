@@ -6,7 +6,6 @@
 #include <amgcl/amgcl.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/backend/block_crs.hpp>
-#include <amgcl/backend/ccrs.hpp>
 
 #ifdef AMGCL_HAVE_EIGEN
 #include <amgcl/backend/eigen.hpp>
@@ -35,8 +34,6 @@
 typedef boost::mpl::list<
     amgcl::backend::block_crs<float>
     , amgcl::backend::block_crs<double>
-    , amgcl::backend::compressed_crs<float>
-    , amgcl::backend::compressed_crs<double>
 #ifdef AMGCL_HAVE_EIGEN
     , amgcl::backend::eigen<float>
     , amgcl::backend::eigen<double>
