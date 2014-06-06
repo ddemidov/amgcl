@@ -55,7 +55,7 @@ int main() {
     prof.tic("solve");
     size_t iters;
     double resid;
-    boost::tie(iters, resid) = solve(amg.top_matrix(), *f, amg, *x);
+    boost::tie(iters, resid) = solve(amg, *f, *x);
     prof.toc("solve");
 
     std::cout << "Iterations: " << iters << std::endl

@@ -65,8 +65,8 @@ class bicgstab {
         template <class Matrix, class Precond>
         boost::tuple<size_t, value_type> operator()(
                 Matrix  const &A,
-                vector  const &rhs,
                 Precond const &P,
+                vector  const &rhs,
                 vector        &x
                 ) const
         {
@@ -123,6 +123,17 @@ class bicgstab {
 
             return boost::make_tuple(iter, res);
         }
+
+        template <class Precond>
+        boost::tuple<size_t, value_type> operator()(
+                Precond const &P,
+                vector  const &rhs,
+                vector        &x
+                ) const
+        {
+            return (*this)(P.top_matrix(), P, rhs, x);
+        }
+
 
     private:
         size_t     n;

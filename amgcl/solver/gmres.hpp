@@ -70,8 +70,8 @@ class gmres {
         template <class Matrix, class Precond>
         boost::tuple<size_t, value_type> operator()(
                 Matrix  const &A,
-                vector  const &rhs,
                 Precond const &P,
+                vector  const &rhs,
                 vector        &x
                 )
         {
@@ -96,6 +96,15 @@ class gmres {
             return boost::make_tuple(iter, res);
         }
 
+        template <class Precond>
+        boost::tuple<size_t, value_type> operator()(
+                Precond const &P,
+                vector  const &rhs,
+                vector        &x
+                )
+        {
+            return (*this)(P.top_matrix(), P, rhs, x);
+        }
     private:
         int        M;
         size_t     maxiter;

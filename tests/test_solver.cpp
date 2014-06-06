@@ -100,7 +100,7 @@ void test_solver(const typename Backend::params &prm = typename Backend::params(
 
     size_t iters;
     double resid;
-    boost::tie(iters, resid) = solve(amg.top_matrix(), *y, amg, *x);
+    boost::tie(iters, resid) = solve(amg, *y, *x);
 
     std::cout << "Iterations: " << iters << std::endl
               << "Error:      " << resid << std::endl
