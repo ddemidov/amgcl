@@ -43,7 +43,6 @@ THE SOFTWARE.
 #include <boost/tuple/tuple.hpp>
 
 #include <amgcl/backend/builtin.hpp>
-#include <amgcl/relaxation/interface.hpp>
 #include <amgcl/util.hpp>
 
 namespace amgcl {
@@ -51,7 +50,7 @@ namespace amgcl {
 template <
     class Backend,
     class Coarsening,
-    relaxation::scheme Relax
+    template <class> class Relax
     >
 class amg {
     public:
@@ -60,8 +59,7 @@ class amg {
         typedef typename Backend::value_type value_type;
         typedef typename Backend::matrix     matrix;
         typedef typename Backend::vector     vector;
-
-        typedef relaxation::impl<Relax, Backend> relax_type;
+        typedef Relax<Backend>               relax_type;
 
         struct params {
             typedef typename Backend::params    backend_params;

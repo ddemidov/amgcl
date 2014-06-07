@@ -65,18 +65,11 @@ typedef boost::mpl::list<
     > coarsening_list;
 
 //---------------------------------------------------------------------------
-typedef boost::mpl::list<
-    boost::mpl::integral_c<amgcl::relaxation::scheme, amgcl::relaxation::damped_jacobi>,
-    boost::mpl::integral_c<amgcl::relaxation::scheme, amgcl::relaxation::spai0>,
-    boost::mpl::integral_c<amgcl::relaxation::scheme, amgcl::relaxation::chebyshev>
-    > relax_list;
-
-//---------------------------------------------------------------------------
 template <
-    class                     Backend,
-    class                     Coarsening,
-    amgcl::relaxation::scheme Relax,
-    class                     Solver
+    class                  Backend,
+    class                  Coarsening,
+    template <class> class Relax,
+    template <class> class Solver
     >
 void test_solver(const typename Backend::params &prm = typename Backend::params())
 {
@@ -96,7 +89,7 @@ void test_solver(const typename Backend::params &prm = typename Backend::params(
 
     amgcl::backend::clear(*x);
 
-    Solver solve(n, prm);
+    Solver<Backend> solve(n, prm);
 
     size_t iters;
     double resid;
@@ -110,30 +103,11 @@ void test_solver(const typename Backend::params &prm = typename Backend::params(
 }
 
 //---------------------------------------------------------------------------
-template <
-    class Backend,
-    class Coarsening,
-    amgcl::relaxation::scheme Relax,
-    template <class> class Solver
-    >
-void run_test() {
-    test_solver<
-        Backend,
-        Coarsening,
-        Relax,
-        Solver<Backend>
-        >();
-}
-
-//---------------------------------------------------------------------------
-template <class Backend, class Coarsening>
-struct relaxation_iterator {
-    template <class Relax>
-    void operator()(const Relax&) const {
-        run_test<Backend, Coarsening, Relax::value, amgcl::solver::cg      >();
-        run_test<Backend, Coarsening, Relax::value, amgcl::solver::bicgstab>();
-        run_test<Backend, Coarsening, Relax::value, amgcl::solver::gmres   >();
-    }
+template <class Backend, class Coarsening, template <class> class Relax>
+void solver_iterator() {
+    test_solver<Backend, Coarsening, Relax, amgcl::solver::cg      >();
+    test_solver<Backend, Coarsening, Relax, amgcl::solver::bicgstab>();
+    test_solver<Backend, Coarsening, Relax, amgcl::solver::gmres   >();
 };
 
 //---------------------------------------------------------------------------
@@ -141,9 +115,9 @@ template <class Backend, class Enable = void>
 struct coarsening_iterator {
     template <class Coarsening>
     void operator()(const Coarsening&) const {
-        boost::mpl::for_each<relax_list>(
-                relaxation_iterator<Backend, Coarsening>()
-                );
+        solver_iterator<Backend, Coarsening, amgcl::relaxation::chebyshev>();
+        solver_iterator<Backend, Coarsening, amgcl::relaxation::damped_jacobi>();
+        solver_iterator<Backend, Coarsening, amgcl::relaxation::spai0>();
     }
 };
 
@@ -167,7 +141,7 @@ BOOST_AUTO_TEST_CASE(test_gauss_seidel)
             amgcl::coarsening::plain_aggregates
             >,
         amgcl::relaxation::gauss_seidel,
-        amgcl::solver::cg<Backend>
+        amgcl::solver::cg
         >();
 }
 

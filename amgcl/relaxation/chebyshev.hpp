@@ -44,7 +44,7 @@ namespace amgcl {
 namespace relaxation {
 
 template <class Backend>
-class impl<chebyshev, Backend> {
+class chebyshev {
     public:
         typedef typename Backend::value_type value_type;
         typedef typename Backend::vector     vector;
@@ -57,7 +57,7 @@ class impl<chebyshev, Backend> {
         };
 
         template <class Matrix>
-        impl(
+        chebyshev(
                 const Matrix &A, const params &prm,
                 const typename Backend::params &backend_prm
             ) : C( prm.degree ),

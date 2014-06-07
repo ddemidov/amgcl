@@ -31,14 +31,14 @@ THE SOFTWARE.
  * \brief  Sparse approximate inverse relaxation scheme.
  */
 
+#include <boost/shared_ptr.hpp>
 #include <amgcl/backend/interface.hpp>
-#include <amgcl/relaxation/interface.hpp>
 
 namespace amgcl {
 namespace relaxation {
 
 template <class Backend>
-struct impl<spai0, Backend> {
+struct spai0 {
     typedef typename Backend::value_type value_type;
     typedef typename Backend::vector     vector;
 
@@ -47,7 +47,7 @@ struct impl<spai0, Backend> {
     boost::shared_ptr<vector> M;
 
     template <class Matrix>
-    impl( const Matrix &A, const params &, const typename Backend::params &backend_prm)
+    spai0( const Matrix &A, const params &, const typename Backend::params &backend_prm)
     {
         typedef typename backend::row_iterator<Matrix>::type row_iterator;
 

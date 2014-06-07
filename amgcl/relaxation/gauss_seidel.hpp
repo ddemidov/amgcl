@@ -32,17 +32,16 @@ THE SOFTWARE.
  */
 
 #include <amgcl/backend/interface.hpp>
-#include <amgcl/relaxation/interface.hpp>
 
 namespace amgcl {
 namespace relaxation {
 
 template <class Backend>
-struct impl<gauss_seidel, Backend> {
+struct gauss_seidel {
     struct params { };
 
     template <class Matrix>
-    impl( const Matrix&, const params&, const typename Backend::params&)
+    gauss_seidel( const Matrix&, const params&, const typename Backend::params&)
     {}
 
     template <class Matrix, class VectorRHS, class VectorX>
