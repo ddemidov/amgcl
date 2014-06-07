@@ -92,8 +92,9 @@ class amg {
                     "Matrix should be square!"
                     );
 
-            boost::shared_ptr<build_matrix> A = boost::make_shared<build_matrix>( M );
             boost::shared_ptr<build_matrix> P, R;
+            boost::shared_ptr<build_matrix> A = boost::make_shared<build_matrix>( M );
+            sort_rows(*A);
 
             while( backend::rows(*A) > prm.coarse_enough) {
                 TIC("transfer operators");

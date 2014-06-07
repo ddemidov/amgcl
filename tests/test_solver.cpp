@@ -21,10 +21,11 @@
 #include <amgcl/coarsening/smoothed_aggr_emin.hpp>
 #include <amgcl/coarsening/ruge_stuben.hpp>
 
-#include <amgcl/relaxation/gauss_seidel.hpp>
 #include <amgcl/relaxation/damped_jacobi.hpp>
 #include <amgcl/relaxation/spai.hpp>
 #include <amgcl/relaxation/chebyshev.hpp>
+#include <amgcl/relaxation/gauss_seidel.hpp>
+#include <amgcl/relaxation/ilu.hpp>
 
 #include <amgcl/solver/cg.hpp>
 #include <amgcl/solver/bicgstab.hpp>
@@ -131,7 +132,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(cpu_solvers, Backend, cpu_backend_list)
             );
 }
 
-BOOST_AUTO_TEST_CASE(test_gauss_seidel)
+BOOST_AUTO_TEST_CASE(test_serial)
 {
     typedef amgcl::backend::builtin<double> Backend;
 
@@ -141,6 +142,15 @@ BOOST_AUTO_TEST_CASE(test_gauss_seidel)
             amgcl::coarsening::plain_aggregates
             >,
         amgcl::relaxation::gauss_seidel,
+        amgcl::solver::cg
+        >();
+
+    test_solver<
+        Backend,
+        amgcl::coarsening::aggregation<
+            amgcl::coarsening::plain_aggregates
+            >,
+        amgcl::relaxation::ilu0,
         amgcl::solver::cg
         >();
 }
