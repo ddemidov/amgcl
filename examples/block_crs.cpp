@@ -8,7 +8,7 @@
 #include <amgcl/backend/block_crs.hpp>
 #include <amgcl/coarsening/pointwise_aggregates.hpp>
 #include <amgcl/coarsening/aggregation.hpp>
-#include <amgcl/relaxation/spai.hpp>
+#include <amgcl/relaxation/spai0.hpp>
 #include <amgcl/solver/bicgstab.hpp>
 #include <amgcl/profiler.hpp>
 

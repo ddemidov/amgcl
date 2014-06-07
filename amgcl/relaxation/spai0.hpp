@@ -1,5 +1,5 @@
-#ifndef AMGCL_RELAXATION_SPAI_HPP
-#define AMGCL_RELAXATION_SPAI_HPP
+#ifndef AMGCL_RELAXATION_SPAI0_HPP
+#define AMGCL_RELAXATION_SPAI0_HPP
 
 /*
 The MIT License
@@ -26,7 +26,7 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/relaxation/spai.hpp
+ * \file   amgcl/relaxation/spai0.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
  * \brief  Sparse approximate inverse relaxation scheme.
  */

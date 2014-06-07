@@ -22,10 +22,10 @@
 #include <amgcl/coarsening/ruge_stuben.hpp>
 
 #include <amgcl/relaxation/damped_jacobi.hpp>
-#include <amgcl/relaxation/spai.hpp>
+#include <amgcl/relaxation/spai0.hpp>
 #include <amgcl/relaxation/chebyshev.hpp>
 #include <amgcl/relaxation/gauss_seidel.hpp>
-#include <amgcl/relaxation/ilu.hpp>
+#include <amgcl/relaxation/ilu0.hpp>
 
 #include <amgcl/solver/cg.hpp>
 #include <amgcl/solver/bicgstab.hpp>

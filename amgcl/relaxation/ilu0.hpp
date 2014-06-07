@@ -1,8 +1,8 @@
-#ifndef AMGCL_RELAXATION_ILU_HPP
-#define AMGCL_RELAXATION_ILU_HPP
+#ifndef AMGCL_RELAXATION_ILU0_HPP
+#define AMGCL_RELAXATION_ILU0_HPP
 
 /**
- * \file   amgcl/relaxation/ilu.hpp
+ * \file   amgcl/relaxation/ilu0.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
  * \brief  Incomplete LU relaxation scheme.
  */

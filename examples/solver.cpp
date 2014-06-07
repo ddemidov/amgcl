@@ -9,7 +9,7 @@
 
 #include <amgcl/relaxation/gauss_seidel.hpp>
 #include <amgcl/relaxation/damped_jacobi.hpp>
-#include <amgcl/relaxation/spai.hpp>
+#include <amgcl/relaxation/spai0.hpp>
 
 #include <amgcl/solver/bicgstab.hpp>
 
