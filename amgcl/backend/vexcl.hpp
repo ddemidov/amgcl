@@ -41,27 +41,6 @@ THE SOFTWARE.
 namespace amgcl {
 namespace backend {
 
-template < typename V, typename C, typename P >
-struct rows_impl< vex::SpMat<V, C, P> > {
-    static size_t get(const vex::SpMat<V, C, P> &A) {
-        return A.rows();
-    }
-};
-
-template < typename V, typename C, typename P >
-struct cols_impl< vex::SpMat<V, C, P> > {
-    static size_t get(const vex::SpMat<V, C, P> &A) {
-        return A.cols();
-    }
-};
-
-template < typename V, typename C, typename P >
-struct nonzeros_impl< vex::SpMat<V, C, P> > {
-    static size_t get(const vex::SpMat<V, C, P> &A) {
-        return A.nonzeros();
-    }
-};
-
 //---------------------------------------------------------------------------
 // VexCL backend definition
 //---------------------------------------------------------------------------
@@ -104,6 +83,30 @@ struct vexcl {
     }
 };
 
+//---------------------------------------------------------------------------
+// Backend interface implementation
+//---------------------------------------------------------------------------
+template < typename V, typename C, typename P >
+struct rows_impl< vex::SpMat<V, C, P> > {
+    static size_t get(const vex::SpMat<V, C, P> &A) {
+        return A.rows();
+    }
+};
+
+template < typename V, typename C, typename P >
+struct cols_impl< vex::SpMat<V, C, P> > {
+    static size_t get(const vex::SpMat<V, C, P> &A) {
+        return A.cols();
+    }
+};
+
+template < typename V, typename C, typename P >
+struct nonzeros_impl< vex::SpMat<V, C, P> > {
+    static size_t get(const vex::SpMat<V, C, P> &A) {
+        return A.nonzeros();
+    }
+};
+
 template < typename V, typename C, typename P >
 struct spmv_impl< vex::SpMat<V, C, P>, vex::vector<V> >
 {
@@ -139,6 +142,14 @@ struct clear_impl< vex::vector<V> >
     static void apply(vex::vector<V> &x)
     {
         x = 0;
+    }
+};
+
+template < typename V >
+struct copy_impl< vex::vector<V> > {
+    static void apply(const vex::vector<V> &x, vex::vector<V> &y)
+    {
+        y = x;
     }
 };
 
@@ -189,15 +200,6 @@ struct vmul_impl< vex::vector<V> > {
             z = a * x * y;
     }
 };
-
-template < typename V >
-struct copy_impl< vex::vector<V> > {
-    static void apply(const vex::vector<V> &x, vex::vector<V> &y)
-    {
-        y = x;
-    }
-};
-
 
 } // namespace backend
 } // namespace amgcl
