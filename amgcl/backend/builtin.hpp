@@ -331,8 +331,55 @@ struct crs {
     }
 };
 
+/// Builtin backend.
+/**
+ * \param real Value type.
+ * \ingroup backends
+ */
+template <typename real>
+struct builtin {
+    typedef real value_type;
+    typedef long index_type;
+
+    typedef crs<value_type, index_type> matrix;
+    typedef std::vector<value_type>     vector;
+
+    /// Backend parameters.
+    struct params {};
+
+    /// Copy matrix.
+    /** This is a noop for builtin backend. */
+    static boost::shared_ptr<matrix>
+    copy_matrix(boost::shared_ptr<matrix> A, const params&)
+    {
+        return A;
+    }
+
+    /// Copy vector to builtin backend.
+    static boost::shared_ptr<vector>
+    copy_vector(const vector x, const params&)
+    {
+        return boost::make_shared<vector>(x);
+    }
+
+    /// Copy vector to builtin backend.
+    /** This is a noop for builtin backend. */
+    static boost::shared_ptr<vector>
+    copy_vector(boost::shared_ptr< vector > x, const params&)
+    {
+        return x;
+    }
+
+    /// Create vector of the specified size.
+    static boost::shared_ptr<vector>
+    create_vector(size_t size, const params&)
+    {
+        return boost::make_shared<vector>(size);
+    }
+};
+
 //---------------------------------------------------------------------------
-// Specialization of matrix interface
+// Specialization of backend interface
 //---------------------------------------------------------------------------
 template < typename V, typename C, typename P >
 struct value_type< crs<V, C, P> > {
@@ -373,44 +420,6 @@ struct row_begin_impl< crs<V, C, P> > {
     static typename row_iterator<Matrix>::type
     get(const Matrix &matrix, size_t row) {
         return matrix.row_begin(row);
-    }
-};
-
-//---------------------------------------------------------------------------
-// Builtin backend definition
-//---------------------------------------------------------------------------
-template <typename real>
-struct builtin {
-    typedef real value_type;
-    typedef long index_type;
-
-    typedef crs<value_type, index_type> matrix;
-    typedef std::vector<value_type>     vector;
-
-    struct params {};
-
-    static boost::shared_ptr<matrix>
-    copy_matrix(boost::shared_ptr<matrix> A, const params&)
-    {
-        return A;
-    }
-
-    static boost::shared_ptr<vector>
-    copy_vector(const vector x, const params&)
-    {
-        return boost::make_shared<vector>(x);
-    }
-
-    static boost::shared_ptr<vector>
-    copy_vector(boost::shared_ptr< vector > x, const params&)
-    {
-        return x;
-    }
-
-    static boost::shared_ptr<vector>
-    create_vector(size_t size, const params&)
-    {
-        return boost::make_shared<vector>(size);
     }
 };
 

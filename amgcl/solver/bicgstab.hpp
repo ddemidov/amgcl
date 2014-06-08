@@ -29,8 +29,6 @@ THE SOFTWARE.
  * \file   amgcl/solver/bicgstab.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
  * \brief  BiCGStab iterative method.
- *
- * Implementation is based on \ref Templates_1994 "Barrett (1994)"
  */
 
 #include <boost/tuple/tuple.hpp>
@@ -40,6 +38,12 @@ THE SOFTWARE.
 namespace amgcl {
 namespace solver {
 
+/// BiCGStab iterative solver.
+/**
+ * \param Backend Backend for temporary structures allocation.
+ * \ingroup solvers
+ * \sa \cite Barrett1994
+ */
 template <class Backend>
 class bicgstab {
     public:
@@ -47,21 +51,50 @@ class bicgstab {
         typedef typename Backend::value_type value_type;
         typedef typename Backend::params     backend_params;
 
+        /// Solver parameters.
+        struct params {
+            /// Maximum number of iterations.
+            size_t maxiter;
+
+            /// Target residual error.
+            value_type tol;
+
+            params(size_t maxiter = 100, value_type tol = 1e-8)
+                : maxiter(maxiter), tol(tol)
+            {}
+        };
+
+        /// \copydoc amgcl::solver::cg::cg
         bicgstab(
-                size_t n, const backend_params &prm = backend_params(),
-                size_t maxiter = 100, value_type tol = 1e-8
+                size_t n,
+                const params &prm = params(),
+                const backend_params &backend_prm = backend_params()
                 )
-            : n(n), maxiter(maxiter), tol(tol),
-              r ( Backend::create_vector(n, prm) ),
-              p ( Backend::create_vector(n, prm) ),
-              v ( Backend::create_vector(n, prm) ),
-              s ( Backend::create_vector(n, prm) ),
-              t ( Backend::create_vector(n, prm) ),
-              rh( Backend::create_vector(n, prm) ),
-              ph( Backend::create_vector(n, prm) ),
-              sh( Backend::create_vector(n, prm) )
+            : prm(prm), n(n),
+              r ( Backend::create_vector(n, backend_prm) ),
+              p ( Backend::create_vector(n, backend_prm) ),
+              v ( Backend::create_vector(n, backend_prm) ),
+              s ( Backend::create_vector(n, backend_prm) ),
+              t ( Backend::create_vector(n, backend_prm) ),
+              rh( Backend::create_vector(n, backend_prm) ),
+              ph( Backend::create_vector(n, backend_prm) ),
+              sh( Backend::create_vector(n, backend_prm) )
         { }
 
+        /// Solves the linear system for the given system matrix.
+        /**
+         * \param A   System matrix.
+         * \param P   Preconditioner.
+         * \param rhs Right-hand side.
+         * \param x   Solution vector.
+         *
+         * The system matrix may differ from the matrix used for the AMG
+         * preconditioner construction. This may be used for the solution of
+         * non-stationary problems with slowly changing coefficients. There is
+         * a strong chance that AMG built for one time step will act as a
+         * reasonably good preconditioner for several subsequent time steps
+         * \cite Demidov2012.
+         */
         template <class Matrix, class Precond>
         boost::tuple<size_t, value_type> operator()(
                 Matrix  const &A,
@@ -79,9 +112,9 @@ class bicgstab {
             value_type norm_of_rhs = backend::norm(rhs);
 
             size_t     iter;
-            value_type res = 2 * tol;
+            value_type res = 2 * prm.tol;
 
-            for(iter = 0; res > tol && iter < maxiter; ++iter) {
+            for(iter = 0; res > prm.tol && iter < prm.maxiter; ++iter) {
                 rho2 = rho1;
                 rho1 = backend::inner_product(*r, *rh);
 
@@ -102,7 +135,7 @@ class bicgstab {
 
                 backend::axpbypcz(1, *r, -alpha, *v, 0, *s);
 
-                if ((res = backend::norm(*s) / norm_of_rhs) < tol) {
+                if ((res = backend::norm(*s) / norm_of_rhs) < prm.tol) {
                     backend::axpby(alpha, *ph, 1, x);
                 } else {
                     P(*s, *sh);
@@ -124,6 +157,12 @@ class bicgstab {
             return boost::make_tuple(iter, res);
         }
 
+        /// Solves the linear system for the same matrix that was used for the AMG preconditioner construction.
+        /**
+         * \param P   AMG preconditioner.
+         * \param rhs Right-hand side.
+         * \param x   Solution vector.
+         */
         template <class Precond>
         boost::tuple<size_t, value_type> operator()(
                 Precond const &P,
@@ -136,9 +175,8 @@ class bicgstab {
 
 
     private:
-        size_t     n;
-        size_t     maxiter;
-        value_type tol;
+        params prm;
+        size_t n;
 
         boost::shared_ptr<vector> r;
         boost::shared_ptr<vector> p;

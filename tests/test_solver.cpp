@@ -90,7 +90,7 @@ void test_solver(const typename Backend::params &prm = typename Backend::params(
 
     amgcl::backend::clear(*x);
 
-    Solver<Backend> solve(n, prm);
+    Solver<Backend> solve(n, typename Solver<Backend>::params(), prm);
 
     size_t iters;
     double resid;

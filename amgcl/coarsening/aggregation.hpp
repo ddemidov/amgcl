@@ -28,7 +28,7 @@ THE SOFTWARE.
 /**
  * \file   amgcl/coarsening/aggregation.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
- * \brief  Coarsening by aggregation.
+ * \brief  Non-smoothed aggregation coarsening.
  */
 
 #include <boost/tuple/tuple.hpp>
@@ -40,12 +40,53 @@ THE SOFTWARE.
 #include <amgcl/util.hpp>
 
 namespace amgcl {
+
+/// Coarsening strategies
 namespace coarsening {
 
+/**
+ * \defgroup coarsening Coarsening strategies
+ * \brief Coarsening strategies for AMG hirarchy construction.
+ *
+ * A coarsener in AMGCL is a class that takes a system matrix and returns three
+ * operators:
+ *
+ * 1. Restriction operator R that downsamples the residual error to a
+ *    coarser level in AMG hierarchy,
+ * 2. Prolongation operator P that interpolates a correction computed on a
+ *    coarser grid into a finer grid,
+ * 3. System matrix \f$A^H\f$ at a coarser level that is usually computed as a
+ *    Galerkin operator \f$A^H = R A^h P\f$.
+ *
+ * The AMG hierarchy is constructed by recursive invocation of the selected
+ * coarsener.
+ */
+
+/// Non-smoothed aggregation.
+/**
+ * \param Aggregates \ref aggregates formation.
+ * \ingroup coarsening
+ */
 template <class Aggregates>
 struct aggregation {
+    /// Coarsening parameters.
     struct params {
+        /// Aggregation parameters.
         typename Aggregates::params aggr;
+
+        /// Over-interpolation factor \f$\alpha\f$.
+        /**
+         * In case of aggregation coarsening, coarse-grid
+         * correction of smooth error, and by this the overall convergence, can
+         * often be substantially improved by using "over-interpolation", that is,
+         * by multiplying the actual correction (corresponding to piecewise
+         * constant interpolation) by some factor \f$\alpha > 1\f$. Equivalently,
+         * this means that the coarse-level Galerkin operator is re-scaled by
+         * \f$1 / \alpha\f$:
+         * \f[I_h^HA_hI_H^h \to \frac{1}{\alpha}I_h^HA_hI_H^h.\f]
+         *
+         * \sa  \cite Stuben1999, Section 9.1 "Re-scaling of the Galerkin operator".
+         */
         float over_interp;
 
         params() : over_interp(1.5f) {
@@ -53,17 +94,19 @@ struct aggregation {
         }
     };
 
-    template <typename Val, typename Col, typename Ptr>
+    /// Creates transfer operators for the given system matrix.
+    /**
+     * \param A   The system matrix.
+     * \param prm Coarsening parameters.
+     * \returns   A tuple of prolongation and restriction operators.
+     */
+    template <class Matrix>
     static boost::tuple<
-        boost::shared_ptr< backend::crs<Val, Col, Ptr> >,
-        boost::shared_ptr< backend::crs<Val, Col, Ptr> >
+        boost::shared_ptr<Matrix>,
+        boost::shared_ptr<Matrix>
         >
-    transfer_operators(
-            const backend::crs<Val, Col, Ptr> &A,
-            const params &prm)
+    transfer_operators(const Matrix &A, const params &prm)
     {
-        typedef backend::crs<Val, Col, Ptr> matrix;
-
         const size_t n = rows(A);
 
         TIC("aggregates");
@@ -71,7 +114,7 @@ struct aggregation {
         TOC("aggregates");
 
         TIC("interpolation");
-        boost::shared_ptr<matrix> P = boost::make_shared<matrix>();
+        boost::shared_ptr<Matrix> P = boost::make_shared<Matrix>();
         P->nrows = n;
         P->ncols = aggr.count;
         P->ptr.reserve(n + 1);
@@ -82,21 +125,28 @@ struct aggregation {
             if (aggr.id[i] >= 0) P->col.push_back(aggr.id[i]);
             P->ptr.push_back(P->col.size());
         }
-        P->val.resize(n, static_cast<Val>(1));
+        P->val.resize(n, 1);
         TOC("interpolation");
 
-        boost::shared_ptr<matrix> R = boost::make_shared<matrix>();
+        boost::shared_ptr<Matrix> R = boost::make_shared<Matrix>();
         *R = transpose(*P);
 
         return boost::make_tuple(P, R);
     }
 
-    template <typename Val, typename Col, typename Ptr>
-    static boost::shared_ptr< backend::crs<Val, Col, Ptr> >
+    /// Creates system matrix for the coarser level.
+    /**
+     * \param A The system matrix at the finer level.
+     * \param P Prolongation operator returned by transfer_operators().
+     * \param R Restriction operator returned by transfer_operators().
+     * \returns System matrix for the coarser level.
+     */
+    template <class Matrix>
+    static boost::shared_ptr<Matrix>
     coarse_operator(
-            const backend::crs<Val, Col, Ptr> &A,
-            const backend::crs<Val, Col, Ptr> &P,
-            const backend::crs<Val, Col, Ptr> &R,
+            const Matrix &A,
+            const Matrix &P,
+            const Matrix &R,
             const params &prm
             )
     {

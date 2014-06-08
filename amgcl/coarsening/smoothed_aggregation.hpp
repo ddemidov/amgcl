@@ -44,10 +44,39 @@ THE SOFTWARE.
 namespace amgcl {
 namespace coarsening {
 
+/// Smoothed aggregation coarsening.
+/**
+ * \param Aggregates \ref aggregates formation.
+ * \ingroup coarsening
+ * \sa \cite Vanek1996
+ */
 template <class Aggregates>
 struct smoothed_aggregation {
+    /// Coarsening parameters
     struct params {
+        /// Aggregation parameters.
         typename Aggregates::params aggr;
+
+        /// Relaxation factor \f$\omega\f$.
+        /**
+         * Piecewise constant prolongation \f$\tilde P\f$ from non-smoothed
+         * aggregation is improved by a smoothing to get the final prolongation
+         * matrix \f$P\f$. Simple Jacobi smoother is used here, giving the
+         * prolongation matrix
+         * \f[P = \left( I - \omega D^{-1} A^F \right) \tilde P.\f]
+         * Here \f$A^F = (a_{ij}^F)\f$ is the filtered matrix given by
+         * \f[
+         * a_{ij}^F =
+         * \begin{cases}
+         * a_{ij} \quad \text{if} \; j \in N_i\\
+         * 0 \quad \text{otherwise}
+         * \end{cases}, \quad \text{if}\; i \neq j,
+         * \quad a_{ii}^F = a_{ii} - \sum\limits_{j=1,j\neq i}^n
+         * \left(a_{ij} - a_{ij}^F \right),
+         * \f]
+         * where \f$N_i\f$ is the set of variables, strongly coupled to
+         * variable \f$i\f$, and \f$D\f$ denotes the diagonal of \f$A^F\f$.
+         */
         float relax;
 
         params() : relax(0.666f) {
@@ -55,14 +84,12 @@ struct smoothed_aggregation {
         }
     };
 
-    template <typename Val, typename Col, typename Ptr>
-    static boost::tuple<
-        boost::shared_ptr< backend::crs<Val, Col, Ptr> >,
-        boost::shared_ptr< backend::crs<Val, Col, Ptr> >
-        >
-    transfer_operators(const backend::crs<Val, Col, Ptr> &A, params &prm)
+    /// \copydoc amgcl::coarsening::aggregation::transfer_operators
+    template <class Matrix>
+    static boost::tuple< boost::shared_ptr<Matrix>, boost::shared_ptr<Matrix> >
+    transfer_operators(const Matrix &A, params &prm)
     {
-        typedef backend::crs<Val, Col, Ptr> matrix;
+        typedef typename backend::value_type<Matrix>::type Val;
 
         const size_t n = rows(A);
 
@@ -72,7 +99,7 @@ struct smoothed_aggregation {
         TOC("aggregates");
 
         TIC("interpolation");
-        boost::shared_ptr<matrix> P = boost::make_shared<matrix>();
+        boost::shared_ptr<Matrix> P = boost::make_shared<Matrix>();
         P->nrows = n;
         P->ncols = aggr.count;
         P->ptr.resize(n + 1, 0);
@@ -95,7 +122,7 @@ struct smoothed_aggregation {
 
             // Count number of entries in P.
             for(size_t i = chunk_start; i < chunk_end; ++i) {
-                for(Ptr j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
+                for(long j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
                     size_t c = static_cast<size_t>(A.col[j]);
 
                     // Skip weak off-diagonal connections.
@@ -127,7 +154,7 @@ struct smoothed_aggregation {
                 // Diagonal of the filtered matrix is the original matrix
                 // diagonal minus its weak connections.
                 Val dia = 0;
-                for(Ptr j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
+                for(long j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
                     if (static_cast<size_t>(A.col[j]) == i)
                         dia += A.val[j];
                     else if (!aggr.strong_connection[j])
@@ -135,9 +162,9 @@ struct smoothed_aggregation {
                 }
                 dia = 1 / dia;
 
-                Ptr row_beg = P->ptr[i];
-                Ptr row_end = row_beg;
-                for(Ptr j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
+                long row_beg = P->ptr[i];
+                long row_end = row_beg;
+                for(long j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
                     size_t c = static_cast<size_t>(A.col[j]);
 
                     // Skip weak couplings, ...
@@ -162,18 +189,19 @@ struct smoothed_aggregation {
         }
         TOC("interpolation");
 
-        boost::shared_ptr<matrix> R = boost::make_shared<matrix>();
+        boost::shared_ptr<Matrix> R = boost::make_shared<Matrix>();
         *R = transpose(*P);
 
         return boost::make_tuple(P, R);
     }
 
-    template <typename Val, typename Col, typename Ptr>
-    static boost::shared_ptr< backend::crs<Val, Col, Ptr> >
+    /// \copydoc amgcl::coarsening::aggregation::coarse_operator
+    template <class Matrix>
+    static boost::shared_ptr<Matrix>
     coarse_operator(
-            const backend::crs<Val, Col, Ptr> &A,
-            const backend::crs<Val, Col, Ptr> &P,
-            const backend::crs<Val, Col, Ptr> &R,
+            const Matrix &A,
+            const Matrix &P,
+            const Matrix &R,
             const params&
             )
     {

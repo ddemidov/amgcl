@@ -26,7 +26,7 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/backend/crs.hpp
+ * \file   amgcl/backend/eigen.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
  * \brief  Sparse matrix in CRS format.
  */
@@ -40,8 +40,80 @@ THE SOFTWARE.
 namespace amgcl {
 namespace backend {
 
+/// Eigen backend.
+/**
+ * This is a backend that uses types defined in the Eigen library
+ * (http://eigen.tuxfamily.org).
+ *
+ * \param real Value type.
+ * \ingroup backends
+ */
+template <typename real>
+struct eigen {
+    typedef real value_type;
+    typedef long index_type;
+
+    typedef
+        Eigen::MappedSparseMatrix<value_type, Eigen::RowMajor, index_type>
+        matrix;
+
+    typedef
+        Eigen::Matrix<value_type, Eigen::Dynamic, 1>
+        vector;
+
+    /// Backend parameters.
+    struct params {};
+
+    /// Copy matrix from builtin backend.
+    static boost::shared_ptr<matrix>
+    copy_matrix(boost::shared_ptr< typename builtin<real>::matrix > A, const params&)
+    {
+        return boost::shared_ptr<matrix>(
+                new matrix(rows(*A), cols(*A), nonzeros(*A),
+                    A->ptr.data(), A->col.data(), A->val.data()),
+                hold_host(A)
+                );
+    }
+
+    /// Copy vector from builtin backend.
+    static boost::shared_ptr<vector>
+    copy_vector(typename builtin<real>::vector const &x, const params&)
+    {
+        return boost::make_shared<vector>(
+                Eigen::Map<const vector>(x.data(), x.size())
+                );
+    }
+
+    /// Copy vector from builtin backend.
+    static boost::shared_ptr<vector>
+    copy_vector(boost::shared_ptr< typename builtin<real>::vector > x, const params &prm)
+    {
+        return copy_vector(*x, prm);
+    }
+
+    /// Create vector of the specified size.
+    static boost::shared_ptr<vector>
+    create_vector(size_t size, const params&)
+    {
+        return boost::make_shared<vector>(size);
+    }
+
+    private:
+        struct hold_host {
+            typedef boost::shared_ptr< crs<real, long, long> > host_matrix;
+            host_matrix host;
+
+            hold_host( host_matrix host ) : host(host) {}
+
+            void operator()(matrix *ptr) const {
+                delete ptr;
+            }
+        };
+
+};
+
 //---------------------------------------------------------------------------
-// Builder interface implementation for Eigen types
+// Backend interface specialization for Eigen types
 //---------------------------------------------------------------------------
 template <class T, class Enable = void>
 struct is_eigen_sparse_matrix : boost::false_type {};
@@ -134,66 +206,6 @@ struct row_begin_impl <
     typedef typename row_iterator<T>::type iterator;
     static iterator get(const T &matrix, size_t row) {
         return iterator(matrix, row);
-    }
-};
-
-//---------------------------------------------------------------------------
-// Eigen backend definition
-//---------------------------------------------------------------------------
-template <typename real>
-struct eigen {
-    typedef real value_type;
-    typedef long index_type;
-
-    typedef
-        Eigen::MappedSparseMatrix<value_type, Eigen::RowMajor, index_type>
-        matrix;
-
-    typedef
-        Eigen::Matrix<value_type, Eigen::Dynamic, 1>
-        vector;
-
-    struct params {};
-
-    struct hold_host {
-        typedef boost::shared_ptr< crs<real, long, long> > host_matrix;
-        host_matrix host;
-
-        hold_host( host_matrix host ) : host(host) {}
-
-        void operator()(matrix *ptr) const {
-            delete ptr;
-        }
-    };
-
-    static boost::shared_ptr<matrix>
-    copy_matrix(boost::shared_ptr< typename builtin<real>::matrix > A, const params&)
-    {
-        return boost::shared_ptr<matrix>(
-                new matrix(rows(*A), cols(*A), nonzeros(*A),
-                    A->ptr.data(), A->col.data(), A->val.data()),
-                hold_host(A)
-                );
-    }
-
-    static boost::shared_ptr<vector>
-    copy_vector(typename builtin<real>::vector const &x, const params&)
-    {
-        return boost::make_shared<vector>(
-                Eigen::Map<const vector>(x.data(), x.size())
-                );
-    }
-
-    static boost::shared_ptr<vector>
-    copy_vector(boost::shared_ptr< typename builtin<real>::vector > x, const params &prm)
-    {
-        return copy_vector(*x, prm);
-    }
-
-    static boost::shared_ptr<vector>
-    create_vector(size_t size, const params&)
-    {
-        return boost::make_shared<vector>(size);
     }
 };
 

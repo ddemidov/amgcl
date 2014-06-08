@@ -45,8 +45,26 @@ THE SOFTWARE.
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
 
+/// Primary namespace.
 namespace amgcl {
 
+/// Algebraic multigrid method.
+/**
+ * AMG is one the most effective methods for solution of large sparse
+ * unstructured systems of equations, arising, for example, from discretization
+ * of PDEs on unstructured grids \cite Trottenberg2001. The method can be used
+ * as a black-box solver for various computational problems, since it does not
+ * require any information about the underlying geometry.
+ *
+ * The three template parameters allow the user to select the exact components
+ * of the method:
+ *  1. *Backend* to transfer the constructed hierarchy to,
+ *  2. *Coarsening* strategy for hierarchy construction, and
+ *  3. *Relaxation* scheme (smoother to use during the solution phase).
+ *
+ * Instance of the class builds the AMG hierarchy for the given system matrix
+ * and is intended to be used as a preconditioner.
+ */
 template <
     class Backend,
     class Coarsening,
@@ -61,19 +79,35 @@ class amg {
         typedef typename Backend::vector     vector;
         typedef Relax<Backend>               relax_type;
 
+        /// Parameters of the method.
+        /**
+         * The amgcl::amg::params struct includes parameters for each
+         * component of the method as well as some universal parameters.
+         */
         struct params {
             typedef typename Backend::params    backend_params;
             typedef typename Coarsening::params coarsening_params;
             typedef typename relax_type::params relax_params;
 
-            backend_params    backend;
-            coarsening_params coarsening;
-            relax_params      relax;
+            backend_params    backend;      ///< Backend parameters.
+            coarsening_params coarsening;   ///< Coarsening parameters.
+            relax_params      relax;        ///< Relaxation parameters.
 
+            /// Specifies when level is coarse enough to be solved directly.
+            /**
+             * If number of variables at a next level in the hierarchy becomes
+             * lower than this threshold, then the hierarchy construction is
+             * stopped and the linear system is solved directly at this level.
+             */
             unsigned coarse_enough;
 
+            /// Number of pre-relaxations.
             unsigned npre;
+
+            /// Number of post-relaxations.
             unsigned npost;
+
+            /// Number of cycles (1 for V-cycle, 2 for W-cycle, etc.).
             unsigned ncycle;
 
             params() :
@@ -84,6 +118,16 @@ class amg {
             {}
         } prm;
 
+        /// Builds the AMG hierarchy for the system matrix.
+        /**
+         * The input matrix is copied here and is safe to delete afterwards.
+         *
+         * \param A The system matrix. Should be convertible to
+         *          amgcl::backend::crs<>.
+         * \param p AMG parameters.
+         *
+         * \sa amgcl/backend/crs_tuple.hpp
+         */
         template <class Matrix>
         amg(const Matrix &M, const params &p = params()) : prm(p)
         {
@@ -122,15 +166,28 @@ class amg {
             TOC("move to backend")
         }
 
+        /// Performs single V-cycle for the given right-hand side and solution.
+        /**
+         * \param rhs Right-hand side vector.
+         * \param x   Solution vector.
+         */
         void cycle(const vector &rhs, vector &x) const {
             cycle(levels.begin(), rhs, x);
         }
 
+        /// Performs single V-cycle after clearing x.
+        /**
+         * This is intended for use as a preconditioning procedure.
+         *
+         * \param rhs Right-hand side vector.
+         * \param x   Solution vector.
+         */
         void operator()(const vector &rhs, vector &x) const {
             backend::clear(x);
             cycle(levels.begin(), rhs, x);
         }
 
+        /// Returns the system matrix from the finest level.
         const matrix& top_matrix() const {
             return *levels.front().A;
         }
@@ -223,6 +280,7 @@ class amg {
             }
         }
 
+    /// Outputs information about the AMG hierarchy to output stream.
     friend std::ostream& operator<<(std::ostream &os, const amg &a)
     {
         boost::io::ios_all_saver stream_state(os);
@@ -255,7 +313,6 @@ class amg {
 
         return os;
     }
-
 };
 
 } // namespace amgcl

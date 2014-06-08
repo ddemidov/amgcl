@@ -44,9 +44,22 @@ THE SOFTWARE.
 namespace amgcl {
 namespace coarsening {
 
+/// Pointwise aggregation.
+/**
+ * The system matrix should have block structure. It is reduced to a single
+ * value per block and is subjected to coarsening::plain_aggregation.
+ *
+ * \ingroup aggregates
+ */
 class pointwise_aggregates {
     public:
+        /// Aggregation parameters.
         struct params : plain_aggregates::params {
+            /// Block size for the system matrix.
+            /**
+             * When block_size=1, the scheme is equivalent to (and performs on
+             * par with) plain_aggregates.
+             */
             unsigned block_size;
 
             params() : block_size(1) {}
@@ -55,11 +68,16 @@ class pointwise_aggregates {
         static const long undefined = -1;
         static const long removed   = -2;
 
+        /// \copydoc amgcl::coarsening::plain_aggregates::count
         size_t count;
 
+        /// \copydoc amgcl::coarsening::plain_aggregates::strong_connection
         std::vector<char> strong_connection;
+
+        /// \copydoc amgcl::coarsening::plain_aggregates::id
         std::vector<long> id;
 
+        /// \copydoc amgcl::coarsening::plain_aggregates::plain_aggregates
         template <class Matrix>
         pointwise_aggregates(const Matrix &A, const params &prm) : count(0)
         {

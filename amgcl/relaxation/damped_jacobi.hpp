@@ -35,11 +35,25 @@ THE SOFTWARE.
 #include <amgcl/backend/interface.hpp>
 
 namespace amgcl {
+
+/// Smoothers
 namespace relaxation {
 
+/**
+ * \defgroup relaxation
+ * \brief Relaxation schemes
+ */
+
+/// Damped Jacobi relaxation.
+/**
+ * \param Backend Backend for temporary structures allocation.
+ * \ingroup relaxation
+ */
 template <class Backend>
 struct damped_jacobi {
+    /// Relaxation parameters.
     struct params {
+        /// Damping factor.
         typename Backend::value_type damping;
 
         params(typename Backend::value_type damping = 0.72)
@@ -48,20 +62,31 @@ struct damped_jacobi {
 
     boost::shared_ptr<typename Backend::vector> dia;
 
+    /// Constructs smoother for the system matrix.
+    /**
+     * \param A           The system matrix.
+     * \param prm         Relaxation parameters.
+     * \param backend_prm Backend parameters.
+     */
     template <class Matrix>
-    damped_jacobi(const Matrix &A, const params &, const typename Backend::params &backend_prm)
+    damped_jacobi(
+            const Matrix &A,
+            const params &prm,
+            const typename Backend::params &backend_prm
+            )
         : dia( Backend::copy_vector( diagonal(A, true), backend_prm ) )
-    {}
-
-    template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
-    void apply(
-            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
-            const params &prm
-            ) const
     {
-        backend::residual(rhs, A, x, tmp);
-        backend::vmul(prm.damping, *dia, tmp, 1, x);
+        (void)&prm; // do not warn about unused parameter.
     }
+
+    /// Apply pre-relaxation
+    /**
+     * \param A   System matrix.
+     * \param rhs Right-hand side.
+     * \param x   Solution vector.
+     * \param tmp Scratch vector.
+     * \param prm Relaxation parameters.
+     */
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_pre(
             const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
@@ -71,6 +96,14 @@ struct damped_jacobi {
         apply(A, rhs, x, tmp, prm);
     }
 
+    /// Apply post-relaxation
+    /**
+     * \param A   System matrix.
+     * \param rhs Right-hand side.
+     * \param x   Solution vector.
+     * \param tmp Scratch vector.
+     * \param prm Relaxation parameters.
+     */
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_post(
             const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
@@ -79,6 +112,17 @@ struct damped_jacobi {
     {
         apply(A, rhs, x, tmp, prm);
     }
+
+    private:
+        template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
+        void apply(
+                const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
+                const params &prm
+                ) const
+        {
+            backend::residual(rhs, A, x, tmp);
+            backend::vmul(prm.damping, *dia, tmp, 1, x);
+        }
 };
 
 } // namespace relaxation

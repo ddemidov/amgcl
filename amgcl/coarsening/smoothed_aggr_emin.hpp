@@ -47,20 +47,29 @@ THE SOFTWARE.
 namespace amgcl {
 namespace coarsening {
 
+/// Smoothed aggregation with energy minimization.
+/**
+ * \param Aggregates \ref aggregates formation.
+ * \ingroup coarsening
+ * \sa \cite Sala2008
+ */
 template <class Aggregates>
 struct smoothed_aggr_emin {
+    /// Coarsening parameters.
     struct params {
+        /// Aggregation parameters.
         typename Aggregates::params aggr;
     };
 
-    template <typename Val, typename Col, typename Ptr>
+    /// \copydoc amgcl::coarsening::aggregation::transfer_operators
+    template <class Matrix>
     static boost::tuple<
-        boost::shared_ptr< backend::crs<Val, Col, Ptr> >,
-        boost::shared_ptr< backend::crs<Val, Col, Ptr> >
+        boost::shared_ptr<Matrix>,
+        boost::shared_ptr<Matrix>
         >
-    transfer_operators(const backend::crs<Val, Col, Ptr> &A, params &prm)
+    transfer_operators(const Matrix &A, params &prm)
     {
-        typedef backend::crs<Val, Col, Ptr> matrix;
+        typedef typename backend::value_type<Matrix>::type Val;
         const size_t n = rows(A);
 
         TIC("aggregates");
@@ -72,19 +81,19 @@ struct smoothed_aggr_emin {
         std::vector<Val> D(n);
         std::vector<Val> omega(n);
 
-        boost::shared_ptr<matrix> P = interpolation(A, aggr, D, omega);
-        boost::shared_ptr<matrix> R = restriction  (A, aggr, D, omega);
+        boost::shared_ptr<Matrix> P = interpolation(A, aggr, D, omega);
+        boost::shared_ptr<Matrix> R = restriction  (A, aggr, D, omega);
         TOC("interpolation");
 
         return boost::make_tuple(P, R);
     }
 
-    template <typename Val, typename Col, typename Ptr>
-    static boost::shared_ptr< backend::crs<Val, Col, Ptr> >
+    template <class Matrix>
+    static boost::shared_ptr<Matrix>
     coarse_operator(
-            const backend::crs<Val, Col, Ptr> &A,
-            const backend::crs<Val, Col, Ptr> &P,
-            const backend::crs<Val, Col, Ptr> &R,
+            const Matrix &A,
+            const Matrix &P,
+            const Matrix &R,
             const params&
             )
     {
@@ -276,7 +285,7 @@ struct smoothed_aggr_emin {
 
             boost::transform(omega_p, denum, omega_p.begin(), std::divides<Val>());
 
-            // Convert omega from (4.13) to (4.14) (Sala, Tuminaro, 2008):
+            // Convert omega from (4.13) to (4.14) \cite Sala2008:
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
                 Val w = -1;

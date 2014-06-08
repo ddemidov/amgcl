@@ -37,15 +37,21 @@ THE SOFTWARE.
 namespace amgcl {
 namespace relaxation {
 
+/// Sparse approximate interface smoother.
+/**
+ * \param Backend Backend for temporary structures allocation.
+ * \ingroup relaxation
+ * \sa \cite Broker2002
+ */
 template <class Backend>
 struct spai0 {
     typedef typename Backend::value_type value_type;
     typedef typename Backend::vector     vector;
 
+    /// Relaxation parameters.
     struct params {};
 
-    boost::shared_ptr<vector> M;
-
+    /// \copydoc amgcl::relaxation::damped_jacobi::damped_jacobi
     template <class Matrix>
     spai0( const Matrix &A, const params &, const typename Backend::params &backend_prm)
     {
@@ -72,15 +78,7 @@ struct spai0 {
         M = Backend::copy_vector(m, backend_prm);
     }
 
-    template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
-    void apply(
-            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp
-            ) const
-    {
-        backend::residual(rhs, A, x, tmp);
-        backend::vmul(1, *M, tmp, 1, x);
-    }
-
+    /// \copydoc amgcl::relaxation::damped_jacobi::apply_pre
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_pre(
             const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
@@ -90,6 +88,7 @@ struct spai0 {
         apply(A, rhs, x, tmp);
     }
 
+    /// \copydoc amgcl::relaxation::damped_jacobi::apply_post
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_post(
             const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
@@ -98,6 +97,19 @@ struct spai0 {
     {
         apply(A, rhs, x, tmp);
     }
+
+    private:
+        boost::shared_ptr<vector> M;
+
+        template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
+        void apply(
+                const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp
+                ) const
+        {
+            backend::residual(rhs, A, x, tmp);
+            backend::vmul(1, *M, tmp, 1, x);
+        }
+
 };
 
 } // namespace relaxation

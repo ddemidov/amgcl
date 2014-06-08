@@ -29,8 +29,6 @@ THE SOFTWARE.
  * \file   gmres.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
  * \brief  GMRES method.
- *
- * Implementation is based on \ref Templates_1994 "Barrett (1994)"
  */
 
 #include <vector>
@@ -45,6 +43,12 @@ THE SOFTWARE.
 namespace amgcl {
 namespace solver {
 
+/// GMRES iterative solver.
+/**
+ * \param Backend Backend for temporary structures allocation.
+ * \ingroup solvers
+ * \sa \cite Barrett1994
+ */
 template <class Backend>
 class gmres {
     public:
@@ -52,21 +56,53 @@ class gmres {
         typedef typename Backend::value_type value_type;
         typedef typename Backend::params     backend_params;
 
+        /// Solver parameters.
+        struct params {
+            /// Number of iterations before restart.
+            int M;
+
+            /// Maximum number of iterations.
+            size_t maxiter;
+
+            /// Target residual error.
+            value_type tol;
+
+            params(int M = 50, size_t maxiter = 100, value_type tol = 1e-8)
+                : M(M), maxiter(maxiter), tol(tol)
+            {}
+        };
+
+        /// \copydoc amgcl::solver::cg::cg
         gmres(
-                size_t n, const backend_params &prm = backend_params(),
-                int M = 50, size_t maxiter = 100, value_type tol = 1e-8
+                size_t n,
+                const params &prm = params(),
+                const backend_params &backend_prm = backend_params()
              )
-            : M(M), maxiter(maxiter), tol(tol),
-              H(boost::extents[M + 1][M]),
-              s(M + 1), cs(M + 1), sn(M + 1), y(M + 1),
-              r( Backend::create_vector(n, prm) ),
-              w( Backend::create_vector(n, prm) )
+            : prm(prm),
+              H(boost::extents[prm.M + 1][prm.M]),
+              s(prm.M + 1), cs(prm.M + 1), sn(prm.M + 1), y(prm.M + 1),
+              r( Backend::create_vector(n, backend_prm) ),
+              w( Backend::create_vector(n, backend_prm) )
         {
-            v.reserve(M + 1);
-            for(int i = 0; i <= M; ++i)
-                v.push_back( Backend::create_vector(n, prm) );
+            v.reserve(prm.M + 1);
+            for(int i = 0; i <= prm.M; ++i)
+                v.push_back( Backend::create_vector(n, backend_prm) );
         }
 
+        /// Solves the linear system for the given system matrix.
+        /**
+         * \param A   System matrix.
+         * \param P   Preconditioner.
+         * \param rhs Right-hand side.
+         * \param x   Solution vector.
+         *
+         * The system matrix may differ from the matrix used for the AMG
+         * preconditioner construction. This may be used for the solution of
+         * non-stationary problems with slowly changing coefficients. There is
+         * a strong chance that AMG built for one time step will act as a
+         * reasonably good preconditioner for several subsequent time steps
+         * \cite Demidov2012.
+         */
         template <class Matrix, class Precond>
         boost::tuple<size_t, value_type> operator()(
                 Matrix  const &A,
@@ -81,21 +117,27 @@ class gmres {
             do {
                 res = restart(A, rhs, P, x);
 
-                for(int i = 0; i < M && iter < maxiter; ++i, ++iter) {
+                for(int i = 0; i < prm.M && iter < prm.maxiter; ++i, ++iter) {
                     res = iteration(A, P, i);
 
-                    if (res < tol) {
+                    if (res < prm.tol) {
                         update(x, i);
                         return boost::make_tuple(iter + 1, res);
                     };
                 }
 
-                update(x, M-1);
-            } while (iter < maxiter && res > tol);
+                update(x, prm.M-1);
+            } while (iter < prm.maxiter && res > prm.tol);
 
             return boost::make_tuple(iter, res);
         }
 
+        /// Solves the linear system for the same matrix that was used for the AMG preconditioner construction.
+        /**
+         * \param P   AMG preconditioner.
+         * \param rhs Right-hand side.
+         * \param x   Solution vector.
+         */
         template <class Precond>
         boost::tuple<size_t, value_type> operator()(
                 Precond const &P,
@@ -106,9 +148,7 @@ class gmres {
             return (*this)(P.top_matrix(), P, rhs, x);
         }
     private:
-        int        M;
-        size_t     maxiter;
-        value_type tol;
+        params prm;
 
         boost::multi_array<value_type, 2> H;
         std::vector<value_type> s, cs, sn, y;

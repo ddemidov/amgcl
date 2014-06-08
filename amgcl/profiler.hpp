@@ -43,14 +43,12 @@ THE SOFTWARE.
 
 namespace amgcl {
 
-/// Simple profiler class.
+/// Profiler class.
 /**
  * \param clock       Clock to use for profiling.
  * \param SHIFT_WIDTH Indentation for output of profiling results.
  *
- * Provides simple to use, possibly nested timers with nicely formatted output.
- * The implementation was inspired by a HOOMD-Blue code
- * (http://codeblue.umich.edu/hoomd-blue)
+ * Provides simple to use, hierarchical timers with nicely formatted output.
  */
 template <
     class clock = boost::chrono::high_resolution_clock,

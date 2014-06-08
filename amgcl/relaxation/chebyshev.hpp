@@ -43,19 +43,29 @@ THE SOFTWARE.
 namespace amgcl {
 namespace relaxation {
 
+/// Chebyshev polynomial smoother.
+/**
+ * \param Backend Backend for temporary structures allocation.
+ * \ingroup relaxation
+ */
 template <class Backend>
 class chebyshev {
     public:
         typedef typename Backend::value_type value_type;
         typedef typename Backend::vector     vector;
 
+        /// Relaxation parameters.
         struct params {
+            /// Chebyshev polynomial degree.
             unsigned degree;
-            float    lower;
+
+            /// Lowest-to-highest eigen value ratio.
+            float lower;
 
             params() : degree(5), lower(1.0f / 30) {}
         };
 
+        /// \copydoc amgcl::relaxation::damped_jacobi::damped_jacobi
         template <class Matrix>
         chebyshev(
                 const Matrix &A, const params &prm,
@@ -109,6 +119,30 @@ class chebyshev {
             C[0] = -1 / const_c;
         }
 
+        /// \copydoc amgcl::relaxation::damped_jacobi::apply_pre
+        template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
+        void apply_pre(
+                const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
+                const params&
+                ) const
+        {
+            apply(A, rhs, x, tmp);
+        }
+
+        /// \copydoc amgcl::relaxation::damped_jacobi::apply_post
+        template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
+        void apply_post(
+                const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
+                const params&
+                ) const
+        {
+            apply(A, rhs, x, tmp);
+        }
+
+    private:
+        std::vector<value_type> C;
+        mutable boost::shared_ptr<vector> p, q;
+
         template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
         void apply(
                 const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &res
@@ -125,28 +159,6 @@ class chebyshev {
 
             backend::axpby(1, *p, 1, x);
         }
-
-        template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
-        void apply_pre(
-                const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
-                const params&
-                ) const
-        {
-            apply(A, rhs, x, tmp);
-        }
-
-        template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
-        void apply_post(
-                const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
-                const params&
-                ) const
-        {
-            apply(A, rhs, x, tmp);
-        }
-
-    private:
-        std::vector<value_type> C;
-        mutable boost::shared_ptr<vector> p, q;
 
         template <class Matrix>
         static value_type spectral_radius(const Matrix &A) {

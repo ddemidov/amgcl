@@ -29,16 +29,34 @@ THE SOFTWARE.
  * \file   amgcl/solver/cg.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
  * \brief  Conjugate Gradient method.
- *
- * Implementation is based on \ref Templates_1994 "Barrett (1994)"
  */
 
 #include <boost/tuple/tuple.hpp>
 #include <amgcl/backend/interface.hpp>
 
 namespace amgcl {
+
+/// Iterative solvers
 namespace solver {
 
+/**
+ * \defgroup solvers
+ * \brief Iterative solvers
+ *
+ * AMGCL provides several iterative solvers, but it should be easy to use it as
+ * a preconditioner with a user-provided solver.  Each solver in AMGCL is a
+ * class template. Its single template parameter specifies the backend to use.
+ * This allows to preallocate necessary resources at class construction.
+ * Obviously, the solver backend has to coincide with the AMG backend.
+ */
+
+
+/// Conjugate Gradients iterative solver.
+/**
+ * \param Backend Backend for temporary structures allocation.
+ * \ingroup solvers
+ * \sa \cite Barrett1994
+ */
 template <class Backend>
 class cg {
     public:
@@ -46,15 +64,50 @@ class cg {
         typedef typename Backend::value_type value_type;
         typedef typename Backend::params     backend_params;
 
-        cg(size_t n, const backend_params &prm = backend_params(),
-                size_t maxiter = 100, value_type tol = 1e-8)
-            : n(n), maxiter(maxiter), tol(tol),
-              r(Backend::create_vector(n, prm)),
-              s(Backend::create_vector(n, prm)),
-              p(Backend::create_vector(n, prm)),
-              q(Backend::create_vector(n, prm))
+        /// Solver parameters.
+        struct params {
+            /// Maximum number of iterations.
+            size_t maxiter;
+
+            /// Target residual error.
+            value_type tol;
+
+            params(size_t maxiter = 100, value_type tol = 1e-8)
+                : maxiter(maxiter), tol(tol)
+            {}
+        };
+
+        /// Preallocates necessary data structures
+        /**
+         * \param n           The system size.
+         * \param prm         Solver parameters.
+         * \param backend_prm Backend parameters.
+         */
+        cg(
+                size_t n,
+                const params &prm = params(),
+                const backend_params &backend_prm = backend_params()
+          ) : prm(prm), n(n),
+              r(Backend::create_vector(n, backend_prm)),
+              s(Backend::create_vector(n, backend_prm)),
+              p(Backend::create_vector(n, backend_prm)),
+              q(Backend::create_vector(n, backend_prm))
         { }
 
+        /// Solves the linear system for the given system matrix.
+        /**
+         * \param A   System matrix.
+         * \param P   Preconditioner.
+         * \param rhs Right-hand side.
+         * \param x   Solution vector.
+         *
+         * The system matrix may differ from the matrix used for the AMG
+         * preconditioner construction. This may be used for the solution of
+         * non-stationary problems with slowly changing coefficients. There is
+         * a strong chance that AMG built for one time step will act as a
+         * reasonably good preconditioner for several subsequent time steps
+         * \cite Demidov2012.
+         */
         template <class Matrix, class Precond>
         boost::tuple<size_t, value_type> operator()(
                 Matrix  const &A,
@@ -76,7 +129,7 @@ class cg {
             size_t     iter = 0;
             value_type res;
 
-            for(; (res = backend::norm(*r) / norm_of_rhs) > tol && iter < maxiter; ++iter)
+            for(; (res = backend::norm(*r) / norm_of_rhs) > prm.tol && iter < prm.maxiter; ++iter)
             {
                 P(*r, *s);
 
@@ -99,6 +152,12 @@ class cg {
             return boost::make_tuple(iter, res);
         }
 
+        /// Solves the linear system for the same matrix that was used for the AMG preconditioner construction.
+        /**
+         * \param P   AMG preconditioner.
+         * \param rhs Right-hand side.
+         * \param x   Solution vector.
+         */
         template <class Precond>
         boost::tuple<size_t, value_type> operator()(
                 Precond const &P,
@@ -109,9 +168,8 @@ class cg {
             return (*this)(P.top_matrix(), P, rhs, x);
         }
     private:
-        size_t     n;
-        size_t     maxiter;
-        value_type tol;
+        params prm;
+        size_t n;
 
         boost::shared_ptr<vector> r;
         boost::shared_ptr<vector> s;

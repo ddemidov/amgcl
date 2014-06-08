@@ -7,7 +7,7 @@
 AMGCL is a C++ header only library for constructing an algebraic [multigrid][]
 (AMG) hierarchy.  AMG is one the most effective methods for solution of large
 sparse unstructured systems of equations, arising, for example, from
-discretization of PDEs on unstructured grids [1,2]. The method can be used as a
+discretization of PDEs on unstructured grids [5,6]. The method can be used as a
 black-box solver for various computational problems, since it does not require
 any information about the underlying geometry. AMG is often used not as a
 standalone solver but as a preconditioner within an iterative solver (e.g.
@@ -19,7 +19,9 @@ phase with help of OpenCL, CUDA, or OpenMP technologies. Users may provide
 their own backends which enables tight integration between AMGCL and the user
 code.
 
-Doxygen-generated documentation is available at http://ddemidov.github.io/amgcl.
+The library source code is available under MIT license at
+https://github.com/ddemidov/amgcl.  Doxygen-generated documentation is located
+at http://ddemidov.github.io/amgcl.
 
 ### Table of contents
 
@@ -214,7 +216,7 @@ library.
   - Smoothed aggregation:
     `amgcl::coarsening::smoothed_aggregation<Aggregates>`
     ([amgcl/coarsening/smoothed_aggregation.hpp][]).
-  - Smoothed aggregation with energy minimization (see [6]):
+  - Smoothed aggregation with energy minimization (see [4]):
     `amgcl::coarsening::smoothed_aggr_emin<Aggregates>`
     ([amgcl/coarsening/smoothed_aggr_emin.hpp][]).
 
@@ -262,7 +264,7 @@ construction of AMG hierarchy.
 The other version also takes a system matrix as first parameter. This version
 may be used for the solution of non-stationary problems with slowly changing
 coefficients. There is a strong chance that AMG built for one time step will
-act as a reasonably good preconditioner for several subsequent time steps [7].
+act as a reasonably good preconditioner for several subsequent time steps [3].
 
 Both versions return a tuple of number of iterations made and a residual error
 achieved.
@@ -372,26 +374,26 @@ Have a look at [amgcl/relaxation/damped_jacobi.hpp][] for an example.
 
 ## <a name="references"></a>References
 
-1. _U. Trottenberg, C. Oosterlee, A. Shuller,_ Multigrid, Academic Press,
-   London, 2001.
-2. _K. Stuben,_ Algebraic multigrid (AMG): an introduction with applications,
-   Journal of Computational and Applied Mathematics,  2001, Vol. 128, Pp.
-   281-309.
-3. _P. Vanek, J. Mandel, M. Brezina,_ Algebraic multigrid by smoothed
-   aggregation for second and fourth order elliptic problems, Computing 56,
-   1996, Pp. 179-196.
-4. _R. Barrett, M. Berry, T. F. Chan et al._ Templates for the Solution of
-   Linear Systems: Building Blocks for Iterative Methods, 2nd Edition, SIAM,
-   Philadelphia, PA, 1994.
-5. _O. Broeker, M. Grote,_ Sparse approximate inverse smoothers for geometric
-   and algebraic multigrid, Applied Numerical Mathematics, Volume 41, Issue 1,
-   April 2002, Pages 61–80.
-6. _M. Sala, R. Tuminaro,_ A new Petrov-Galerkin smoothed aggregation
-   preconditioner for nonsymmetric linear systems.  SIAM J. Sci. Comput. 2008,
-   Vol. 31, No.1, pp. 143-166.
-7. _D. Demidov, D. Shevchenko._ Modification of algebraic multigrid for
+1. R. Barrett, M. Berry, T. F. Chan, J. Demmel, J. Donato, J. Dongarra, V.
+   Eijkhout, R. Pozo, C. Romine, and H. Van der Vorst. Templates for the
+   Solution of Linear Systems: Building Blocks for Iterative Methods, 2nd
+   Edition. SIAM, Philadelphia, PA, 1994.
+2. O. Bröker and M. J. Grote. Sparse approximate inverse smoothers for
+   geometric and algebraic multigrid. Applied numerical mathematics,
+   41(1):61–80, 2002.
+3. D. E. Demidov and D. V. Shevchenko. Modification of algebraic multigrid for
    effective gpgpu-based solution of nonstationary hydrodynamics problems.
-   Journal of Computational Science, 3(6):460 – 462, 2012.
+   Journal of Computational Science, 3(6):460–462, 2012.
+4. M. Sala and R. S. Tuminaro. A new petrov-galerkin smoothed aggregation
+   preconditioner for nonsymmetric linear systems. SIAM Journal on Scientific
+   Computing, 31(1):143–166, 2008.
+5. K. Stuben. Algebraic multigrid (AMG): an introduction with applications. GMD
+   Report 70, GMD, Sankt Augustin, Germany, 1999.
+6. U. Trottenberg, C. Oosterlee, and A. Schüller. Multigrid. Academic Press,
+   London, 2001. 631 p.
+7. P. Vanek, J. Mandel, and M. Brezina. Algebraic multigrid by smoothed
+   aggregation for second and fourth order elliptic problems. Computing,
+   56(3):179–196, 1996.
 
 ## <a name="references"></a>Projects using AMGCL
 

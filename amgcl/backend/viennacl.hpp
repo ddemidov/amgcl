@@ -46,83 +46,16 @@ THE SOFTWARE.
 namespace amgcl {
 namespace backend {
 
-template <class T>
-struct is_viennacl_matrix : boost::false_type {};
-
-template <class V>
-struct is_viennacl_matrix< ::viennacl::compressed_matrix<V> > : boost::true_type
-{};
-
-template <class V>
-struct is_viennacl_matrix< ::viennacl::hyb_matrix<V> > : boost::true_type
-{};
-
-template <class V>
-struct is_viennacl_matrix< ::viennacl::ell_matrix<V> > : boost::true_type
-{};
-
-template <class M>
-struct value_type<
-    M,
-    typename boost::enable_if< typename is_viennacl_matrix<M>::type >::type
-    >
-{
-    typedef typename M::value_type::value_type type;
-};
-
-template <class V>
-struct value_type< ::viennacl::vector<V> >
-{
-    typedef V type;
-};
-
-template <class M>
-struct rows_impl<
-    M,
-    typename boost::enable_if< typename is_viennacl_matrix<M>::type >::type
-    >
-{
-    static size_t get(const M &A) {
-        return A.size1();
-    }
-};
-
-template <class M>
-struct cols_impl<
-    M,
-    typename boost::enable_if< typename is_viennacl_matrix<M>::type >::type
-    >
-{
-    static size_t get(const M &A) {
-        return A.size2();
-    }
-};
-
-template <class V>
-struct nonzeros_impl< viennacl::compressed_matrix<V> > {
-    static size_t get(const viennacl::compressed_matrix<V> &A) {
-        return A.nnz();
-    }
-};
-
-template <class V>
-struct nonzeros_impl< viennacl::ell_matrix<V> > {
-    static size_t get(const viennacl::ell_matrix<V> &A) {
-        return A.nnz();
-    }
-};
-
-template <class V>
-struct nonzeros_impl< viennacl::hyb_matrix<V> > {
-    static size_t get(const viennacl::hyb_matrix<V> &A) {
-        return A.ell_nnz() + A.csr_nnz();
-    }
-};
-
-//---------------------------------------------------------------------------
-// ViennaCL backend
-//---------------------------------------------------------------------------
-
+/// ViennaCL backend
+/**
+ * This is a backend that uses types defined in the ViennaCL library
+ * (http://viennacl.sourceforge.net).
+ *
+ * \param Matrix ViennaCL matrix to use with the backend. Possible choices are
+ * viannacl::compressed_matrix<T>, viennacl::ell_matrix<T>, and
+ * viennacl::hyb_matrix<T>.
+ * \ingroup backends
+ */
 template <class Matrix>
 struct viennacl {
     typedef typename backend::value_type<Matrix>::type value_type;
@@ -130,8 +63,10 @@ struct viennacl {
     typedef Matrix                                     matrix;
     typedef ::viennacl::vector<value_type>             vector;
 
+    /// Backend parameters.
     struct params {};
 
+    /// Copy matrix from builtin backend.
     static boost::shared_ptr<matrix>
     copy_matrix(
             boost::shared_ptr< typename builtin<value_type>::matrix > A,
@@ -143,6 +78,7 @@ struct viennacl {
         return m;
     }
 
+    /// Copy vector from builtin backend.
     static boost::shared_ptr<vector>
     copy_vector(typename builtin<value_type>::vector const &x, const params&)
     {
@@ -151,6 +87,7 @@ struct viennacl {
         return v;
     }
 
+    /// Copy vector from builtin backend.
     static boost::shared_ptr<vector>
     copy_vector(
             boost::shared_ptr< typename builtin<value_type>::vector > x,
@@ -160,6 +97,7 @@ struct viennacl {
         return copy_vector(*x, prm);
     }
 
+    /// Create vector of the specified size.
     static boost::shared_ptr<vector>
     create_vector(size_t size, const params&)
     {
@@ -277,6 +215,79 @@ struct viennacl {
                 const index_type *col;
                 const value_type *val;
         };
+};
+
+template <class T>
+struct is_viennacl_matrix : boost::false_type {};
+
+template <class V>
+struct is_viennacl_matrix< ::viennacl::compressed_matrix<V> > : boost::true_type
+{};
+
+template <class V>
+struct is_viennacl_matrix< ::viennacl::hyb_matrix<V> > : boost::true_type
+{};
+
+template <class V>
+struct is_viennacl_matrix< ::viennacl::ell_matrix<V> > : boost::true_type
+{};
+
+template <class M>
+struct value_type<
+    M,
+    typename boost::enable_if< typename is_viennacl_matrix<M>::type >::type
+    >
+{
+    typedef typename M::value_type::value_type type;
+};
+
+template <class V>
+struct value_type< ::viennacl::vector<V> >
+{
+    typedef V type;
+};
+
+template <class M>
+struct rows_impl<
+    M,
+    typename boost::enable_if< typename is_viennacl_matrix<M>::type >::type
+    >
+{
+    static size_t get(const M &A) {
+        return A.size1();
+    }
+};
+
+template <class M>
+struct cols_impl<
+    M,
+    typename boost::enable_if< typename is_viennacl_matrix<M>::type >::type
+    >
+{
+    static size_t get(const M &A) {
+        return A.size2();
+    }
+};
+
+template <class V>
+struct nonzeros_impl< viennacl::compressed_matrix<V> > {
+    static size_t get(const viennacl::compressed_matrix<V> &A) {
+        return A.nnz();
+    }
+};
+
+template <class V>
+struct nonzeros_impl< viennacl::ell_matrix<V> > {
+    static size_t get(const viennacl::ell_matrix<V> &A) {
+        return A.nnz();
+    }
+};
+
+template <class V>
+struct nonzeros_impl< viennacl::hyb_matrix<V> > {
+    static size_t get(const viennacl::hyb_matrix<V> &A) {
+        return A.ell_nnz() + A.csr_nnz();
+    }
 };
 
 template <class Mtx, class Vec>

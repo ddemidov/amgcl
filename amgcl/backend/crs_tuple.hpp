@@ -26,31 +26,31 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/backend/crs_tuple.hpp
- * \author Denis Demidov <dennis.demidov@gmail.com>
- * \brief  Specify sparse matrix as a tuple of CRS arrays.
- *
- * Example:
- * \code
- * // Adapt STL containers:
- * std::vector<int>    ptr;
- * std::vector<int>    col;
- * std::vector<double> val;
- *
- * AMG amg( boost::tie(n, n, val, col, ptr) );
- *
- * // Adapt raw arrays:
- * int    *ptr;
- * int    *col;
- * double *val;
- *
- * AMG amg(boost::make_tuple(n, n,
- *                           boost::make_iterator_range(val, val + nnz),
- *                           boost::make_iterator_range(col, col + nnz),
- *                           boost::make_iterator_range(ptr, ptr + n + 1)
- *                           ) );
- * \endcode
- */
+\file   amgcl/backend/crs_tuple.hpp
+\author Denis Demidov <dennis.demidov@gmail.com>
+\brief  Specify sparse matrix as a tuple of CRS arrays.
+
+Example:
+\code
+// Adapt STL containers:
+std::vector<int>    ptr;
+std::vector<int>    col;
+std::vector<double> val;
+
+AMG amg( boost::tie(n, n, val, col, ptr) );
+
+// Adapt raw arrays:
+int    *ptr;
+int    *col;
+double *val;
+
+AMG amg(boost::make_tuple(n, n,
+                          boost::make_iterator_range(val, val + nnz),
+                          boost::make_iterator_range(col, col + nnz),
+                          boost::make_iterator_range(ptr, ptr + n + 1)
+                          ) );
+\endcode
+*/
 
 #include <vector>
 #include <numeric>

@@ -41,9 +41,14 @@ THE SOFTWARE.
 namespace amgcl {
 namespace backend {
 
-//---------------------------------------------------------------------------
-// VexCL backend definition
-//---------------------------------------------------------------------------
+/// VexCL backend
+/**
+ * This is a backend that uses types defined in the VexCL GPGPU library
+ * (https://github.com/ddemidov/vexcl).
+ *
+ * \param real Value type.
+ * \ingroup backends
+ */
 template <typename real>
 struct vexcl {
     typedef real value_type;
@@ -52,10 +57,13 @@ struct vexcl {
     typedef vex::SpMat<value_type, index_type, index_type> matrix;
     typedef vex::vector<value_type>                        vector;
 
+    /// Backend parameters.
     struct params {
+        /// Command queues that identify compute devices to use with VexCL.
         std::vector< vex::backend::command_queue > q;
     };
 
+    /// Copy matrix from builtin backend.
     static boost::shared_ptr<matrix>
     copy_matrix(boost::shared_ptr< typename builtin<real>::matrix > A, const params &prm)
     {
@@ -64,18 +72,21 @@ struct vexcl {
                 );
     }
 
+    /// Copy vector from builtin backend.
     static boost::shared_ptr<vector>
     copy_vector(typename builtin<real>::vector const &x, const params &prm)
     {
         return boost::make_shared<vector>(prm.q, x);
     }
 
+    /// Copy vector from builtin backend.
     static boost::shared_ptr<vector>
     copy_vector(boost::shared_ptr< typename builtin<real>::vector > x, const params &prm)
     {
         return copy_vector(*x, prm);
     }
 
+    /// Create vector of the specified size.
     static boost::shared_ptr<vector>
     create_vector(size_t size, const params &prm)
     {

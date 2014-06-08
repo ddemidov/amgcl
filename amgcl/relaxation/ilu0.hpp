@@ -14,19 +14,29 @@
 namespace amgcl {
 namespace relaxation {
 
+/// ILU(0) smoother.
+/**
+ * \note ILU(0) is a serial algorithm and is only applicable to backends that
+ * support matrix row iteration (e.g. amgcl::backend::builtin or
+ * amgcl::backend::eigen).
+ *
+ * \param Backend Backend for temporary structures allocation.
+ * \ingroup relaxation
+ */
 template <class Backend>
 struct ilu0 {
     typedef typename Backend::value_type value_type;
     typedef typename Backend::vector     vector;
 
+    /// Relaxation parameters.
     struct params {
+        /// Damping factor.
         float damping;
+
         params(float damping = 0.72) : damping(damping) {}
     };
 
-    std::vector<value_type> luval;
-    std::vector<long>       dia;
-
+    /// \copydoc amgcl::relaxation::damped_jacobi::damped_jacobi
     template <class Matrix>
     ilu0( const Matrix &A, const params &, const typename Backend::params&)
         : luval( A.val ),
@@ -75,38 +85,7 @@ struct ilu0 {
         }
     }
 
-    template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
-    void apply(
-            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
-            const params &prm
-            ) const
-    {
-        const size_t n = backend::rows(A);
-
-#pragma omp parallel for
-        for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-            value_type buf = rhs[i];
-            for(long j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j)
-                buf -= A.val[j] * x[A.col[j]];
-            tmp[i] = buf;
-        }
-
-        for(size_t i = 0; i < n; i++) {
-            for(long j = A.ptr[i], e = dia[i]; j < e; ++j)
-                tmp[i] -= luval[j] * tmp[A.col[j]];
-        }
-
-        for(size_t i = n; i-- > 0;) {
-            for(long j = dia[i] + 1, e = A.ptr[i + 1]; j < e; ++j)
-                tmp[i] -= luval[j] * tmp[A.col[j]];
-            tmp[i] *= luval[dia[i]];
-        }
-
-#pragma omp parallel for
-        for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i)
-            x[i] += prm.damping * tmp[i];
-    }
-
+    /// \copydoc amgcl::relaxation::damped_jacobi::apply_pre
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_pre(
             const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
@@ -116,6 +95,7 @@ struct ilu0 {
         apply(A, rhs, x, tmp, prm);
     }
 
+    /// \copydoc amgcl::relaxation::damped_jacobi::apply_post
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_post(
             const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
@@ -124,6 +104,43 @@ struct ilu0 {
     {
         apply(A, rhs, x, tmp, prm);
     }
+
+    private:
+        std::vector<value_type> luval;
+        std::vector<long>       dia;
+
+        template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
+        void apply(
+                const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
+                const params &prm
+                ) const
+        {
+            const size_t n = backend::rows(A);
+
+#pragma omp parallel for
+            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
+                value_type buf = rhs[i];
+                for(long j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j)
+                    buf -= A.val[j] * x[A.col[j]];
+                tmp[i] = buf;
+            }
+
+            for(size_t i = 0; i < n; i++) {
+                for(long j = A.ptr[i], e = dia[i]; j < e; ++j)
+                    tmp[i] -= luval[j] * tmp[A.col[j]];
+            }
+
+            for(size_t i = n; i-- > 0;) {
+                for(long j = dia[i] + 1, e = A.ptr[i + 1]; j < e; ++j)
+                    tmp[i] -= luval[j] * tmp[A.col[j]];
+                tmp[i] *= luval[dia[i]];
+            }
+
+#pragma omp parallel for
+            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i)
+                x[i] += prm.damping * tmp[i];
+        }
+
 };
 
 } // namespace relaxation

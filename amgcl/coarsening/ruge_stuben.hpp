@@ -43,29 +43,52 @@ THE SOFTWARE.
 namespace amgcl {
 namespace coarsening {
 
+/// Classic Ruge-Stuben coarsening with direct interpolation.
+/**
+ * \ingroup coarsening
+ * \sa \cite Stuben1999
+ */
 struct ruge_stuben {
+    /// Coarsening parameters.
     struct params {
+        /// Parameter \f$\varepsilon_{str}\f$ defining strong couplings.
+        /**
+         * Variable \f$i\f$ is defined to be strongly negatively coupled to
+         * another variable, \f$j\f$, if \f[-a_{ij} \geq
+         * \varepsilon_{str}\max\limits_{a_{ik}<0}|a_{ik}|\quad \text{with
+         * fixed} \quad 0 < \varepsilon_{str} < 1.\f] In practice, a value of
+         * \f$\varepsilon_{str}=0.25\f$ is usually taken.
+         */
         float eps_strong;
-        float eps_trunc;
+
+        /// Truncate prolongation operator?
+        /**
+         * Interpolation operators, and, hence coarse operators may increase
+         * substabtially towards coarser levels. Without truncation, this may
+         * become too costly. Truncation ignores all interpolatory connections
+         * which are smaller (in absolute value) than the largest one by a
+         * factor of \f$\varepsilon_{tr}\f$. The remaining weights are rescaled
+         * so that the total sum remains unchanged. In practice, a value of
+         * \f$\varepsilon_{tr}=0.2\f$ is usually taken.
+         */
         bool  do_trunc;
 
-        params() : eps_strong(0.25f), eps_trunc(0.2f), do_trunc(true) {}
+        /// Truncation parameter \f$\varepsilon_{tr}\f$.
+        float eps_trunc;
+
+        params() : eps_strong(0.25f), do_trunc(true), eps_trunc(0.2f) {}
     };
 
-    template <typename Val, typename Col, typename Ptr>
-    static boost::tuple<
-        boost::shared_ptr< backend::crs<Val, Col, Ptr> >,
-        boost::shared_ptr< backend::crs<Val, Col, Ptr> >
-        >
-    transfer_operators(
-            const backend::crs<Val, Col, Ptr> &A,
-            const params &prm)
+    /// \copydoc amgcl::coarsening::aggregation::transfer_operators
+    template <class Matrix>
+    static boost::tuple< boost::shared_ptr<Matrix>, boost::shared_ptr<Matrix> >
+    transfer_operators(const Matrix &A, const params &prm)
     {
-        typedef backend::crs<Val, Col, Ptr> matrix;
-        const size_t n   = rows(A);
+        typedef typename backend::value_type<Matrix>::type Val;
+        const size_t n = rows(A);
 
         std::vector<char> cf(n, 'U');
-        backend::crs<char, Col, Ptr> S;
+        backend::crs<char, long, long> S;
 
         TIC("C/F split");
         connect(A, prm.eps_strong, S, cf);
@@ -74,11 +97,11 @@ struct ruge_stuben {
 
         TIC("interpolation");
         size_t nc = 0;
-        std::vector<Ptr> cidx(n);
+        std::vector<long> cidx(n);
         for(size_t i = 0; i < n; ++i)
             if (cf[i] == 'C') cidx[i] = nc++;
 
-        boost::shared_ptr<matrix> P = boost::make_shared<matrix>();
+        boost::shared_ptr<Matrix> P = boost::make_shared<Matrix>();
         P->nrows = n;
         P->ncols = nc;
         P->ptr.resize(n + 1, 0);
@@ -100,7 +123,7 @@ struct ruge_stuben {
             if (prm.do_trunc) {
                 Val amin = 0, amax = 0;
 
-                for(Ptr j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
+                for(long j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
                     if (!S.val[j] || cf[ A.col[j] ] != 'C') continue;
 
                     amin = std::min(amin, A.val[j]);
@@ -110,14 +133,14 @@ struct ruge_stuben {
                 Amin[i] = (amin *= prm.eps_trunc);
                 Amax[i] = (amax *= prm.eps_trunc);
 
-                for(Ptr j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
+                for(long j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
                     if (!S.val[j] || cf[A.col[j]] != 'C') continue;
 
                     if (A.val[j] <= amin || A.val[j] >= amax)
                         ++P->ptr[i + 1];
                 }
             } else {
-                for(Ptr j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j)
+                for(long j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j)
                     if (S.val[j] && cf[A.col[j]] == 'C')
                         ++P->ptr[i + 1];
             }
@@ -129,7 +152,7 @@ struct ruge_stuben {
 
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-            Ptr row_head = P->ptr[i];
+            long row_head = P->ptr[i];
 
             if (cf[i] == 'C') {
                 P->col[row_head] = cidx[i];
@@ -142,9 +165,9 @@ struct ruge_stuben {
             Val b_num = 0, b_den = 0;
             Val d_neg = 0, d_pos = 0;
 
-            for(Ptr j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
-                Col c = A.col[j];
-                Val v = A.val[j];
+            for(long j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
+                long c = A.col[j];
+                Val  v = A.val[j];
 
                 if (c == i) {
                     dia = v;
@@ -179,9 +202,9 @@ struct ruge_stuben {
             Val alpha = fabs(a_den) > 1e-32 ? -cf_neg * a_num / (dia * a_den) : 0;
             Val beta  = fabs(b_den) > 1e-32 ? -cf_pos * b_num / (dia * b_den) : 0;
 
-            for(Ptr j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
-                Col c = A.col[j];
-                Val v = A.val[j];
+            for(long j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
+                long c = A.col[j];
+                Val  v = A.val[j];
 
                 if (!S.val[j] || cf[c] != 'C') continue;
                 if (prm.do_trunc && v > Amin[i] && v < Amax[i]) continue;
@@ -193,17 +216,18 @@ struct ruge_stuben {
         }
         TOC("interpolation");
 
-        boost::shared_ptr<matrix> R = boost::make_shared<matrix>();
+        boost::shared_ptr<Matrix> R = boost::make_shared<Matrix>();
         *R = transpose(*P);
         return boost::make_tuple(P, R);
     }
 
-    template <typename Val, typename Col, typename Ptr>
-    static boost::shared_ptr< backend::crs<Val, Col, Ptr> >
+    /// \copydoc amgcl::coarsening::aggregation::coarse_operator
+    template <class Matrix>
+    static boost::shared_ptr<Matrix>
     coarse_operator(
-            const backend::crs<Val, Col, Ptr> &A,
-            const backend::crs<Val, Col, Ptr> &P,
-            const backend::crs<Val, Col, Ptr> &R,
+            const Matrix &A,
+            const Matrix &P,
+            const Matrix &R,
             const params&
             )
     {

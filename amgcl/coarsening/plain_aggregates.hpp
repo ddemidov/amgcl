@@ -38,8 +38,36 @@ THE SOFTWARE.
 namespace amgcl {
 namespace coarsening {
 
+/**
+ * \defgroup aggregates Aggregates
+ * \brief These classes control how fine-level variables are subdivided into
+ * aggregates.
+ */
+
+/// Plain aggregation.
+/**
+ * Modification of a greedy aggregation scheme from \cite Vanek1996.
+ * Connectivity is defined in a symmetric way, that is, two variables \f$i\f$
+ * and \f$j\f$ are considered to be connected to each other if
+ * \f$a_{ij}^2/a_{ii}a_{jj} > \varepsilon_{strong}\f$. Variables without
+ * neighbours (resulting, e.g., from Dirichlet conditions) are excluded from
+ * aggregation process. The aggregation is completed in a single pass over
+ * variables: variables adjacent to a new aggregate are temporarily marked as
+ * beloning to this aggregate. Later they may be claimed by other aggregates;
+ * if nobody claims them, then they just stay in their initial aggregate.
+ *
+ * \ingroup aggregates
+ */
 struct plain_aggregates {
+    /// Aggregation parameters.
     struct params {
+        /// Parameter \f$\varepsilon_{strong}\f$ defining strong couplings.
+        /**
+         * Connectivity is defined in a symmetric way, that is, two variables
+         * \f$i\f$ and \f$j\f$ are considered to be connected to each other if
+         * \f$a_{ij}^2/a_{ii}a_{jj} > \varepsilon_{strong}\f$ with fixed \f$0 <
+         * \varepsilon_{strong} < 1.\f$
+         */
         float eps_strong;
 
         params() : eps_strong(0.08f) {}
@@ -48,11 +76,26 @@ struct plain_aggregates {
     static const long undefined = -1;
     static const long removed   = -2;
 
+    /// Number of aggregates.
     size_t count;
 
+    /// Strong connectivity matrix.
+    /**
+     * This is just 'values' part of CRS matrix. 'col' and 'ptr' arrays are
+     * borrowed from the system matrix.
+     */
     std::vector<char> strong_connection;
+
+    /// Aggerate id that each fine-level variable belongs to.
+    /** When id[i] < 0, then variable i stays at the fine level (this could be
+     * the case for a Dirichelt condition variable).*/
     std::vector<long> id;
 
+    /// Constructs aggregates for a given matrix.
+    /**
+     * \param A   The system matrix.
+     * \param prm Aggregation parameters.
+     */
     template <class Matrix>
     plain_aggregates(const Matrix &A, const params &prm)
         : count(0),

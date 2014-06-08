@@ -33,7 +33,6 @@ THE SOFTWARE.
 
 #include <stdexcept>
 
-
 /* Performance measurement macros
  *
  * If AMGCL_PROFILING macro is defined at compilation, then TIC(name) and
@@ -49,9 +48,7 @@ THE SOFTWARE.
 #  include <amgcl/profiler.hpp>
 #  define TIC(name) amgcl::prof.tic(name);
 #  define TOC(name) amgcl::prof.toc(name);
-namespace amgcl {
-extern profiler<> prof;
-}
+namespace amgcl { extern profiler<> prof; }
 #else
 #  define TIC(name)
 #  define TOC(name)
@@ -64,10 +61,11 @@ extern profiler<> prof;
 
 namespace amgcl {
 
-/// Throws if @cond is not true.
-template <class Cond, class Message>
-void precondition(const Cond &cond, const Message &message) {
-    if ( !static_cast<bool>(cond) ) throw std::runtime_error(message);
+/// Throws \p message if \p condition is not true.
+template <class Condition, class Message>
+void precondition(const Condition &condition, const Message &message) {
+    if ( !static_cast<bool>(condition) )
+        throw std::runtime_error(message);
 }
 
 } // namespace amgcl

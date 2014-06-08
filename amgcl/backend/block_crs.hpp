@@ -40,6 +40,12 @@ THE SOFTWARE.
 namespace amgcl {
 namespace backend {
 
+/// Sparse matrix in Block CRS format.
+/**
+ * \param V Value type.
+ * \param C Column number type.
+ * \param P Index type.
+ */
 template < typename V, typename C, typename P >
 struct bcrs {
     typedef V val_type;
@@ -54,6 +60,14 @@ struct bcrs {
     std::vector<col_type> col;
     std::vector<val_type> val;
 
+    /// Converts matrix in CRS format to Block CRS format.
+    /**
+     * \param A          Input matrix.
+     * \param block_size Block size.
+     *
+     * \note Input matrix dimensions are *not* required to be divisible by
+     * block_size.
+     */
     template < class Matrix >
     bcrs(const Matrix &A, size_t block_size)
         : block_size(block_size), nrows( rows(A) ), ncols( cols(A) ),
@@ -128,8 +142,59 @@ struct bcrs {
     }
 };
 
+/// block_crs backend definition.
+/**
+ * \param real Value type.
+ * \ingroup backends
+ */
+template <typename real>
+struct block_crs {
+    typedef real value_type;
+    typedef long index_type;
+
+    typedef bcrs<real, index_type, index_type> matrix;
+    typedef typename builtin<real>::vector     vector;
+
+    /// Backend parameters.
+    struct params {
+        /// Block size to use with the created matrices.
+        size_t block_size;
+
+        params(size_t block_size = 4) : block_size(block_size) {}
+    };
+
+    /// Copy matrix from builtin backend.
+    static boost::shared_ptr<matrix>
+    copy_matrix(boost::shared_ptr< typename backend::builtin<real>::matrix > A,
+            const params &prm)
+    {
+        return boost::make_shared<matrix>(*A, prm.block_size);
+    }
+
+    /// Copy vector from builtin backend.
+    static boost::shared_ptr<vector>
+    copy_vector(const vector &x, const params&)
+    {
+        return boost::make_shared<vector>(x);
+    }
+
+    /// Copy vector from builtin backend.
+    static boost::shared_ptr<vector>
+    copy_vector(boost::shared_ptr< vector > x, const params&)
+    {
+        return x;
+    }
+
+    /// Create vector of the specified size.
+    static boost::shared_ptr<vector>
+    create_vector(size_t size, const params&)
+    {
+        return boost::make_shared<vector>(size);
+    }
+};
+
 //---------------------------------------------------------------------------
-// Specialization of matrix interface
+// Specialization of backend interface
 //---------------------------------------------------------------------------
 template < typename V, typename C, typename P >
 struct value_type< bcrs<V, C, P> > {
@@ -154,49 +219,6 @@ template < typename V, typename C, typename P >
 struct nonzeros_impl< bcrs<V, C, P> > {
     static size_t get(const bcrs<V, C, P> &A) {
         return A.ptr.back() * A.block_size * A.block_size;
-    }
-};
-
-//---------------------------------------------------------------------------
-// block_crs backend definition
-//---------------------------------------------------------------------------
-template <typename real>
-struct block_crs {
-    typedef real value_type;
-    typedef long index_type;
-
-    typedef bcrs<real, index_type, index_type> matrix;
-    typedef typename builtin<real>::vector     vector;
-
-    struct params {
-        size_t block_size;
-
-        params(size_t block_size = 4) : block_size(block_size) {}
-    };
-
-    static boost::shared_ptr<matrix>
-    copy_matrix(boost::shared_ptr< typename backend::builtin<real>::matrix > A,
-            const params &prm)
-    {
-        return boost::make_shared<matrix>(*A, prm.block_size);
-    }
-
-    static boost::shared_ptr<vector>
-    copy_vector(const vector &x, const params&)
-    {
-        return boost::make_shared<vector>(x);
-    }
-
-    static boost::shared_ptr<vector>
-    copy_vector(boost::shared_ptr< vector > x, const params&)
-    {
-        return x;
-    }
-
-    static boost::shared_ptr<vector>
-    create_vector(size_t size, const params&)
-    {
-        return boost::make_shared<vector>(size);
     }
 };
 

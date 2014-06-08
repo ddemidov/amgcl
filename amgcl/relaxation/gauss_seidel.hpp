@@ -36,32 +36,26 @@ THE SOFTWARE.
 namespace amgcl {
 namespace relaxation {
 
+/// Gauss-Seidel relaxation.
+/**
+ * \note This is a serial relaxation and is only applicable to backends that
+ * support matrix row iteration (e.g. amgcl::backend::builtin or
+ * amgcl::backend::eigen).
+ *
+ * \param Backend Backend for temporary structures allocation.
+ * \ingroup relaxation
+ */
 template <class Backend>
 struct gauss_seidel {
+    /// Relaxation parameters.
     struct params { };
 
+    /// \copydoc amgcl::relaxation::damped_jacobi::damped_jacobi
     template <class Matrix>
     gauss_seidel( const Matrix&, const params&, const typename Backend::params&)
     {}
 
-    template <class Matrix, class VectorRHS, class VectorX>
-    static void iteration_body(
-            const Matrix &A, const VectorRHS &rhs, VectorX &x, size_t i)
-    {
-        typedef typename backend::row_iterator<Matrix>::type row_iterator;
-        typedef typename backend::value_type<Matrix>::type val_type;
-
-        val_type temp = rhs[i];
-        val_type diag = 1;
-        for (row_iterator a = backend::row_begin(A, i); a; ++a) {
-            if (static_cast<size_t>(a.col()) == i)
-                diag = a.value();
-            else
-                temp -= a.value() * x[a.col()];
-        }
-        x[i] = temp / diag;
-    }
-
+    /// \copydoc amgcl::relaxation::damped_jacobi::apply_pre
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_pre(
             const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP&, const params&
@@ -72,6 +66,7 @@ struct gauss_seidel {
             iteration_body(A, rhs, x, i);
     }
 
+    /// \copydoc amgcl::relaxation::damped_jacobi::apply_post
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_post(
             const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP&, const params&
@@ -81,6 +76,25 @@ struct gauss_seidel {
         for(size_t i = n; i-- > 0;)
             iteration_body(A, rhs, x, i);
     }
+
+    private:
+        template <class Matrix, class VectorRHS, class VectorX>
+        static void iteration_body(
+                const Matrix &A, const VectorRHS &rhs, VectorX &x, size_t i)
+        {
+            typedef typename backend::row_iterator<Matrix>::type row_iterator;
+            typedef typename backend::value_type<Matrix>::type val_type;
+
+            val_type temp = rhs[i];
+            val_type diag = 1;
+            for (row_iterator a = backend::row_begin(A, i); a; ++a) {
+                if (static_cast<size_t>(a.col()) == i)
+                    diag = a.value();
+                else
+                    temp -= a.value() * x[a.col()];
+            }
+            x[i] = temp / diag;
+        }
 };
 
 } // namespace relaxation
