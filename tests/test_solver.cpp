@@ -11,6 +11,10 @@
 #include <amgcl/backend/eigen.hpp>
 #endif
 
+#ifdef AMGCL_HAVE_BLAZE
+#include <amgcl/backend/blaze.hpp>
+#endif
+
 #ifdef AMGCL_HAVE_VIENNACL
 #include <amgcl/backend/viennacl.hpp>
 #endif
@@ -40,6 +44,10 @@ typedef boost::mpl::list<
 #ifdef AMGCL_HAVE_EIGEN
     , amgcl::backend::eigen<float>
     , amgcl::backend::eigen<double>
+#endif
+#ifdef AMGCL_HAVE_BLAZE
+    , amgcl::backend::blaze<float>
+    , amgcl::backend::blaze<double>
 #endif
 #ifdef AMGCL_HAVE_VIENNACL
     , amgcl::backend::viennacl< viennacl::compressed_matrix<float> >
@@ -99,6 +107,10 @@ void test_solver(const typename Backend::params &prm = typename Backend::params(
     std::cout << "Iterations: " << iters << std::endl
               << "Error:      " << resid << std::endl
               << std::endl;
+
+    if (!(resid < 1e-4)) {
+        std::cout << "fuck" << std::endl;
+    }
 
     BOOST_CHECK(resid < 1e-4);
 }

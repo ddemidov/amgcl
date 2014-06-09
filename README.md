@@ -151,6 +151,10 @@ Here is the list of backends currently implemented in the library:
   The `eigen` backend uses types and operations from [Eigen][] library. Eigen
   is a C++ template library for linear algebra. It works on a CPU and as of
   this writing is single threaded.
+- `amgcl::backend::blaze<value_type>` ([amgcl/backend/blaze.hpp][]).
+  The `blaze` backend uses types and operations from [Blaze][] library. Blaze
+  is an open-source, high-performance C++ math library for dense and sparse
+  arithmetic.
 - `amgcl::backend::vexcl<value_type>` ([amgcl/backend/vexcl.hpp][]).
   The `vexcl` backend uses [VexCL][] library for accelerating the solution
   phase. VexCL is a C++ vector expression template library for OpenCL/CUDA.
@@ -414,6 +418,7 @@ partially supported by RFBR grants No 12-07-0007 and 12-01-00033._
 [multigrid]:  http://en.wikipedia.org/wiki/Multigrid_method
 [Boost]:      http://www.boost.org
 [Eigen]:      http://eigen.tuxfamily.org
+[Blaze]:      https://code.google.com/p/blaze-lib
 [VexCL]:      http://github.com/ddemidov/vexcl
 [ViennaCL]:   http://viennacl.sourceforge.net
 [Kratos]:     http://www.cimne.com/kratos
@@ -424,6 +429,7 @@ partially supported by RFBR grants No 12-07-0007 and 12-01-00033._
 [amgcl/backend/builtin.hpp]:   amgcl/backend/builtin.hpp
 [amgcl/backend/block_crs.hpp]: amgcl/backend/block_crs.hpp
 [amgcl/backend/eigen.hpp]:     amgcl/backend/eigen.hpp
+[amgcl/backend/blaze.hpp]:     amgcl/backend/blaze.hpp
 [amgcl/backend/vexcl.hpp]:     amgcl/backend/vexcl.hpp
 [amgcl/backend/viennacl.hpp]:  amgcl/backend/viennacl.hpp
 [amgcl/backend/cuda.hpp]:      amgcl/backend/cuda.hpp

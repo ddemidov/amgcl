@@ -49,6 +49,15 @@ if (EIGEN_INCLUDE)
 endif()
 
 #----------------------------------------------------------------------------
+# Find Blaze
+#----------------------------------------------------------------------------
+find_path(BLAZE_INCLUDE blaze/Math.h)
+if (BLAZE_INCLUDE)
+    include_directories(${BLAZE_INCLUDE})
+    add_definitions(-DAMGCL_HAVE_BLAZE)
+endif()
+
+#----------------------------------------------------------------------------
 # Find VexCL
 #----------------------------------------------------------------------------
 set(VEXCL_ROOT $ENV{VEXCL_ROOT} CACHE STRING "VexCL root")
