@@ -2,15 +2,16 @@
 #define TESTS_SAMPLE_PROBLEM_HPP
 
 // Generates matrix for poisson problem in a unit cube.
-template <typename real>
-int sample_problem(int n,
-        std::vector<real> &val,
-        std::vector<int>  &col,
-        std::vector<int>  &ptr,
-        std::vector<real> &rhs
+template <typename real, typename index>
+int sample_problem(
+        index              n,
+        std::vector<real>  &val,
+        std::vector<index> &col,
+        std::vector<index> &ptr,
+        std::vector<real>  &rhs
         )
 {
-    int  n3  = n * n * n;
+    index  n3  = n * n * n;
     real h2i = (n - 1) * (n - 1);
 
     ptr.clear();
@@ -24,9 +25,9 @@ int sample_problem(int n,
     rhs.reserve(n3);
 
     ptr.push_back(0);
-    for(int k = 0, idx = 0; k < n; ++k) {
-        for(int j = 0; j < n; ++j) {
-            for (int i = 0; i < n; ++i, ++idx) {
+    for(index k = 0, idx = 0; k < n; ++k) {
+        for(index j = 0; j < n; ++j) {
+            for (index i = 0; i < n; ++i, ++idx) {
                 if (
                         i == 0 || i == n - 1 ||
                         j == 0 || j == n - 1 ||
