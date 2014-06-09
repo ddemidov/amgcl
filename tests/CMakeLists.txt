@@ -44,5 +44,4 @@ function(add_amgcl_test TEST_NAME TEST_SOURCE)
     add_test(${TEST_NAME} ${TEST_NAME})
 endfunction()
 
-add_amgcl_test(test_backend test_backend.cpp)
-add_amgcl_test(test_solver  test_solver.cpp)
+add_amgcl_test(test_solver test_solver.cpp)
