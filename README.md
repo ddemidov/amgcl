@@ -159,6 +159,8 @@ Here is the list of backends currently implemented in the library:
   The `viennacl` backend is built on top of [ViennaCL][] library which is a
   free open-source linear algebra library for computations on many-core
   architectures (GPUs, MIC) and multi-core CPUs.
+- `amgcl::backend::cuda<value_type>` ([amgcl/backend/cuda.hpp][]).
+  Uses CUDA libraries CUSPARSE and Thrust for matrix and vector operations.
 - `amgcl::backend::crs_tuple<value_type>` ([amgcl/backend/crs_tuple.hpp][]).
   The `crs_tuple` backend is in fact not a usable backend. It only exists to
   facilitate construction of `amgcl::amg<>` instances from user matrices
@@ -424,6 +426,7 @@ partially supported by RFBR grants No 12-07-0007 and 12-01-00033._
 [amgcl/backend/eigen.hpp]:     amgcl/backend/eigen.hpp
 [amgcl/backend/vexcl.hpp]:     amgcl/backend/vexcl.hpp
 [amgcl/backend/viennacl.hpp]:  amgcl/backend/viennacl.hpp
+[amgcl/backend/cuda.hpp]:      amgcl/backend/cuda.hpp
 [amgcl/backend/crs_tuple.hpp]: amgcl/backend/crs_tuple.hpp
 
 [amgcl/coarsening/ruge_stuben.hpp]:          amgcl/coarsening/ruge_stuben.hpp
