@@ -116,14 +116,14 @@ struct row_begin_impl {
 
 /// Implementation for matrix-vector product.
 /** \note Used in spmv() */
-template <class Matrix, class Vector, class Enable = void>
+template <class Matrix, class Vector1, class Vector2, class Enable = void>
 struct spmv_impl {
     typedef typename Matrix::SPMV_NOT_IMPLEMENTED type;
 };
 
 /// Implementation for residual error compuatation.
 /** \note Used in residual() */
-template <class Matrix, class Vector, class Enable = void>
+template <class Matrix, class Vector1, class Vector2, class Vector3, class Enable = void>
 struct residual_impl {
     typedef typename Matrix::RESIDUAL_NOT_IMPLEMENTED type;
 };
@@ -137,16 +137,16 @@ struct clear_impl {
 
 /// Implementation for vector copy.
 /** \note Used in copy() */
-template <class Vector, class Enable = void>
+template <class Vector1, class Vector2, class Enable = void>
 struct copy_impl {
-    typedef typename Vector::COPY_NOT_IMPLEMENTED type;
+    typedef typename Vector1::COPY_NOT_IMPLEMENTED type;
 };
 
 /// Implementation for inner product.
 /** \note Used in inner_product() */
-template <class Vector, class Enable = void>
+template <class Vector1, class Vector2, class Enable = void>
 struct inner_product_impl {
-    typedef typename Vector::INNER_PRODUCT_NOT_IMPLEMENTED type;
+    typedef typename Vector1::INNER_PRODUCT_NOT_IMPLEMENTED type;
 };
 
 /// Implementation for vector norm.
@@ -159,29 +159,29 @@ template <class Vector, class Enable = void>
 struct norm_impl {
     static typename value_type<Vector>::type get(const Vector &x)
     {
-        return sqrt( inner_product_impl<Vector>::get(x, x) );
+        return sqrt( inner_product_impl<Vector, Vector>::get(x, x) );
     }
 };
 
 /// Implementation for linear combination of two vectors.
 /** \note Used in axpby() */
-template <class Vector, class Enable = void>
+template <class Vector1, class Vector2, class Enable = void>
 struct axpby_impl {
-    typedef typename Vector::AXPBY_NOT_IMPLEMENTED type;
+    typedef typename Vector1::AXPBY_NOT_IMPLEMENTED type;
 };
 
 /// Implementation for linear combination of three vectors.
 /** \note Used in axpbypcz() */
-template <class Vector, class Enable = void>
+template <class Vector1, class Vector2, class Vector3, class Enable = void>
 struct axpbypcz_impl {
-    typedef typename Vector::AXPBYPCZ_NOT_IMPLEMENTED type;
+    typedef typename Vector1::AXPBYPCZ_NOT_IMPLEMENTED type;
 };
 
 /// Implementation for element-wize vector product.
 /** \note Used in vmul() */
-template <class Vector, class Enable = void>
+template <class Vector1, class Vector2, class Vector3, class Enable = void>
 struct vmul_impl {
-    typedef typename Vector::VMUL_NOT_IMPLEMENTED type;
+    typedef typename Vector1::VMUL_NOT_IMPLEMENTED type;
 };
 
 /** @} */
@@ -215,21 +215,25 @@ row_begin(const Matrix &matrix, size_t row) {
 /**
  * \f[y = \alpha A x + \beta y.\f]
  */
-template <class Matrix, class Vector>
-void spmv(typename value_type<Matrix>::type alpha, const Matrix &A,
-        const Vector &x, typename value_type<Matrix>::type beta, Vector &y)
+template <class Matrix, class Vector1, class Vector2>
+void spmv(
+        typename value_type<Matrix>::type alpha,
+        const Matrix &A,
+        const Vector1 &x,
+        typename value_type<Matrix>::type beta,
+        Vector2 &y)
 {
-    spmv_impl<Matrix, Vector>::apply(alpha, A, x, beta, y);
+    spmv_impl<Matrix, Vector1, Vector2>::apply(alpha, A, x, beta, y);
 }
 
 /// Computes residual error.
 /**
  * \f[r = rhs - Ax.\f]
  */
-template <class Matrix, class Vector>
-void residual(const Vector &rhs, const Matrix &A, const Vector &x, Vector &r)
+template <class Matrix, class Vector1, class Vector2, class Vector3>
+void residual(const Vector1 &rhs, const Matrix &A, const Vector2 &x, Vector3 &r)
 {
-    residual_impl<Matrix, Vector>::apply(rhs, A, x, r);
+    residual_impl<Matrix, Vector1, Vector2, Vector3>::apply(rhs, A, x, r);
 }
 
 /// Zeros out a vector.
@@ -240,18 +244,18 @@ void clear(Vector &x)
 }
 
 /// Vector copy.
-template <class Vector>
-void copy(const Vector &x, Vector &y)
+template <class Vector1, class Vector2>
+void copy(const Vector1 &x, Vector2 &y)
 {
-    copy_impl<Vector>::apply(x, y);
+    copy_impl<Vector1, Vector2>::apply(x, y);
 }
 
 /// Computes inner product of two vectors.
-template <class Vector>
-typename value_type<Vector>::type
-inner_product(const Vector &x, const Vector &y)
+template <class Vector1, class Vector2>
+typename value_type<Vector1>::type
+inner_product(const Vector1 &x, const Vector2 &y)
 {
-    return inner_product_impl<Vector>::get(x, y);
+    return inner_product_impl<Vector1, Vector2>::get(x, y);
 }
 
 /// Returns norm of a vector.
@@ -265,41 +269,41 @@ typename value_type<Vector>::type norm(const Vector &x)
 /**
  * \f[y = ax + by.\f]
  */
-template <class Vector>
-void axpby(typename value_type<Vector>::type a, Vector const &x,
-           typename value_type<Vector>::type b, Vector       &y
+template <class Vector1, class Vector2>
+void axpby(typename value_type<Vector2>::type a, Vector1 const &x,
+           typename value_type<Vector2>::type b, Vector2       &y
            )
 {
-    axpby_impl<Vector>::apply(a, x, b, y);
+    axpby_impl<Vector1, Vector2>::apply(a, x, b, y);
 }
 
 /// Computes linear combination of three vectors.
 /**
  * \f[z = ax + by + cz.\f]
  */
-template <class Vector>
+template <class Vector1, class Vector2, class Vector3>
 void axpbypcz(
-        typename value_type<Vector>::type a, Vector const &x,
-        typename value_type<Vector>::type b, Vector const &y,
-        typename value_type<Vector>::type c, Vector       &z
+        typename value_type<Vector3>::type a, Vector1 const &x,
+        typename value_type<Vector3>::type b, Vector2 const &y,
+        typename value_type<Vector3>::type c, Vector3       &z
         )
 {
-    axpbypcz_impl<Vector>::apply(a, x, b, y, c, z);
+    axpbypcz_impl<Vector1, Vector2, Vector3>::apply(a, x, b, y, c, z);
 }
 
 /// Computes element-wize vector product.
 /**
  * \f[z = \alpha xy + \beta z.\f]
  */
-template <class Vector>
+template <class Vector1, class Vector2, class Vector3>
 void vmul(
-        typename value_type<Vector>::type alpha,
-        const Vector &x, const Vector &y,
-        typename value_type<Vector>::type beta,
-        Vector &z
+        typename value_type<Vector3>::type alpha,
+        const Vector1 &x, const Vector2 &y,
+        typename value_type<Vector3>::type beta,
+        Vector3 &z
         )
 {
-    vmul_impl<Vector>::apply(alpha, x, y, beta, z);
+    vmul_impl<Vector1, Vector2, Vector3>::apply(alpha, x, y, beta, z);
 }
 
 } // namespace backend

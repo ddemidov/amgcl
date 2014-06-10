@@ -38,6 +38,7 @@ THE SOFTWARE.
 #  include <omp.h>
 #endif
 
+#include <boost/type_traits.hpp>
 #include <boost/range.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
@@ -383,6 +384,12 @@ struct builtin {
     }
 };
 
+template <class T>
+struct is_builtin_vector : boost::false_type {};
+
+template <class V>
+struct is_builtin_vector< std::vector<V> > : boost::true_type {};
+
 //---------------------------------------------------------------------------
 // Specialization of backend interface
 //---------------------------------------------------------------------------
@@ -428,14 +435,12 @@ struct row_begin_impl< crs<V, C, P> > {
     }
 };
 
-template < typename V, typename C, typename P >
-struct spmv_impl< crs<V, C, P>, std::vector<V> >
+template < typename V, typename C, typename P, class Vec1, class Vec2 >
+struct spmv_impl< crs<V, C, P>, Vec1, Vec2 >
 {
-    typedef crs<V, C, P>   matrix;
-    typedef std::vector<V> vector;
+    typedef crs<V, C, P> matrix;
 
-    static void apply(V alpha, const matrix &A, const vector &x,
-            V beta, vector &y)
+    static void apply(V alpha, const matrix &A, const Vec1 &x, V beta, Vec2 &y)
     {
         const size_t n = rows(A);
         if (beta) {
@@ -458,14 +463,12 @@ struct spmv_impl< crs<V, C, P>, std::vector<V> >
     }
 };
 
-template < typename V, typename C, typename P >
-struct residual_impl< crs<V, C, P>, std::vector<V> >
+template < typename V, typename C, typename P, class Vec1, class Vec2, class Vec3 >
+struct residual_impl< crs<V, C, P>, Vec1, Vec2, Vec3 >
 {
-    typedef crs<V, C, P>   matrix;
-    typedef std::vector<V> vector;
+    typedef crs<V, C, P> matrix;
 
-    static void apply(const vector &rhs, const matrix &A, const vector &x,
-            vector &r)
+    static void apply(const Vec1 &rhs, const matrix &A, const Vec2 &x, Vec3 &r)
     {
         const size_t n = rows(A);
 #pragma omp parallel for
@@ -478,10 +481,13 @@ struct residual_impl< crs<V, C, P>, std::vector<V> >
     }
 };
 
-template < typename V >
-struct clear_impl< std::vector<V> >
+template < class Vec >
+struct clear_impl<
+    Vec,
+    typename boost::enable_if< typename is_builtin_vector<Vec>::type >::type
+    >
 {
-    static void apply(std::vector<V> &x)
+    static void apply(Vec &x)
     {
         const size_t n = x.size();
 #pragma omp parallel for
@@ -491,10 +497,20 @@ struct clear_impl< std::vector<V> >
     }
 };
 
-template < typename V >
-struct inner_product_impl< std::vector<V> >
+template < class Vec1, class Vec2 >
+struct inner_product_impl<
+    Vec1, Vec2,
+    typename boost::enable_if<
+            typename boost::mpl::and_<
+                typename is_builtin_vector<Vec1>::type,
+                typename is_builtin_vector<Vec2>::type
+                >::type
+        >::type
+    >
 {
-    static V get(const std::vector<V> &x, const std::vector<V> &y)
+    typedef typename value_type<Vec1>::type V;
+
+    static V get(const Vec1 &x, const Vec2 &y)
     {
         const size_t n = x.size();
         V sum = 0;
@@ -508,9 +524,20 @@ struct inner_product_impl< std::vector<V> >
     }
 };
 
-template < typename V >
-struct axpby_impl< std::vector<V> > {
-    static void apply(V a, const std::vector<V> &x, V b, std::vector<V> &y)
+template < class Vec1, class Vec2 >
+struct axpby_impl<
+    Vec1, Vec2,
+    typename boost::enable_if<
+            typename boost::mpl::and_<
+                typename is_builtin_vector<Vec1>::type,
+                typename is_builtin_vector<Vec2>::type
+                >::type
+        >::type
+    >
+{
+    typedef typename value_type<Vec2>::type V;
+
+    static void apply(V a, const Vec1 &x, V b, Vec2 &y)
     {
         const size_t n = x.size();
         if (b) {
@@ -527,13 +554,21 @@ struct axpby_impl< std::vector<V> > {
     }
 };
 
-template < typename V >
-struct axpbypcz_impl< std::vector<V> > {
-    static void apply(
-            V a, const std::vector<V> &x,
-            V b, const std::vector<V> &y,
-            V c,       std::vector<V> &z
-            )
+template < class Vec1, class Vec2, class Vec3 >
+struct axpbypcz_impl<
+    Vec1, Vec2, Vec3,
+    typename boost::enable_if<
+            typename boost::mpl::and_<
+                typename is_builtin_vector<Vec1>::type,
+                typename is_builtin_vector<Vec2>::type,
+                typename is_builtin_vector<Vec3>::type
+                >::type
+        >::type
+    >
+{
+    typedef typename value_type<Vec3>::type V;
+
+    static void apply(V a, const Vec1 &x, V b, const Vec2 &y, V c, Vec3 &z)
     {
         const size_t n = x.size();
         if (c) {
@@ -550,10 +585,21 @@ struct axpbypcz_impl< std::vector<V> > {
     }
 };
 
-template < typename V >
-struct vmul_impl< std::vector<V> > {
-    static void apply(V a, const std::vector<V> &x, const std::vector<V> &y,
-            V b, std::vector<V> &z)
+template < class Vec1, class Vec2, class Vec3 >
+struct vmul_impl<
+    Vec1, Vec2, Vec3,
+    typename boost::enable_if<
+            typename boost::mpl::and_<
+                typename is_builtin_vector<Vec1>::type,
+                typename is_builtin_vector<Vec2>::type,
+                typename is_builtin_vector<Vec3>::type
+                >::type
+        >::type
+    >
+{
+    typedef typename value_type<Vec3>::type V;
+
+    static void apply(V a, const Vec1 &x, const Vec2 &y, V b, Vec3 &z)
     {
         const size_t n = x.size();
         if (b) {
@@ -570,9 +616,18 @@ struct vmul_impl< std::vector<V> > {
     }
 };
 
-template < typename V >
-struct copy_impl< std::vector<V> > {
-    static void apply(const std::vector<V> &x, std::vector<V> &y)
+template < class Vec1, class Vec2 >
+struct copy_impl<
+    Vec1, Vec2,
+    typename boost::enable_if<
+            typename boost::mpl::and_<
+                typename is_builtin_vector<Vec1>::type,
+                typename is_builtin_vector<Vec2>::type
+                >::type
+        >::type
+    >
+{
+    static void apply(const Vec1 &x, Vec2 &y)
     {
         const size_t n = x.size();
 #pragma omp parallel for

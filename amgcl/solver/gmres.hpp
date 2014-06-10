@@ -103,12 +103,12 @@ class gmres {
          * reasonably good preconditioner for several subsequent time steps
          * \cite Demidov2012.
          */
-        template <class Matrix, class Precond>
+        template <class Matrix, class Precond, class Vec1, class Vec2>
         boost::tuple<size_t, value_type> operator()(
                 Matrix  const &A,
                 Precond const &P,
-                vector  const &rhs,
-                vector        &x
+                Vec1    const &rhs,
+                Vec2          &x
                 )
         {
             size_t     iter = 0;
@@ -138,11 +138,11 @@ class gmres {
          * \param rhs Right-hand side.
          * \param x   Solution vector.
          */
-        template <class Precond>
+        template <class Precond, class Vec1, class Vec2>
         boost::tuple<size_t, value_type> operator()(
                 Precond const &P,
-                vector  const &rhs,
-                vector        &x
+                Vec1    const &rhs,
+                Vec2          &x
                 )
         {
             return (*this)(P.top_matrix(), P, rhs, x);
@@ -182,7 +182,8 @@ class gmres {
             }
         }
 
-        void update(vector &x, int k) {
+        template <class Vec>
+        void update(Vec &x, int k) {
             boost::range::copy(s, y.begin());
 
             for (int i = k; i >= 0; --i) {
@@ -199,9 +200,9 @@ class gmres {
                 backend::axpby(y[j], *v[j], 1, x);
         }
 
-        template <class Matrix, class Precond>
-        value_type restart(const Matrix &A, const vector &rhs,
-                const Precond &P, const vector &x)
+        template <class Matrix, class Precond, class Vec1, class Vec2>
+        value_type restart(const Matrix &A, const Vec1 &rhs,
+                const Precond &P, const Vec2 &x)
         {
             backend::residual(rhs, A, x, *w);
             P(*w, *r);

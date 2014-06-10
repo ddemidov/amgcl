@@ -222,14 +222,13 @@ struct nonzeros_impl< bcrs<V, C, P> > {
     }
 };
 
-template < typename V, typename C, typename P >
-struct spmv_impl< bcrs<V, C, P>, std::vector<V> >
+template < typename V, typename C, typename P, class Vec1, class Vec2 >
+struct spmv_impl< bcrs<V, C, P>, Vec1, Vec2 >
 {
     typedef bcrs<V, C, P>  matrix;
-    typedef std::vector<V> vector;
 
-    static void apply(V alpha, const matrix &A, const vector &x,
-            V beta, vector &y)
+    static void apply(V alpha, const matrix &A, const Vec1 &x,
+            V beta, Vec2 &y)
     {
         const size_t nb  = A.brows;
         const size_t na  = A.nrows;
@@ -273,14 +272,12 @@ struct spmv_impl< bcrs<V, C, P>, std::vector<V> >
     }
 };
 
-template < typename V, typename C, typename P >
-struct residual_impl< bcrs<V, C, P>, std::vector<V> >
+template < typename V, typename C, typename P, class Vec1, class Vec2, class Vec3 >
+struct residual_impl< bcrs<V, C, P>, Vec1, Vec2, Vec3 >
 {
     typedef bcrs<V, C, P>  matrix;
-    typedef std::vector<V> vector;
 
-    static void apply(const vector &rhs, const matrix &A, const vector &x,
-            vector &r)
+    static void apply(const Vec1 &rhs, const matrix &A, const Vec2 &x, Vec3 &r)
     {
         copy(rhs, r);
         spmv(-1, A, x, 1, r);

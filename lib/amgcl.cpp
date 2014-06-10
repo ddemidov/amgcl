@@ -1,5 +1,7 @@
 #include <iostream>
 
+#include <boost/type_traits.hpp>
+
 #include <amgcl/amgcl.hpp>
 
 #include <amgcl/backend/builtin.hpp>
@@ -23,6 +25,42 @@
 #include <amgcl/solver/gmres.hpp>
 
 #include "amgcl.h"
+
+template <typename V>
+struct pointer_wrapper {
+    typedef V value_type;
+
+    size_t n;
+    V *ptr;
+
+    pointer_wrapper(size_t n, const V *ptr)
+        : n(n), ptr(const_cast<V*>(ptr)) {}
+
+    size_t size() const {
+        return n;
+    }
+
+    const V& operator[](size_t i) const {
+        return ptr[i];
+    }
+
+    V& operator[](size_t i) {
+        return ptr[i];
+    }
+
+};
+
+template <typename V>
+pointer_wrapper<V> wrap(size_t n, V *ptr) {
+    return pointer_wrapper<V>(n, ptr);
+}
+
+namespace amgcl {
+    namespace backend {
+        template <typename V>
+        struct is_builtin_vector< pointer_wrapper<V> > : boost::true_type {};
+    }
+}
 
 //---------------------------------------------------------------------------
 template <
@@ -228,28 +266,26 @@ void amgcl_destroy(amgclHandle handle) {
 struct do_solve {
     void *handle;
     amgclSolver solver;
-    const double *rhs_ptr;
-    double *x_ptr;
+    const double *rhs;
+    double *x;
 
     do_solve(void *handle, amgclSolver solver,
-        const double *rhs_ptr, double *x_ptr
-        ) : handle(handle), solver(solver), rhs_ptr(rhs_ptr), x_ptr(x_ptr)
+        const double *rhs, double *x
+        ) : handle(handle), solver(solver), rhs(rhs), x(x)
     {}
 
     template <class Solver, class AMG>
     void solve(const AMG &amg) const {
-        // TODO: avoid copying rhs and x
         const size_t n = amgcl::backend::rows( amg.top_matrix() );
-
-        std::vector<double> rhs(rhs_ptr, rhs_ptr + n);
-        std::vector<double> x  (x_ptr,   x_ptr   + n);
 
         Solver s(n);
         size_t iters;
         double resid;
 
-        boost::tie(iters, resid) = s(amg, rhs, x);
-        std::copy(x.begin(), x.end(), x_ptr);
+        pointer_wrapper<double> w_rhs(n, rhs);
+        pointer_wrapper<double> w_x  (n, x);
+
+        boost::tie(iters, resid) = s(amg, w_rhs, w_x);
 
         std::cout
             << "Iterations: " << iters << std::endl

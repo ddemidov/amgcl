@@ -119,7 +119,11 @@ struct nonzeros_impl< vex::SpMat<V, C, P> > {
 };
 
 template < typename V, typename C, typename P >
-struct spmv_impl< vex::SpMat<V, C, P>, vex::vector<V> >
+struct spmv_impl<
+    vex::SpMat<V, C, P>,
+    vex::vector<V>,
+    vex::vector<V>
+    >
 {
     typedef vex::SpMat<V, C, P> matrix;
     typedef vex::vector<V>      vector;
@@ -135,7 +139,12 @@ struct spmv_impl< vex::SpMat<V, C, P>, vex::vector<V> >
 };
 
 template < typename V, typename C, typename P >
-struct residual_impl< vex::SpMat<V, C, P>, vex::vector<V> >
+struct residual_impl<
+    vex::SpMat<V, C, P>,
+    vex::vector<V>,
+    vex::vector<V>,
+    vex::vector<V>
+    >
 {
     typedef vex::SpMat<V, C, P> matrix;
     typedef vex::vector<V>      vector;
@@ -157,7 +166,11 @@ struct clear_impl< vex::vector<V> >
 };
 
 template < typename V >
-struct copy_impl< vex::vector<V> > {
+struct copy_impl<
+    vex::vector<V>,
+    vex::vector<V>
+    >
+{
     static void apply(const vex::vector<V> &x, vex::vector<V> &y)
     {
         y = x;
@@ -165,7 +178,10 @@ struct copy_impl< vex::vector<V> > {
 };
 
 template < typename V >
-struct inner_product_impl< vex::vector<V> >
+struct inner_product_impl<
+    vex::vector<V>,
+    vex::vector<V>
+    >
 {
     static V get(const vex::vector<V> &x, const vex::vector<V> &y)
     {
@@ -175,7 +191,10 @@ struct inner_product_impl< vex::vector<V> >
 };
 
 template < typename V >
-struct axpby_impl< vex::vector<V> > {
+struct axpby_impl<
+    vex::vector<V>,
+    vex::vector<V>
+    > {
     static void apply(V a, const vex::vector<V> &x, V b, vex::vector<V> &y)
     {
         if (b)
@@ -186,7 +205,12 @@ struct axpby_impl< vex::vector<V> > {
 };
 
 template < typename V >
-struct axpbypcz_impl< vex::vector<V> > {
+struct axpbypcz_impl<
+    vex::vector<V>,
+    vex::vector<V>,
+    vex::vector<V>
+    >
+{
     static void apply(
             V a, const vex::vector<V> &x,
             V b, const vex::vector<V> &y,
@@ -201,7 +225,12 @@ struct axpbypcz_impl< vex::vector<V> > {
 };
 
 template < typename V >
-struct vmul_impl< vex::vector<V> > {
+struct vmul_impl<
+    vex::vector<V>,
+    vex::vector<V>,
+    vex::vector<V>
+    >
+{
     static void apply(V a, const vex::vector<V> &x, const vex::vector<V> &y,
             V b, vex::vector<V> &z)
     {

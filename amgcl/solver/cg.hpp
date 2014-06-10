@@ -108,12 +108,12 @@ class cg {
          * reasonably good preconditioner for several subsequent time steps
          * \cite Demidov2012.
          */
-        template <class Matrix, class Precond>
+        template <class Matrix, class Precond, class Vec1, class Vec2>
         boost::tuple<size_t, value_type> operator()(
                 Matrix  const &A,
                 Precond const &P,
-                vector  const &rhs,
-                vector        &x
+                Vec1    const &rhs,
+                Vec2          &x
                 ) const
         {
             backend::residual(rhs, A, x, *r);
@@ -158,11 +158,11 @@ class cg {
          * \param rhs Right-hand side.
          * \param x   Solution vector.
          */
-        template <class Precond>
+        template <class Precond, class Vec1, class Vec2>
         boost::tuple<size_t, value_type> operator()(
                 Precond const &P,
-                vector  const &rhs,
-                vector        &x
+                Vec1    const &rhs,
+                Vec2          &x
                 ) const
         {
             return (*this)(P.top_matrix(), P, rhs, x);

@@ -155,7 +155,11 @@ struct nonzeros_impl< ::blaze::CompressedMatrix<V> > {
 };
 
 template < typename V >
-struct spmv_impl< ::blaze::CompressedMatrix<V>, ::blaze::DynamicVector<V> >
+struct spmv_impl<
+    ::blaze::CompressedMatrix<V>,
+    ::blaze::DynamicVector<V>,
+    ::blaze::DynamicVector<V>
+    >
 {
     typedef ::blaze::CompressedMatrix<V> matrix;
     typedef ::blaze::DynamicVector<V>    vector;
@@ -171,7 +175,12 @@ struct spmv_impl< ::blaze::CompressedMatrix<V>, ::blaze::DynamicVector<V> >
 };
 
 template < typename V >
-struct residual_impl< ::blaze::CompressedMatrix<V>, ::blaze::DynamicVector<V> >
+struct residual_impl<
+    ::blaze::CompressedMatrix<V>,
+    ::blaze::DynamicVector<V>,
+    ::blaze::DynamicVector<V>,
+    ::blaze::DynamicVector<V>
+    >
 {
     typedef ::blaze::CompressedMatrix<V> matrix;
     typedef ::blaze::DynamicVector<V>    vector;
@@ -195,7 +204,11 @@ struct clear_impl< ::blaze::DynamicVector<V> >
 };
 
 template < typename V >
-struct copy_impl< ::blaze::DynamicVector<V> > {
+struct copy_impl<
+    ::blaze::DynamicVector<V>,
+    ::blaze::DynamicVector<V>
+    >
+{
     typedef ::blaze::DynamicVector<V> vector;
 
     static void apply(const vector &x, vector &y)
@@ -205,7 +218,11 @@ struct copy_impl< ::blaze::DynamicVector<V> > {
 };
 
 template < typename V >
-struct inner_product_impl< ::blaze::DynamicVector<V> > {
+struct inner_product_impl<
+    ::blaze::DynamicVector<V>,
+    ::blaze::DynamicVector<V>
+    >
+{
     typedef ::blaze::DynamicVector<V> vector;
 
     static V get(const vector &x, const vector &y)
@@ -215,7 +232,11 @@ struct inner_product_impl< ::blaze::DynamicVector<V> > {
 };
 
 template < typename V >
-struct axpby_impl< ::blaze::DynamicVector<V> > {
+struct axpby_impl<
+    ::blaze::DynamicVector<V>,
+    ::blaze::DynamicVector<V>
+    >
+{
     typedef ::blaze::DynamicVector<V> vector;
 
     static void apply(V a, const vector &x, V b, vector &y)
@@ -228,7 +249,12 @@ struct axpby_impl< ::blaze::DynamicVector<V> > {
 };
 
 template < typename V >
-struct axpbypcz_impl< ::blaze::DynamicVector<V> > {
+struct axpbypcz_impl<
+    ::blaze::DynamicVector<V>,
+    ::blaze::DynamicVector<V>,
+    ::blaze::DynamicVector<V>
+    >
+{
     typedef ::blaze::DynamicVector<V> vector;
 
     static void apply(
@@ -245,7 +271,12 @@ struct axpbypcz_impl< ::blaze::DynamicVector<V> > {
 };
 
 template < typename V >
-struct vmul_impl< ::blaze::DynamicVector<V> > {
+struct vmul_impl<
+    ::blaze::DynamicVector<V>,
+    ::blaze::DynamicVector<V>,
+    ::blaze::DynamicVector<V>
+    >
+{
     typedef ::blaze::DynamicVector<V> vector;
 
     static void apply(V a, const vector &x, const vector &y,

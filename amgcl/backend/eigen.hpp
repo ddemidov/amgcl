@@ -211,8 +211,7 @@ struct row_begin_impl <
 
 template < class M, class V >
 struct spmv_impl<
-    M,
-    V,
+    M, V, V,
     typename boost::enable_if<
             typename boost::mpl::and_<
                 typename is_eigen_sparse_matrix<M>::type,
@@ -234,8 +233,7 @@ struct spmv_impl<
 
 template < class M, class V >
 struct residual_impl<
-    M,
-    V,
+    M, V, V, V,
     typename boost::enable_if<
             typename boost::mpl::and_<
                 typename is_eigen_sparse_matrix<M>::type,
@@ -264,7 +262,7 @@ struct clear_impl<
 
 template < typename V >
 struct inner_product_impl<
-    V,
+    V, V,
     typename boost::enable_if< typename is_eigen_type<V>::type >::type
     >
 {
@@ -277,7 +275,7 @@ struct inner_product_impl<
 
 template < typename V >
 struct axpby_impl<
-    V,
+    V, V,
     typename boost::enable_if< typename is_eigen_type<V>::type >::type
     >
 {
@@ -294,7 +292,7 @@ struct axpby_impl<
 
 template < typename V >
 struct axpbypcz_impl<
-    V,
+    V, V, V,
     typename boost::enable_if< typename is_eigen_type<V>::type >::type
     >
 {
@@ -315,7 +313,7 @@ struct axpbypcz_impl<
 
 template < typename V >
 struct vmul_impl<
-    V,
+    V, V, V,
     typename boost::enable_if< typename is_eigen_type<V>::type >::type
     >
 {
@@ -332,7 +330,7 @@ struct vmul_impl<
 
 template < typename V >
 struct copy_impl<
-    V,
+    V, V,
     typename boost::enable_if< typename is_eigen_type<V>::type >::type
     >
 {

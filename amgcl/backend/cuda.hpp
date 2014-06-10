@@ -271,7 +271,11 @@ struct nonzeros_impl< cuda_hyb_matrix<V> > {
 };
 
 template < typename V >
-struct spmv_impl< cuda_hyb_matrix<V>, thrust::device_vector<V> >
+struct spmv_impl<
+    cuda_hyb_matrix<V>,
+    thrust::device_vector<V>,
+    thrust::device_vector<V>
+    >
 {
     typedef cuda_hyb_matrix<V> matrix;
     typedef thrust::device_vector<V> vector;
@@ -284,7 +288,12 @@ struct spmv_impl< cuda_hyb_matrix<V>, thrust::device_vector<V> >
 };
 
 template < typename V >
-struct residual_impl< cuda_hyb_matrix<V>, thrust::device_vector<V> >
+struct residual_impl<
+    cuda_hyb_matrix<V>,
+    thrust::device_vector<V>,
+    thrust::device_vector<V>,
+    thrust::device_vector<V>
+    >
 {
     typedef cuda_hyb_matrix<V> matrix;
     typedef thrust::device_vector<V> vector;
@@ -309,7 +318,11 @@ struct clear_impl< thrust::device_vector<V> >
 };
 
 template < typename V >
-struct copy_impl< thrust::device_vector<V> > {
+struct copy_impl<
+    thrust::device_vector<V>,
+    thrust::device_vector<V>
+    >
+{
     typedef thrust::device_vector<V> vector;
 
     static void apply(const vector &x, vector &y)
@@ -319,7 +332,10 @@ struct copy_impl< thrust::device_vector<V> > {
 };
 
 template < typename V >
-struct inner_product_impl< thrust::device_vector<V> >
+struct inner_product_impl<
+    thrust::device_vector<V>,
+    thrust::device_vector<V>
+    >
 {
     typedef thrust::device_vector<V> vector;
 
@@ -330,7 +346,11 @@ struct inner_product_impl< thrust::device_vector<V> >
 };
 
 template < typename V >
-struct axpby_impl< thrust::device_vector<V> > {
+struct axpby_impl<
+    thrust::device_vector<V>,
+    thrust::device_vector<V>
+    >
+{
     typedef thrust::device_vector<V> vector;
 
     struct functor {
@@ -367,7 +387,12 @@ struct axpby_impl< thrust::device_vector<V> > {
 };
 
 template < typename V >
-struct axpbypcz_impl< thrust::device_vector<V> > {
+struct axpbypcz_impl<
+    thrust::device_vector<V>,
+    thrust::device_vector<V>,
+    thrust::device_vector<V>
+    >
+{
     typedef thrust::device_vector<V> vector;
 
     struct functor {
@@ -408,7 +433,12 @@ struct axpbypcz_impl< thrust::device_vector<V> > {
 };
 
 template < typename V >
-struct vmul_impl< thrust::device_vector<V> > {
+struct vmul_impl<
+    thrust::device_vector<V>,
+    thrust::device_vector<V>,
+    thrust::device_vector<V>
+    >
+{
     typedef thrust::device_vector<V> vector;
 
     struct functor {

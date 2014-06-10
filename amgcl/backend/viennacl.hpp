@@ -292,7 +292,7 @@ struct nonzeros_impl< viennacl::hyb_matrix<V> > {
 
 template <class Mtx, class Vec>
 struct spmv_impl<
-    Mtx, Vec,
+    Mtx, Vec, Vec,
     typename boost::enable_if< typename is_viennacl_matrix<Mtx>::type >::type
     >
 {
@@ -309,7 +309,7 @@ struct spmv_impl<
 
 template <class Mtx, class Vec>
 struct residual_impl<
-    Mtx, Vec,
+    Mtx, Vec, Vec, Vec,
     typename boost::enable_if< typename is_viennacl_matrix<Mtx>::type >::type
     >
 {
@@ -332,7 +332,10 @@ struct clear_impl< ::viennacl::vector<V> >
 };
 
 template < typename V >
-struct inner_product_impl< ::viennacl::vector<V> >
+struct inner_product_impl<
+    ::viennacl::vector<V>,
+    ::viennacl::vector<V>
+    >
 {
     static V get(const ::viennacl::vector<V> &x, const ::viennacl::vector<V> &y)
     {
@@ -341,7 +344,11 @@ struct inner_product_impl< ::viennacl::vector<V> >
 };
 
 template < typename V >
-struct axpby_impl< ::viennacl::vector<V> > {
+struct axpby_impl<
+    ::viennacl::vector<V>,
+    ::viennacl::vector<V>
+    >
+{
     static void apply(
             V a, const ::viennacl::vector<V> &x,
             V b, ::viennacl::vector<V> &y
@@ -355,7 +362,12 @@ struct axpby_impl< ::viennacl::vector<V> > {
 };
 
 template < typename V >
-struct axpbypcz_impl< ::viennacl::vector<V> > {
+struct axpbypcz_impl<
+    ::viennacl::vector<V>,
+    ::viennacl::vector<V>,
+    ::viennacl::vector<V>
+    >
+{
     static void apply(
             V a, const ::viennacl::vector<V> &x,
             V b, const ::viennacl::vector<V> &y,
@@ -370,7 +382,12 @@ struct axpbypcz_impl< ::viennacl::vector<V> > {
 };
 
 template < typename V >
-struct vmul_impl< ::viennacl::vector<V> > {
+struct vmul_impl<
+    ::viennacl::vector<V>,
+    ::viennacl::vector<V>,
+    ::viennacl::vector<V>
+    >
+{
     static void apply(
             V a, const ::viennacl::vector<V> &x, const ::viennacl::vector<V> &y,
             V b, ::viennacl::vector<V> &z)
@@ -383,7 +400,11 @@ struct vmul_impl< ::viennacl::vector<V> > {
 };
 
 template < typename V >
-struct copy_impl< ::viennacl::vector<V> > {
+struct copy_impl<
+    ::viennacl::vector<V>,
+    ::viennacl::vector<V>
+    >
+{
     static void apply(const ::viennacl::vector<V> &x, ::viennacl::vector<V> &y)
     {
         y = x;
