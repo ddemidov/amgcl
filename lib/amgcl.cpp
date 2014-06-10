@@ -26,42 +26,6 @@
 
 #include "amgcl.h"
 
-template <typename V>
-struct pointer_wrapper {
-    typedef V value_type;
-
-    size_t n;
-    V *ptr;
-
-    pointer_wrapper(size_t n, const V *ptr)
-        : n(n), ptr(const_cast<V*>(ptr)) {}
-
-    size_t size() const {
-        return n;
-    }
-
-    const V& operator[](size_t i) const {
-        return ptr[i];
-    }
-
-    V& operator[](size_t i) {
-        return ptr[i];
-    }
-
-};
-
-template <typename V>
-pointer_wrapper<V> wrap(size_t n, V *ptr) {
-    return pointer_wrapper<V>(n, ptr);
-}
-
-namespace amgcl {
-    namespace backend {
-        template <typename V>
-        struct is_builtin_vector< pointer_wrapper<V> > : boost::true_type {};
-    }
-}
-
 //---------------------------------------------------------------------------
 template <
     class Backend,
@@ -282,10 +246,10 @@ struct do_solve {
         size_t iters;
         double resid;
 
-        pointer_wrapper<double> w_rhs(n, rhs);
-        pointer_wrapper<double> w_x  (n, x);
+        boost::iterator_range<const double*> rhs_range(rhs, rhs + n);
+        boost::iterator_range<double*> x_range(x, x + n);
 
-        boost::tie(iters, resid) = s(amg, w_rhs, w_x);
+        boost::tie(iters, resid) = s(amg, rhs_range, x_range);
 
         std::cout
             << "Iterations: " << iters << std::endl

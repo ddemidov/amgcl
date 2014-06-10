@@ -39,9 +39,9 @@ THE SOFTWARE.
 #endif
 
 #include <boost/type_traits.hpp>
-#include <boost/range.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
+#include <boost/range/iterator_range.hpp>
 #include <boost/range/algorithm.hpp>
 #include <boost/range/numeric.hpp>
 
@@ -389,6 +389,9 @@ struct is_builtin_vector : boost::false_type {};
 
 template <class V>
 struct is_builtin_vector< std::vector<V> > : boost::true_type {};
+
+template <class Iterator>
+struct is_builtin_vector< boost::iterator_range<Iterator> > : boost::true_type {};
 
 //---------------------------------------------------------------------------
 // Specialization of backend interface

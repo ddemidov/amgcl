@@ -244,7 +244,7 @@ struct spmv_impl< bcrs<V, C, P>, Vec1, Vec2 >
                 }
             }
         } else {
-            clear(y);
+            backend::clear(y);
         }
 
 #pragma omp parallel for
@@ -279,8 +279,8 @@ struct residual_impl< bcrs<V, C, P>, Vec1, Vec2, Vec3 >
 
     static void apply(const Vec1 &rhs, const matrix &A, const Vec2 &x, Vec3 &r)
     {
-        copy(rhs, r);
-        spmv(-1, A, x, 1, r);
+        backend::copy(rhs, r);
+        backend::spmv(-1, A, x, 1, r);
     }
 };
 
