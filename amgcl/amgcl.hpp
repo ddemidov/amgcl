@@ -315,6 +315,80 @@ class amg {
     }
 };
 
+/// Convenience class that creates a pair of AMG preconditioner and iterative solver
+template <
+    class Backend,
+    class Coarsening,
+    template <class> class Relax,
+    template <class> class IterativeSolver
+    >
+class make_solver {
+    public:
+        typedef typename Backend::value_type value_type;
+
+        typedef amg<Backend, Coarsening, Relax> AMG;
+        typedef IterativeSolver<Backend>        Solver;
+
+        typedef typename AMG::params    AMG_params;
+        typedef typename Solver::params Solver_params;
+
+        /// Constructs the AMG hierarchy and creates iterative solver.
+        template <class Matrix>
+        make_solver(
+                const Matrix &A,
+                const AMG_params &amg_params = AMG_params(),
+                const Solver_params &solver_params = Solver_params()
+                )
+            : P(A, amg_params),
+              solver(backend::rows(A), solver_params, amg_params.backend)
+        {}
+
+        /// Solves the linear system for the given system matrix.
+        /**
+         * \param A   System matrix.
+         * \param rhs Right-hand side.
+         * \param x   Solution vector.
+         *
+         * The system matrix may differ from the matrix used for the AMG
+         * preconditioner construction. This may be used for the solution of
+         * non-stationary problems with slowly changing coefficients. There is
+         * a strong chance that AMG built for one time step will act as a
+         * reasonably good preconditioner for several subsequent time steps
+         * \cite Demidov2012.
+         */
+        template <class Matrix, class Vec1, class Vec2>
+        boost::tuple<size_t, value_type> operator()(
+                Matrix  const &A,
+                Vec1    const &rhs,
+                Vec2          &x
+                ) const
+        {
+            return solver(A, P, rhs, x);
+        }
+
+        /// Solves the linear system for the given right-hand side.
+        /**
+         * \param rhs Right-hand side.
+         * \param x   Solution vector.
+         */
+        template <class Vec1, class Vec2>
+        boost::tuple<size_t, value_type> operator()(
+                Vec1    const &rhs,
+                Vec2          &x
+                ) const
+        {
+            return solver(P, rhs, x);
+        }
+
+    private:
+        AMG    P;
+        Solver solver;
+
+        friend std::ostream& operator<<(std::ostream &os, const make_solver &s) {
+            return os << s.P;
+        }
+};
+
 } // namespace amgcl
 
 #endif

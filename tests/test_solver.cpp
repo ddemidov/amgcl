@@ -6,6 +6,7 @@
 #include <amgcl/amgcl.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/backend/block_crs.hpp>
+#include <amgcl/backend/crs_tuple.hpp>
 
 #ifdef AMGCL_HAVE_EIGEN
 #include <amgcl/backend/eigen.hpp>
@@ -85,24 +86,29 @@ void test_solver(const typename Backend::params &prm = typename Backend::params(
     typedef typename Backend::value_type value_type;
     typedef typename Backend::vector     vector;
 
-    amgcl::backend::crs<value_type, int> A;
+    std::vector<int>        ptr;
+    std::vector<int>        col;
+    std::vector<value_type> val;
     std::vector<value_type> rhs;
 
-    size_t n = A.nrows = A.ncols = sample_problem(20, A.val, A.col, A.ptr, rhs);
+    size_t n = sample_problem(20, val, col, ptr, rhs);
 
-    amgcl::amg<Backend, Coarsening, Relax> amg(A);
-    std::cout << amg << std::endl;
+    typedef amgcl::make_solver<Backend, Coarsening, Relax, Solver> AMG;
+    typename AMG::AMG_params amg_params;
+    amg_params.backend = prm;
+
+    AMG solve(boost::tie(n, n, val, col, ptr), amg_params);
+
+    std::cout << solve << std::endl;
 
     boost::shared_ptr<vector> y = Backend::copy_vector(rhs, prm);
     boost::shared_ptr<vector> x = Backend::create_vector(n, prm);
 
     amgcl::backend::clear(*x);
 
-    Solver<Backend> solve(n, typename Solver<Backend>::params(), prm);
-
     size_t iters;
     double resid;
-    boost::tie(iters, resid) = solve(amg, *y, *x);
+    boost::tie(iters, resid) = solve(*y, *x);
 
     std::cout << "Iterations: " << iters << std::endl
               << "Error:      " << resid << std::endl

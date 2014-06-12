@@ -109,7 +109,7 @@ class gmres {
                 Precond const &P,
                 Vec1    const &rhs,
                 Vec2          &x
-                )
+                ) const
         {
             size_t     iter = 0;
             value_type res;
@@ -143,15 +143,15 @@ class gmres {
                 Precond const &P,
                 Vec1    const &rhs,
                 Vec2          &x
-                )
+                ) const
         {
             return (*this)(P.top_matrix(), P, rhs, x);
         }
     private:
         params prm;
 
-        boost::multi_array<value_type, 2> H;
-        std::vector<value_type> s, cs, sn, y;
+        mutable boost::multi_array<value_type, 2> H;
+        mutable std::vector<value_type> s, cs, sn, y;
         boost::shared_ptr<vector> r, w;
         std::vector< boost::shared_ptr<vector> > v;
 
@@ -183,7 +183,7 @@ class gmres {
         }
 
         template <class Vec>
-        void update(Vec &x, int k) {
+        void update(Vec &x, int k) const {
             boost::range::copy(s, y.begin());
 
             for (int i = k; i >= 0; --i) {
@@ -202,7 +202,7 @@ class gmres {
 
         template <class Matrix, class Precond, class Vec1, class Vec2>
         value_type restart(const Matrix &A, const Vec1 &rhs,
-                const Precond &P, const Vec2 &x)
+                const Precond &P, const Vec2 &x) const
         {
             backend::residual(rhs, A, x, *w);
             P(*w, *r);
@@ -216,7 +216,7 @@ class gmres {
         }
 
         template <class Matrix, class Precond>
-        value_type iteration(const Matrix &A, const Precond &P, int i)
+        value_type iteration(const Matrix &A, const Precond &P, int i) const
         {
             backend::spmv(1, A, *v[i], 0, *r);
             P(*r, *w);
