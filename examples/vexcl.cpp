@@ -1,8 +1,7 @@
 #include <iostream>
 
 #include <amgcl/amgcl.hpp>
-
-#include <amgcl/backend/builtin.hpp>
+#include <amgcl/backend/vexcl.hpp>
 #include <amgcl/coarsening/plain_aggregates.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
 #include <amgcl/relaxation/spai0.hpp>
@@ -11,14 +10,13 @@
 
 #include "sample_problem.hpp"
 
-namespace amgcl {
-    profiler<> prof("v2");
-}
+int main(int argc, char *argv[]) {
+    amgcl::profiler<> prof;
 
-int main() {
-    using amgcl::prof;
+    vex::Context ctx( vex::Filter::Env );
+    std::cout << ctx << std::endl;
 
-    typedef amgcl::backend::builtin<double> Backend;
+    typedef amgcl::backend::vexcl<double> Backend;
 
     typedef amgcl::amg<
         Backend,
@@ -32,28 +30,35 @@ int main() {
     std::vector<double> rhs;
 
     prof.tic("assemble");
-    int n = A.nrows = A.ncols = sample_problem(128, A.val, A.col, A.ptr, rhs);
+    int m = argc > 1 ? std::stoi(argv[1]) : 128;
+    int n = A.nrows = A.ncols = sample_problem(m, A.val, A.col, A.ptr, rhs);
     prof.toc("assemble");
 
     prof.tic("build");
-    AMG amg(A);
+    AMG::params prm;
+    prm.backend.q = ctx;
+
+    AMG amg(A, prm);
     prof.toc("build");
 
     std::cout << amg << std::endl;
 
-    std::vector<double> x(n, 0);
+    vex::vector<double> f(ctx, rhs);
+    vex::vector<double> x(ctx, n);
+    x = 0;
 
-    amgcl::solver::bicgstab<Backend> solve(n);
+    typedef amgcl::solver::bicgstab<Backend> Solver;
+    Solver solve(n, Solver::params(), prm.backend);
 
     prof.tic("solve");
     size_t iters;
     double resid;
-    boost::tie(iters, resid) = solve(amg, rhs, x);
+    boost::tie(iters, resid) = solve(amg, f, x);
     prof.toc("solve");
 
     std::cout << "Iterations: " << iters << std::endl
               << "Error:      " << resid << std::endl
               << std::endl;
 
-    std::cout << amgcl::prof << std::endl;
+    std::cout << prof << std::endl;
 }

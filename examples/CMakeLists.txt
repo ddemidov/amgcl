@@ -9,6 +9,11 @@ target_link_libraries(block_crs ${Boost_LIBRARIES})
 add_executable(call_lib call_lib.cpp)
 target_link_libraries(call_lib ${Boost_LIBRARIES} amgcl)
 
+if (VEXCL_ROOT)
+    add_executable(vexcl vexcl.cpp)
+    target_link_libraries(vexcl ${Boost_LIBRARIES} ${VEXCL_BACKEND_LIBRARIES})
+endif()
+
 if (CUDA_FOUND)
     cuda_add_executable(cuda cuda.cu OPTIONS "-arch=sm_${CUDA_COMPUTE_CAPABILITY}")
     target_link_libraries(cuda ${CUDA_cusparse_LIBRARY} ${Boost_LIBRARIES})

@@ -67,6 +67,8 @@ struct vexcl {
     static boost::shared_ptr<matrix>
     copy_matrix(boost::shared_ptr< typename builtin<real>::matrix > A, const params &prm)
     {
+        precondition(!prm.q.empty(), "Empty VexCL context!");
+
         return boost::make_shared<matrix>(prm.q, rows(*A), cols(*A),
                 A->ptr.data(), A->col.data(), A->val.data()
                 );
@@ -76,6 +78,8 @@ struct vexcl {
     static boost::shared_ptr<vector>
     copy_vector(typename builtin<real>::vector const &x, const params &prm)
     {
+        precondition(!prm.q.empty(), "Empty VexCL context!");
+
         return boost::make_shared<vector>(prm.q, x);
     }
 
@@ -90,6 +94,8 @@ struct vexcl {
     static boost::shared_ptr<vector>
     create_vector(size_t size, const params &prm)
     {
+        precondition(!prm.q.empty(), "Empty VexCL context!");
+
         return boost::make_shared<vector>(prm.q, size);
     }
 };
