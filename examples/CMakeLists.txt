@@ -12,6 +12,7 @@ target_link_libraries(call_lib ${Boost_LIBRARIES} amgcl)
 if (VEXCL_ROOT)
     add_executable(vexcl vexcl.cpp)
     target_link_libraries(vexcl ${Boost_LIBRARIES} ${VEXCL_BACKEND_LIBRARIES})
+    set_target_properties(vexcl PROPERTIES COMPILE_FLAGS ${CXX11_FLAG})
 endif()
 
 if (CUDA_FOUND)
