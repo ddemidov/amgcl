@@ -223,7 +223,7 @@ struct axpbypcz_impl<
             V c,       vex::vector<V> &z
             )
     {
-        if (b)
+        if (c)
             z = a * x + b * y + c * z;
         else
             z = a * x + b * y;
