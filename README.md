@@ -76,24 +76,19 @@ Jacobi smoother for relaxation:
 #include <amgcl/solver/bicgstab.hpp>
 
 int main() {
-    // Construct the AMG type:
-    typedef amgcl::amg<
-        amgcl::backend::builtin<double>,
-        amgcl::coarsening::ruge_stuben,
-        amgcl::relaxation::damped_jacobi
-        > AMG;
-
-    // Use BiCGStab as an iterative solver:
-    typedef amgcl::solver::bicgstab<
-        amgcl::backend::builtin<double>
-        > Solver;
-
     // Sparse matrix in CRS format (the assembling is omitted for clarity):
     int n;                   // Matrix size
     std::vector<double> val; // Values of nonzero entries.
     std::vector<int>    col; // Column numbers of nonzero entries.
     std::vector<int>    ptr; // Points to the start of each row in the above arrays.
     std::vector<double> rhs; // Right-hand side of the system of equations.
+
+    // Define the AMG type:
+    typedef amgcl::amg<
+        amgcl::backend::builtin<double>,
+        amgcl::coarsening::ruge_stuben,
+        amgcl::relaxation::damped_jacobi
+        > AMG;
 
     // Construct the AMG hierarchy.
     // Note that this step only depends on the matrix. Hence, the constructed
@@ -104,12 +99,17 @@ int main() {
     // Output some information about the constructed hierarchy:
     std::cout << amg << std::endl;
 
-    // The solution vector. Use zero as initial approximation.
-    std::vector<double> x(n, 0);
+    // Use BiCGStab as an iterative solver:
+    typedef amgcl::solver::bicgstab<
+        amgcl::backend::builtin<double>
+        > Solver;
 
     // Construct the iterative solver. It needs size of the system to
     // preallocate the required temporary structures:
     Solver solve(n);
+
+    // The solution vector. Use zero as initial approximation.
+    std::vector<double> x(n, 0);
 
     // Solve the system. Returns number of iterations made and the achieved residual.
     int    iters;
@@ -120,6 +120,26 @@ int main() {
               << "Error:      " << resid << std::endl
               << std::endl;
 }
+~~~
+
+There is a convenience class
+`amgcl::make_solver<Backend, Coarsening, Relaxation, Solver>` which wraps both
+an AMG preconditioner and an iterative solver. By using the class the above
+example could be made a bit shorter:
+
+~~~{.cpp}
+// Construct the AMG hierarchy and create the iterative solver.
+amgcl::make_solver<
+    amgcl::backend::builtin<double>,
+    amgcl::coarsening::ruge_stuben,
+    amgcl::relaxation::damped_jacobi,
+    amgcl::solver::bicgstab
+    > solve( boost::tie(n, n, val, col, ptr) );
+
+// ...
+
+// Solve the linear system.
+boost::tie(iters, resid) = solve(rhs, x);
 ~~~
 
 ### <a name="backends"></a>Backends
