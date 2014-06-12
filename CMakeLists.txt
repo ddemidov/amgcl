@@ -24,6 +24,7 @@ set(BOOST_COMPONENTS
     chrono
     program_options
     system
+    filesystem
     unit_test_framework
     )
 
