@@ -518,11 +518,31 @@ struct inner_product_impl<
         const size_t n = x.size();
         V sum = 0;
 
-#pragma omp parallel for reduction(+:sum)
-        for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-            sum += x[i] * y[i];
-        }
+#pragma omp parallel reduction(+:sum)
+        {
+#ifdef _OPENMP
+            int nt  = omp_get_num_threads();
+            int tid = omp_get_thread_num();
 
+            size_t chunk_size  = (n + nt - 1) / nt;
+            size_t chunk_start = tid * chunk_size;
+            size_t chunk_end   = std::min(n, chunk_start + chunk_size);
+#else
+            size_t chunk_start = 0;
+            size_t chunk_end   = n;
+#endif
+
+            V s = 0;
+            V c = 0;
+            for(size_t i = chunk_start; i < chunk_end; ++i) {
+                V d = x[i] * y[i] - c;
+                V t = s + d;
+                c = (t - s) - d;
+                s = t;
+            }
+
+            sum += s;
+        }
         return sum;
     }
 };
