@@ -170,7 +170,7 @@ struct do_create {
     void process() const {
         AMG *amg = new AMG(
                 boost::make_tuple(
-                    n, n,
+                    n,
                     boost::make_iterator_range(val, val + ptr[n]),
                     boost::make_iterator_range(col, col + ptr[n]),
                     boost::make_iterator_range(ptr, ptr + n + 1)

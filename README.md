@@ -94,7 +94,7 @@ int main() {
     // Note that this step only depends on the matrix. Hence, the constructed
     // instance may be reused for several right-hand sides.
     // The matrix is specified as a tuple of sizes and ranges.
-    AMG amg( boost::tie(n, n, val, col, ptr) );
+    AMG amg( boost::tie(n, val, col, ptr) );
 
     // Output some information about the constructed hierarchy:
     std::cout << amg << std::endl;
@@ -134,7 +134,7 @@ amgcl::make_solver<
     amgcl::coarsening::ruge_stuben,
     amgcl::relaxation::damped_jacobi,
     amgcl::solver::bicgstab
-    > solve( boost::tie(n, n, val, col, ptr) );
+    > solve( boost::tie(n, val, col, ptr) );
 
 // ...
 
@@ -194,14 +194,15 @@ Here is the list of backends currently implemented in the library:
   an example that uses raw pointers:
 
 ~~~{.cpp}
-int n, nnz;  // Matrix size and number of nonzeros.
+int n;       // Matrix size.
 double *val; // Values.
 int    *col; // Column numbers.
 int    *ptr  // Row pointers into the above arrays.
 
-AMG amg( boost::tie( n, n,
-            boost::make_iterator_range(val, val + nnz),
-            boost::make_iterator_range(col, col + nnz),
+AMG amg( boost::make_tuple(
+            n,
+            boost::make_iterator_range(val, val + ptr[n]),
+            boost::make_iterator_range(col, col + ptr[n]),
             boost::make_iterator_range(ptr, ptr + n + 1)
             )
         );
