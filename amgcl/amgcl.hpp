@@ -26,261 +26,369 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl.hpp
+ * \file   amgcl/amgcl.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
  * \brief  Generic algebraic multigrid framework.
  */
 
 #include <iostream>
 #include <iomanip>
-#include <utility>
-#include <list>
 
-#include <boost/static_assert.hpp>
-#include <boost/smart_ptr/shared_ptr.hpp>
-#include <boost/smart_ptr/make_shared.hpp>
-#include <boost/type_traits/is_signed.hpp>
 #include <boost/io/ios_state.hpp>
+#include <boost/static_assert.hpp>
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
+#include <boost/ptr_container/ptr_list.hpp>
+#include <boost/foreach.hpp>
+#include <boost/tuple/tuple.hpp>
 
-#include <amgcl/spmat.hpp>
-#include <amgcl/tictoc.hpp>
+#include <amgcl/backend/builtin.hpp>
+#include <amgcl/util.hpp>
 
-/// Primary namespace for the library.
+/// Primary namespace.
 namespace amgcl {
-
-/// Interpolation-related types and functions.
-namespace interp {
-
-/// Galerkin operator.
-struct galerkin_operator {
-    template <class spmat, class Params>
-    static spmat apply(const spmat &R, const spmat &A, const spmat &P,
-            const Params&)
-    {
-        return sparse::prod(sparse::prod(R, A), P);
-    }
-};
-
-/// Returns coarse level construction scheme for a given interpolation scheme.
-/**
- * By default, Galerkin operator is used to construct coarse level from system
- * matrix, restriction and prolongation operators:
- * \f[A^H = R A^h P.\f] Usually, \f$R = P^T.\f$
- *
- * \param Interpolation interpolation scheme.
- */
-template <class Interpolation>
-struct coarse_operator {
-    typedef galerkin_operator type;
-};
-
-} // namespace interp
-
-/// Possible relaxation (smoothing) schemes.
-namespace relax {
-
-/// Possible relaxation (smoothing) schemes.
-/**
- * Each backend may support only a limited subset of these.
- * \sa relax_vs_backend
- */
-enum scheme {
-    damped_jacobi, ///< Damped Jacobi.
-    spai0,         ///< SPAI-0 algorithm from \ref spai_2002 "Broeker (2002)".
-    gauss_seidel,  ///< Gauss-Seidel.
-    ilu0,          ///< Incomplete LU decomposition with zero fill-in.
-    chebyshev      ///< Chebyshev polynomial smoother.
-};
-
-} // namespace relax.
 
 /// Algebraic multigrid method.
 /**
- * \param value_t  Type for matrix entries (double/float).
- * \param index_t  Type for matrix indices. Should be signed integral type.
- * \param interp_t \ref interpolation "Interpolation scheme".
- * \param level_t  Hierarchy level \ref levels "storage backend".
+ * AMG is one the most effective methods for solution of large sparse
+ * unstructured systems of equations, arising, for example, from discretization
+ * of PDEs on unstructured grids \cite Trottenberg2001. The method can be used
+ * as a black-box solver for various computational problems, since it does not
+ * require any information about the underlying geometry.
+ *
+ * The three template parameters allow the user to select the exact components
+ * of the method:
+ *  1. *Backend* to transfer the constructed hierarchy to,
+ *  2. *Coarsening* strategy for hierarchy construction, and
+ *  3. *Relaxation* scheme (smoother to use during the solution phase).
+ *
+ * Instance of the class builds the AMG hierarchy for the given system matrix
+ * and is intended to be used as a preconditioner.
  */
 template <
-    typename value_t, typename index_t, typename interp_t, typename level_t
+    class Backend,
+    class Coarsening,
+    template <class> class Relax
     >
-class solver {
-    private:
-        typedef sparse::matrix<value_t, index_t> matrix;
-        typedef typename level_t::template instance<value_t, index_t> level_type;
-
+class amg {
     public:
-        typedef value_t value_type;
-        typedef index_t index_type;
+        typedef Backend backend_type;
 
-        /// Parameters for AMG components.
+        typedef typename Backend::value_type value_type;
+        typedef typename Backend::matrix     matrix;
+        typedef typename Backend::vector     vector;
+        typedef Relax<Backend>               relax_type;
+
+        /// Parameters of the method.
+        /**
+         * The amgcl::amg::params struct includes parameters for each
+         * component of the method as well as some universal parameters.
+         */
         struct params {
-            /// When level is coarse enough to be solved directly?
+            typedef typename Backend::params    backend_params;
+            typedef typename Coarsening::params coarsening_params;
+            typedef typename relax_type::params relax_params;
+
+            backend_params    backend;      ///< Backend parameters.
+            coarsening_params coarsening;   ///< Coarsening parameters.
+            relax_params      relax;        ///< Relaxation parameters.
+
+            /// Specifies when level is coarse enough to be solved directly.
             /**
-             * If number of variables at a next level in hierarchy becomes
+             * If number of variables at a next level in the hierarchy becomes
              * lower than this threshold, then the hierarchy construction is
-             * stopped and the linear system is solved explicitly at this
-             * level.
+             * stopped and the linear system is solved directly at this level.
              */
             unsigned coarse_enough;
 
-            typename interp_t::params interp; ///< Interpolation parameters.
-            typename level_t::params  level;  ///< Level/Solution parameters.
+            /// Number of pre-relaxations.
+            unsigned npre;
 
-            params() : coarse_enough(300) { }
-        };
+            /// Number of post-relaxations.
+            unsigned npost;
 
-        /// Constructs the AMG hierarchy from the system matrix.
+            /// Number of cycles (1 for V-cycle, 2 for W-cycle, etc.).
+            unsigned ncycle;
+
+            params() :
+                coarse_enough( 300 ),
+                npre         (   1 ),
+                npost        (   1 ),
+                ncycle       (   1 )
+            {}
+        } prm;
+
+        /// Builds the AMG hierarchy for the system matrix.
         /**
-         * The input matrix is copied here and may be freed afterwards.
+         * The input matrix is copied here and is safe to delete afterwards.
          *
-         * \param A   The system matrix. Should be convertible to
-         *            amgcl::sparse::matrix<>.
-         * \param prm Parameters controlling the setup and solution phases.
+         * \param A The system matrix. Should be convertible to
+         *          amgcl::backend::crs<>.
+         * \param p AMG parameters.
          *
-         * \sa amgcl::sparse::map()
+         * \sa amgcl/backend/crs_tuple.hpp
          */
-        template <typename spmat>
-        solver(const spmat &A, const params &prm = params()) : prm(prm)
+        template <class Matrix>
+        amg(const Matrix &M, const params &p = params()) : prm(p)
         {
-            BOOST_STATIC_ASSERT_MSG(boost::is_signed<index_t>::value,
-                    "Matrix index type should be signed");
+            precondition(
+                    backend::rows(M) == backend::cols(M),
+                    "Matrix should be square!"
+                    );
 
-            matrix copy(A);
-            build_level(copy, prm);
-        }
+            boost::shared_ptr<build_matrix> P, R;
+            boost::shared_ptr<build_matrix> A = boost::make_shared<build_matrix>( M );
+            sort_rows(*A);
 
-        /// The AMG hierarchy is used as a standalone solver.
-        /**
-         * The vector types should be compatible with level_t:
-         *
-         * -# Any type with operator[] should work on a CPU.
-         * -# vex::vector<value_t> should be used with level::vexcl.
-         * -# viennacl::vector<value_t> should be used with level::ViennaCL.
-         *
-         * \param rhs Right-hand side.
-         * \param x   Solution. Contains an initial approximation on input, and
-         *            the approximated solution on output.
-         */
-        template <class vector1, class vector2>
-        std::pair< int, value_t > solve(const vector1 &rhs, vector2 &x) const {
-            unsigned iter = 0;
-            value_t  res  = 2 * prm.level.tol;
+            while( backend::rows(*A) > prm.coarse_enough) {
+                TIC("transfer operators");
+                boost::tie(P, R) = Coarsening::transfer_operators(
+                        *A, prm.coarsening);
+                TOC("transfer operators");
 
-            for(; res > prm.level.tol && iter < prm.level.maxiter; ++iter) {
-                apply(rhs, x);
-                res = hier.front()->resid(rhs, x);
-            }
-
-            return std::make_pair(iter, res);
-        }
-
-        /// Performs single multigrid cycle.
-        /**
-         * Is intended to be used as a preconditioner with iterative methods.
-         *
-         * The vector types should be compatible with level_t:
-         *
-         * -# Any type with operator[] should work on a CPU.
-         * -# vex::vector<value_t> should be used with level::vexcl.
-         * -# viennacl::vector<value_t> should be used with level::ViennaCL.
-         *
-         * \param rhs Right-hand side.
-         * \param x   Solution. Contains an initial approximation on input, and
-         *            the approximated solution on output.
-         */
-        template <class vector1, class vector2>
-        void apply(const vector1 &rhs, vector2 &x) const {
-            level_type::cycle(hier.begin(), hier.end(), prm.level, rhs, x);
-        }
-
-        /// Output some general information about the AMG hierarchy.
-        std::ostream& print(std::ostream &os) const {
-            boost::io::ios_all_saver stream_state(os);
-
-            index_t sum_dof = 0;
-            index_t sum_nnz = 0;
-            for(typename std::list< boost::shared_ptr<level_type> >::const_iterator lvl = hier.begin(); lvl != hier.end(); ++lvl) {
-                sum_dof += (*lvl)->size();
-                sum_nnz += (*lvl)->nonzeros();
-            }
-
-            os << "Number of levels:    "   << hier.size()
-               << "\nOperator complexity: " << std::fixed << std::setprecision(2)
-                                            << 1.0 * sum_nnz / hier.front()->nonzeros()
-               << "\nGrid complexity:     " << std::fixed << std::setprecision(2)
-                                            << 1.0 * sum_dof / hier.front()->size()
-               << "\n\nlevel     unknowns       nonzeros\n"
-               << "---------------------------------\n";
-
-            index_t depth = 0;
-            for(typename std::list< boost::shared_ptr<level_type> >::const_iterator lvl = hier.begin(); lvl != hier.end(); ++lvl, ++depth)
-                os << std::setw(5)  << depth
-                   << std::setw(13) << (*lvl)->size()
-                   << std::setw(15) << (*lvl)->nonzeros() << " ("
-                   << std::setw(5) << std::fixed << std::setprecision(2)
-                   << 100.0 * (*lvl)->nonzeros() / sum_nnz
-                   << "%)" << std::endl;
-
-            return os;
-        }
-
-        /// Number of unknowns at the finest level.
-        index_t size() const {
-            return hier.front()->size();
-        }
-
-        /// Returns reference to the system matrix at the finest level.
-        const typename level_type::matrix& top_matrix() const {
-            return hier.front()->get_matrix();
-        }
-    private:
-        void build_level(matrix &A, const params &prm, unsigned nlevel = 0)
-        {
-            if (static_cast<size_t>(A.rows) <= prm.coarse_enough) {
-                TIC("coarsest level");
-                matrix Ai = sparse::inverse(A);
-                hier.push_back( boost::shared_ptr<level_type>(new level_type(A, Ai, prm.level, nlevel) ) );
-                TOC("coarsest level");
-            } else {
-                TIC("construct level");
-
-                TIC("interp");
-                std::pair<sparse::matrix<value_t, index_t>, sparse::matrix<value_t, index_t> > PR = interp_t::interp(A, prm.interp);
-                matrix &P = PR.first;
-                matrix &R = PR.second;
-                TOC("interp");
+                TIC("move to backend")
+                levels.push_back( new level(A, P, R, prm) );
+                TOC("move to backend")
 
                 TIC("coarse operator");
-                matrix a = interp::coarse_operator<interp_t>::type::apply(
-                        R, A, P, prm.interp);
+                A = Coarsening::coarse_operator(*A, *P, *R, prm.coarsening);
+                sort_rows(*A);
                 TOC("coarse operator");
+            }
 
-                TOC("construct level");
+            TIC("coarsest level");
+            boost::shared_ptr<build_matrix> Ainv = boost::make_shared<build_matrix>();
+            *Ainv = inverse(*A);
+            TOC("coarsest level");
 
-                TIC("transfer level data");
-                hier.push_back( boost::shared_ptr<level_type>(new level_type(A, P, R, prm.level, nlevel) ) );
-                TOC("transfer level data");
+            TIC("move to backend")
+            levels.push_back( new level(Ainv, prm) );
+            TOC("move to backend")
+        }
 
-                build_level(a, prm, nlevel + 1);
+        /// Performs single V-cycle for the given right-hand side and solution.
+        /**
+         * \param rhs Right-hand side vector.
+         * \param x   Solution vector.
+         */
+        void cycle(const vector &rhs, vector &x) const {
+            cycle(levels.begin(), rhs, x);
+        }
+
+        /// Performs single V-cycle after clearing x.
+        /**
+         * This is intended for use as a preconditioning procedure.
+         *
+         * \param rhs Right-hand side vector.
+         * \param x   Solution vector.
+         */
+        void operator()(const vector &rhs, vector &x) const {
+            backend::clear(x);
+            cycle(levels.begin(), rhs, x);
+        }
+
+        /// Returns the system matrix from the finest level.
+        const matrix& top_matrix() const {
+            return *levels.front().A;
+        }
+    private:
+        typedef typename backend::builtin<value_type>::matrix build_matrix;
+
+        struct level {
+            boost::shared_ptr<matrix> A;
+            boost::shared_ptr<matrix> P;
+            boost::shared_ptr<matrix> R;
+
+            boost::shared_ptr<vector> f;
+            boost::shared_ptr<vector> u;
+            boost::shared_ptr<vector> t;
+
+            boost::shared_ptr<relax_type> relax;
+
+            level(
+                    boost::shared_ptr<build_matrix> a,
+                    boost::shared_ptr<build_matrix> p,
+                    boost::shared_ptr<build_matrix> r,
+                    const params &prm
+                 ) :
+                A( Backend::copy_matrix(a, prm.backend) ),
+                P( Backend::copy_matrix(p, prm.backend) ),
+                R( Backend::copy_matrix(r, prm.backend) ),
+                f( Backend::create_vector(backend::rows(*a), prm.backend) ),
+                u( Backend::create_vector(backend::rows(*a), prm.backend) ),
+                t( Backend::create_vector(backend::rows(*a), prm.backend) ),
+                relax( new relax_type(*a, prm.relax, prm.backend) )
+            { }
+
+            level(
+                    boost::shared_ptr<build_matrix> a,
+                    const params &prm
+                 ) :
+                A( Backend::copy_matrix(a, prm.backend) ),
+                f( Backend::create_vector(backend::rows(*a), prm.backend) ),
+                u( Backend::create_vector(backend::rows(*a), prm.backend) )
+            { }
+
+            size_t rows() const {
+                return backend::rows(*A);
+            }
+
+            size_t nonzeros() const {
+                return backend::nonzeros(*A);
+            }
+        };
+
+        typedef typename boost::ptr_list<level>::const_iterator level_iterator;
+
+        boost::ptr_list<level> levels;
+
+        void cycle(level_iterator lvl, const vector &rhs, vector &x) const
+        {
+            level_iterator nxt = lvl; ++nxt;
+
+            if (nxt == levels.end()) {
+                TIC("coarse");
+                backend::spmv(1, *lvl->A, rhs, 0, x);
+                TOC("coarse");
+            } else {
+                for (size_t j = 0; j < prm.ncycle; ++j) {
+                    TIC("relax");
+                    for(size_t i = 0; i < prm.npre; ++i)
+                        lvl->relax->apply_pre(*lvl->A, rhs, x, *lvl->t, prm.relax);
+                    TOC("relax");
+
+                    TIC("residual");
+                    backend::residual(rhs, *lvl->A, x, *lvl->t);
+                    TOC("residual");
+
+                    TIC("restrict");
+                    backend::spmv(1, *lvl->R, *lvl->t, 0, *nxt->f);
+                    TOC("restrict");
+
+                    backend::clear(*nxt->u);
+                    cycle(nxt, *nxt->f, *nxt->u);
+
+                    TIC("prolongate");
+                    backend::spmv(1, *lvl->P, *nxt->u, 1, x);
+                    TOC("prolongate");
+
+                    TIC("relax");
+                    for(size_t i = 0; i < prm.npre; ++i)
+                        lvl->relax->apply_post(*lvl->A, rhs, x, *lvl->t, prm.relax);
+                    TOC("relax");
+                }
             }
         }
 
-        params prm;
-        std::list< boost::shared_ptr<level_type> > hier;
+    /// Outputs information about the AMG hierarchy to output stream.
+    friend std::ostream& operator<<(std::ostream &os, const amg &a)
+    {
+        boost::io::ios_all_saver stream_state(os);
+
+        size_t sum_dof = 0;
+        size_t sum_nnz = 0;
+
+        BOOST_FOREACH(const level &lvl, a.levels) {
+            sum_dof += lvl.rows();
+            sum_nnz += lvl.nonzeros();
+        }
+
+        os << "Number of levels:    "   << a.levels.size()
+           << "\nOperator complexity: " << std::fixed << std::setprecision(2)
+                                        << 1.0 * sum_nnz / a.levels.front().nonzeros()
+           << "\nGrid complexity:     " << std::fixed << std::setprecision(2)
+                                        << 1.0 * sum_dof / a.levels.front().rows()
+           << "\n\nlevel     unknowns       nonzeros\n"
+           << "---------------------------------\n";
+
+        size_t depth = 0;
+        BOOST_FOREACH(const level &lvl, a.levels) {
+            os << std::setw(5)  << depth++
+               << std::setw(13) << lvl.rows()
+               << std::setw(15) << lvl.nonzeros() << " ("
+               << std::setw(5) << std::fixed << std::setprecision(2)
+               << 100.0 * lvl.nonzeros() / sum_nnz
+               << "%)" << std::endl;
+        }
+
+        return os;
+    }
+};
+
+/// Convenience class that creates a pair of AMG preconditioner and iterative solver
+template <
+    class Backend,
+    class Coarsening,
+    template <class> class Relax,
+    template <class> class IterativeSolver
+    >
+class make_solver {
+    public:
+        typedef typename Backend::value_type value_type;
+
+        typedef amg<Backend, Coarsening, Relax> AMG;
+        typedef IterativeSolver<Backend>        Solver;
+
+        typedef typename AMG::params    AMG_params;
+        typedef typename Solver::params Solver_params;
+
+        /// Constructs the AMG hierarchy and creates iterative solver.
+        template <class Matrix>
+        make_solver(
+                const Matrix &A,
+                const AMG_params &amg_params = AMG_params(),
+                const Solver_params &solver_params = Solver_params()
+                )
+            : P(A, amg_params),
+              solver(backend::rows(A), solver_params, amg_params.backend)
+        {}
+
+        /// Solves the linear system for the given system matrix.
+        /**
+         * \param A   System matrix.
+         * \param rhs Right-hand side.
+         * \param x   Solution vector.
+         *
+         * The system matrix may differ from the matrix used for the AMG
+         * preconditioner construction. This may be used for the solution of
+         * non-stationary problems with slowly changing coefficients. There is
+         * a strong chance that AMG built for one time step will act as a
+         * reasonably good preconditioner for several subsequent time steps
+         * \cite Demidov2012.
+         */
+        template <class Matrix, class Vec1, class Vec2>
+        boost::tuple<size_t, value_type> operator()(
+                Matrix  const &A,
+                Vec1    const &rhs,
+                Vec2          &x
+                ) const
+        {
+            return solver(A, P, rhs, x);
+        }
+
+        /// Solves the linear system for the given right-hand side.
+        /**
+         * \param rhs Right-hand side.
+         * \param x   Solution vector.
+         */
+        template <class Vec1, class Vec2>
+        boost::tuple<size_t, value_type> operator()(
+                Vec1    const &rhs,
+                Vec2          &x
+                ) const
+        {
+            return solver(P, rhs, x);
+        }
+
+    private:
+        AMG    P;
+        Solver solver;
+
+        friend std::ostream& operator<<(std::ostream &os, const make_solver &s) {
+            return os << s.P;
+        }
 };
 
 } // namespace amgcl
-
-/// Output some general information about the AMG hierarchy.
-template <
-    typename value_t,
-    typename index_t,
-    typename interp_t,
-    typename level_t
-    >
-std::ostream& operator<<(std::ostream &os, const amgcl::solver<value_t, index_t, interp_t, level_t> &amg) {
-    return amg.print(os);
-}
 
 #endif
