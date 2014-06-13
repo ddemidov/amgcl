@@ -191,7 +191,7 @@ struct inner_product_impl<
 {
     static V get(const vex::vector<V> &x, const vex::vector<V> &y)
     {
-        vex::Reductor<V, vex::SUM> sum( x.queue_list() );
+        vex::Reductor<V, vex::SUM_Kahan> sum( x.queue_list() );
         return sum(x * y);
     }
 };
