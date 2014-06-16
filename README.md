@@ -307,7 +307,7 @@ library.
   - Smoothed aggregation:
     `amgcl::coarsening::smoothed_aggregation<Aggregates>`
     ([amgcl/coarsening/smoothed_aggregation.hpp][]).
-  - Smoothed aggregation with energy minimization (see [4]):
+  - Smoothed aggregation with energy minimization (see [5]):
     `amgcl::coarsening::smoothed_aggr_emin<Aggregates>`
     ([amgcl/coarsening/smoothed_aggr_emin.hpp][]).
 
@@ -475,14 +475,16 @@ Have a look at [amgcl/relaxation/damped_jacobi.hpp][] for an example.
 3. D. E. Demidov and D. V. Shevchenko. Modification of algebraic multigrid for
    effective gpgpu-based solution of nonstationary hydrodynamics problems.
    Journal of Computational Science, 3(6):460–462, 2012.
-4. M. Sala and R. S. Tuminaro. A new petrov-galerkin smoothed aggregation
+4. J. Frank and C. Vuik. On the construction of deflation-based
+   preconditioners. SIAM Journal on Scientific Computing, 23(2):442–462, 2001.
+5. M. Sala and R. S. Tuminaro. A new petrov-galerkin smoothed aggregation
    preconditioner for nonsymmetric linear systems. SIAM Journal on Scientific
    Computing, 31(1):143–166, 2008.
-5. K. Stuben. Algebraic multigrid (AMG): an introduction with applications. GMD
+6. K. Stuben. Algebraic multigrid (AMG): an introduction with applications. GMD
    Report 70, GMD, Sankt Augustin, Germany, 1999.
-6. U. Trottenberg, C. Oosterlee, and A. Schüller. Multigrid. Academic Press,
+7. U. Trottenberg, C. Oosterlee, and A. Schüller. Multigrid. Academic Press,
    London, 2001. 631 p.
-7. P. Vanek, J. Mandel, and M. Brezina. Algebraic multigrid by smoothed
+8. P. Vanek, J. Mandel, and M. Brezina. Algebraic multigrid by smoothed
    aggregation for second and fourth order elliptic problems. Computing,
    56(3):179–196, 1996.
 

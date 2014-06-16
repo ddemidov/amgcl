@@ -19,3 +19,5 @@ if (CUDA_FOUND)
     cuda_add_executable(cuda cuda.cu OPTIONS "-arch=sm_${CUDA_COMPUTE_CAPABILITY}")
     target_link_libraries(cuda ${CUDA_cusparse_LIBRARY} ${Boost_LIBRARIES})
 endif()
+
+add_subdirectory(mpi)

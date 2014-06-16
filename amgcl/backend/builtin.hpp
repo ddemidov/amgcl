@@ -545,6 +545,51 @@ struct inner_product_impl<
     }
 };
 
+template < class Vec >
+struct sum_impl<
+    Vec,
+    typename boost::enable_if<
+            typename is_builtin_vector<Vec>::type
+        >::type
+    >
+{
+    typedef typename value_type<Vec>::type V;
+
+    static V get(const Vec &x)
+    {
+        const size_t n = x.size();
+        V sum = 0;
+
+#pragma omp parallel reduction(+:sum)
+        {
+#ifdef _OPENMP
+            int nt  = omp_get_num_threads();
+            int tid = omp_get_thread_num();
+
+            size_t chunk_size  = (n + nt - 1) / nt;
+            size_t chunk_start = tid * chunk_size;
+            size_t chunk_end   = std::min(n, chunk_start + chunk_size);
+#else
+            size_t chunk_start = 0;
+            size_t chunk_end   = n;
+#endif
+
+            V s = 0;
+            V c = 0;
+            for(size_t i = chunk_start; i < chunk_end; ++i) {
+                V d = x[i] - c;
+                V t = s + d;
+                c = (t - s) - d;
+                s = t;
+            }
+
+            sum += s;
+        }
+
+        return sum;
+    }
+};
+
 template < class Vec1, class Vec2 >
 struct axpby_impl<
     Vec1, Vec2,
