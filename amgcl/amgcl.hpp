@@ -33,12 +33,12 @@ THE SOFTWARE.
 
 #include <iostream>
 #include <iomanip>
+#include <list>
 
 #include <boost/io/ios_state.hpp>
 #include <boost/static_assert.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
-#include <boost/ptr_container/ptr_list.hpp>
 #include <boost/foreach.hpp>
 #include <boost/tuple/tuple.hpp>
 
@@ -147,7 +147,7 @@ class amg {
                 TOC("transfer operators");
 
                 TIC("move to backend")
-                levels.push_back( new level(A, P, R, prm) );
+                levels.push_back( level(A, P, R, prm) );
                 TOC("move to backend")
 
                 TIC("coarse operator");
@@ -162,7 +162,7 @@ class amg {
             TOC("coarsest level");
 
             TIC("move to backend")
-            levels.push_back( new level(Ainv, prm) );
+            levels.push_back( level(Ainv, prm) );
             TOC("move to backend")
         }
 
@@ -238,9 +238,9 @@ class amg {
             }
         };
 
-        typedef typename boost::ptr_list<level>::const_iterator level_iterator;
+        typedef typename std::list<level>::const_iterator level_iterator;
 
-        boost::ptr_list<level> levels;
+        std::list<level> levels;
 
         void cycle(level_iterator lvl, const vector &rhs, vector &x) const
         {

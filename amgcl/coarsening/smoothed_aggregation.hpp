@@ -132,7 +132,7 @@ struct smoothed_aggregation {
                     long g = aggr.id[c];
 
                     if (g >= 0 && static_cast<size_t>(marker[g]) != i) {
-                        marker[g] = i;
+                        marker[g] = static_cast<long>(i);
                         ++( P->ptr[i + 1] );
                     }
                 }

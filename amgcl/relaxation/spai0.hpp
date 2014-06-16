@@ -62,14 +62,14 @@ struct spai0 {
         std::vector<value_type> m(n);
 
 #pragma omp parallel for
-        for(size_t i = 0; i < n; ++i) {
+        for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
             value_type num = 0;
             value_type den = 0;
 
             for(row_iterator a = backend::row_begin(A, i); a; ++a) {
                 value_type v = a.value();
                 den += v * v;
-                if (static_cast<size_t>(a.col()) == i) num += v;
+                if (a.col() == i) num += v;
             }
 
             m[i] = num / den;

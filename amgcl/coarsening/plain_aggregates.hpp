@@ -148,7 +148,7 @@ struct plain_aggregates {
 
             // The point is not adjacent to a core of any previous aggregate:
             // so its a seed of a new aggregate.
-            long cur_id = count++;
+            long cur_id = static_cast<long>(count++);
             id[i] = cur_id;
 
             // Include its neighbors as well.

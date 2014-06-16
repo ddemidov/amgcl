@@ -123,7 +123,7 @@ struct aggregation {
         P->ptr.push_back(0);
         for(size_t i = 0; i < n; ++i) {
             if (aggr.id[i] >= 0) P->col.push_back(aggr.id[i]);
-            P->ptr.push_back(P->col.size());
+            P->ptr.push_back( static_cast<long>(P->col.size()) );
         }
         P->val.resize(n, 1);
         TOC("interpolation");

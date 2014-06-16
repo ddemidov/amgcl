@@ -99,7 +99,7 @@ struct ruge_stuben {
         size_t nc = 0;
         std::vector<long> cidx(n);
         for(size_t i = 0; i < n; ++i)
-            if (cf[i] == 'C') cidx[i] = nc++;
+            if (cf[i] == 'C') cidx[i] = static_cast<long>(nc++);
 
         boost::shared_ptr<Matrix> P = boost::make_shared<Matrix>();
         P->nrows = n;

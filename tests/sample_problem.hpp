@@ -12,7 +12,7 @@ int sample_problem(
         )
 {
     index  n3  = n * n * n;
-    real h2i = (n - 1) * (n - 1);
+    real h2i = static_cast<real>((n - 1) * (n - 1));
 
     ptr.clear();
     col.clear();
@@ -63,7 +63,7 @@ int sample_problem(
                     rhs.push_back(1);
                 }
 
-                ptr.push_back(col.size());
+                ptr.push_back( static_cast<index>(col.size()) );
             }
         }
     }

@@ -109,12 +109,19 @@ struct crs {
                 col.push_back(a.col());
                 val.push_back(a.value());
             }
-            ptr.push_back(col.size());
+            ptr.push_back( static_cast<ptr_type>(col.size()) );
         }
     }
 
     class row_iterator {
         public:
+            row_iterator(
+                    const col_type * col,
+                    const col_type * end,
+                    const val_type * val
+                    ) : m_col(col), m_end(end), m_val(val)
+            {}
+
             operator bool() const {
                 return m_col < m_end;
             }
@@ -134,18 +141,9 @@ struct crs {
             }
 
         private:
-            friend struct crs;
-
             const col_type * m_col;
             const col_type * m_end;
             const val_type * m_val;
-
-            row_iterator(
-                    const col_type * col,
-                    const col_type * end,
-                    const val_type * val
-                    ) : m_col(col), m_end(end), m_val(val)
-            {}
     };
 
     row_iterator row_begin(size_t row) const {
@@ -182,7 +180,7 @@ crs<V, C, P> transpose(const crs<V, C, P> &A)
         for(P j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
             P head = T.ptr[A.col[j]]++;
 
-            T.col[head] = i;
+            T.col[head] = static_cast<C>(i);
             T.val[head] = A.val[j];
         }
     }
@@ -302,7 +300,7 @@ void sort_rows(crs<V, C, P> &A) {
     for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
         P beg = A.ptr[i];
         P end = A.ptr[i + 1];
-        detail::sort_row(A.col.data() + beg, A.val.data() + beg, end - beg);
+        amgcl::detail::sort_row(A.col.data() + beg, A.val.data() + beg, end - beg);
     }
 }
 
@@ -325,13 +323,13 @@ crs<V, C, P> inverse(const crs<V, C, P> &A) {
         for(row_iterator a = A.row_begin(i); a; ++a)
             Ainv.val[i * n + a.col()] = a.value();
 
-    detail::gaussj(n, Ainv.val.data());
+    amgcl::detail::gaussj(n, Ainv.val.data());
 
     Ainv.ptr[0] = 0;
     for(size_t i = 0, idx = 0; i < n; ) {
-        for(size_t j = 0; j < n; ++j, ++idx) Ainv.col[idx] = j;
+        for(size_t j = 0; j < n; ++j, ++idx) Ainv.col[idx] = static_cast<C>(j);
 
-        Ainv.ptr[++i] = idx;
+        Ainv.ptr[++i] = static_cast<P>(idx);
     }
 
     return Ainv;
