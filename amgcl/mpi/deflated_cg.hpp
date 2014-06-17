@@ -56,8 +56,7 @@ class deflated_cg {
         deflated_cg(MPI_Comm mpi_comm, const Matrix &Astrip)
             : comm(mpi_comm, boost::mpi::comm_attach), nrows(backend::rows(Astrip)),
               A(mpi_comm, Astrip),
-              r(nrows), s(nrows), p(nrows), q(nrows),
-              Zt_x(comm.size()), E_Zt_x(comm.size()),
+              r(nrows), s(nrows), p(nrows), q(nrows), d(comm.size()),
               E(boost::extents[comm.size()][comm.size()]),
               amg( A.local() )
         {
@@ -70,27 +69,11 @@ class deflated_cg {
             // Local contribution to E = transp(Z) A Z:
             std::vector<real> e(comm.size(), 0);
 
-            // Compute:
-            // 1. local contribution to E = (Z^t A Z),
-            // 2. Sparsity pattern of matrix W, which consists of column
-            //    vectors w_j.
-            W.nrows = nrows;
-            W.ncols = comm.size();
-            W.ptr.resize(nrows + 1, 0);
-
-            std::vector<long> marker(comm.size(), -1);
+            // Compute local contribution to E = (Z^t A Z),
             for(long i = 0; i < nrows; ++i) {
                 for(row_iterator a = backend::row_begin(Astrip, i); a; ++a) {
-                    long c = a.col();
-                    long d = boost::upper_bound(domain, c) - domain.begin();
-                    real v = a.value();
-
-                    e[d] += v;
-
-                    if (marker[d] != i) {
-                        marker[d] = i;
-                        ++( W.ptr[i + 1] );
-                    }
+                    long d = boost::upper_bound(domain, a.col()) - domain.begin();
+                    e[d] += a.value();
                 }
             }
 
@@ -99,57 +82,31 @@ class deflated_cg {
 
             // Invert E.
             detail::gaussj(comm.size(), E.data());
-
-            // Finish construction of W
-            boost::partial_sum(W.ptr, W.ptr.begin());
-            W.col.resize( W.ptr.back() );
-            W.val.resize( W.ptr.back() );
-            boost::fill(marker, -1);
-
-            for(long i = 0; i < nrows; ++i) {
-                long row_beg = W.ptr[i];
-                long row_end = row_beg;
-
-                for(row_iterator a = backend::row_begin(Astrip, i); a; ++a) {
-                    long c = a.col();
-                    long d = boost::upper_bound(domain, c) - domain.begin();
-                    real v = a.value();
-
-                    if (marker[d] < row_beg) {
-                        marker[d] = row_end;
-                        W.col[row_end] = d;
-                        W.val[row_end] = v;
-                        ++row_end;
-                    } else {
-                        W.val[marker[d]] += v;
-                    }
-                }
-            }
         }
 
         template <class VectorRHS, class VectorX>
         void operator()(const VectorRHS &rhs, VectorX &x) const {
             amgcl::backend::copy(rhs, r);
             A.mul(-1, x, 1, r);
-            premul_with_P(r);
+            real P = premul_with_P(r);
 
-            real norm_r0 = norm(r);
+            for(long i = 0; i < nrows; ++i) x[i] += P;
 
-            if (norm_r0 == 0) {
-                amgcl::backend::clear(x);
-                return;
-            }
+            amgcl::backend::copy(rhs, r);
+            A.mul(-1, x, 1, r);
 
             amg(r, s);
-            backend::copy(s, p);
+            A.mul(1, s, 0, q);
+
+            P = premul_with_P(q);
+            for(long i = 0; i < nrows; ++i) p[i] = s[i] - P;
+
             real rho1 = inner_product(r, s);
             real rho2 = 0;
 
             for(long iter = 0; fabs(rho1) > 1e-6 && iter < 100; ++iter) {
 
                 A.mul(1, p, 0, q);
-                premul_with_P(q);
-
                 real alpha = rho1 / inner_product(q, p);
 
                 amgcl::backend::axpby( alpha, p, 1, x);
@@ -160,12 +117,14 @@ class deflated_cg {
                 rho2 = rho1;
                 rho1 = inner_product(r, s);
 
+                real beta = rho1 / rho2;
+
+                A.mul(1, s, 0, q);
+                P = premul_with_P(q);
+                for(long i = 0; i < nrows; ++i) p[i] = s[i] + beta * p[i] - P;
+
                 if (comm.rank() == 0) std::cout << iter << ": " << std::scientific << fabs(rho1) << std::endl;
-
-                amgcl::backend::axpby(1, s, rho1 / rho2, p);
             }
-
-            postprocess(rhs, x);
         }
 
     private:
@@ -173,10 +132,9 @@ class deflated_cg {
         long nrows;
 
         amgcl::mpi::dist_crs<real> A;
-        mutable std::vector<real> r, s, p, q, Zt_x, E_Zt_x;
+        mutable std::vector<real> r, s, p, q, d;
 
         boost::multi_array<real, 2> E;
-        backend::crs<real,long> W;
 
         amgcl::amg<
             amgcl::backend::builtin<double>,
@@ -203,30 +161,14 @@ class deflated_cg {
         }
 
         template<class VectorX>
-        void premul_with_P(VectorX &x) const {
-            real sum_x = backend::sum(x);
-            all_gather(comm, sum_x, Zt_x.data());
+        real premul_with_P(VectorX &x) const {
+            real sum = backend::sum(x);
+            all_gather(comm, sum, d.data());
 
-            for(long i = 0; i < comm.size(); ++i) {
-                real sum = 0;
-                for(long j = 0; j < comm.size(); ++j)
-                    sum += E[i][j] * Zt_x[j];
-                E_Zt_x[i] = sum;
-            }
-
-            backend::spmv(-1, W, E_Zt_x, 1, x);
-        }
-
-        template <class VectorRHS, class VectorX>
-        void postprocess(const VectorRHS &rhs, VectorX &x) const {
-            real sum_f = backend::sum(rhs);
-            all_gather(comm, sum_f, Zt_x.data());
-
-            real ef = 0;
+            sum = 0;
             for(long j = 0; j < comm.size(); ++j)
-                ef += E[comm.rank()][j] * Zt_x[j];
-
-            for(long i = 0; i < nrows; ++i) x[i] += ef;
+                sum += E[comm.rank()][j] * d[j];
+            return sum;
         }
 };
 

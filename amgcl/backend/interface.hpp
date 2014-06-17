@@ -172,6 +172,15 @@ struct sum_impl {
     typedef typename Vector::SUM_NOT_IMPLEMENTED type;
 };
 
+/// Add scalar to a vector
+/**
+ * \note Used in add_scalar()
+ */
+template <class Vector, class Enable = void>
+struct add_scalar_impl {
+    typedef typename Vector::ADD_SCALAR_NOT_IMPLEMENTED type;
+};
+
 /// Implementation for linear combination of two vectors.
 /** \note Used in axpby() */
 template <class Vector1, class Vector2, class Enable = void>
@@ -279,6 +288,13 @@ template <class Vector>
 typename value_type<Vector>::type sum(const Vector &x)
 {
     return sum_impl<Vector>::get(x);
+}
+
+/// Add scalar to a vector.
+template <class Vector>
+void add_scalar(Vector &x, typename value_type<Vector>::type c)
+{
+    add_scalar_impl<Vector>::apply(x, c);
 }
 
 /// Computes linear combination of two vectors.

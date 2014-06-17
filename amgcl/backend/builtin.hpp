@@ -590,6 +590,24 @@ struct sum_impl<
     }
 };
 
+template < class Vec >
+struct add_scalar_impl<
+    Vec,
+    typename boost::enable_if<
+            typename is_builtin_vector<Vec>::type
+        >::type
+    >
+{
+    typedef typename value_type<Vec>::type V;
+
+    static void apply(Vec &x, V c) {
+        const size_t n = x.size();
+#pragma omp parallel for
+        for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i)
+            x[i] += c;
+    }
+};
+
 template < class Vec1, class Vec2 >
 struct axpby_impl<
     Vec1, Vec2,
