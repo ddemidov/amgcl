@@ -57,13 +57,9 @@ class dist_crs {
          * \param col   Column numbers (global) of nonzero values.
          * \param col   Nonzero values.
          */
-        template <class PtrRange, class ColRange, class ValRange>
-        dist_crs(
-                MPI_Comm mpi_comm, long  nrows,
-                const PtrRange &ptr,
-                const ColRange &col,
-                const ValRange &val
-                ) : comm(mpi_comm, boost::mpi::comm_attach), nrows(nrows)
+        template <class Matrix>
+        dist_crs(MPI_Comm mpi_comm, const Matrix &A)
+            : comm(mpi_comm, boost::mpi::comm_attach), nrows(backend::rows(A))
         {
             // Exchange chunk sizes with neighbours.
             std::vector<long> domain(comm.size() + 1, 0);
@@ -83,12 +79,17 @@ class dist_crs {
             std::map<long, long>::iterator rc_it = rc.begin();
 
             // Count local and remote nonzeros; build set of remote columns
-            BOOST_FOREACH(long c, col) {
-                if (c >= my_beg && c < my_end) {
-                    ++loc_nnz;
-                } else {
-                    ++rem_nnz;
-                    rc_it = rc.insert(rc_it, std::make_pair(c, 0));
+            typedef typename backend::row_iterator<Matrix>::type row_iterator;
+            for(long i = 0; i < nrows; ++i) {
+                for(row_iterator a = backend::row_begin(A, i); a; ++a) {
+                    long c = a.col();
+
+                    if (c >= my_beg && c < my_end) {
+                        ++loc_nnz;
+                    } else {
+                        ++rem_nnz;
+                        rc_it = rc.insert(rc_it, std::make_pair(c, 0));
+                    }
                 }
             }
 
@@ -124,9 +125,9 @@ class dist_crs {
             Arem.ptr.push_back(0);
 
             for(long i = 0; i < nrows; ++i) {
-                for(long j = ptr[i], e = ptr[i+1]; j < e; ++j) {
-                    long       c = col[j];
-                    value_type v = val[j];
+                for(row_iterator a = backend::row_begin(A, i); a; ++a) {
+                    long       c = a.col();
+                    value_type v = a.value();
 
                     if (c >= my_beg && c < my_end) {
                         Aloc.col.push_back(c - my_beg);
@@ -225,7 +226,7 @@ class dist_crs {
 
         boost::mpi::communicator comm;
 
-        size_t nrows;
+        long nrows;
 
         backend::crs<value_type, long> Aloc;
         backend::crs<value_type, long> Arem;

@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
 
     std::vector<double> x(chunk, 0);
 
-    amgcl::mpi::deflated_cg<double> solve(world, chunk, ptr, col, val);
+    amgcl::mpi::deflated_cg<double> solve(world, boost::tie(chunk, ptr, col, val) );
     solve(rhs, x);
 }
 

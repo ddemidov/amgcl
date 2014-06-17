@@ -51,16 +51,10 @@ namespace mpi {
 template <typename real>
 class deflated_cg {
     public:
-        template <class PtrRange, class ColRange, class ValRange>
-        deflated_cg(
-                MPI_Comm mpi_comm,
-                long nrows,
-                const PtrRange &ptr,
-                const ColRange &col,
-                const ValRange &val
-                )
+        template <class Matrix>
+        deflated_cg(MPI_Comm mpi_comm, const Matrix &A)
             : comm(mpi_comm, boost::mpi::comm_attach), nrows(nrows),
-              A(mpi_comm, nrows, ptr, col, val),
+              A(mpi_comm, A),
               r(nrows), s(nrows), p(nrows), q(nrows)
         {}
 
