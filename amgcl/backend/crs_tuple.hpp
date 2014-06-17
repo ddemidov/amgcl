@@ -37,7 +37,7 @@ std::vector<int>    ptr;
 std::vector<int>    col;
 std::vector<double> val;
 
-AMG amg( boost::tie(n, val, col, ptr) );
+AMG amg( boost::tie(n, ptr, col, val) );
 
 // Adapt raw arrays:
 int    *ptr;
@@ -45,9 +45,9 @@ int    *col;
 double *val;
 
 AMG amg(boost::make_tuple(n,
-                          boost::make_iterator_range(val, val + ptr[n]),
+                          boost::make_iterator_range(ptr, ptr + n + 1),
                           boost::make_iterator_range(col, col + ptr[n]),
-                          boost::make_iterator_range(ptr, ptr + n + 1)
+                          boost::make_iterator_range(val, val + ptr[n])
                           ) );
 \endcode
 */
@@ -68,8 +68,8 @@ namespace backend {
 //---------------------------------------------------------------------------
 // Specialization of matrix interface
 //---------------------------------------------------------------------------
-template < typename N, typename VRng, typename CRng, typename PRng >
-struct value_type< boost::tuple<N, VRng, CRng, PRng> >
+template < typename N, typename PRng, typename CRng, typename VRng >
+struct value_type< boost::tuple<N, PRng, CRng, VRng> >
 {
     typedef
         typename boost::range_value<
@@ -78,41 +78,41 @@ struct value_type< boost::tuple<N, VRng, CRng, PRng> >
         type;
 };
 
-template < typename N, typename VRng, typename CRng, typename PRng >
-struct rows_impl< boost::tuple<N, VRng, CRng, PRng> >
+template < typename N, typename PRng, typename CRng, typename VRng >
+struct rows_impl< boost::tuple<N, PRng, CRng, VRng> >
 {
     static size_t get(
-            const boost::tuple<N, VRng, CRng, PRng> &A
+            const boost::tuple<N, PRng, CRng, VRng> &A
             )
     {
         return boost::get<0>(A);
     }
 };
 
-template < typename N, typename VRng, typename CRng, typename PRng >
-struct cols_impl< boost::tuple<N, VRng, CRng, PRng> >
+template < typename N, typename PRng, typename CRng, typename VRng >
+struct cols_impl< boost::tuple<N, PRng, CRng, VRng> >
 {
     static size_t get(
-            const boost::tuple<N, VRng, CRng, PRng> &A
+            const boost::tuple<N, PRng, CRng, VRng> &A
             )
     {
         return boost::get<0>(A);
     }
 };
 
-template < typename N, typename VRng, typename CRng, typename PRng >
-struct nonzeros_impl< boost::tuple<N, VRng, CRng, PRng> >
+template < typename N, typename PRng, typename CRng, typename VRng >
+struct nonzeros_impl< boost::tuple<N, PRng, CRng, VRng> >
 {
     static size_t get(
-            const boost::tuple<N, VRng, CRng, PRng> &A
+            const boost::tuple<N, PRng, CRng, VRng> &A
             )
     {
-        return *( boost::begin(boost::get<3>(A)) + boost::get<0>(A) );
+        return boost::get<1>(A)[boost::get<0>(A)];
     }
 };
 
-template < typename N, typename VRng, typename CRng, typename PRng >
-struct row_iterator< boost::tuple<N, VRng, CRng, PRng> >
+template < typename N, typename PRng, typename CRng, typename VRng >
+struct row_iterator< boost::tuple<N, PRng, CRng, VRng> >
 {
     class type {
         public:
@@ -127,7 +127,7 @@ struct row_iterator< boost::tuple<N, VRng, CRng, PRng> >
                          >::type
                 val_type;
 
-            type(const boost::tuple<N, VRng, CRng, PRng> &A,
+            type(const boost::tuple<N, PRng, CRng, VRng> &A,
                  size_t row)
             {
                 typedef
@@ -136,12 +136,12 @@ struct row_iterator< boost::tuple<N, VRng, CRng, PRng> >
                              >::type
                     ptr_type;
 
-                ptr_type row_begin = *(boost::begin( boost::get<3>(A) ) + row);
-                ptr_type row_end   = *(boost::begin( boost::get<3>(A) ) + row + 1);
+                ptr_type row_begin = boost::get<1>(A)[row];
+                ptr_type row_end   = boost::get<1>(A)[row + 1];
 
                 m_col = boost::begin( boost::get<2>(A) ) + row_begin;
                 m_end = boost::begin( boost::get<2>(A) ) + row_end;
-                m_val = boost::begin( boost::get<1>(A) ) + row_begin;
+                m_val = boost::begin( boost::get<3>(A) ) + row_begin;
             }
 
             operator bool() const {
@@ -181,10 +181,10 @@ struct row_iterator< boost::tuple<N, VRng, CRng, PRng> >
     };
 };
 
-template < typename N, typename VRng, typename CRng, typename PRng >
-struct row_begin_impl< boost::tuple<N, VRng, CRng, PRng> >
+template < typename N, typename PRng, typename CRng, typename VRng >
+struct row_begin_impl< boost::tuple<N, PRng, CRng, VRng> >
 {
-    typedef boost::tuple<N, VRng, CRng, PRng> Matrix;
+    typedef boost::tuple<N, PRng, CRng, VRng> Matrix;
     static typename row_iterator<Matrix>::type
     get(const Matrix &matrix, size_t row) {
         return typename row_iterator<Matrix>::type(matrix, row);

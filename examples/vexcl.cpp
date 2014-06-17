@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     prm.backend.q = ctx;
 
     prof.tic("build");
-    Solver solve( boost::tie(n, val, col, ptr), prm );
+    Solver solve( boost::tie(n, ptr, col, val), prm );
     prof.toc("build");
 
     std::cout << solve << std::endl;

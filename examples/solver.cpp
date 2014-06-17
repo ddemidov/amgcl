@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
             >,
         amgcl::relaxation::spai0,
         amgcl::solver::bicgstab
-        > solve( boost::tie(n, val, col, ptr) );
+        > solve( boost::tie(n, ptr, col, val) );
     prof.toc("build");
 
     std::cout << solve << std::endl;

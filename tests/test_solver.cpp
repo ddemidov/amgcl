@@ -97,7 +97,7 @@ void test_solver(const typename Backend::params &prm = typename Backend::params(
     typename AMG::AMG_params amg_params;
     amg_params.backend = prm;
 
-    AMG solve(boost::tie(n, val, col, ptr), amg_params);
+    AMG solve(boost::tie(n, ptr, col, val), amg_params);
 
     std::cout << solve << std::endl;
 
