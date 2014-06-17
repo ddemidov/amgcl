@@ -1,6 +1,7 @@
 #ifndef SDD_CG_HPP
 #define SDD_CG_HPP
 
+#include <fstream>
 #include <vector>
 #include <cmath>
 
@@ -15,7 +16,7 @@
 
 #include <amgcl/mpi/deflated_cg.hpp>
 
-void add_node(long n, long idx, long i, long j, long k,
+void add_node(long n, long idx, long i, long j,
         std::vector<long>   &ptr,
         std::vector<long>   &col,
         std::vector<double> &val,
@@ -24,19 +25,12 @@ void add_node(long n, long idx, long i, long j, long k,
 {
     const double h2i = (n - 1) * (n - 1);
 
-    if (
-            i == 0 || i == n - 1 ||
-            j == 0 || j == n - 1 ||
-            k == 0 || k == n - 1
-       )
+    if (i == 0 || i == n - 1 || j == 0 || j == n - 1)
     {
         col.push_back(idx);
         val.push_back(1);
         rhs.push_back(0);
     } else {
-        col.push_back(idx - n * n);
-        val.push_back(-h2i);
-
         col.push_back(idx - n);
         val.push_back(-h2i);
 
@@ -44,15 +38,12 @@ void add_node(long n, long idx, long i, long j, long k,
         val.push_back(-h2i);
 
         col.push_back(idx);
-        val.push_back(6 * h2i);
+        val.push_back(4 * h2i);
 
         col.push_back(idx + 1);
         val.push_back(-h2i);
 
         col.push_back(idx + n);
-        val.push_back(-h2i);
-
-        col.push_back(idx + n * n);
         val.push_back(-h2i);
 
         rhs.push_back(1);
@@ -70,11 +61,11 @@ int main(int argc, char *argv[]) {
     std::vector<double> val;
     std::vector<double> rhs;
 
-    const long n  = 128;
-    const long n3 = n * n * n;
-    const long chunk_size = (n3 + world.size() - 1) / world.size();
+    const long n  = 1024;
+    const long n2 = n * n;
+    const long chunk_size = (n2 + world.size() - 1) / world.size();
     const long chunk_start = chunk_size * world.rank();
-    const long chunk_end   = std::min(chunk_start + chunk_size, n3);
+    const long chunk_end   = std::min(chunk_start + chunk_size, n2);
     const long chunk = chunk_end - chunk_start;
 
     ptr.reserve(chunk + 1);
@@ -84,12 +75,10 @@ int main(int argc, char *argv[]) {
 
     ptr.push_back(0);
 
-    for(long k = 0, idx = 0; k < n; ++k) {
-        for(long j = 0; j < n; ++j) {
-            for(long i = 0; i < n; ++i, ++idx) {
-                if (idx >= chunk_start && idx < chunk_end)
-                    add_node(n, idx, i, j, k, ptr, col, val, rhs);
-            }
+    for(long j = 0, idx = 0; j < n; ++j) {
+        for(long i = 0; i < n; ++i, ++idx) {
+            if (idx >= chunk_start && idx < chunk_end)
+                add_node(n, idx, i, j, ptr, col, val, rhs);
         }
     }
 
@@ -97,6 +86,20 @@ int main(int argc, char *argv[]) {
 
     amgcl::mpi::deflated_cg<double> solve(world, boost::tie(chunk, ptr, col, val) );
     solve(rhs, x);
+
+    std::vector<double> X;
+
+    if (world.rank() == 0) X.resize(n2);
+
+    gather(world, x.data(), chunk, X.data(), 0);
+
+    if (world.rank() == 0) {
+        int m = n2;
+
+        std::ofstream f("out.dat", std::ios::binary);
+        f.write((char*)&m, sizeof(int));
+        f.write((char*)X.data(), n2 * sizeof(double));
+    }
 }
 
 #endif
