@@ -25,29 +25,30 @@ void add_node(long n, long idx, long i, long j,
 {
     const double h2i = (n - 1) * (n - 1);
 
-    if (i == 0 || i == n - 1 || j == 0 || j == n - 1)
-    {
-        col.push_back(idx);
-        val.push_back(1);
-        rhs.push_back(0);
-    } else {
+    if (j > 0)  {
         col.push_back(idx - n);
         val.push_back(-h2i);
+    }
 
+    if (i > 0) {
         col.push_back(idx - 1);
         val.push_back(-h2i);
+    }
 
-        col.push_back(idx);
-        val.push_back(4 * h2i);
+    col.push_back(idx);
+    val.push_back(4 * h2i);
 
+    if (i + 1 < n) {
         col.push_back(idx + 1);
         val.push_back(-h2i);
+    }
 
+    if (j + 1 < n) {
         col.push_back(idx + n);
         val.push_back(-h2i);
-
-        rhs.push_back(1);
     }
+
+    rhs.push_back(1);
 
     ptr.push_back( static_cast<long>(col.size()) );
 }
