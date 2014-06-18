@@ -192,7 +192,6 @@ Here is the list of backends currently implemented in the library:
   nonzero values, columns, and row pointers may be used. The example above
   illustrates how the backend may be used with `std::vector<>`s. Below is
   an example that uses raw pointers:
-
 ~~~{.cpp}
 int n;       // Matrix size.
 double *val; // Values.
@@ -206,6 +205,71 @@ AMG amg( boost::make_tuple(
             boost::make_iterator_range(val, val + ptr[n])
             )
         );
+~~~
+- `amgcl::backend::crs_builder<RowBuilder>`
+  ([amgcl/backend/crs_builder.hpp][]).
+    The backend is similar to `crs_tuple` in the sense that it is only used
+    for initialization of AMG hierarchy. The difference is that `crs_builder`
+    backend does not need fully constructed matrix in CRS format (which would
+    be copied into AMG anyway), but builds matrix rows as needed.
+    This results in reduced memory requirements. There is a convenience
+    function `make_matrix(const RowBuilder&)` that returns a
+    `crs_builder<RowBuilder>` instance. Here is an example of 2D poisson
+    problem construction:
+~~~{.cpp}
+struct poisson_2d {
+    typedef double val_type;
+    typedef long   col_type;
+
+    poisson_2d(size_t n) : n(n), h2i((n - 1) * (n - 1)) {}
+
+    // Number of rows in the constructed matrix:
+    size_t rows() const { return n * n; }
+
+    // Estimated number of nonzeros in the problem:
+    size_t nonzeros() const { return n * 5; }
+
+    // Fills column numbers and values of nonzero elements in the given matrix row.
+    void operator()(size_t row,
+            std::vector<col_type> &col,
+            std::vector<val_type> &val
+            ) const
+    {
+        size_t i = row % n;
+        size_t j = row / n;
+
+        if (j > 0) {
+            col.push_back(row - n);
+            val.push_back(-h2i);
+        }
+
+        if (i > 0) {
+            col.push_back(row - 1);
+            val.push_back(-h2i);
+        }
+
+        col.push_back(row);
+        val.push_back(4 * h2i);
+
+        if (i + 1 < n) {
+            col.push_back(row + 1);
+            val.push_back(-h2i);
+        }
+
+        if (j + 1 < n) {
+            col.push_back(row + n);
+            val.push_back(-h2i);
+        }
+    }
+
+    private:
+        size_t n;
+        double h2i;
+};
+
+amgcl::make_solver<
+    Backend, Coarsening, Relaxation, IterativeSolver
+    > solve( amgcl::backend::make_matrix( poisson_2d(m) ) );
 ~~~
 
 ### <a name="coarsening"></a>Coarsening strategies
@@ -445,16 +509,17 @@ partially supported by RFBR grants No 12-07-0007 and 12-01-00033._
 [Kratos]:     http://www.cimne.com/kratos
 [PARALUTION]: http://www.paralution.com
 
-[amgcl/amgcl.hpp]:             amgcl/amgcl.hpp
+[amgcl/amgcl.hpp]: amgcl/amgcl.hpp
 
-[amgcl/backend/builtin.hpp]:   amgcl/backend/builtin.hpp
-[amgcl/backend/block_crs.hpp]: amgcl/backend/block_crs.hpp
-[amgcl/backend/eigen.hpp]:     amgcl/backend/eigen.hpp
-[amgcl/backend/blaze.hpp]:     amgcl/backend/blaze.hpp
-[amgcl/backend/vexcl.hpp]:     amgcl/backend/vexcl.hpp
-[amgcl/backend/viennacl.hpp]:  amgcl/backend/viennacl.hpp
-[amgcl/backend/cuda.hpp]:      amgcl/backend/cuda.hpp
-[amgcl/backend/crs_tuple.hpp]: amgcl/backend/crs_tuple.hpp
+[amgcl/backend/builtin.hpp]:     amgcl/backend/builtin.hpp
+[amgcl/backend/block_crs.hpp]:   amgcl/backend/block_crs.hpp
+[amgcl/backend/eigen.hpp]:       amgcl/backend/eigen.hpp
+[amgcl/backend/blaze.hpp]:       amgcl/backend/blaze.hpp
+[amgcl/backend/vexcl.hpp]:       amgcl/backend/vexcl.hpp
+[amgcl/backend/viennacl.hpp]:    amgcl/backend/viennacl.hpp
+[amgcl/backend/cuda.hpp]:        amgcl/backend/cuda.hpp
+[amgcl/backend/crs_tuple.hpp]:   amgcl/backend/crs_tuple.hpp
+[amgcl/backend/crs_builder.hpp]: amgcl/backend/crs_builder.hpp
 
 [amgcl/coarsening/ruge_stuben.hpp]:          amgcl/coarsening/ruge_stuben.hpp
 [amgcl/coarsening/aggregation.hpp]:          amgcl/coarsening/aggregation.hpp
