@@ -227,7 +227,7 @@ struct poisson_2d {
     size_t rows() const { return n * n; }
 
     // Estimated number of nonzeros in the problem:
-    size_t nonzeros() const { return n * 5; }
+    size_t nonzeros() const { return 5 * rows(); }
 
     // Fills column numbers and values of nonzero elements in the given matrix row.
     void operator()(size_t row,

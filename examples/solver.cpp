@@ -21,7 +21,7 @@ struct poisson_2d {
     poisson_2d(size_t n) : n(n), h2i((n - 1) * (n - 1)) {}
 
     size_t rows()     const { return n * n; }
-    size_t nonzeros() const { return n * 5; }
+    size_t nonzeros() const { return 5 * rows(); }
 
     void operator()(size_t row,
             std::vector<col_type> &col,
