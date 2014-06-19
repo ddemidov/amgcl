@@ -15,7 +15,7 @@ find_package(MPI QUIET)
 if (MPI_CXX_FOUND)
     find_package(Boost COMPONENTS ${BOOST_COMPONENTS} mpi serialization)
     include_directories(${MPI_CXX_INCLUDE_PATH})
-    add_mpi_example(deflated_cg deflated_cg.cpp)
+    add_mpi_example(subdomain_deflation subdomain_deflation.cpp)
 
     configure_file(
         ${CMAKE_CURRENT_SOURCE_DIR}/plot_result

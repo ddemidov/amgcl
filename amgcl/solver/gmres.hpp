@@ -39,6 +39,7 @@ THE SOFTWARE.
 #include <boost/range/algorithm.hpp>
 
 #include <amgcl/backend/interface.hpp>
+#include <amgcl/solver/detail/default_inner_product.hpp>
 
 namespace amgcl {
 namespace solver {
@@ -49,7 +50,10 @@ namespace solver {
  * \ingroup solvers
  * \sa \cite Barrett1994
  */
-template <class Backend>
+template <
+    class Backend,
+    class InnerProduct = detail::default_inner_product
+    >
 class gmres {
     public:
         typedef typename Backend::vector     vector;
@@ -76,13 +80,15 @@ class gmres {
         gmres(
                 size_t n,
                 const params &prm = params(),
-                const backend_params &backend_prm = backend_params()
+                const backend_params &backend_prm = backend_params(),
+                const InnerProduct &inner_product = InnerProduct()
              )
             : prm(prm),
               H(boost::extents[prm.M + 1][prm.M]),
               s(prm.M + 1), cs(prm.M + 1), sn(prm.M + 1), y(prm.M + 1),
               r( Backend::create_vector(n, backend_prm) ),
-              w( Backend::create_vector(n, backend_prm) )
+              w( Backend::create_vector(n, backend_prm) ),
+              inner_product(inner_product)
         {
             v.reserve(prm.M + 1);
             for(int i = 0; i <= prm.M; ++i)
@@ -155,6 +161,13 @@ class gmres {
         boost::shared_ptr<vector> r, w;
         std::vector< boost::shared_ptr<vector> > v;
 
+        InnerProduct inner_product;
+
+        template <class Vec>
+        value_type norm(const Vec &x) const {
+            return sqrt(inner_product(x, x));
+        }
+
         static void apply_plane_rotation(
                 value_type &dx, value_type &dy, value_type cs, value_type sn
                 )
@@ -205,9 +218,9 @@ class gmres {
                 const Precond &P, const Vec2 &x) const
         {
             backend::residual(rhs, A, x, *w);
-            P(*w, *r);
+            P.apply(*w, *r);
 
-            s[0] = backend::norm(*r);
+            s[0] = norm(*r);
             backend::axpby(1 / s[0], *r, 0, *v[0]);
 
             std::fill(s.begin() + 1, s.end(), value_type());
@@ -219,14 +232,14 @@ class gmres {
         value_type iteration(const Matrix &A, const Precond &P, int i) const
         {
             backend::spmv(1, A, *v[i], 0, *r);
-            P(*r, *w);
+            P.apply(*r, *w);
 
             for(int k = 0; k <= i; ++k) {
-                H[k][i] = backend::inner_product(*w, *v[k]);
+                H[k][i] = inner_product(*w, *v[k]);
                 backend::axpby(-H[k][i], *v[k], 1, *w);
             }
 
-            H[i+1][i] = backend::norm(*w);
+            H[i+1][i] = norm(*w);
 
             backend::axpby(1 / H[i+1][i], *w, 0, *v[i+1]);
 

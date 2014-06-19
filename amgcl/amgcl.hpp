@@ -43,6 +43,7 @@ THE SOFTWARE.
 #include <boost/tuple/tuple.hpp>
 
 #include <amgcl/backend/builtin.hpp>
+#include <amgcl/solver/detail/default_inner_product.hpp>
 #include <amgcl/util.hpp>
 
 /// Primary namespace.
@@ -182,7 +183,7 @@ class amg {
          * \param rhs Right-hand side vector.
          * \param x   Solution vector.
          */
-        void operator()(const vector &rhs, vector &x) const {
+        void apply(const vector &rhs, vector &x) const {
             backend::clear(x);
             cycle(levels.begin(), rhs, x);
         }
@@ -320,14 +321,14 @@ template <
     class Backend,
     class Coarsening,
     template <class> class Relax,
-    template <class> class IterativeSolver
+    template <class, class> class IterativeSolver
     >
 class make_solver {
     public:
         typedef typename Backend::value_type value_type;
 
         typedef amg<Backend, Coarsening, Relax> AMG;
-        typedef IterativeSolver<Backend>        Solver;
+        typedef IterativeSolver<Backend, solver::detail::default_inner_product> Solver;
 
         typedef typename AMG::params    AMG_params;
         typedef typename Solver::params Solver_params;

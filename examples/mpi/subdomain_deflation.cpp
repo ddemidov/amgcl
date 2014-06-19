@@ -10,8 +10,13 @@
 #include <boost/range/algorithm.hpp>
 
 #include <amgcl/amgcl.hpp>
+#include <amgcl/backend/builtin.hpp>
 #include <amgcl/backend/crs_tuple.hpp>
-#include <amgcl/mpi/deflated_cg.hpp>
+#include <amgcl/coarsening/plain_aggregates.hpp>
+#include <amgcl/coarsening/smoothed_aggregation.hpp>
+#include <amgcl/relaxation/spai0.hpp>
+#include <amgcl/solver/cg.hpp>
+#include <amgcl/mpi/deflation.hpp>
 #include <amgcl/profiler.hpp>
 
 #include "domain_partition.hpp"
@@ -53,19 +58,19 @@ int main(int argc, char *argv[]) {
     std::vector<long>   ptr;
     std::vector<long>   col;
     std::vector<double> val;
+    std::vector<double> rhs;
 
     ptr.reserve(chunk + 1);
-    col.reserve(chunk * 7);
-    val.reserve(chunk * 7);
+    col.reserve(chunk * 5);
+    val.reserve(chunk * 5);
+    rhs.reserve(chunk);
 
     ptr.push_back(0);
 
     const double h2i = (n - 1) * (n - 1);
-    for(long j = 0, idx = 0, k = 0; j < n; ++j) {
+    for(long j = 0, idx = 0; j < n; ++j) {
         for(long i = 0; i < n; ++i, ++idx) {
             if (renum[idx] < chunk_start || renum[idx] >= chunk_end) continue;
-
-            assert(renum[idx] - domain[world.rank()] == k);
 
             if (j > 0)  {
                 col.push_back(renum[idx - n]);
@@ -90,21 +95,32 @@ int main(int argc, char *argv[]) {
                 val.push_back(-h2i);
             }
 
+            rhs.push_back(1);
             ptr.push_back( col.size() );
-
-            ++k;
         }
     }
     prof.toc("assemble");
 
     prof.tic("setup");
-    amgcl::mpi::deflated_cg<double> solve(world, boost::tie(chunk, ptr, col, val) );
+    typedef amgcl::mpi::subdomain_deflation<
+        amgcl::backend::builtin<double>,
+        amgcl::coarsening::smoothed_aggregation<
+            amgcl::coarsening::plain_aggregates
+            >,
+        amgcl::relaxation::spai0,
+        amgcl::solver::cg
+        > Solver;
+
+    typename Solver::AMG_params    amg_prm;
+    typename Solver::Solver_params slv_prm(500, 1e-6);
+    Solver solve(world, boost::tie(chunk, ptr, col, val), amg_prm, slv_prm);
     prof.toc("setup");
 
     prof.tic("solve");
-    std::vector<double> f(chunk, 1);
     std::vector<double> x(chunk, 0);
-    solve(f, x);
+    size_t iters;
+    double resid;
+    boost::tie(iters, resid) = solve(rhs, x);
     prof.toc("solve");
 
     prof.tic("save");
@@ -125,7 +141,13 @@ int main(int argc, char *argv[]) {
     }
     prof.toc("save");
 
-    if (world.rank() == 0) std::cout << prof << std::endl;
+    if (world.rank() == 0) {
+        std::cout
+            << "Iterations: " << iters << std::endl
+            << "Error:      " << resid << std::endl
+            << std::endl
+            << prof << std::endl;
+    }
 }
 
 #endif

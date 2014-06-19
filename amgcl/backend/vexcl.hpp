@@ -36,7 +36,7 @@ THE SOFTWARE.
 
 #include <vexcl/vexcl.hpp>
 
-#include <amgcl/backend/interface.hpp>
+#include <amgcl/backend/builtin.hpp>
 
 namespace amgcl {
 namespace backend {

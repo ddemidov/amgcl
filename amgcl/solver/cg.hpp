@@ -33,6 +33,7 @@ THE SOFTWARE.
 
 #include <boost/tuple/tuple.hpp>
 #include <amgcl/backend/interface.hpp>
+#include <amgcl/solver/detail/default_inner_product.hpp>
 
 namespace amgcl {
 
@@ -57,7 +58,10 @@ namespace solver {
  * \ingroup solvers
  * \sa \cite Barrett1994
  */
-template <class Backend>
+template <
+    class Backend,
+    class InnerProduct = detail::default_inner_product
+    >
 class cg {
     public:
         typedef typename Backend::vector     vector;
@@ -86,12 +90,14 @@ class cg {
         cg(
                 size_t n,
                 const params &prm = params(),
-                const backend_params &backend_prm = backend_params()
+                const backend_params &backend_prm = backend_params(),
+                const InnerProduct &inner_product = InnerProduct()
           ) : prm(prm), n(n),
               r(Backend::create_vector(n, backend_prm)),
               s(Backend::create_vector(n, backend_prm)),
               p(Backend::create_vector(n, backend_prm)),
-              q(Backend::create_vector(n, backend_prm))
+              q(Backend::create_vector(n, backend_prm)),
+              inner_product(inner_product)
         { }
 
         /// Solves the linear system for the given system matrix.
@@ -116,40 +122,40 @@ class cg {
                 Vec2          &x
                 ) const
         {
-            backend::residual(rhs, A, x, *r);
+            value_type norm_rhs = inner_product(rhs, rhs);
 
-            value_type rho1 = 0, rho2 = 0;
-            value_type norm_of_rhs = backend::norm(rhs);
-
-            if (norm_of_rhs == 0) {
+            if (norm_rhs == 0) {
                 backend::clear(x);
-                return boost::make_tuple(0UL, norm_of_rhs);
+                return boost::make_tuple(0UL, value_type());
             }
 
-            size_t     iter = 0;
-            value_type res;
+            backend::residual(rhs, A, x, *r);
 
-            for(; (res = backend::norm(*r) / norm_of_rhs) > prm.tol && iter < prm.maxiter; ++iter)
-            {
-                P(*r, *s);
+            P.apply(*r, *s);
+            backend::copy(*s, *p);
 
-                rho2 = rho1;
-                rho1 = backend::inner_product(*r, *s);
-
-                if (iter)
-                    backend::axpby(1, *s, (rho1 / rho2), *p);
-                else
-                    backend::copy(*s, *p);
-
+            size_t     iter = 1;
+            value_type rho1 = inner_product(*r, *s), rho2;
+            value_type tol2 = prm.tol * prm.tol;
+            for(; iter < prm.maxiter; ++iter) {
                 backend::spmv(1, A, *p, 0, *q);
 
-                value_type alpha = rho1 / backend::inner_product(*q, *p);
+                value_type alpha = rho1 / inner_product(*q, *p);
 
                 backend::axpby( alpha, *p, 1,  x);
                 backend::axpby(-alpha, *q, 1, *r);
+
+                P.apply(*r, *s);
+
+                rho2 = rho1;
+                rho1 = inner_product(*r, *s);
+
+                if (rho1 < tol2 * norm_rhs) break;
+
+                backend::axpby(1, *s, (rho1 / rho2), *p);
             }
 
-            return boost::make_tuple(iter, res);
+            return boost::make_tuple(iter, sqrt(rho1 / norm_rhs));
         }
 
         /// Solves the linear system for the same matrix that was used for the AMG preconditioner construction.
@@ -175,6 +181,8 @@ class cg {
         boost::shared_ptr<vector> s;
         boost::shared_ptr<vector> p;
         boost::shared_ptr<vector> q;
+
+        InnerProduct inner_product;
 };
 
 } // namespace solver

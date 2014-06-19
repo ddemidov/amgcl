@@ -76,10 +76,10 @@ typedef boost::mpl::list<
 
 //---------------------------------------------------------------------------
 template <
-    class                  Backend,
-    class                  Coarsening,
-    template <class> class Relax,
-    template <class> class Solver
+    class                         Backend,
+    class                         Coarsening,
+    template <class> class        Relax,
+    template <class, class> class Solver
     >
 void test_solver(const typename Backend::params &prm = typename Backend::params())
 {

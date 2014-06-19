@@ -33,6 +33,7 @@ THE SOFTWARE.
 
 #include <boost/tuple/tuple.hpp>
 #include <amgcl/backend/interface.hpp>
+#include <amgcl/solver/detail/default_inner_product.hpp>
 #include <amgcl/util.hpp>
 
 namespace amgcl {
@@ -44,7 +45,10 @@ namespace solver {
  * \ingroup solvers
  * \sa \cite Barrett1994
  */
-template <class Backend>
+template <
+    class Backend,
+    class InnerProduct = detail::default_inner_product
+    >
 class bicgstab {
     public:
         typedef typename Backend::vector     vector;
@@ -68,7 +72,8 @@ class bicgstab {
         bicgstab(
                 size_t n,
                 const params &prm = params(),
-                const backend_params &backend_prm = backend_params()
+                const backend_params &backend_prm = backend_params(),
+                const InnerProduct &inner_product = InnerProduct()
                 )
             : prm(prm), n(n),
               r ( Backend::create_vector(n, backend_prm) ),
@@ -78,7 +83,8 @@ class bicgstab {
               t ( Backend::create_vector(n, backend_prm) ),
               rh( Backend::create_vector(n, backend_prm) ),
               ph( Backend::create_vector(n, backend_prm) ),
-              sh( Backend::create_vector(n, backend_prm) )
+              sh( Backend::create_vector(n, backend_prm) ),
+              inner_product(inner_product)
         { }
 
         /// Solves the linear system for the given system matrix.
@@ -109,14 +115,14 @@ class bicgstab {
             value_type rho1  = 0, rho2  = 0;
             value_type alpha = 0, omega = 0;
 
-            value_type norm_of_rhs = backend::norm(rhs);
+            value_type norm_of_rhs = norm(rhs);
 
             size_t     iter;
             value_type res = 2 * prm.tol;
 
             for(iter = 0; res > prm.tol && iter < prm.maxiter; ++iter) {
                 rho2 = rho1;
-                rho1 = backend::inner_product(*r, *rh);
+                rho1 = inner_product(*r, *rh);
 
                 precondition(rho1, "Zero rho in BiCGStab");
 
@@ -127,30 +133,29 @@ class bicgstab {
                     backend::copy(*r, *p);
                 }
 
-                P(*p, *ph);
+                P.apply(*p, *ph);
 
                 backend::spmv(1, A, *ph, 0, *v);
 
-                alpha = rho1 / backend::inner_product(*rh, *v);
+                alpha = rho1 / inner_product(*rh, *v);
 
                 backend::axpbypcz(1, *r, -alpha, *v, 0, *s);
 
-                if ((res = backend::norm(*s) / norm_of_rhs) < prm.tol) {
+                if ((res = norm(*s) / norm_of_rhs) < prm.tol) {
                     backend::axpby(alpha, *ph, 1, x);
                 } else {
-                    P(*s, *sh);
+                    P.apply(*s, *sh);
 
                     backend::spmv(1, A, *sh, 0, *t);
 
-                    omega = backend::inner_product(*t, *s)
-                          / backend::inner_product(*t, *t);
+                    omega = inner_product(*t, *s) / inner_product(*t, *t);
 
                     precondition(omega, "Zero omega in BiCGStab");
 
                     backend::axpbypcz(alpha, *ph, omega, *sh, 1, x);
                     backend::axpbypcz(1, *s, -omega, *t, 0, *r);
 
-                    res = backend::norm(*r) / norm_of_rhs;
+                    res = norm(*r) / norm_of_rhs;
                 }
             }
 
@@ -186,6 +191,13 @@ class bicgstab {
         boost::shared_ptr<vector> rh;
         boost::shared_ptr<vector> ph;
         boost::shared_ptr<vector> sh;
+
+        InnerProduct inner_product;
+
+        template <class Vec>
+        value_type norm(const Vec &x) const {
+            return sqrt(inner_product(x, x));
+        }
 };
 
 } // namespace solver

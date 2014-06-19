@@ -149,20 +149,6 @@ struct inner_product_impl {
     typedef typename Vector1::INNER_PRODUCT_NOT_IMPLEMENTED type;
 };
 
-/// Implementation for vector norm.
-/**
- * \note By default sqrt(inner_product(x, x)) is used as norm. One only has to
- *       specify this template if the default behavior has to be changed.
- * \note Used in norm()
- */
-template <class Vector, class Enable = void>
-struct norm_impl {
-    static typename value_type<Vector>::type get(const Vector &x)
-    {
-        return sqrt( inner_product_impl<Vector, Vector>::get(x, x) );
-    }
-};
-
 /// Implementation for vector sum.
 /**
  * \note Used in sum()
@@ -265,13 +251,6 @@ typename value_type<Vector1>::type
 inner_product(const Vector1 &x, const Vector2 &y)
 {
     return inner_product_impl<Vector1, Vector2>::get(x, y);
-}
-
-/// Returns norm of a vector.
-template <class Vector>
-typename value_type<Vector>::type norm(const Vector &x)
-{
-    return norm_impl<Vector>::get(x);
 }
 
 /// Sums elements in a vector.
