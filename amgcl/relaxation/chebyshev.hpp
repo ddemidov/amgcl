@@ -38,7 +38,7 @@ THE SOFTWARE.
 #include <boost/multi_array.hpp>
 #include <boost/math/constants/constants.hpp>
 
-#include <amgcl/detail/gaussj.hpp>
+#include <amgcl/detail/inverse.hpp>
 
 namespace amgcl {
 namespace relaxation {
@@ -104,7 +104,7 @@ class chebyshev {
             }
 
             // Invert S, compute coefficients.
-            detail::gaussj(prm.degree, S.data());
+            amgcl::detail::inverse(prm.degree, S.data());
 
             value_type const_c = 1;
             for(unsigned i = 0; i < prm.degree; ++i) {

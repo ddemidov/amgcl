@@ -47,7 +47,7 @@ THE SOFTWARE.
 
 #include <amgcl/util.hpp>
 #include <amgcl/backend/interface.hpp>
-#include <amgcl/detail/gaussj.hpp>
+#include <amgcl/detail/inverse.hpp>
 #include <amgcl/detail/sort_row.hpp>
 
 namespace amgcl {
@@ -323,7 +323,7 @@ crs<V, C, P> inverse(const crs<V, C, P> &A) {
         for(row_iterator a = A.row_begin(i); a; ++a)
             Ainv.val[i * n + a.col()] = a.value();
 
-    amgcl::detail::gaussj(n, Ainv.val.data());
+    amgcl::detail::inverse(n, Ainv.val.data());
 
     Ainv.ptr[0] = 0;
     for(size_t i = 0, idx = 0; i < n; ) {

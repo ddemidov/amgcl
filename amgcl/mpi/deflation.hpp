@@ -39,6 +39,7 @@ THE SOFTWARE.
 
 #include <amgcl/amgcl.hpp>
 #include <amgcl/backend/builtin.hpp>
+#include <amgcl/detail/inverse.hpp>
 
 namespace amgcl {
 
@@ -198,7 +199,7 @@ class subdomain_deflation {
             all_gather( comm, erow.data(), nz * def_vec.dim(), E.data() );
 
             // Invert E.
-            amgcl::detail::gaussj(nz, E.data());
+            amgcl::detail::inverse(nz, E.data());
 
             // Find out:
             // 1. How many columns do we need from each process,
