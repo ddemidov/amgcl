@@ -67,6 +67,12 @@ struct mpi_inner_product {
 
 } // namespace detail
 
+/// Constant deflation vectors.
+struct constant_deflation {
+    int dim() const { return 1; }
+    int operator()(long row, int j) const { return 1; }
+};
+
 /// Distributed solver with subdomain deflation.
 /**
  * \sa \cite Frank2001
@@ -99,17 +105,20 @@ class subdomain_deflation {
         typedef typename Backend::matrix     matrix;
         typedef typename Backend::vector     vector;
 
-        template <class Matrix>
+        template <class Matrix, class DeflationVectors>
         subdomain_deflation(
                 MPI_Comm mpi_comm,
                 const Matrix &Astrip,
+                const DeflationVectors &def_vec,
                 const AMG_params    &amg_params    = AMG_params(),
                 const Solver_params &solver_params = Solver_params()
                 )
-        : comm(mpi_comm, boost::mpi::comm_attach), nrows(backend::rows(Astrip)),
-          df( comm.size() ), dx( comm.size() ),
-          E( boost::extents[comm.size()][comm.size()] ),
-          q(Backend::create_vector(nrows, amg_params.backend))
+        : comm(mpi_comm, boost::mpi::comm_attach),
+          nrows(backend::rows(Astrip)), nz(comm.size() * def_vec.dim()),
+          df( nz ), dx( nz ),
+          E( boost::extents[nz][nz] ),
+          q( Backend::create_vector(nrows, amg_params.backend) ),
+          Z( def_vec.dim() )
         {
             typedef typename backend::row_iterator<Matrix>::type row_iterator;
             typedef backend::crs<value_type, long> build_matrix;
@@ -124,11 +133,22 @@ class subdomain_deflation {
             boost::partial_sum(domain, domain.begin());
             long chunk_start = domain[comm.rank()];
 
+            // Fill deflation vectors.
+            {
+                std::vector<value_type> z(nrows);
+                for(int j = 0; j < def_vec.dim(); ++j) {
+                    for(long i = 0; i < nrows; ++i)
+                        z[i] = def_vec(i + chunk_start, j);
+                    Z[j] = Backend::copy_vector(z, amg_params.backend);
+                }
+            }
+
             // Number of nonzeros in local and remote parts of the matrix.
             long loc_nnz = 0, rem_nnz = 0;
 
             // Local contribution to E.
-            std::vector<value_type> erow(comm.size(), 0);
+            boost::multi_array<value_type, 2> erow(boost::extents[def_vec.dim()][nz]);
+            std::fill_n(erow.data(), erow.num_elements(), 0);
 
             // Maps remote column numbers to local ids:
             std::map<long, long> rc;
@@ -140,10 +160,10 @@ class subdomain_deflation {
             // 3. Compute local contribution to E = (Z^t A Z),
             // 4. Build sparsity pattern of matrix AZ.
             az->nrows = nrows;
-            az->ncols = comm.size();
+            az->ncols = nz;
             az->ptr.resize(nrows + 1, 0);
 
-            std::vector<long> marker(comm.size(), -1);
+            std::vector<long> marker(nz, -1);
             for(long i = 0; i < nrows; ++i) {
                 for(row_iterator a = backend::row_begin(Astrip, i); a; ++a) {
                     long       c = a.col();
@@ -159,20 +179,26 @@ class subdomain_deflation {
                         rc_it = rc.insert(rc_it, std::make_pair(c, 0));
                     }
 
-                    erow[d] += v;
+                    for(long ii = 0; ii < def_vec.dim(); ++ii) {
+                        for(long jj = 0; jj < def_vec.dim(); ++jj) {
+                            long k = d * def_vec.dim() + jj;
 
-                    if (marker[d] != i) {
-                        marker[d] = i;
-                        ++( az->ptr[i + 1] );
+                            erow[ii][k] += v * def_vec(i + chunk_start, ii) * def_vec(c, jj);
+
+                            if (marker[k] != i) {
+                                marker[k] = i;
+                                ++( az->ptr[i + 1] );
+                            }
+                        }
                     }
                 }
             }
 
             // Exchange rows of E.
-            all_gather( comm, erow.data(), comm.size(), E.data() );
+            all_gather( comm, erow.data(), nz * def_vec.dim(), E.data() );
 
             // Invert E.
-            amgcl::detail::gaussj(comm.size(), E.data());
+            amgcl::detail::gaussj(nz, E.data());
 
             // Find out:
             // 1. How many columns do we need from each process,
@@ -232,13 +258,17 @@ class subdomain_deflation {
                         arem->val.push_back(v);
                     }
 
-                    if (marker[d] < az_row_beg) {
-                        marker[d] = az_row_end;
-                        az->col[az_row_end] = d;
-                        az->val[az_row_end] = v;
-                        ++az_row_end;
-                    } else {
-                        az->val[marker[d]] += v;
+                    for(long j = 0; j < def_vec.dim(); ++j) {
+                        long k = d * def_vec.dim() + j;
+
+                        if (marker[k] < az_row_beg) {
+                            marker[k] = az_row_end;
+                            az->col[az_row_end] = k;
+                            az->val[az_row_end] = v * def_vec(c, j);
+                            ++az_row_end;
+                        } else {
+                            az->val[marker[k]] += v * def_vec(c, j);
+                        }
                     }
                 }
 
@@ -348,7 +378,7 @@ class subdomain_deflation {
         static const int tag_exc_vals = 2001;
 
         boost::mpi::communicator comm;
-        long nrows;
+        long nrows, nz;
 
         boost::shared_ptr<matrix> Arem;
 
@@ -357,8 +387,10 @@ class subdomain_deflation {
 
         mutable std::vector<value_type> df, dx;
         boost::multi_array<value_type, 2> E;
+
         boost::shared_ptr<matrix> AZ;
         boost::shared_ptr<vector> q;
+        std::vector< boost::shared_ptr<vector> > Z;
 
         struct {
             std::vector<long> nbr;
@@ -388,12 +420,14 @@ class subdomain_deflation {
 
         template <class Vector>
         void project(Vector &x) const {
-            value_type sum_x = backend::sum(x);
-            all_gather(comm, sum_x, df.data());
+            boost::fill(dx, 0);
+            for(long j = 0; j < Z.size(); ++j)
+                dx[j] += backend::inner_product(x, *Z[j]);
+            all_gather(comm, dx.data(), Z.size(), df.data());
 
-            for(long i = 0; i < comm.size(); ++i) {
+            for(long i = 0; i < nz; ++i) {
                 value_type sum = 0;
-                for(long j = 0; j < comm.size(); ++j)
+                for(long j = 0; j < nz; ++j)
                     sum += E[i][j] * df[j];
                 dx[i] = sum;
             }
@@ -403,22 +437,27 @@ class subdomain_deflation {
 
         template <class Vec1, class Vec2>
         void postprocess(const Vec1 &f, Vec2 &x) const {
-            value_type sum = backend::sum(f);
-            all_gather(comm, sum, df.data());
-
-            value_type corr = 0;
-            for(long j = 0; j < comm.size(); ++j)
-                corr += E[comm.rank()][j] * df[j];
-
             mul(1, x, 0, *q);
 
-            sum = backend::sum(*q);
-            all_gather(comm, sum, df.data());
+            boost::fill(dx, 0);
+            for(long j = 0; j < Z.size(); ++j)
+                dx[j] += backend::inner_product(f, *Z[j])
+                       - backend::inner_product(*q, *Z[j]);
+            all_gather(comm, dx.data(), Z.size(), df.data());
 
-            for(long j = 0; j < comm.size(); ++j)
-                corr -= E[comm.rank()][j] * df[j];
+            for(long i = 0, k = comm.rank() * Z.size(); i < Z.size(); ++i, ++k) {
+                value_type sum = 0;
+                for(long j = 0; j < nz; ++j)
+                    sum += E[k][j] * df[j];
+                dx[i] = sum;
+            }
 
-            for(long i = 0; i < nrows; ++i) x[i] += corr;
+            long j = 0;
+            for(; j + 1 < Z.size(); j += 2)
+                backend::axpbypcz(dx[j], *Z[j], dx[j+1], *Z[j+1], 1, x);
+
+            for(; j < Z.size(); ++j)
+                backend::axpby(dx[j], *Z[j], 1, x);
         }
 
         template <class Vector>

@@ -21,6 +21,28 @@
 
 #include "domain_partition.hpp"
 
+struct linear_deflation {
+    long n;
+    double h;
+    std::vector<long> idx;
+
+    linear_deflation(long n) : n(n), h(1.0 / (n - 1)), idx(n * n) {}
+
+    size_t dim() const { return 3; }
+
+    double operator()(long i, int j) const {
+        switch(j) {
+            case 1:
+                return h * (idx[i] % n);
+            case 2:
+                return h * (idx[i] / n);
+            case 0:
+            default:
+                return 1;
+        }
+    }
+};
+
 int main(int argc, char *argv[]) {
     boost::mpi::environment  env;
     boost::mpi::communicator world;
@@ -44,12 +66,14 @@ int main(int argc, char *argv[]) {
     const long chunk_start = domain[world.rank()];
     const long chunk_end   = domain[world.rank() + 1];
 
+    linear_deflation lindef(n);
     std::vector<long> renum(n2);
     for(long j = 0, idx = 0; j < n; ++j) {
         for(long i = 0; i < n; ++i, ++idx) {
             boost::array<long, 2> p = {{i, j}};
             std::pair<int,long> v = part.index(p);
             renum[idx] = domain[v.first] + v.second;
+            lindef.idx[renum[idx]] = idx;
         }
     }
     prof.toc("partition");
@@ -113,7 +137,11 @@ int main(int argc, char *argv[]) {
 
     typename Solver::AMG_params    amg_prm;
     typename Solver::Solver_params slv_prm(500, 1e-6);
-    Solver solve(world, boost::tie(chunk, ptr, col, val), amg_prm, slv_prm);
+    Solver solve(world,
+            boost::tie(chunk, ptr, col, val),
+            lindef,
+            amg_prm, slv_prm
+            );
     prof.toc("setup");
 
     prof.tic("solve");

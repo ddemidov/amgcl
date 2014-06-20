@@ -149,15 +149,6 @@ struct inner_product_impl {
     typedef typename Vector1::INNER_PRODUCT_NOT_IMPLEMENTED type;
 };
 
-/// Implementation for vector sum.
-/**
- * \note Used in sum()
- */
-template <class Vector, class Enable = void>
-struct sum_impl {
-    typedef typename Vector::SUM_NOT_IMPLEMENTED type;
-};
-
 /// Implementation for linear combination of two vectors.
 /** \note Used in axpby() */
 template <class Vector1, class Vector2, class Enable = void>
@@ -251,13 +242,6 @@ typename value_type<Vector1>::type
 inner_product(const Vector1 &x, const Vector2 &y)
 {
     return inner_product_impl<Vector1, Vector2>::get(x, y);
-}
-
-/// Sums elements in a vector.
-template <class Vector>
-typename value_type<Vector>::type sum(const Vector &x)
-{
-    return sum_impl<Vector>::get(x);
 }
 
 /// Computes linear combination of two vectors.
