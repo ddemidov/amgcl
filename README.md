@@ -340,6 +340,8 @@ preconditioner with a user-provided solver.
   ([amgcl/solver/cg.hpp][]).
 - BiCGStab: `amgcl::solver::bicgstab<Backend>`
   ([amgcl/solver/bicgstab.hpp][]).
+- BiCGStab(L): `amgcl::solver::bicgstabl<Backend>`
+  ([amgcl/solver/bicgstabl.hpp][]).
 - GMRES: `amgcl::solver::gmres<Backend>` ([amgcl/solver/gmres.hpp][]).
 
 Each solver in AMGCL is a class template. Its single template parameter
@@ -480,11 +482,14 @@ Have a look at [amgcl/relaxation/damped_jacobi.hpp][] for an example.
 5. M. Sala and R. S. Tuminaro. A new petrov-galerkin smoothed aggregation
    preconditioner for nonsymmetric linear systems. SIAM Journal on Scientific
    Computing, 31(1):143–166, 2008.
-6. K. Stuben. Algebraic multigrid (AMG): an introduction with applications. GMD
+6. G. L. G. Sleijpen and D. R. Fokkema. Bicgstab (l) for linear equations
+   involving unsymmetric matrices with complex spectrum. Electronic
+   Transactions on Numerical Analysis, 1(11):2000, 1993.
+7. K. Stuben. Algebraic multigrid (AMG): an introduction with applications. GMD
    Report 70, GMD, Sankt Augustin, Germany, 1999.
-7. U. Trottenberg, C. Oosterlee, and A. Schüller. Multigrid. Academic Press,
+8. U. Trottenberg, C. Oosterlee, and A. Schüller. Multigrid. Academic Press,
    London, 2001. 631 p.
-8. P. Vanek, J. Mandel, and M. Brezina. Algebraic multigrid by smoothed
+9. P. Vanek, J. Mandel, and M. Brezina. Algebraic multigrid by smoothed
    aggregation for second and fourth order elliptic problems. Computing,
    56(3):179–196, 1996.
 
@@ -536,9 +541,10 @@ partially supported by RFBR grants No 12-07-0007 and 12-01-00033._
 [amgcl/relaxation/gauss_seidel.hpp]:  amgcl/relaxation/gauss_seidel.hpp
 [amgcl/relaxation/ilu0.hpp]:          amgcl/relaxation/ilu0.hpp
 
-[amgcl/solver/cg.hpp]:       amgcl/solver/cg.hpp
-[amgcl/solver/bicgstab.hpp]: amgcl/solver/bicgstab.hpp
-[amgcl/solver/gmres.hpp]:    amgcl/solver/gmres.hpp
+[amgcl/solver/cg.hpp]:        amgcl/solver/cg.hpp
+[amgcl/solver/bicgstab.hpp]:  amgcl/solver/bicgstab.hpp
+[amgcl/solver/bicgstabl.hpp]: amgcl/solver/bicgstabl.hpp
+[amgcl/solver/gmres.hpp]:     amgcl/solver/gmres.hpp
 
 [JSCC]:       http://www.jscc.ru/eng/index.shtml
 [KPFU]:       http://www.kpfu.ru

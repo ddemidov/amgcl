@@ -58,7 +58,7 @@ namespace detail {
 
         lu_substitute(A, pm, I);
 
-        std::copy(&I.data()[0], &I.data()[n * n], data);
+        std::copy(&I.data()[0], &I.data()[0] + n * n, data);
     }
 
 } // namespace detail

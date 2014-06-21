@@ -73,7 +73,9 @@ class gmres {
 
             params(int M = 50, size_t maxiter = 100, value_type tol = 1e-8)
                 : M(M), maxiter(maxiter), tol(tol)
-            {}
+            {
+                precondition(M > 0, "M in GMRES(M) should be >=1");
+            }
         };
 
         /// \copydoc amgcl::solver::cg::cg

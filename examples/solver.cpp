@@ -6,7 +6,7 @@
 #include <amgcl/coarsening/plain_aggregates.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
 #include <amgcl/relaxation/spai0.hpp>
-#include <amgcl/solver/bicgstab.hpp>
+#include <amgcl/solver/bicgstabl.hpp>
 #include <amgcl/profiler.hpp>
 
 #include "sample_problem.hpp"
@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
             amgcl::coarsening::plain_aggregates
             >,
         amgcl::relaxation::spai0,
-        amgcl::solver::bicgstab
+        amgcl::solver::bicgstabl
         > solve( amgcl::backend::make_matrix(poisson_2d(m)) );
     prof.toc("build");
 

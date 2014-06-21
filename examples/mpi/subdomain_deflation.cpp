@@ -15,7 +15,7 @@
 #include <amgcl/coarsening/plain_aggregates.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
 #include <amgcl/relaxation/spai0.hpp>
-#include <amgcl/solver/cg.hpp>
+#include <amgcl/solver/bicgstabl.hpp>
 #include <amgcl/mpi/deflation.hpp>
 #include <amgcl/profiler.hpp>
 
@@ -96,30 +96,36 @@ int main(int argc, char *argv[]) {
         for(long i = 0; i < n; ++i, ++idx) {
             if (renum[idx] < chunk_start || renum[idx] >= chunk_end) continue;
 
-            if (j > 0)  {
-                col.push_back(renum[idx - n]);
-                val.push_back(-h2i);
+            if (i == 0 || j == 0 || i + 1 == n || j + 1 == n) {
+                col.push_back(renum[idx]);
+                val.push_back(1);
+                rhs.push_back(0);
+            } else {
+                if (j > 0)  {
+                    col.push_back(renum[idx - n]);
+                    val.push_back(-h2i);
+                }
+
+                if (i > 0) {
+                    col.push_back(renum[idx - 1]);
+                    val.push_back(-h2i);
+                }
+
+                col.push_back(renum[idx]);
+                val.push_back(4 * h2i);
+
+                if (i + 1 < n) {
+                    col.push_back(renum[idx + 1]);
+                    val.push_back(-h2i);
+                }
+
+                if (j + 1 < n) {
+                    col.push_back(renum[idx + n]);
+                    val.push_back(-h2i);
+                }
+
+                rhs.push_back(1);
             }
-
-            if (i > 0) {
-                col.push_back(renum[idx - 1]);
-                val.push_back(-h2i);
-            }
-
-            col.push_back(renum[idx]);
-            val.push_back(4 * h2i);
-
-            if (i + 1 < n) {
-                col.push_back(renum[idx + 1]);
-                val.push_back(-h2i);
-            }
-
-            if (j + 1 < n) {
-                col.push_back(renum[idx + n]);
-                val.push_back(-h2i);
-            }
-
-            rhs.push_back(1);
             ptr.push_back( col.size() );
         }
     }
@@ -132,11 +138,11 @@ int main(int argc, char *argv[]) {
             amgcl::coarsening::plain_aggregates
             >,
         amgcl::relaxation::spai0,
-        amgcl::solver::cg
+        amgcl::solver::bicgstabl
         > Solver;
 
     typename Solver::AMG_params    amg_prm;
-    typename Solver::Solver_params slv_prm(500, 1e-6);
+    typename Solver::Solver_params slv_prm(2, 500, 1e-6);
     Solver solve(world,
             boost::tie(chunk, ptr, col, val),
             lindef,

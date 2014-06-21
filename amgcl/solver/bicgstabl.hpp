@@ -1,5 +1,5 @@
-#ifndef AMGCL_SOLVERS_BICGSTAB_HPP
-#define AMGCL_SOLVERS_BICGSTAB_HPP
+#ifndef AMGCL_SOLVER_BICGSTABL_HPP
+#define AMGCL_SOLVER_BICGSTABL_HPP
 
 /*
 The MIT License
@@ -26,12 +26,14 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/solver/bicgstab.hpp
+ * \file   amgcl/solver/bicgstabl.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
- * \brief  BiCGStab iterative method.
+ * \brief  BiCGStab(L) iterative method.
  */
 
 #include <boost/tuple/tuple.hpp>
+#include <boost/multi_array.hpp>
+
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/solver/detail/default_inner_product.hpp>
 #include <amgcl/util.hpp>
@@ -39,17 +41,17 @@ THE SOFTWARE.
 namespace amgcl {
 namespace solver {
 
-/// BiCGStab iterative solver.
+/// BiCGStab(L) iterative solver.
 /**
  * \param Backend Backend for temporary structures allocation.
  * \ingroup solvers
- * \sa \cite Barrett1994
+ * \sa \cite Sleijpen1993
  */
 template <
     class Backend,
     class InnerProduct = detail::default_inner_product
     >
-class bicgstab {
+class bicgstabl {
     public:
         typedef typename Backend::vector     vector;
         typedef typename Backend::value_type value_type;
@@ -57,35 +59,42 @@ class bicgstab {
 
         /// Solver parameters.
         struct params {
+            /// Order of the method.
+            int L;
+
             /// Maximum number of iterations.
             size_t maxiter;
 
             /// Target residual error.
             value_type tol;
 
-            params(size_t maxiter = 100, value_type tol = 1e-8)
-                : maxiter(maxiter), tol(tol)
-            {}
+            params(int L = 2, size_t maxiter = 100, value_type tol = 1e-8)
+                : L(L), maxiter(maxiter), tol(tol)
+            {
+                precondition(L > 0, "L in BiCGStab(L) should be >=1");
+            }
         };
 
         /// \copydoc amgcl::solver::cg::cg
-        bicgstab(
+        bicgstabl(
                 size_t n,
                 const params &prm = params(),
                 const backend_params &backend_prm = backend_params(),
                 const InnerProduct &inner_product = InnerProduct()
                 )
             : prm(prm),
-              r ( Backend::create_vector(n, backend_prm) ),
-              p ( Backend::create_vector(n, backend_prm) ),
-              v ( Backend::create_vector(n, backend_prm) ),
-              s ( Backend::create_vector(n, backend_prm) ),
-              t ( Backend::create_vector(n, backend_prm) ),
-              rh( Backend::create_vector(n, backend_prm) ),
-              ph( Backend::create_vector(n, backend_prm) ),
-              sh( Backend::create_vector(n, backend_prm) ),
+              r0( Backend::create_vector(n, backend_prm) ),
+              q ( Backend::create_vector(n, backend_prm) ),
+              r(prm.L + 1), u(prm.L + 1),
+              tau(boost::extents[prm.L][prm.L]),
+              sigma(prm.L), gamma(prm.L), gamma1(prm.L), gamma2(prm.L),
               inner_product(inner_product)
-        { }
+        {
+            for(int i = 0; i <= prm.L; ++i) {
+                r[i] = Backend::create_vector(n, backend_prm);
+                u[i] = Backend::create_vector(n, backend_prm);
+            }
+        }
 
         /// Solves the linear system for the given system matrix.
         /**
@@ -109,54 +118,80 @@ class bicgstab {
                 Vec2          &x
                 ) const
         {
-            backend::residual(rhs, A, x, *r);
-            backend::copy(*r, *rh);
+            const int L = prm.L;
 
-            value_type rho1  = 0, rho2  = 0;
-            value_type alpha = 0, omega = 0;
+            backend::residual(rhs, A, x, *q);
+            P.apply(*q, *r0);
 
-            value_type norm_of_rhs = norm(rhs);
+            backend::copy(*r0, *r[0]);
+            backend::clear( *u[0] );
+            value_type rho0 = 1, alpha = 0, omega = 1;
 
-            size_t     iter = 0;
-            value_type res  = 2 * prm.tol;
+            value_type norm_r0 = norm(*r0);
+
+            size_t iter = 0;
+            value_type res = 2 * prm.tol;
 
             for(; res > prm.tol && iter < prm.maxiter; ++iter) {
-                rho2 = rho1;
-                rho1 = inner_product(*r, *rh);
+                rho0 = -omega * rho0;
 
-                precondition(rho1, "Zero rho in BiCGStab");
+                // Bi-CG part
+                for(int j = 0; j < L; ++j) {
+                    double rho1 = inner_product(*r[j], *r0);
+                    double beta = alpha * rho1 / rho0;
+                    rho0 = rho1;
 
-                if (iter) {
-                    value_type beta = (rho1 * alpha) / (rho2 * omega);
-                    backend::axpbypcz(1, *r, -beta * omega, *v, beta, *p);
-                } else {
-                    backend::copy(*r, *p);
+                    for(int i = 0; i <= j; ++i)
+                        backend::axpby(1, *r[i], -beta, *u[i]);
+
+                    backend::spmv(1, A, *u[j], 0, *q);
+                    P.apply(*q, *u[j+1]);
+
+                    alpha = rho0 / inner_product(*u[j+1], *r0);
+
+                    for(int i = 0; i <= j; ++i)
+                        backend::axpby(-alpha, *u[i+1], 1, *r[i]);
+
+                    backend::spmv(1, A, *r[j], 0, *q);
+                    P.apply(*q, *r[j+1]);
+                    backend::axpby(alpha, *u[0], 1, x);
                 }
 
-                P.apply(*p, *ph);
-
-                backend::spmv(1, A, *ph, 0, *v);
-
-                alpha = rho1 / inner_product(*rh, *v);
-
-                backend::axpbypcz(1, *r, -alpha, *v, 0, *s);
-
-                if ((res = norm(*s) / norm_of_rhs) < prm.tol) {
-                    backend::axpby(alpha, *ph, 1, x);
-                } else {
-                    P.apply(*s, *sh);
-
-                    backend::spmv(1, A, *sh, 0, *t);
-
-                    omega = inner_product(*t, *s) / inner_product(*t, *t);
-
-                    precondition(omega, "Zero omega in BiCGStab");
-
-                    backend::axpbypcz(alpha, *ph, omega, *sh, 1, x);
-                    backend::axpbypcz(1, *s, -omega, *t, 0, *r);
-
-                    res = norm(*r) / norm_of_rhs;
+                // MR part
+                for(int j = 0; j < L; ++j) {
+                    for(int i = 0; i < j; ++i) {
+                        tau[i][j] = inner_product(*r[j+1], *r[i+1]) / sigma[i];
+                        backend::axpby(-tau[i][j], *r[i+1], 1, *r[j+1]);
+                    }
+                    sigma[j] = inner_product(*r[j+1], *r[j+1]);
+                    gamma1[j] = inner_product(*r[0], *r[j+1]) / sigma[j];
                 }
+
+                omega = gamma[L-1] = gamma1[L-1];
+                for(int j = L-2; j >= 0; --j) {
+                    gamma[j] = gamma1[j];
+                    for(int i = j+1; i < L; ++i)
+                        gamma[j] -= tau[j][i] * gamma[i];
+                }
+
+                for(int j = 0; j < L-1; ++j) {
+                    gamma2[j] = gamma[j+1];
+                    for(int i = j+1; i < L-1; ++i)
+                        gamma2[j] += tau[j][i] * gamma[i+1];
+                }
+
+                // Update
+                backend::axpby(gamma[0], *r[0], 1, x);
+                backend::axpby(-gamma1[L-1], *r[L], 1, *r[0]);
+                backend::axpby(-gamma[L-1], *u[L], 1, *u[0]);
+
+                for(int j = 1; j < L; ++j) {
+                    backend::axpby(-gamma[j-1], *u[j], 1, *u[0]);
+                    backend::axpby(gamma2[j-1], *r[j], 1, x);
+                    backend::axpby(-gamma1[j-1], *r[j], 1, *r[0]);
+                }
+
+                res = norm(*r[0]) / norm_r0;
             }
 
             return boost::make_tuple(iter, res);
@@ -177,19 +212,18 @@ class bicgstab {
         {
             return (*this)(P.top_matrix(), P, rhs, x);
         }
-
-
     private:
         params prm;
 
-        boost::shared_ptr<vector> r;
-        boost::shared_ptr<vector> p;
-        boost::shared_ptr<vector> v;
-        boost::shared_ptr<vector> s;
-        boost::shared_ptr<vector> t;
-        boost::shared_ptr<vector> rh;
-        boost::shared_ptr<vector> ph;
-        boost::shared_ptr<vector> sh;
+        mutable boost::shared_ptr< vector > r0;
+        mutable boost::shared_ptr< vector > q;
+
+        mutable std::vector< boost::shared_ptr< vector > > r;
+        mutable std::vector< boost::shared_ptr< vector > > u;
+
+        mutable boost::multi_array<value_type, 2> tau;
+        mutable std::vector<value_type> sigma;
+        mutable std::vector<value_type> gamma, gamma1, gamma2;
 
         InnerProduct inner_product;
 
