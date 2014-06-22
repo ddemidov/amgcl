@@ -32,6 +32,7 @@
 
 #include <amgcl/solver/cg.hpp>
 #include <amgcl/solver/bicgstab.hpp>
+#include <amgcl/solver/bicgstabl.hpp>
 #include <amgcl/solver/gmres.hpp>
 
 #include "sample_problem.hpp"
@@ -124,6 +125,7 @@ template <class Backend, class Coarsening, template <class> class Relax>
 void solver_iterator() {
     test_solver<Backend, Coarsening, Relax, amgcl::solver::cg      >();
     test_solver<Backend, Coarsening, Relax, amgcl::solver::bicgstab>();
+    test_solver<Backend, Coarsening, Relax, amgcl::solver::bicgstabl>();
     test_solver<Backend, Coarsening, Relax, amgcl::solver::gmres   >();
 };
 
