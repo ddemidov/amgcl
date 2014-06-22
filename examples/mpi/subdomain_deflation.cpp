@@ -21,6 +21,8 @@
 
 #include "domain_partition.hpp"
 
+#define CONVECTION
+
 struct linear_deflation {
     long n;
     double h;
@@ -91,41 +93,44 @@ int main(int argc, char *argv[]) {
 
     ptr.push_back(0);
 
-    const double h2i = (n - 1) * (n - 1);
+    const double hinv = (n - 1);
+    const double h2i  = (n - 1) * (n - 1);
     for(long j = 0, idx = 0; j < n; ++j) {
         for(long i = 0; i < n; ++i, ++idx) {
             if (renum[idx] < chunk_start || renum[idx] >= chunk_end) continue;
 
-            if (i == 0 || j == 0 || i + 1 == n || j + 1 == n) {
-                col.push_back(renum[idx]);
-                val.push_back(1);
-                rhs.push_back(0);
-            } else {
-                if (j > 0)  {
-                    col.push_back(renum[idx - n]);
-                    val.push_back(-h2i);
-                }
-
-                if (i > 0) {
-                    col.push_back(renum[idx - 1]);
-                    val.push_back(-h2i);
-                }
-
-                col.push_back(renum[idx]);
-                val.push_back(4 * h2i);
-
-                if (i + 1 < n) {
-                    col.push_back(renum[idx + 1]);
-                    val.push_back(-h2i);
-                }
-
-                if (j + 1 < n) {
-                    col.push_back(renum[idx + n]);
-                    val.push_back(-h2i);
-                }
-
-                rhs.push_back(1);
+            if (j > 0)  {
+                col.push_back(renum[idx - n]);
+                val.push_back(-h2i);
             }
+
+            if (i > 0) {
+                col.push_back(renum[idx - 1]);
+                val.push_back(-h2i
+#ifdef CONVECTION
+                        - hinv
+#endif
+                        );
+            }
+
+            col.push_back(renum[idx]);
+            val.push_back(4 * h2i
+#ifdef CONVECTION
+                    + hinv
+#endif
+                    );
+
+            if (i + 1 < n) {
+                col.push_back(renum[idx + 1]);
+                val.push_back(-h2i);
+            }
+
+            if (j + 1 < n) {
+                col.push_back(renum[idx + n]);
+                val.push_back(-h2i);
+            }
+
+            rhs.push_back(1);
             ptr.push_back( col.size() );
         }
     }
