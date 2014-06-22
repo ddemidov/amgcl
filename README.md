@@ -27,6 +27,7 @@ at http://ddemidov.github.io/amgcl.
 
 * [Getting started](#getting-started)
     * [Backends](#backends)
+    * [Matrix adapters](#matrix-adapters)
     * [Coarsening strategies](#coarsening)
     * [Relaxation schemes](#relaxation)
     * [Solvers](#solvers)
@@ -64,7 +65,7 @@ Jacobi smoother for relaxation:
 #include <amgcl/backend/builtin.hpp>
 
 // Allows to specify system matrix as a tuple of sizes and ranges (as in Boost.Range).
-#include <amgcl/backend/crs_tuple.hpp>
+#include <amgcl/adapter/crs_tuple.hpp>
 
 // Classic Ruge-Stuben coarsening algorithm
 #include <amgcl/coarsening/ruge_stuben.hpp>
@@ -185,13 +186,17 @@ Here is the list of backends currently implemented in the library:
   architectures (GPUs, MIC) and multi-core CPUs.
 - `amgcl::backend::cuda<value_type>` ([amgcl/backend/cuda.hpp][]).
   Uses CUDA libraries CUSPARSE and Thrust for matrix and vector operations.
-- `amgcl::backend::crs_tuple<value_type>` ([amgcl/backend/crs_tuple.hpp][]).
-  The `crs_tuple` backend is in fact not a usable backend. It only exists to
-  facilitate construction of `amgcl::amg<>` instances from user matrices
-  strored in CRS format. A `boost::tuple` of matrix dimensions and ranges of
-  nonzero values, columns, and row pointers may be used. The example above
-  illustrates how the backend may be used with `std::vector<>`s. Below is
-  an example that uses raw pointers:
+
+### <a name="matrix-adapters"></a>Matrix adapters
+
+AMGCL provides several adapters for common sparse matrix formats. An adapter
+allows to construct an AMG hierarchy directly from the matrix format it adapts.
+
+- `amgcl::adapter::crs_tuple<value_type>` ([amgcl/adapter/crs_tuple.hpp][]).
+  The `crs_tuple` adapter facilitates construction of `amgcl::amg<>` instances from user matrices
+  strored in CRS format. A `boost::tuple` of matrix size and ranges of
+  nonzero values, columns, and row pointers may be used. The example below
+  constructs an AMG preconditioner from a matrix stored in raw pointers:
 ~~~{.cpp}
 int n;       // Matrix size.
 double *val; // Values.
@@ -206,10 +211,8 @@ AMG amg( boost::make_tuple(
             )
         );
 ~~~
-- `amgcl::backend::crs_builder<RowBuilder>`
-  ([amgcl/backend/crs_builder.hpp][]).
-    The backend is similar to `crs_tuple` in the sense that it is only used
-    for initialization of AMG hierarchy. The difference is that `crs_builder`
+- `amgcl::adapter::crs_builder<RowBuilder>`
+  ([amgcl/adapter/crs_builder.hpp][]). The adapter
     backend does not need fully constructed matrix in CRS format (which would
     be copied into AMG anyway), but builds matrix rows as needed.
     This results in reduced memory requirements. There is a convenience
@@ -267,7 +270,7 @@ struct poisson_2d {
         double h2i;
 };
 
-amgcl::make_solver<
+amgcl::adapter::make_solver<
     Backend, Coarsening, Relaxation, IterativeSolver
     > solve( amgcl::backend::make_matrix( poisson_2d(m) ) );
 ~~~
@@ -525,8 +528,6 @@ partially supported by RFBR grants No 12-07-0007 and 12-01-00033._
 [amgcl/backend/vexcl.hpp]:       amgcl/backend/vexcl.hpp
 [amgcl/backend/viennacl.hpp]:    amgcl/backend/viennacl.hpp
 [amgcl/backend/cuda.hpp]:        amgcl/backend/cuda.hpp
-[amgcl/backend/crs_tuple.hpp]:   amgcl/backend/crs_tuple.hpp
-[amgcl/backend/crs_builder.hpp]: amgcl/backend/crs_builder.hpp
 
 [amgcl/coarsening/ruge_stuben.hpp]:          amgcl/coarsening/ruge_stuben.hpp
 [amgcl/coarsening/aggregation.hpp]:          amgcl/coarsening/aggregation.hpp
@@ -545,6 +546,9 @@ partially supported by RFBR grants No 12-07-0007 and 12-01-00033._
 [amgcl/solver/bicgstab.hpp]:  amgcl/solver/bicgstab.hpp
 [amgcl/solver/bicgstabl.hpp]: amgcl/solver/bicgstabl.hpp
 [amgcl/solver/gmres.hpp]:     amgcl/solver/gmres.hpp
+
+[amgcl/adapter/crs_tuple.hpp]:   amgcl/adapter/crs_tuple.hpp
+[amgcl/adapter/crs_builder.hpp]: amgcl/adapter/crs_builder.hpp
 
 [JSCC]:       http://www.jscc.ru/eng/index.shtml
 [KPFU]:       http://www.kpfu.ru

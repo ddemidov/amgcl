@@ -6,7 +6,7 @@
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/backend/block_crs.hpp>
-#include <amgcl/backend/crs_tuple.hpp>
+#include <amgcl/adapter/crs_tuple.hpp>
 
 #include <amgcl/coarsening/ruge_stuben.hpp>
 #include <amgcl/coarsening/pointwise_aggregates.hpp>

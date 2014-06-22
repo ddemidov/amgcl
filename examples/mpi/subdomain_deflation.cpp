@@ -11,7 +11,7 @@
 
 #include <amgcl/amgcl.hpp>
 #include <amgcl/backend/builtin.hpp>
-#include <amgcl/backend/crs_tuple.hpp>
+#include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/coarsening/plain_aggregates.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
 #include <amgcl/relaxation/spai0.hpp>

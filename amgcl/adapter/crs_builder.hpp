@@ -1,5 +1,5 @@
-#ifndef AMGCL_BACKEND_CRS_BUILDER_HPP
-#define AMGCL_BACKEND_CRS_BUILDER_HPP
+#ifndef AMGCL_ADAPTER_CRS_BUILDER_HPP
+#define AMGCL_ADAPTER_CRS_BUILDER_HPP
 
 /*
 The MIT License
@@ -26,9 +26,10 @@ THE SOFTWARE.
 */
 
 /**
-\file   amgcl/backend/crs_builder.hpp
-\author Denis Demidov <dennis.demidov@gmail.com>
-\brief  Matrix builder that creates matrix rows as needed.
+\file    amgcl/adapter/crs_builder.hpp
+\author  Denis Demidov <dennis.demidov@gmail.com>
+\brief   Matrix builder that creates matrix rows as needed.
+\ingroup adapters
 
 Example:
 \code
@@ -89,7 +90,7 @@ amgcl::make_solver<
 */
 
 namespace amgcl {
-namespace backend {
+namespace adapter {
 
 /// Generates matrix rows as needed with help of user-provided functor.
 /**
@@ -168,49 +169,53 @@ matrix_builder<RowBuilder> make_matrix(const RowBuilder &row_builder) {
     return matrix_builder<RowBuilder>(row_builder);
 }
 
+} // namespace adapter
+
+namespace backend {
+
 //---------------------------------------------------------------------------
 // Specialization of matrix interface
 //---------------------------------------------------------------------------
 template <class RowBuilder>
-struct value_type< matrix_builder<RowBuilder> >
+struct value_type< adapter::matrix_builder<RowBuilder> >
 {
-    typedef typename matrix_builder<RowBuilder>::val_type type;
+    typedef typename adapter::matrix_builder<RowBuilder>::val_type type;
 };
 
 template <class RowBuilder>
-struct rows_impl< matrix_builder<RowBuilder> >
+struct rows_impl< adapter::matrix_builder<RowBuilder> >
 {
-    static size_t get(const matrix_builder<RowBuilder> &A) {
+    static size_t get(const adapter::matrix_builder<RowBuilder> &A) {
         return A.rows();
     }
 };
 
 template <class RowBuilder>
-struct cols_impl< matrix_builder<RowBuilder> >
+struct cols_impl< adapter::matrix_builder<RowBuilder> >
 {
-    static size_t get(const matrix_builder<RowBuilder> &A) {
+    static size_t get(const adapter::matrix_builder<RowBuilder> &A) {
         return A.cols();
     }
 };
 
 template <class RowBuilder>
-struct nonzeros_impl< matrix_builder<RowBuilder> >
+struct nonzeros_impl< adapter::matrix_builder<RowBuilder> >
 {
-    static size_t get(const matrix_builder<RowBuilder> &A) {
+    static size_t get(const adapter::matrix_builder<RowBuilder> &A) {
         return A.nonzeros();
     }
 };
 
 template <class RowBuilder>
-struct row_iterator< matrix_builder<RowBuilder> >
+struct row_iterator< adapter::matrix_builder<RowBuilder> >
 {
-    typedef typename matrix_builder<RowBuilder>::row_iterator type;
+    typedef typename adapter::matrix_builder<RowBuilder>::row_iterator type;
 };
 
 template <class RowBuilder>
-struct row_begin_impl< matrix_builder<RowBuilder> >
+struct row_begin_impl< adapter::matrix_builder<RowBuilder> >
 {
-    typedef matrix_builder<RowBuilder> Matrix;
+    typedef adapter::matrix_builder<RowBuilder> Matrix;
     static typename row_iterator<Matrix>::type
     get(const Matrix &matrix, size_t row) {
         return matrix.row_begin(row);

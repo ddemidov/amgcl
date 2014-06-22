@@ -127,7 +127,7 @@ class amg {
          *          amgcl::backend::crs<>.
          * \param p AMG parameters.
          *
-         * \sa amgcl/backend/crs_tuple.hpp
+         * \sa amgcl/adapter/crs_tuple.hpp
          */
         template <class Matrix>
         amg(const Matrix &M, const params &p = params()) : prm(p)

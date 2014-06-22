@@ -4,18 +4,16 @@
 #include <boost/mpl/for_each.hpp>
 
 #include <amgcl/amgcl.hpp>
+#include <amgcl/adapter/crs_tuple.hpp>
+
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/backend/block_crs.hpp>
-#include <amgcl/backend/crs_tuple.hpp>
-
 #ifdef AMGCL_HAVE_EIGEN
 #include <amgcl/backend/eigen.hpp>
 #endif
-
 #ifdef AMGCL_HAVE_BLAZE
 #include <amgcl/backend/blaze.hpp>
 #endif
-
 #ifdef AMGCL_HAVE_VIENNACL
 #include <amgcl/backend/viennacl.hpp>
 #endif

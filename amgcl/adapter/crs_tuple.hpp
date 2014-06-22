@@ -1,5 +1,5 @@
-#ifndef AMGCL_BACKEND_CRS_TUPLE_HPP
-#define AMGCL_BACKEND_CRS_TUPLE_HPP
+#ifndef AMGCL_ADAPTER_CRS_TUPLE_HPP
+#define AMGCL_ADAPTER_CRS_TUPLE_HPP
 
 /*
 The MIT License
@@ -26,9 +26,10 @@ THE SOFTWARE.
 */
 
 /**
-\file   amgcl/backend/crs_tuple.hpp
-\author Denis Demidov <dennis.demidov@gmail.com>
-\brief  Specify sparse matrix as a tuple of CRS arrays.
+\file    amgcl/adapter/crs_tuple.hpp
+\author  Denis Demidov <dennis.demidov@gmail.com>
+\brief   Specify sparse matrix as a tuple of CRS arrays.
+\ingroup adapters
 
 Example:
 \code
@@ -51,6 +52,11 @@ AMG amg(boost::make_tuple(n,
                           ) );
 \endcode
 */
+
+/**
+ * \defgroup adapters Matrix adapters
+ * \brief Adapters for variuos sparse matrix formats.
+ */
 
 #include <vector>
 #include <numeric>
