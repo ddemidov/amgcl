@@ -119,6 +119,7 @@ class subdomain_deflation {
           df( nz ), dx( nz ),
           E( boost::extents[nz][nz] ),
           q( Backend::create_vector(nrows, amg_params.backend) ),
+          dd( Backend::create_vector(nz, amg_params.backend) ),
           Z( def_vec.dim() )
         {
             typedef typename backend::row_iterator<Matrix>::type row_iterator;
@@ -301,11 +302,14 @@ class subdomain_deflation {
             recv.val.resize(rc.size());
             recv.req.resize(rnbr);
 
+            dv = Backend::create_vector( rc.size(), amg_params.backend );
+
             send.nbr.reserve(snbr);
             send.ptr.reserve(snbr + 1);
-            send.col.resize(send_size);
             send.val.resize(send_size);
             send.req.resize(snbr);
+
+            std::vector<long> send_col(send_size);
 
             recv.ptr.push_back(0);
             send.ptr.push_back(0);
@@ -323,7 +327,7 @@ class subdomain_deflation {
 
             for(size_t i = 0; i < send.nbr.size(); ++i)
                 send.req[i] = comm.irecv(send.nbr[i], tag_exc_vals,
-                        &send.col[send.ptr[i]], comm_matrix[send.nbr[i]][comm.rank()]);
+                        &send_col[send.ptr[i]], comm_matrix[send.nbr[i]][comm.rank()]);
 
             for(size_t i = 0; i < recv.nbr.size(); ++i)
                 recv.req[i] = comm.isend(recv.nbr[i], tag_exc_vals,
@@ -332,7 +336,7 @@ class subdomain_deflation {
             wait_all(recv.req.begin(), recv.req.end());
             wait_all(send.req.begin(), send.req.end());
 
-            BOOST_FOREACH(long &c, send.col) c -= chunk_start;
+            BOOST_FOREACH(long &c, send_col) c -= chunk_start;
 
             P = boost::make_shared<AMG>( *aloc, amg_params );
 
@@ -343,6 +347,9 @@ class subdomain_deflation {
 
             Arem = Backend::copy_matrix(arem, amg_params.backend);
             AZ   = Backend::copy_matrix(az,   amg_params.backend);
+
+            gather = boost::make_shared<typename Backend::gather>(
+                    nrows, send_col, amg_params.backend);
         }
 
         template <class Vec1, class Vec2>
@@ -370,7 +377,11 @@ class subdomain_deflation {
             backend::residual(f, P->top_matrix(), x, r);
 
             finish_exchange();
-            backend::spmv(-1, *Arem, recv.val, 1, r);
+
+            if (!recv.val.empty()) {
+                backend::copy_to_backend(recv.val, *dv);
+                backend::spmv(-1, *Arem, *dv, 1, r);
+            }
 
             project(r);
         }
@@ -391,7 +402,11 @@ class subdomain_deflation {
 
         boost::shared_ptr<matrix> AZ;
         boost::shared_ptr<vector> q;
+        boost::shared_ptr<vector> dd;
+        boost::shared_ptr<vector> dv;
         std::vector< boost::shared_ptr<vector> > Z;
+
+        boost::shared_ptr< typename Backend::gather > gather;
 
         struct {
             std::vector<long> nbr;
@@ -404,7 +419,6 @@ class subdomain_deflation {
         struct {
             std::vector<long> nbr;
             std::vector<long> ptr;
-            std::vector<long> col;
 
             mutable std::vector<value_type>          val;
             mutable std::vector<boost::mpi::request> req;
@@ -416,7 +430,11 @@ class subdomain_deflation {
             backend::spmv(alpha, P->top_matrix(), x, beta, y);
 
             finish_exchange();
-            backend::spmv(alpha, *Arem, recv.val, 1, y);
+
+            if (!recv.val.empty()) {
+                backend::copy_to_backend(recv.val, *dv);
+                backend::spmv(alpha, *Arem, *dv, 1, y);
+            }
         }
 
         template <class Vector>
@@ -433,7 +451,8 @@ class subdomain_deflation {
                 dx[i] = sum;
             }
 
-            backend::spmv(-1, *AZ, dx, 1, x);
+            backend::copy_to_backend(dx, *dd);
+            backend::spmv(-1, *AZ, *dd, 1, x);
         }
 
         template <class Vec1, class Vec2>
@@ -469,8 +488,7 @@ class subdomain_deflation {
                         &recv.val[recv.ptr[i]], recv.ptr[i+1] - recv.ptr[i]);
 
             // Gather values to send to our neighbours.
-            for(size_t i = 0; i < send.col.size(); ++i)
-                send.val[i] = x[send.col[i]];
+            if (!send.val.empty()) (*gather)(x, send.val);
 
             // Start sending our data to neighbours.
             for(size_t i = 0; i < send.nbr.size(); ++i)

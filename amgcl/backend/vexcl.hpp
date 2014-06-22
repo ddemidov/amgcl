@@ -98,6 +98,17 @@ struct vexcl {
 
         return boost::make_shared<vector>(prm.q, size);
     }
+
+    struct gather {
+        mutable vex::gather<value_type> G;
+
+        gather(size_t src_size, const std::vector<long> &I, const params &prm)
+            : G(prm.q, src_size, std::vector<size_t>(I.begin(), I.end())) { }
+
+        void operator()(const vector vec, std::vector<value_type> &vals) const {
+            G(vec, vals);
+        }
+    };
 };
 
 //---------------------------------------------------------------------------
@@ -180,6 +191,17 @@ struct copy_impl<
     static void apply(const vex::vector<V> &x, vex::vector<V> &y)
     {
         y = x;
+    }
+};
+
+template < typename V >
+struct copy_to_backend_impl<
+    vex::vector<V>
+    >
+{
+    static void apply(const std::vector<V> &data, vex::vector<V> &x)
+    {
+        vex::copy(data, x);
     }
 };
 

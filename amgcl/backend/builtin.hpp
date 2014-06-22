@@ -380,6 +380,18 @@ struct builtin {
     {
         return boost::make_shared<vector>(size);
     }
+
+    struct gather {
+        std::vector<long> I;
+
+        gather(size_t /*src_size*/, const std::vector<long> &I, const params&)
+            : I(I) { }
+
+        void operator()(const vector vec, std::vector<value_type> &vals) const {
+            for(size_t i = 0; i < I.size(); ++i)
+                vals[i] = vec[I[i]];
+        }
+    };
 };
 
 template <class T>
@@ -657,6 +669,14 @@ struct copy_impl<
         }
     }
 };
+
+template < class Vec >
+struct copy_to_backend_impl<
+    Vec,
+    typename boost::enable_if<
+            typename is_builtin_vector<Vec>::type
+        >::type
+    > : copy_impl< std::vector<typename value_type<Vec>::type>, Vec > {};
 
 } // namespace backend
 } // namespace amgcl
