@@ -122,14 +122,12 @@ class cg {
                 Vec2          &x
                 ) const
         {
-            value_type norm_rhs = inner_product(rhs, rhs);
-
-            if (norm_rhs == 0) {
-                backend::clear(x);
-                return boost::make_tuple(0UL, value_type());
-            }
-
             backend::residual(rhs, A, x, *r);
+            value_type norm_r0 = norm(*r);
+            if (!norm_r0) {
+                // The solution is exact
+                return boost::make_tuple(0, 0);
+            }
 
             P.apply(*r, *s);
             backend::copy(*s, *p);
@@ -150,12 +148,12 @@ class cg {
                 rho2 = rho1;
                 rho1 = inner_product(*r, *s);
 
-                if (rho1 < tol2 * norm_rhs) break;
+                if (rho1 < tol2 * norm_r0) break;
 
                 backend::axpby(1, *s, (rho1 / rho2), *p);
             }
 
-            return boost::make_tuple(iter, sqrt(rho1 / norm_rhs));
+            return boost::make_tuple(iter, sqrt(rho1 / norm_r0));
         }
 
         /// Solves the linear system for the same matrix that was used for the AMG preconditioner construction.
@@ -183,6 +181,11 @@ class cg {
         boost::shared_ptr<vector> q;
 
         InnerProduct inner_product;
+
+        template <class Vec>
+        value_type norm(const Vec &x) const {
+            return sqrt(inner_product(x, x));
+        }
 };
 
 } // namespace solver

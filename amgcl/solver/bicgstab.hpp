@@ -110,23 +110,28 @@ class bicgstab {
                 ) const
         {
             backend::residual(rhs, A, x, *r);
+
+            value_type norm_r0 = norm(*r);
+            if (!norm_r0) {
+                // The solution is exact
+                return boost::make_tuple(0, 0);
+            }
+
             backend::copy(*r, *rh);
 
             value_type rho1  = 0, rho2  = 0;
             value_type alpha = 0, omega = 0;
 
-            value_type norm_of_rhs = norm(rhs);
-
             size_t     iter = 0;
             value_type res  = 2 * prm.tol;
 
             for(; res > prm.tol && iter < prm.maxiter; ++iter) {
+
                 rho2 = rho1;
                 rho1 = inner_product(*r, *rh);
 
-                precondition(rho1, "Zero rho in BiCGStab");
-
                 if (iter) {
+                    precondition(rho2, "Zero rho in BiCGStab");
                     value_type beta = (rho1 * alpha) / (rho2 * omega);
                     backend::axpbypcz(1, *r, -beta * omega, *v, beta, *p);
                 } else {
@@ -141,7 +146,7 @@ class bicgstab {
 
                 backend::axpbypcz(1, *r, -alpha, *v, 0, *s);
 
-                if ((res = norm(*s) / norm_of_rhs) < prm.tol) {
+                if ((res = norm(*s) / norm_r0) < prm.tol) {
                     backend::axpby(alpha, *ph, 1, x);
                 } else {
                     P.apply(*s, *sh);
@@ -155,7 +160,7 @@ class bicgstab {
                     backend::axpbypcz(alpha, *ph, omega, *sh, 1, x);
                     backend::axpbypcz(1, *s, -omega, *t, 0, *r);
 
-                    res = norm(*r) / norm_of_rhs;
+                    res = norm(*r) / norm_r0;
                 }
             }
 

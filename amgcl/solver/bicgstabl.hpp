@@ -123,11 +123,15 @@ class bicgstabl {
             backend::residual(rhs, A, x, *q);
             P.apply(*q, *r0);
 
+            value_type norm_r0 = norm(*r0);
+            if (norm_r0 == 0) {
+                // The solution is exact
+                return boost::make_tuple(0, 0);
+            }
+
             backend::copy(*r0, *r[0]);
             backend::clear( *u[0] );
             value_type rho0 = 1, alpha = 0, omega = 1;
-
-            value_type norm_r0 = norm(*r0);
 
             size_t iter = 0;
             value_type res = 2 * prm.tol;
@@ -137,9 +141,12 @@ class bicgstabl {
 
                 // Bi-CG part
                 for(int j = 0; j < L; ++j) {
+                    precondition(rho0, "Zero rho in BiCGStab(L)");
+
                     double rho1 = inner_product(*r[j], *r0);
                     double beta = alpha * rho1 / rho0;
                     rho0 = rho1;
+
 
                     for(int i = 0; i <= j; ++i)
                         backend::axpby(1, *r[i], -beta, *u[i]);

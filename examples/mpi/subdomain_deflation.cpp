@@ -147,7 +147,7 @@ int main(int argc, char *argv[]) {
         > Solver;
 
     typename Solver::AMG_params    amg_prm;
-    typename Solver::Solver_params slv_prm(2, 500, 1e-6);
+    typename Solver::Solver_params slv_prm(2);
     Solver solve(world,
             boost::tie(chunk, ptr, col, val),
             lindef,

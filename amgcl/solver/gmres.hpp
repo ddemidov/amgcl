@@ -124,6 +124,10 @@ class gmres {
 
             do {
                 res = restart(A, rhs, P, x);
+                if (!res) {
+                    // Solution is exact
+                    return boost::make_tuple(iter, res);
+                }
 
                 for(int i = 0; i < prm.M && iter < prm.maxiter; ++i, ++iter) {
                     res = iteration(A, P, i);
@@ -223,6 +227,11 @@ class gmres {
             P.apply(*w, *r);
 
             s[0] = norm(*r);
+
+            if (!s[0]) {
+                // Solution is exact.
+                return s[0];
+            }
             backend::axpby(1 / s[0], *r, 0, *v[0]);
 
             std::fill(s.begin() + 1, s.end(), value_type());
