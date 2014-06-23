@@ -22,6 +22,7 @@
 #include "domain_partition.hpp"
 
 #define CONVECTION
+#define RECIRCULATION
 
 struct linear_deflation {
     long n;
@@ -94,7 +95,58 @@ int main(int argc, char *argv[]) {
     ptr.push_back(0);
 
     const double hinv = (n - 1);
+    const double h    = 1 / hinv;
     const double h2i  = (n - 1) * (n - 1);
+#ifdef RECIRCULATION
+    const double eps = 1e-2;
+
+    for(long j = 0, idx = 0; j < n; ++j) {
+        double y = h * j;
+        for(long i = 0; i < n; ++i, ++idx) {
+            double x = h * i;
+
+            if (renum[idx] < chunk_start || renum[idx] >= chunk_end) continue;
+
+            if (i == 0 || j == 0 || i + 1 == n || j + 1 == n) {
+                col.push_back(renum[idx]);
+                val.push_back(1);
+                rhs.push_back(
+                        sin(M_PI * x) + sin(M_PI * y) +
+                        sin(13 * M_PI * x) + sin(13 * M_PI * y)
+                        );
+            } else {
+                double a = -sin(M_PI * x) * cos(M_PI * y) * hinv;
+                double b =  sin(M_PI * y) * cos(M_PI * x) * hinv;
+
+                if (j > 0) {
+                    col.push_back(renum[idx - n]);
+                    val.push_back(-eps * h2i - std::max(b, 0.0));
+                }
+
+                if (i > 0) {
+                    col.push_back(renum[idx - 1]);
+                    val.push_back(-eps * h2i - std::max(a, 0.0));
+                }
+
+                col.push_back(renum[idx]);
+                val.push_back(4 * eps * h2i + fabs(a) + fabs(b));
+
+                if (i + 1 < n) {
+                    col.push_back(renum[idx + 1]);
+                    val.push_back(-eps * h2i + std::min(a, 0.0));
+                }
+
+                if (j + 1 < n) {
+                    col.push_back(renum[idx + n]);
+                    val.push_back(-eps * h2i + std::min(b, 0.0));
+                }
+
+                rhs.push_back(1.0);
+            }
+            ptr.push_back( col.size() );
+        }
+    }
+#else
     for(long j = 0, idx = 0; j < n; ++j) {
         for(long i = 0; i < n; ++i, ++idx) {
             if (renum[idx] < chunk_start || renum[idx] >= chunk_end) continue;
@@ -106,19 +158,11 @@ int main(int argc, char *argv[]) {
 
             if (i > 0) {
                 col.push_back(renum[idx - 1]);
-                val.push_back(-h2i
-#ifdef CONVECTION
-                        - hinv
-#endif
-                        );
+                val.push_back(-h2i - hinv);
             }
 
             col.push_back(renum[idx]);
-            val.push_back(4 * h2i
-#ifdef CONVECTION
-                    + hinv
-#endif
-                    );
+            val.push_back(4 * h2i + hinv);
 
             if (i + 1 < n) {
                 col.push_back(renum[idx + 1]);
@@ -134,6 +178,7 @@ int main(int argc, char *argv[]) {
             ptr.push_back( col.size() );
         }
     }
+#endif
     prof.toc("assemble");
 
     prof.tic("setup");
