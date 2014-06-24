@@ -8,6 +8,7 @@
 #include <cmath>
 
 #include <boost/range/algorithm.hpp>
+#include <boost/scope_exit.hpp>
 
 #include <amgcl/amgcl.hpp>
 #include <amgcl/backend/vexcl.hpp>
@@ -46,8 +47,12 @@ struct linear_deflation {
 };
 
 int main(int argc, char *argv[]) {
-    boost::mpi::environment  env;
-    boost::mpi::communicator world;
+    MPI_Init(&argc, &argv);
+    BOOST_SCOPE_EXIT(void) {
+        MPI_Finalize();
+    } BOOST_SCOPE_EXIT_END
+
+    amgcl::mpi::communicator world(MPI_COMM_WORLD);
 
     const long n  = argc > 1 ? atoi(argv[1]) : 1024;
     const long n2 = n * n;
@@ -58,15 +63,15 @@ int main(int argc, char *argv[]) {
     amgcl::profiler<> prof;
 
     prof.tic("partition");
-    domain_partition<2> part(lo, hi, world.size());
-    const long chunk = part.size( world.rank() );
+    domain_partition<2> part(lo, hi, world.size);
+    const long chunk = part.size( world.rank );
 
-    std::vector<long> domain(world.size() + 1);
-    all_gather(world, chunk, &domain[1]);
+    std::vector<long> domain(world.size + 1);
+    MPI_Allgather(&chunk, 1, MPI_LONG, &domain[1], 1, MPI_LONG, world);
     boost::partial_sum(domain, domain.begin());
 
-    const long chunk_start = domain[world.rank()];
-    const long chunk_end   = domain[world.rank() + 1];
+    const long chunk_start = domain[world.rank];
+    const long chunk_end   = domain[world.rank + 1];
 
     linear_deflation lindef(n);
     std::vector<long> renum(n2);
@@ -175,12 +180,12 @@ int main(int argc, char *argv[]) {
     prof.toc("solve");
 
     prof.tic("save");
-    if (world.rank() == 0) {
+    if (world.rank == 0) {
         std::vector<double> X(n2);
         vex::copy(x.begin(), x.end(), X.begin());
 
-        for(int i = 1; i < world.size(); ++i)
-            world.recv(i, 42, &X[domain[i]], domain[i+1] - domain[i]);
+        for(int i = 1; i < world.size; ++i)
+            MPI_Recv(&X[domain[i]], domain[i+1] - domain[i], MPI_DOUBLE, i, 42, world, MPI_STATUS_IGNORE);
 
         std::ofstream f("out.dat", std::ios::binary);
         int m = n2;
@@ -190,11 +195,11 @@ int main(int argc, char *argv[]) {
     } else {
         std::vector<double> X(chunk);
         vex::copy(x, X);
-        world.send(0, 42, X.data(), chunk);
+        MPI_Send(X.data(), chunk, MPI_DOUBLE, 0, 42, world);
     }
     prof.toc("save");
 
-    if (world.rank() == 0) {
+    if (world.rank == 0) {
         std::cout
             << "Iterations: " << iters << std::endl
             << "Error:      " << resid << std::endl

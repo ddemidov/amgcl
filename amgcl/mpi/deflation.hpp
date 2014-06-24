@@ -35,7 +35,8 @@ THE SOFTWARE.
 #include <boost/make_shared.hpp>
 #include <boost/range/numeric.hpp>
 #include <boost/multi_array.hpp>
-#include <boost/mpi.hpp>
+
+#include <mpi.h>
 
 #include <amgcl/amgcl.hpp>
 #include <amgcl/backend/builtin.hpp>
@@ -46,11 +47,44 @@ namespace amgcl {
 /// Algorithms and structures for distributed computing.
 namespace mpi {
 
+template <class T, class Enable = void>
+struct datatype;
+
+template <>
+struct datatype<float> {
+    static MPI_Datatype get() { return MPI_FLOAT; }
+};
+
+template <>
+struct datatype<double> {
+    static MPI_Datatype get() { return MPI_DOUBLE; }
+};
+
+template <>
+struct datatype<long double> {
+    static MPI_Datatype get() { return MPI_LONG_DOUBLE; }
+};
+
+struct communicator {
+    MPI_Comm comm;
+    int      rank;
+    int      size;
+
+    communicator(MPI_Comm comm) : comm(comm) {
+        MPI_Comm_rank(comm, &rank);
+        MPI_Comm_size(comm, &size);
+    };
+
+    operator MPI_Comm() const {
+        return comm;
+    }
+};
+
 namespace detail {
 struct mpi_inner_product {
-    boost::mpi::communicator comm;
+    communicator comm;
 
-    mpi_inner_product(MPI_Comm comm) : comm(comm, boost::mpi::comm_attach) {}
+    mpi_inner_product(MPI_Comm comm) : comm(comm) {}
 
     template <class Vec1, class Vec2>
     typename backend::value_type<Vec1>::type
@@ -60,7 +94,7 @@ struct mpi_inner_product {
         value_type lsum = backend::inner_product(x, y);
         value_type gsum;
 
-        all_reduce( comm, lsum, gsum, std::plus<value_type>() );
+        MPI_Allreduce(&lsum, &gsum, 1, datatype<value_type>::get(), MPI_SUM, comm);
 
         return gsum;
     }
@@ -114,8 +148,8 @@ class subdomain_deflation {
                 const AMG_params    &amg_params    = AMG_params(),
                 const Solver_params &solver_params = Solver_params()
                 )
-        : comm(mpi_comm, boost::mpi::comm_attach),
-          nrows(backend::rows(Astrip)), nz(comm.size() * def_vec.dim()),
+        : comm(mpi_comm),
+          nrows(backend::rows(Astrip)), nz(comm.size * def_vec.dim()),
           df( nz ), dx( nz ),
           E( boost::extents[nz][nz] ),
           q( Backend::create_vector(nrows, amg_params.backend) ),
@@ -130,10 +164,10 @@ class subdomain_deflation {
             boost::shared_ptr<build_matrix> az   = boost::make_shared<build_matrix>();
 
             // Get sizes of each domain in comm.
-            std::vector<long> domain(comm.size() + 1, 0);
-            all_gather(comm, nrows, &domain[1]);
+            std::vector<long> domain(comm.size + 1, 0);
+            MPI_Allgather(&nrows, 1, MPI_LONG, &domain[1], 1, MPI_LONG, comm);
             boost::partial_sum(domain, domain.begin());
-            long chunk_start = domain[comm.rank()];
+            long chunk_start = domain[comm.rank];
 
             // Fill deflation vectors.
             {
@@ -174,7 +208,7 @@ class subdomain_deflation {
                     // Domain the column belongs to
                     long d = boost::upper_bound(domain, c) - domain.begin() - 1;
 
-                    if (d == comm.rank()) {
+                    if (d == comm.rank) {
                         ++loc_nnz;
                     } else {
                         ++rem_nnz;
@@ -197,7 +231,11 @@ class subdomain_deflation {
             }
 
             // Exchange rows of E.
-            all_gather( comm, erow.data(), nz * def_vec.dim(), E.data() );
+            MPI_Allgather(
+                    erow.data(), nz * def_vec.dim(), datatype<value_type>::get(),
+                    E.data(),    nz * def_vec.dim(), datatype<value_type>::get(),
+                    comm
+                    );
 
             // Invert E.
             amgcl::detail::inverse(nz, E.data());
@@ -207,7 +245,7 @@ class subdomain_deflation {
             // 2. What columns do we need from them.
             //
             // Renumber remote columns while at it.
-            std::vector<long> num_recv(comm.size(), 0);
+            std::vector<long> num_recv(comm.size, 0);
             std::vector<long> recv_cols;
             recv_cols.reserve(rc.size());
             long id = 0, cur_nbr = 0;
@@ -252,7 +290,7 @@ class subdomain_deflation {
                     // Domain the column belongs to
                     long d = boost::upper_bound(domain, c) - domain.begin() - 1;
 
-                    if ( d == comm.rank() ) {
+                    if ( d == comm.rank ) {
                         aloc->col.push_back(c - chunk_start);
                         aloc->val.push_back(v);
                     } else {
@@ -280,21 +318,25 @@ class subdomain_deflation {
 
             // Set up communication pattern.
             boost::multi_array<long, 2> comm_matrix(
-                    boost::extents[comm.size()][comm.size()]
+                    boost::extents[comm.size][comm.size]
                     );
 
             // Who sends to whom and how many
-            all_gather(comm, num_recv.data(), comm.size(), comm_matrix.data());
+            MPI_Allgather(
+                    num_recv.data(),    comm.size, MPI_LONG,
+                    comm_matrix.data(), comm.size, MPI_LONG,
+                    comm
+                    );
 
             long snbr = 0, rnbr = 0, send_size = 0;
-            for(int i = 0; i < comm.size(); ++i) {
-                if (comm_matrix[comm.rank()][i]) {
+            for(int i = 0; i < comm.size; ++i) {
+                if (comm_matrix[comm.rank][i]) {
                     ++rnbr;
                 }
 
-                if (comm_matrix[i][comm.rank()]) {
+                if (comm_matrix[i][comm.rank]) {
                     ++snbr;
-                    send_size += comm_matrix[i][comm.rank()];
+                    send_size += comm_matrix[i][comm.rank];
                 }
             }
 
@@ -315,13 +357,13 @@ class subdomain_deflation {
             // Count how many columns to send and to receive.
             recv.ptr.push_back(0);
             send.ptr.push_back(0);
-            for(int i = 0; i < comm.size(); ++i) {
-                if (long nr = comm_matrix[comm.rank()][i]) {
+            for(int i = 0; i < comm.size; ++i) {
+                if (long nr = comm_matrix[comm.rank][i]) {
                     recv.nbr.push_back( i );
                     recv.ptr.push_back( recv.ptr.back() + nr );
                 }
 
-                if (long ns = comm_matrix[i][comm.rank()]) {
+                if (long ns = comm_matrix[i][comm.rank]) {
                     send.nbr.push_back( i );
                     send.ptr.push_back( send.ptr.back() + ns );
                 }
@@ -329,16 +371,16 @@ class subdomain_deflation {
 
             // What columns do you need from me?
             for(size_t i = 0; i < send.nbr.size(); ++i)
-                send.req[i] = comm.irecv(send.nbr[i], tag_exc_vals,
-                        &send_col[send.ptr[i]], comm_matrix[send.nbr[i]][comm.rank()]);
+                MPI_Irecv(&send_col[send.ptr[i]], comm_matrix[send.nbr[i]][comm.rank],
+                        MPI_LONG, send.nbr[i], tag_exc_cols, comm, &send.req[i]);
 
             // Here is what I need from you:
             for(size_t i = 0; i < recv.nbr.size(); ++i)
-                recv.req[i] = comm.isend(recv.nbr[i], tag_exc_vals,
-                    &recv_cols[recv.ptr[i]], comm_matrix[comm.rank()][recv.nbr[i]]);
+                MPI_Isend(&recv_cols[recv.ptr[i]], comm_matrix[comm.rank][recv.nbr[i]],
+                        MPI_LONG, recv.nbr[i], tag_exc_cols, comm, &recv.req[i]);
 
-            wait_all(recv.req.begin(), recv.req.end());
-            wait_all(send.req.begin(), send.req.end());
+            MPI_Waitall(recv.req.size(), recv.req.data(), MPI_STATUSES_IGNORE);
+            MPI_Waitall(send.req.size(), send.req.data(), MPI_STATUSES_IGNORE);
 
             // Shift columns to send to local numbering:
             BOOST_FOREACH(long &c, send_col) c -= chunk_start;
@@ -398,7 +440,7 @@ class subdomain_deflation {
         static const int tag_exc_cols = 1001;
         static const int tag_exc_vals = 2001;
 
-        boost::mpi::communicator comm;
+        communicator comm;
         long nrows, nz;
 
         boost::shared_ptr<matrix> Arem;
@@ -421,16 +463,16 @@ class subdomain_deflation {
             std::vector<long> nbr;
             std::vector<long> ptr;
 
-            mutable std::vector<value_type>          val;
-            mutable std::vector<boost::mpi::request> req;
+            mutable std::vector<value_type>  val;
+            mutable std::vector<MPI_Request> req;
         } recv;
 
         struct {
             std::vector<long> nbr;
             std::vector<long> ptr;
 
-            mutable std::vector<value_type>          val;
-            mutable std::vector<boost::mpi::request> req;
+            mutable std::vector<value_type>  val;
+            mutable std::vector<MPI_Request> req;
         } send;
 
         template <class Vec1, class Vec2>
@@ -451,7 +493,11 @@ class subdomain_deflation {
             boost::fill(dx, 0);
             for(long j = 0; j < Z.size(); ++j)
                 dx[j] += backend::inner_product(x, *Z[j]);
-            all_gather(comm, dx.data(), Z.size(), df.data());
+            MPI_Allgather(
+                    dx.data(), Z.size(), datatype<value_type>::get(),
+                    df.data(), Z.size(), datatype<value_type>::get(),
+                    comm
+                    );
 
             for(long i = 0; i < nz; ++i) {
                 value_type sum = 0;
@@ -472,9 +518,13 @@ class subdomain_deflation {
             for(long j = 0; j < Z.size(); ++j)
                 dx[j] += backend::inner_product(f, *Z[j])
                        - backend::inner_product(*q, *Z[j]);
-            all_gather(comm, dx.data(), Z.size(), df.data());
+            MPI_Allgather(
+                    dx.data(), Z.size(), datatype<value_type>::get(),
+                    df.data(), Z.size(), datatype<value_type>::get(),
+                    comm
+                    );
 
-            for(long i = 0, k = comm.rank() * Z.size(); i < Z.size(); ++i, ++k) {
+            for(long i = 0, k = comm.rank * Z.size(); i < Z.size(); ++i, ++k) {
                 value_type sum = 0;
                 for(long j = 0; j < nz; ++j)
                     sum += E[k][j] * df[j];
@@ -493,21 +543,27 @@ class subdomain_deflation {
         void start_exchange(const Vector &x) const {
             // Start receiving ghost values from our neighbours.
             for(size_t i = 0; i < recv.nbr.size(); ++i)
-                recv.req[i] = comm.irecv(recv.nbr[i], tag_exc_vals,
-                        &recv.val[recv.ptr[i]], recv.ptr[i+1] - recv.ptr[i]);
+                MPI_Irecv(
+                        &recv.val[recv.ptr[i]], recv.ptr[i+1] - recv.ptr[i],
+                        datatype<value_type>::get(), recv.nbr[i], tag_exc_vals,
+                        comm, &recv.req[i]
+                        );
 
             // Gather values to send to our neighbours.
             if (!send.val.empty()) (*gather)(x, send.val);
 
             // Start sending our data to neighbours.
             for(size_t i = 0; i < send.nbr.size(); ++i)
-                send.req[i] = comm.isend(send.nbr[i], tag_exc_vals,
-                        &send.val[send.ptr[i]], send.ptr[i+1] - send.ptr[i]);
+                MPI_Isend(
+                        &send.val[send.ptr[i]], send.ptr[i+1] - send.ptr[i],
+                        datatype<value_type>::get(), send.nbr[i], tag_exc_vals,
+                        comm, &send.req[i]
+                        );
         }
 
         void finish_exchange() const {
-            wait_all(recv.req.begin(), recv.req.end());
-            wait_all(send.req.begin(), send.req.end());
+            MPI_Waitall(recv.req.size(), recv.req.data(), MPI_STATUSES_IGNORE);
+            MPI_Waitall(send.req.size(), send.req.data(), MPI_STATUSES_IGNORE);
         }
 };
 
