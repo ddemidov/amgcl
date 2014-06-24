@@ -283,6 +283,7 @@ class subdomain_deflation {
                     boost::extents[comm.size()][comm.size()]
                     );
 
+            // Who sends to whom and how many
             all_gather(comm, num_recv.data(), comm.size(), comm_matrix.data());
 
             long snbr = 0, rnbr = 0, send_size = 0;
@@ -311,6 +312,7 @@ class subdomain_deflation {
 
             std::vector<long> send_col(send_size);
 
+            // Count how many columns to send and to receive.
             recv.ptr.push_back(0);
             send.ptr.push_back(0);
             for(int i = 0; i < comm.size(); ++i) {
@@ -325,10 +327,12 @@ class subdomain_deflation {
                 }
             }
 
+            // What columns do you need from me?
             for(size_t i = 0; i < send.nbr.size(); ++i)
                 send.req[i] = comm.irecv(send.nbr[i], tag_exc_vals,
                         &send_col[send.ptr[i]], comm_matrix[send.nbr[i]][comm.rank()]);
 
+            // Here is what I need from you:
             for(size_t i = 0; i < recv.nbr.size(); ++i)
                 recv.req[i] = comm.isend(recv.nbr[i], tag_exc_vals,
                     &recv_cols[recv.ptr[i]], comm_matrix[comm.rank()][recv.nbr[i]]);
@@ -336,18 +340,23 @@ class subdomain_deflation {
             wait_all(recv.req.begin(), recv.req.end());
             wait_all(send.req.begin(), send.req.end());
 
+            // Shift columns to send to local numbering:
             BOOST_FOREACH(long &c, send_col) c -= chunk_start;
 
+            // Create local AMG preconditioner.
             P = boost::make_shared<AMG>( *aloc, amg_params );
 
+            // Create iterative solver instance.
             solve = boost::make_shared<Solver>(
                     nrows, solver_params, amg_params.backend,
                     detail::mpi_inner_product(mpi_comm)
                     );
 
+            // Move matrices to backend.
             Arem = Backend::copy_matrix(arem, amg_params.backend);
             AZ   = Backend::copy_matrix(az,   amg_params.backend);
 
+            // Columns gatherer. Will retrieve columns to send from backend.
             gather = boost::make_shared<typename Backend::gather>(
                     nrows, send_col, amg_params.backend);
         }
