@@ -14,7 +14,9 @@
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/coarsening/plain_aggregates.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
+#include <amgcl/coarsening/ruge_stuben.hpp>
 #include <amgcl/relaxation/spai0.hpp>
+#include <amgcl/relaxation/gauss_seidel.hpp>
 #include <amgcl/solver/bicgstabl.hpp>
 #include <amgcl/mpi/deflation.hpp>
 #include <amgcl/profiler.hpp>
@@ -98,7 +100,7 @@ int main(int argc, char *argv[]) {
     const double h    = 1 / hinv;
     const double h2i  = (n - 1) * (n - 1);
 #ifdef RECIRCULATION
-    const double eps = 1e-2;
+    const double eps = 1e-5;
 
     for(long j = 0, idx = 0; j < n; ++j) {
         double y = h * j;
@@ -184,10 +186,15 @@ int main(int argc, char *argv[]) {
     prof.tic("setup");
     typedef amgcl::mpi::subdomain_deflation<
         amgcl::backend::builtin<double>,
+#ifdef RECIRCULATION
+        amgcl::coarsening::ruge_stuben,
+        amgcl::relaxation::gauss_seidel,
+#else
         amgcl::coarsening::smoothed_aggregation<
             amgcl::coarsening::plain_aggregates
             >,
         amgcl::relaxation::spai0,
+#endif
         amgcl::solver::bicgstabl
         > Solver;
 
