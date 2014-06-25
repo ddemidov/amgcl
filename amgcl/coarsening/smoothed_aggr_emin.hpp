@@ -152,13 +152,15 @@ struct smoothed_aggr_emin {
                             dia += v;
                         else if (!aggr.strong_connection[j])
                             dia -= v;
-                        else {
-                            long g = aggr.id[c]; if (g < 0) continue;
 
-                            if (static_cast<size_t>(marker[g]) != i) {
-                                marker[g] = i;
-                                ++( P->ptr[i + 1] );
-                            }
+                        if (static_cast<size_t>(c) != i && !aggr.strong_connection[j])
+                            continue;
+
+                        long g = aggr.id[c]; if (g < 0) continue;
+
+                        if (static_cast<size_t>(marker[g]) != i) {
+                            marker[g] = i;
+                            ++( P->ptr[i + 1] );
                         }
                     }
 
