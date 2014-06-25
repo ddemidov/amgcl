@@ -47,6 +47,10 @@ class domain_partition {
 
             return v;
         }
+
+        const box& domain(size_t process) const {
+            return subdomains[process];
+        }
     private:
         std::vector<box> subdomains;
 

@@ -30,21 +30,22 @@
 struct linear_deflation {
     long n;
     double h;
-    std::vector<long> idx;
+    std::vector<double> x;
+    std::vector<double> y;
 
-    linear_deflation(long n) : n(n), h(1.0 / (n - 1)), idx(n * n) {}
+    linear_deflation(long n) : n(n), x(n * n), y(n * n) {}
 
     size_t dim() const { return 3; }
 
     double operator()(long i, int j) const {
         switch(j) {
-            case 1:
-                return h * (idx[i] % n);
-            case 2:
-                return h * (idx[i] / n);
-            case 0:
             default:
+            case 0:
                 return 1;
+            case 1:
+                return x[i];
+            case 2:
+                return y[i];
         }
     }
 };
@@ -83,7 +84,12 @@ int main(int argc, char *argv[]) {
             boost::array<long, 2> p = {{i, j}};
             std::pair<int,long> v = part.index(p);
             renum[idx] = domain[v.first] + v.second;
-            lindef.idx[renum[idx]] = idx;
+
+            boost::array<long,2> lo = part.domain(v.first).min_corner();
+            boost::array<long,2> hi = part.domain(v.first).max_corner();
+
+            lindef.x[renum[idx]] = (i - (lo[0] + hi[0]) / 2);
+            lindef.y[renum[idx]] = (j - (lo[1] + hi[1]) / 2);
         }
     }
     prof.toc("partition");
