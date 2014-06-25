@@ -31,6 +31,9 @@ THE SOFTWARE.
  * \brief  Subdomain deflation utilities.
  */
 
+#include <vector>
+#include <map>
+
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/range/numeric.hpp>
