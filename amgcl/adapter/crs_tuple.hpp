@@ -197,6 +197,15 @@ struct row_begin_impl< boost::tuple<N, PRng, CRng, VRng> >
     }
 };
 
+template < typename N, typename PRng, typename CRng, typename VRng >
+struct row_nonzeros_impl< boost::tuple<N, PRng, CRng, VRng> > {
+    typedef boost::tuple<N, PRng, CRng, VRng> Matrix;
+
+    static size_t get(const Matrix &A, size_t row) {
+        return boost::get<1>(A)[row + 1] - boost::get<1>(A)[row];
+    }
+};
+
 } // namespace backend
 } // namespace amgcl
 

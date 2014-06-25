@@ -448,6 +448,13 @@ struct row_begin_impl< crs<V, C, P> > {
     }
 };
 
+template < typename V, typename C, typename P >
+struct row_nonzeros_impl< crs<V, C, P> > {
+    static size_t get(const crs<V, C, P> &A, size_t row) {
+        return A.ptr[row + 1] - A.ptr[row];
+    }
+};
+
 template < typename V, typename C, typename P, class Vec1, class Vec2 >
 struct spmv_impl< crs<V, C, P>, Vec1, Vec2 >
 {

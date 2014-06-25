@@ -93,6 +93,13 @@ struct nonzeros_impl {
     typedef typename Matrix::NONZEROS_NOT_IMPLEMENTED type;
 };
 
+/// Implementation for function returning the number of nonzeros in a matrix row.
+/** \note Used in row_nonzeros() */
+template <class Matrix, class Enable = void>
+struct row_nonzeros_impl {
+    typedef typename Matrix::ROW_NONZEROS_NOT_IMPLEMENTED type;
+};
+
 /// Metafunction returning the row iterator type for a matrix type.
 /**
  * \note This only has to be implemented in the backend if support for serial
@@ -202,6 +209,12 @@ template <class Matrix>
 typename row_iterator<Matrix>::type
 row_begin(const Matrix &matrix, size_t row) {
     return row_begin_impl<Matrix>::get(matrix, row);
+}
+
+/// Returns number of nonzeros in a matrix row.
+template <class Matrix>
+size_t row_nonzeros(const Matrix &A, size_t row) {
+    return row_nonzeros_impl<Matrix>::get(A, row);
 }
 
 /// Performs matrix-vector product.
