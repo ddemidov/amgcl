@@ -136,22 +136,21 @@ class pointwise_aggregates {
             }
         }
 
-    private:
-
         template <class Matrix>
-        static Matrix pointwise_matrix(const Matrix &A, size_t block_size) {
+        static backend::crs<typename backend::value_type<Matrix>::type>
+        pointwise_matrix(const Matrix &A, size_t block_size) {
             typedef typename backend::value_type<Matrix>::type   V;
             typedef typename backend::row_iterator<Matrix>::type row_iterator;
 
-            const size_t n  = rows(A);
-            const size_t m  = cols(A);
+            const size_t n  = backend::rows(A);
+            const size_t m  = backend::cols(A);
             const size_t np = n / block_size;
             const size_t mp = m / block_size;
 
             precondition(n % block_size == 0 && m % block_size == 0,
                     "Matrix size should be divisible by block_size");
 
-            Matrix Ap;
+            backend::crs<V> Ap;
             Ap.nrows = np;
             Ap.ncols = mp;
             Ap.ptr.resize(np + 1, 0);
