@@ -105,7 +105,7 @@ struct vexcl {
         gather(size_t src_size, const std::vector<long> &I, const params &prm)
             : G(prm.q, src_size, std::vector<size_t>(I.begin(), I.end())) { }
 
-        void operator()(const vector vec, std::vector<value_type> &vals) const {
+        void operator()(const vector &vec, std::vector<value_type> &vals) const {
             G(vec, vals);
         }
     };
