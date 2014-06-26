@@ -43,7 +43,7 @@ THE SOFTWARE.
 
 #include <amgcl/amgcl.hpp>
 #include <amgcl/backend/builtin.hpp>
-#include <amgcl/detail/inverse.hpp>
+#include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/solver/skyline_lu.hpp>
 
 namespace amgcl {
