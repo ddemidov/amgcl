@@ -387,7 +387,8 @@ struct builtin {
         gather(size_t /*src_size*/, const std::vector<long> &I, const params&)
             : I(I) { }
 
-        void operator()(const vector vec, std::vector<value_type> &vals) const {
+        template <class InVec, class OutVec>
+        void operator()(const InVec &vec, OutVec &vals) const {
             for(size_t i = 0; i < I.size(); ++i)
                 vals[i] = vec[I[i]];
         }
