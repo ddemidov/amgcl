@@ -621,15 +621,31 @@ template <
     class                         Coarsening,
     template <class> class        Relax,
     template <class, class> class IterativeSolver,
+    class                         DirectSolver,
     class Vec1,
     class Vec2
     >
 struct spmv_impl<
-    mpi::subdomain_deflation<Backend, Coarsening, Relax, IterativeSolver>,
+    mpi::subdomain_deflation<
+        Backend,
+        Coarsening,
+        Relax,
+        IterativeSolver,
+        DirectSolver
+        >,
     Vec1, Vec2
     >
 {
-    typedef mpi::subdomain_deflation<Backend, Coarsening, Relax, IterativeSolver> M;
+    typedef
+        mpi::subdomain_deflation<
+            Backend,
+            Coarsening,
+            Relax,
+            IterativeSolver,
+            DirectSolver
+            >
+        M;
+
     typedef typename Backend::value_type V;
 
     static void apply(V alpha, const M &A, const Vec1 &x, V beta, Vec2 &y)
@@ -643,16 +659,32 @@ template <
     class                         Coarsening,
     template <class> class        Relax,
     template <class, class> class IterativeSolver,
+    class                         DirectSolver,
     class Vec1,
     class Vec2,
     class Vec3
     >
 struct residual_impl<
-    mpi::subdomain_deflation<Backend, Coarsening, Relax, IterativeSolver>,
+    mpi::subdomain_deflation<
+        Backend,
+        Coarsening,
+        Relax,
+        IterativeSolver,
+        DirectSolver
+        >,
     Vec1, Vec2, Vec3
     >
 {
-    typedef mpi::subdomain_deflation<Backend, Coarsening, Relax, IterativeSolver> M;
+    typedef
+        mpi::subdomain_deflation<
+            Backend,
+            Coarsening,
+            Relax,
+            IterativeSolver,
+            DirectSolver
+            >
+        M;
+
     typedef typename Backend::value_type V;
 
     static void apply(const Vec1 &rhs, const M &A, const Vec2 &x, Vec3 &r) {
