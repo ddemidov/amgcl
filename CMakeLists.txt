@@ -6,18 +6,21 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 #----------------------------------------------------------------------------
 # Find Boost
 #----------------------------------------------------------------------------
-option(
-    BOOST_TEST_DYN_LINK
-    "Link tests against dynamic version of boost unittest library"
-    ON
-    )
-
 if (WIN32)
     set(Boost_USE_STATIC_LIBS ON)
 else ()
-  if (BOOST_TEST_DYN_LINK)
-    add_definitions(-DBOOST_TEST_DYN_LINK)
-  endif ()
+    option(
+        USE_STATIC_BOOST_LIBS
+        "Use static versions of Boost libraries"
+        OFF
+        )
+
+    if (USE_STATIC_BOOST_LIBS)
+        set(Boost_USE_STATIC_LIBS ON)
+    else()
+        set(Boost_USE_STATIC_LIBS OFF)
+        add_definitions(-DBOOST_TEST_DYN_LINK)
+    endif()
 endif ()
 
 set(BOOST_COMPONENTS
