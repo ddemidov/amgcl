@@ -28,7 +28,7 @@ THE SOFTWARE.
 /**
  * \file   amgcl/mpi/deflatedion.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
- * \brief  Subdomain deflation utilities.
+ * \brief  Subdomain deflation support.
  */
 
 #include <vector>
@@ -209,7 +209,12 @@ class subdomain_deflation {
             az->ptr.resize(nrows + 1, 0);
 
             std::vector<long> marker(nz, -1);
+            std::vector<value_type> dvi(ndv);
+
             for(long i = 0; i < nrows; ++i) {
+                for(long ii = 0; ii < ndv; ++ii)
+                    dvi[ii] = def_vec(i + chunk_start, ii);
+
                 for(row_iterator a = backend::row_begin(Astrip, i); a; ++a) {
                     long       c = a.col();
                     value_type v = a.value();
@@ -224,17 +229,17 @@ class subdomain_deflation {
                         rc_it = rc.insert(rc_it, std::make_pair(c, 0));
                     }
 
-                    for(long ii = 0; ii < ndv; ++ii) {
-                        for(long jj = 0; jj < ndv; ++jj) {
-                            long k = d * ndv + jj;
+                    for(long jj = 0; jj < ndv; ++jj) {
+                        long k = d * ndv + jj;
+                        value_type dvj = def_vec(c, jj);
 
-                            erow[ii][k] += v * def_vec(i + chunk_start, ii) * def_vec(c, jj);
+                        for(long ii = 0; ii < ndv; ++ii)
+                            erow[ii][k] += v * dvi[ii] * dvj;
+                    }
 
-                            if (marker[k] != i) {
-                                marker[k] = i;
-                                ++( az->ptr[i + 1] );
-                            }
-                        }
+                    if (marker[d] != i) {
+                        marker[d] = i;
+                        az->ptr[i + 1] += ndv;
                     }
                 }
             }
@@ -315,8 +320,6 @@ class subdomain_deflation {
                 arem->ptr.push_back(arem->col.size());
             }
 
-
-
             /*** Set up communication pattern. ***/
             boost::multi_array<long, 2> comm_matrix(
                     boost::extents[comm.size][comm.size]
@@ -388,7 +391,6 @@ class subdomain_deflation {
 
 
             /*** Prepare coarse matrix E. ***/
-
             // Count nonzeros in E.
             std::vector<int> Eptr(nz + 1, 0);
             for(int i = 0; i < comm.size; ++i) {
