@@ -87,7 +87,7 @@ class epetra_map {
                         const Epetra_CrsMatrix &A,
                         const Epetra_Vector    &order,
                         int row
-                        ) : A(A), order(order)
+                        ) : order(order)
                 {
                     int nnz;
                     A.ExtractMyRowView(row, nnz, m_val, m_col);
@@ -113,8 +113,7 @@ class epetra_map {
                 }
 
             private:
-                const Epetra_CrsMatrix &A;
-                const Epetra_Vector    &order;
+                const Epetra_Vector &order;
 
                 col_type * m_col;
                 col_type * m_end;
