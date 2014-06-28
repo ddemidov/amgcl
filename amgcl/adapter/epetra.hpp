@@ -35,98 +35,145 @@ THE SOFTWARE.
 #include <vector>
 
 #include <Epetra_CrsMatrix.h>
+#include <Epetra_Vector.h>
+#include <Epetra_Import.h>
 
 #include <amgcl/backend/interface.hpp>
 
 namespace amgcl {
 namespace backend {
 
+/// Adapts Epetra_CrsMatrix
+class epetra_map {
+    public:
+        epetra_map(const Epetra_CrsMatrix &A)
+            : A(A), order(A.ColMap())
+        {
+            const Epetra_Map& row_map = A.RowMap();
+            const Epetra_Map& col_map = A.ColMap();
+
+            double entries_before;
+            double local_entries = row_map.NumMyElements();
+            A.Comm().ScanSum(&local_entries, &entries_before, 1);
+            entries_before -= local_entries;
+
+            Epetra_Vector perm(row_map);
+            for(int i = 0, j = entries_before; i < local_entries; ++i, ++j)
+                perm[i] = j;
+
+            Epetra_Import importer = Epetra_Import(col_map, row_map);
+
+            order.Import(perm, importer, Insert);
+        }
+
+        size_t rows() const {
+            return A.NumMyRows();
+        }
+
+        size_t cols() const {
+            return A.NumGlobalCols();
+        }
+
+        size_t nonzeros() const {
+            return A.NumMyNonzeros();
+        }
+
+        class row_iterator {
+            public:
+                typedef int    col_type;
+                typedef double val_type;
+
+                row_iterator(
+                        const Epetra_CrsMatrix &A,
+                        const Epetra_Vector    &order,
+                        int row
+                        ) : A(A), order(order)
+                {
+                    int nnz;
+                    A.ExtractMyRowView(row, nnz, m_val, m_col);
+                    m_end = m_col + nnz;
+                }
+
+                operator bool() const {
+                    return m_col != m_end;
+                }
+
+                row_iterator& operator++() {
+                    ++m_col;
+                    ++m_val;
+                    return *this;
+                }
+
+                col_type col() const {
+                    return order[*m_col];
+                }
+
+                val_type value() const {
+                    return *m_val;
+                }
+
+            private:
+                const Epetra_CrsMatrix &A;
+                const Epetra_Vector    &order;
+
+                col_type * m_col;
+                col_type * m_end;
+                val_type * m_val;
+        };
+
+        row_iterator row_begin(int row) const {
+            return row_iterator(A, order, row);
+        }
+    private:
+        const Epetra_CrsMatrix &A;
+        Epetra_Vector order;
+};
+
+/// Adapts Epetra_CrsMatrix
+inline epetra_map map(const Epetra_CrsMatrix &A) {
+    return epetra_map(A);
+}
+
 //---------------------------------------------------------------------------
 // Specialization of matrix interface
 //---------------------------------------------------------------------------
 template <>
-struct value_type < Epetra_CrsMatrix > {
+struct value_type < epetra_map > {
     typedef double type;
 };
 
 template <>
-struct rows_impl < Epetra_CrsMatrix > {
-    static size_t get(
-            const Epetra_CrsMatrix &A
-            )
-    {
-        return A.NumMyRows();
+struct rows_impl < epetra_map > {
+    static size_t get(const epetra_map &A) {
+        return A.rows();
     }
 };
 
 template <>
-struct cols_impl < Epetra_CrsMatrix > {
-    static size_t get(
-            const Epetra_CrsMatrix &A
-            )
-    {
-        return A.NumMyCols();
+struct cols_impl < epetra_map > {
+    static size_t get(const epetra_map &A) {
+        return A.cols();
     }
 };
 
 template <>
-struct nonzeros_impl < Epetra_CrsMatrix > {
-    static size_t get(
-            const Epetra_CrsMatrix &A
-            )
-    {
-        return A.NumMyNonzeros();
+struct nonzeros_impl < epetra_map > {
+    static size_t get(const epetra_map &A) {
+        return A.nonzeros();
     }
 };
 
 template <>
-struct row_iterator < Epetra_CrsMatrix > {
-    class type {
-        public:
-            typedef int    col_type;
-            typedef double val_type;
-
-            type(const Epetra_CrsMatrix &A, int row)
-                : A(A)
-            {
-                int nnz;
-                A.ExtractMyRowView(A.LRID(row + A.RowMap().MinMyGID()),
-                        nnz, m_val, m_col);
-                m_end = m_col + nnz;
-            }
-
-            operator bool() const {
-                return m_col != m_end;
-            }
-
-            type& operator++() {
-                ++m_col;
-                ++m_val;
-                return *this;
-            }
-
-            col_type col() const {
-                return A.GCID(*m_col);
-            }
-
-            val_type value() const {
-                return *m_val;
-            }
-
-        private:
-            const Epetra_CrsMatrix &A;
-            col_type * m_col;
-            col_type * m_end;
-            val_type * m_val;
-    };
+struct row_iterator < epetra_map > {
+    typedef epetra_map::row_iterator type;
 };
 
 template <>
-struct row_begin_impl< Epetra_CrsMatrix >
+struct row_begin_impl< epetra_map >
 {
-    static typename row_iterator< Epetra_CrsMatrix >::type
-    get(const Epetra_CrsMatrix &A, size_t row) {
-        return typename row_iterator<Epetra_CrsMatrix>::type(A, row);
+    static typename row_iterator< epetra_map >::type
+    get(const epetra_map &A, size_t row) {
+        return A.row_begin(row);
     }
 };
 
