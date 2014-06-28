@@ -197,6 +197,8 @@ class skyline_lu {
     public:
         struct params {};
 
+        static size_t coarse_enough() { return 5000; }
+
         template <class Matrix>
         skyline_lu(const Matrix &A, const params &prm = params())
             : n( backend::rows(A) ), perm(n), ptr(n + 1, 0), D(n, 0), y(n)
@@ -286,7 +288,7 @@ class skyline_lu {
             // y = U^-1 * y ;
             // x = invperm[y];
 
-            precondition(n == boost::size(rhs) && n == boost::size(x),
+            precondition(n == rhs.size() && n == x.size(),
                     "Inconsistent vector sizes in skyline_lu"
                     );
 

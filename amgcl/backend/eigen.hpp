@@ -36,6 +36,7 @@ THE SOFTWARE.
 #include <boost/make_shared.hpp>
 #include <Eigen/Sparse>
 #include <amgcl/backend/builtin.hpp>
+#include <amgcl/solver/skyline_lu.hpp>
 
 namespace amgcl {
 namespace backend {
@@ -60,6 +61,8 @@ struct eigen {
     typedef
         Eigen::Matrix<value_type, Eigen::Dynamic, 1>
         vector;
+
+    typedef solver::skyline_lu<real> direct_solver;
 
     /// Backend parameters.
     struct params {};
@@ -96,6 +99,13 @@ struct eigen {
     create_vector(size_t size, const params&)
     {
         return boost::make_shared<vector>(size);
+    }
+
+    /// Create direct solver for coarse level
+    static boost::shared_ptr<direct_solver>
+    create_solver(boost::shared_ptr< typename builtin<real>::matrix > A, const params&)
+    {
+        return boost::make_shared<direct_solver>(*A);
     }
 
     private:

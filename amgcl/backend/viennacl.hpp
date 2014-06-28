@@ -42,6 +42,7 @@ THE SOFTWARE.
 
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/backend/builtin.hpp>
+#include <amgcl/backend/detail/default_direct_solver.hpp>
 
 namespace amgcl {
 namespace backend {
@@ -62,6 +63,7 @@ struct viennacl {
     typedef long                                       index_type;
     typedef Matrix                                     matrix;
     typedef ::viennacl::vector<value_type>             vector;
+    typedef detail::default_direct_solver<viennacl>    direct_solver;
 
     /// Backend parameters.
     struct params {};
@@ -102,6 +104,13 @@ struct viennacl {
     create_vector(size_t size, const params&)
     {
         return boost::make_shared<vector>(size);
+    }
+
+    /// Create direct solver for coarse level
+    static boost::shared_ptr<direct_solver>
+    create_solver(boost::shared_ptr< typename builtin<real>::matrix > A, const params &prm)
+    {
+        return boost::make_shared<direct_solver>(*A, prm);
     }
 
     private:

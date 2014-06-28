@@ -47,6 +47,7 @@ THE SOFTWARE.
 
 #include <amgcl/util.hpp>
 #include <amgcl/backend/interface.hpp>
+#include <amgcl/solver/skyline_lu.hpp>
 #include <amgcl/detail/inverse.hpp>
 #include <amgcl/detail/sort_row.hpp>
 
@@ -345,8 +346,9 @@ struct builtin {
     typedef real value_type;
     typedef long index_type;
 
-    typedef crs<value_type, index_type> matrix;
-    typedef std::vector<value_type>     vector;
+    typedef crs<value_type, index_type>    matrix;
+    typedef std::vector<value_type>        vector;
+    typedef solver::skyline_lu<value_type> direct_solver;
 
     /// Backend parameters.
     struct params {};
@@ -393,6 +395,12 @@ struct builtin {
                 vals[i] = vec[I[i]];
         }
     };
+
+    /// Create direct solver for coarse level
+    static boost::shared_ptr<direct_solver>
+    create_solver(boost::shared_ptr<matrix> A, const params&) {
+        return boost::make_shared<direct_solver>(*A);
+    }
 };
 
 template <class T>

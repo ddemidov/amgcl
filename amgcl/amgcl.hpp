@@ -112,7 +112,7 @@ class amg {
             unsigned ncycle;
 
             params() :
-                coarse_enough( 300 ),
+                coarse_enough( Backend::direct_solver::coarse_enough() ),
                 npre         (   1 ),
                 npost        (   1 ),
                 ncycle       (   1 )
@@ -158,13 +158,8 @@ class amg {
             }
 
             TIC("coarsest level");
-            boost::shared_ptr<build_matrix> Ainv = boost::make_shared<build_matrix>();
-            *Ainv = inverse(*A);
+            levels.push_back( level(A, prm, levels.empty()) );
             TOC("coarsest level");
-
-            TIC("move to backend")
-            levels.push_back( level(Ainv, prm) );
-            TOC("move to backend")
         }
 
         /// Performs single V-cycle for the given right-hand side and solution.
@@ -204,7 +199,11 @@ class amg {
             boost::shared_ptr<vector> u;
             boost::shared_ptr<vector> t;
 
+            boost::shared_ptr< typename Backend::direct_solver > solve;
+
             boost::shared_ptr<relax_type> relax;
+
+            size_t m_rows, m_nonzeros;
 
             level(
                     boost::shared_ptr<build_matrix> a,
@@ -218,24 +217,32 @@ class amg {
                 f( Backend::create_vector(backend::rows(*a), prm.backend) ),
                 u( Backend::create_vector(backend::rows(*a), prm.backend) ),
                 t( Backend::create_vector(backend::rows(*a), prm.backend) ),
-                relax( new relax_type(*a, prm.relax, prm.backend) )
+                relax( new relax_type(*a, prm.relax, prm.backend) ),
+                m_rows( backend::rows(*A) ),
+                m_nonzeros( backend::nonzeros(*A) )
             { }
 
             level(
                     boost::shared_ptr<build_matrix> a,
-                    const params &prm
+                    const params &prm,
+                    bool no_finer_levels
                  ) :
-                A( Backend::copy_matrix(a, prm.backend) ),
                 f( Backend::create_vector(backend::rows(*a), prm.backend) ),
-                u( Backend::create_vector(backend::rows(*a), prm.backend) )
-            { }
+                u( Backend::create_vector(backend::rows(*a), prm.backend) ),
+                solve( Backend::create_solver(a, prm.backend) ),
+                m_rows( backend::rows(*a) ),
+                m_nonzeros( backend::nonzeros(*a) )
+            {
+                if (no_finer_levels)
+                    A = Backend::copy_matrix(a, prm.backend);
+            }
 
             size_t rows() const {
-                return backend::rows(*A);
+                return m_rows;
             }
 
             size_t nonzeros() const {
-                return backend::nonzeros(*A);
+                return m_nonzeros;
             }
         };
 
@@ -249,7 +256,7 @@ class amg {
 
             if (nxt == levels.end()) {
                 TIC("coarse");
-                backend::spmv(1, *lvl->A, rhs, 0, x);
+                (*lvl->solve)(rhs, x);
                 TOC("coarse");
             } else {
                 for (size_t j = 0; j < prm.ncycle; ++j) {

@@ -36,6 +36,7 @@ THE SOFTWARE.
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
 #include <amgcl/backend/builtin.hpp>
+#include <amgcl/backend/detail/default_direct_solver.hpp>
 #include <amgcl/util.hpp>
 
 #include <thrust/device_vector.h>
@@ -203,8 +204,9 @@ struct cuda {
                 );
 
     typedef real value_type;
-    typedef cuda_hyb_matrix<real>       matrix;
-    typedef thrust::device_vector<real> vector;
+    typedef cuda_hyb_matrix<real>               matrix;
+    typedef thrust::device_vector<real>         vector;
+    typedef detail::default_direct_solver<cuda> direct_solver;
 
     /// Backend parameters.
     struct params {
@@ -243,6 +245,13 @@ struct cuda {
     create_vector(size_t size, const params&)
     {
         return boost::make_shared<vector>(size);
+    }
+
+    /// Create direct solver for coarse level
+    static boost::shared_ptr<direct_solver>
+    create_solver(boost::shared_ptr< typename builtin<real>::matrix > A, const params &prm)
+    {
+        return boost::make_shared<direct_solver>(A, prm);
     }
 };
 

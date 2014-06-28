@@ -37,6 +37,7 @@ THE SOFTWARE.
 #include <vexcl/vexcl.hpp>
 
 #include <amgcl/backend/builtin.hpp>
+#include <amgcl/backend/detail/default_direct_solver.hpp>
 
 namespace amgcl {
 namespace backend {
@@ -56,6 +57,7 @@ struct vexcl {
 
     typedef vex::SpMat<value_type, index_type, index_type> matrix;
     typedef vex::vector<value_type>                        vector;
+    typedef detail::default_direct_solver<vexcl>           direct_solver;
 
     /// Backend parameters.
     struct params {
@@ -109,6 +111,14 @@ struct vexcl {
             G(vec, vals);
         }
     };
+
+
+    /// Create direct solver for coarse level
+    static boost::shared_ptr<direct_solver>
+    create_solver(boost::shared_ptr< typename builtin<real>::matrix > A, const params &prm)
+    {
+        return boost::make_shared<direct_solver>(A, prm);
+    }
 };
 
 //---------------------------------------------------------------------------

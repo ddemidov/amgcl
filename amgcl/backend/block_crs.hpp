@@ -36,6 +36,7 @@ THE SOFTWARE.
 
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/backend/builtin.hpp>
+#include <amgcl/solver/skyline_lu.hpp>
 
 namespace amgcl {
 namespace backend {
@@ -154,6 +155,7 @@ struct block_crs {
 
     typedef bcrs<real, index_type, index_type> matrix;
     typedef typename builtin<real>::vector     vector;
+    typedef solver::skyline_lu<value_type>     direct_solver;
 
     /// Backend parameters.
     struct params {
@@ -190,6 +192,14 @@ struct block_crs {
     create_vector(size_t size, const params&)
     {
         return boost::make_shared<vector>(size);
+    }
+
+    static boost::shared_ptr<direct_solver>
+    create_solver(
+            boost::shared_ptr< typename backend::builtin<real>::matrix > A,
+            const params&)
+    {
+        return boost::make_shared<direct_solver>(*A);
     }
 };
 
