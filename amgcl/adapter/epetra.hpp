@@ -35,7 +35,7 @@ THE SOFTWARE.
 #include <vector>
 
 #include <Epetra_CrsMatrix.h>
-#include <Epetra_Vector.h>
+#include <Epetra_IntVector.h>
 #include <Epetra_Import.h>
 
 #include <amgcl/backend/interface.hpp>
@@ -52,12 +52,12 @@ class epetra_map {
             const Epetra_Map& row_map = A.RowMap();
             const Epetra_Map& col_map = A.ColMap();
 
-            double entries_before;
-            double local_entries = row_map.NumMyElements();
+            int entries_before;
+            int local_entries = row_map.NumMyElements();
             A.Comm().ScanSum(&local_entries, &entries_before, 1);
             entries_before -= local_entries;
 
-            Epetra_Vector perm(row_map);
+            Epetra_IntVector perm(row_map);
             for(int i = 0, j = entries_before; i < local_entries; ++i, ++j)
                 perm[i] = j;
 
@@ -85,7 +85,7 @@ class epetra_map {
 
                 row_iterator(
                         const Epetra_CrsMatrix &A,
-                        const Epetra_Vector    &order,
+                        const Epetra_IntVector &order,
                         int row
                         ) : order(order)
                 {
@@ -113,7 +113,7 @@ class epetra_map {
                 }
 
             private:
-                const Epetra_Vector &order;
+                const Epetra_IntVector &order;
 
                 col_type * m_col;
                 col_type * m_end;
@@ -125,7 +125,7 @@ class epetra_map {
         }
     private:
         const Epetra_CrsMatrix &A;
-        Epetra_Vector order;
+        Epetra_IntVector order;
 };
 
 /// Adapts Epetra_CrsMatrix
