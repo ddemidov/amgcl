@@ -288,10 +288,6 @@ class skyline_lu {
             // y = U^-1 * y ;
             // x = invperm[y];
 
-            precondition(n == rhs.size() && n == x.size(),
-                    "Inconsistent vector sizes in skyline_lu"
-                    );
-
             for(int i = 0; i < n; ++i) {
                 real sum = rhs[perm[i]];
                 for(int k = ptr[i], j = i - ptr[i+1] + k; k < ptr[i+1]; ++k, ++j)
