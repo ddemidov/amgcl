@@ -120,8 +120,7 @@ class bicgstabl {
         {
             const int L = prm.L;
 
-            backend::residual(rhs, A, x, *q);
-            P.apply(*q, *r0);
+            backend::residual(rhs, A, x, *r0);
 
             value_type norm_r0 = norm(*r0);
             if (norm_r0 == 0)
@@ -151,16 +150,16 @@ class bicgstabl {
                         for(int i = 0; i <= j; ++i)
                             backend::axpby(1, *r[i], -beta, *u[i]);
 
-                        backend::spmv(1, A, *u[j], 0, *q);
-                        P.apply(*q, *u[j+1]);
+                        P.apply(*u[j], *q);
+                        backend::spmv(1, A, *q, 0, *u[j+1]);
 
                         alpha = rho0 / inner_product(*u[j+1], *r0);
 
                         for(int i = 0; i <= j; ++i)
                             backend::axpby(-alpha, *u[i+1], 1, *r[i]);
 
-                        backend::spmv(1, A, *r[j], 0, *q);
-                        P.apply(*q, *r[j+1]);
+                        P.apply(*r[j], *q);
+                        backend::spmv(1, A, *q, 0, *r[j+1]);
                         backend::axpby(alpha, *u[0], 1, x);
                     }
 
@@ -201,8 +200,9 @@ class bicgstabl {
                     res_norm = norm(*r[0]);
                 }
 
-                backend::residual(rhs, A, x, *q);
-                P.apply(*q, *r0);
+                P.apply(x, *q);
+                backend::copy(*q, x);
+                backend::residual(rhs, A, x, *r0);
                 res_norm = norm(*r0);
             } while (res_norm > eps && iter < prm.maxiter);
 
