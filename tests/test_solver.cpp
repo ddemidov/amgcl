@@ -84,7 +84,7 @@ void test_solver(const typename Backend::params &prm = typename Backend::params(
     std::vector<value_type> val;
     std::vector<value_type> rhs;
 
-    size_t n = sample_problem(32, val, col, ptr, rhs);
+    size_t n = sample_problem(25, val, col, ptr, rhs);
 
     typedef amgcl::make_solver<Backend, Coarsening, Relax, Solver> AMG;
     typename AMG::AMG_params amg_params;
