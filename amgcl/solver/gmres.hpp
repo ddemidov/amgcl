@@ -119,29 +119,29 @@ class gmres {
                 Vec2          &x
                 ) const
         {
-            size_t     iter = 0;
-            value_type res;
+            size_t iter = 0;
+
+            value_type norm_r0 = restart(A, rhs, P, x);
+            if (!norm_r0)
+                return boost::make_tuple(0, 0);
+
+            value_type eps = prm.tol * norm_r0, res_norm;
 
             do {
-                res = restart(A, rhs, P, x);
-                if (!res) {
-                    // Solution is exact
-                    return boost::make_tuple(iter, res);
-                }
-
                 for(int i = 0; i < prm.M && iter < prm.maxiter; ++i, ++iter) {
-                    res = iteration(A, P, i);
+                    res_norm = iteration(A, P, i);
 
-                    if (res < prm.tol) {
+                    if (res_norm < eps) {
                         update(x, i);
-                        return boost::make_tuple(iter + 1, res);
+                        return boost::make_tuple(iter + 1, res_norm / norm_r0);
                     };
                 }
 
                 update(x, prm.M-1);
-            } while (iter < prm.maxiter && res > prm.tol);
+                res_norm = restart(A, rhs, P, x);
+            } while (iter < prm.maxiter && res_norm > eps);
 
-            return boost::make_tuple(iter, res);
+            return boost::make_tuple(iter, res_norm / norm_r0);
         }
 
         /// Solves the linear system for the same matrix that was used for the AMG preconditioner construction.
@@ -226,15 +226,11 @@ class gmres {
             backend::residual(rhs, A, x, *w);
             P.apply(*w, *r);
 
+            boost::fill(s, 0);
             s[0] = norm(*r);
 
-            if (!s[0]) {
-                // Solution is exact.
-                return s[0];
-            }
-            backend::axpby(1 / s[0], *r, 0, *v[0]);
-
-            std::fill(s.begin() + 1, s.end(), value_type());
+            if (s[0])
+                backend::axpby(1 / s[0], *r, 0, *v[0]);
 
             return s[0];
         }

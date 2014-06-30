@@ -113,11 +113,7 @@ void test_solver(const typename Backend::params &prm = typename Backend::params(
               << "Error:      " << resid << std::endl
               << std::endl;
 
-    if (!(resid < 1e-4)) {
-        std::cout << "fuck" << std::endl;
-    }
-
-    BOOST_CHECK(resid < 1e-4);
+    BOOST_CHECK_SMALL(resid, 1e-4);
 }
 
 //---------------------------------------------------------------------------
