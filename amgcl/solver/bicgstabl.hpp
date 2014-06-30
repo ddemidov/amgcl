@@ -124,84 +124,89 @@ class bicgstabl {
             P.apply(*q, *r0);
 
             value_type norm_r0 = norm(*r0);
-            if (norm_r0 == 0) {
-                // The solution is exact
+            if (norm_r0 == 0)
                 return boost::make_tuple(0, 0);
-            }
 
-            backend::copy(*r0, *r[0]);
-            backend::clear( *u[0] );
-            value_type rho0 = 1, alpha = 0, omega = 1;
+            value_type res_norm = norm_r0;
+            value_type eps      = prm.tol * norm_r0;
 
             size_t iter = 0;
-            value_type res = 2 * prm.tol;
 
-            for(; res > prm.tol && iter < prm.maxiter; ++iter) {
-                rho0 = -omega * rho0;
+            do {
+                backend::copy(*r0, *r[0]);
+                backend::clear( *u[0] );
+                value_type rho0 = 1, alpha = 0, omega = 1;
 
-                // Bi-CG part
-                for(int j = 0; j < L; ++j) {
-                    precondition(rho0, "Zero rho in BiCGStab(L)");
+                for(; res_norm > eps && iter < prm.maxiter; ++iter) {
+                    rho0 = -omega * rho0;
 
-                    double rho1 = inner_product(*r[j], *r0);
-                    double beta = alpha * rho1 / rho0;
-                    rho0 = rho1;
+                    // Bi-CG part
+                    for(int j = 0; j < L; ++j) {
+                        precondition(rho0, "Zero rho in BiCGStab(L)");
 
+                        double rho1 = inner_product(*r[j], *r0);
+                        double beta = alpha * rho1 / rho0;
+                        rho0 = rho1;
 
-                    for(int i = 0; i <= j; ++i)
-                        backend::axpby(1, *r[i], -beta, *u[i]);
+                        for(int i = 0; i <= j; ++i)
+                            backend::axpby(1, *r[i], -beta, *u[i]);
 
-                    backend::spmv(1, A, *u[j], 0, *q);
-                    P.apply(*q, *u[j+1]);
+                        backend::spmv(1, A, *u[j], 0, *q);
+                        P.apply(*q, *u[j+1]);
 
-                    alpha = rho0 / inner_product(*u[j+1], *r0);
+                        alpha = rho0 / inner_product(*u[j+1], *r0);
 
-                    for(int i = 0; i <= j; ++i)
-                        backend::axpby(-alpha, *u[i+1], 1, *r[i]);
+                        for(int i = 0; i <= j; ++i)
+                            backend::axpby(-alpha, *u[i+1], 1, *r[i]);
 
-                    backend::spmv(1, A, *r[j], 0, *q);
-                    P.apply(*q, *r[j+1]);
-                    backend::axpby(alpha, *u[0], 1, x);
-                }
-
-                // MR part
-                for(int j = 0; j < L; ++j) {
-                    for(int i = 0; i < j; ++i) {
-                        tau[i][j] = inner_product(*r[j+1], *r[i+1]) / sigma[i];
-                        backend::axpby(-tau[i][j], *r[i+1], 1, *r[j+1]);
+                        backend::spmv(1, A, *r[j], 0, *q);
+                        P.apply(*q, *r[j+1]);
+                        backend::axpby(alpha, *u[0], 1, x);
                     }
-                    sigma[j] = inner_product(*r[j+1], *r[j+1]);
-                    gamma1[j] = inner_product(*r[0], *r[j+1]) / sigma[j];
+
+                    // MR part
+                    for(int j = 0; j < L; ++j) {
+                        for(int i = 0; i < j; ++i) {
+                            tau[i][j] = inner_product(*r[j+1], *r[i+1]) / sigma[i];
+                            backend::axpby(-tau[i][j], *r[i+1], 1, *r[j+1]);
+                        }
+                        sigma[j] = inner_product(*r[j+1], *r[j+1]);
+                        gamma1[j] = inner_product(*r[0], *r[j+1]) / sigma[j];
+                    }
+
+                    omega = gamma[L-1] = gamma1[L-1];
+                    for(int j = L-2; j >= 0; --j) {
+                        gamma[j] = gamma1[j];
+                        for(int i = j+1; i < L; ++i)
+                            gamma[j] -= tau[j][i] * gamma[i];
+                    }
+
+                    for(int j = 0; j < L-1; ++j) {
+                        gamma2[j] = gamma[j+1];
+                        for(int i = j+1; i < L-1; ++i)
+                            gamma2[j] += tau[j][i] * gamma[i+1];
+                    }
+
+                    // Update
+                    backend::axpby(gamma[0], *r[0], 1, x);
+                    backend::axpby(-gamma1[L-1], *r[L], 1, *r[0]);
+                    backend::axpby(-gamma[L-1], *u[L], 1, *u[0]);
+
+                    for(int j = 1; j < L; ++j) {
+                        backend::axpby(-gamma[j-1], *u[j], 1, *u[0]);
+                        backend::axpby(gamma2[j-1], *r[j], 1, x);
+                        backend::axpby(-gamma1[j-1], *r[j], 1, *r[0]);
+                    }
+
+                    res_norm = norm(*r[0]);
                 }
 
-                omega = gamma[L-1] = gamma1[L-1];
-                for(int j = L-2; j >= 0; --j) {
-                    gamma[j] = gamma1[j];
-                    for(int i = j+1; i < L; ++i)
-                        gamma[j] -= tau[j][i] * gamma[i];
-                }
+                backend::residual(rhs, A, x, *q);
+                P.apply(*q, *r0);
+                res_norm = norm(*r0);
+            } while (res_norm > eps && iter < prm.maxiter);
 
-                for(int j = 0; j < L-1; ++j) {
-                    gamma2[j] = gamma[j+1];
-                    for(int i = j+1; i < L-1; ++i)
-                        gamma2[j] += tau[j][i] * gamma[i+1];
-                }
-
-                // Update
-                backend::axpby(gamma[0], *r[0], 1, x);
-                backend::axpby(-gamma1[L-1], *r[L], 1, *r[0]);
-                backend::axpby(-gamma[L-1], *u[L], 1, *u[0]);
-
-                for(int j = 1; j < L; ++j) {
-                    backend::axpby(-gamma[j-1], *u[j], 1, *u[0]);
-                    backend::axpby(gamma2[j-1], *r[j], 1, x);
-                    backend::axpby(-gamma1[j-1], *r[j], 1, *r[0]);
-                }
-
-                res = norm(*r[0]) / norm_r0;
-            }
-
-            return boost::make_tuple(iter, res);
+            return boost::make_tuple(iter, res_norm / norm_r0);
         }
 
         /// Solves the linear system for the same matrix that was used for the AMG preconditioner construction.
