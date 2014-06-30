@@ -460,14 +460,9 @@ class subdomain_deflation {
         template <class Vec1, class Vec2>
         boost::tuple<size_t, value_type>
         operator()(const Vec1 &rhs, Vec2 &x) const {
-            boost::tuple<size_t, value_type> cnv = (*solve)(*this, *this, rhs, x);
+            boost::tuple<size_t, value_type> cnv = (*solve)(*this, *P, rhs, x);
             postprocess(rhs, x);
             return cnv;
-        }
-
-        template <class Vec1, class Vec2>
-        void apply(const Vec1 &rhs, Vec2 &x) const {
-            P->apply(rhs, x);
         }
 
         template <class Vec1, class Vec2>
