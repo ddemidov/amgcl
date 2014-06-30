@@ -167,7 +167,8 @@ class amg {
          * \param rhs Right-hand side vector.
          * \param x   Solution vector.
          */
-        void cycle(const vector &rhs, vector &x) const {
+        template <class Vec1, class Vec2>
+        void cycle(const Vec1 &rhs, Vec2 &x) const {
             cycle(levels.begin(), rhs, x);
         }
 
@@ -178,7 +179,8 @@ class amg {
          * \param rhs Right-hand side vector.
          * \param x   Solution vector.
          */
-        void apply(const vector &rhs, vector &x) const {
+        template <class Vec1, class Vec2>
+        void apply(const Vec1 &rhs, Vec2 &x) const {
             backend::clear(x);
             cycle(levels.begin(), rhs, x);
         }
@@ -250,7 +252,8 @@ class amg {
 
         std::list<level> levels;
 
-        void cycle(level_iterator lvl, const vector &rhs, vector &x) const
+        template <class Vec1, class Vec2>
+        void cycle(level_iterator lvl, const Vec1 &rhs, Vec2 &x) const
         {
             level_iterator nxt = lvl; ++nxt;
 

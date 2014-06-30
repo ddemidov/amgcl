@@ -129,31 +129,36 @@ class cg {
                 return boost::make_tuple(0, 0);
             }
 
-            P.apply(*r, *s);
-            backend::copy(*s, *p);
+            value_type eps  = prm.tol * norm_r0;
+            value_type rho1 = 2 * eps * eps, rho2 = 0, res_norm = 0;
+            size_t     iter = 0;
+            do {
+                for(; iter < prm.maxiter; ++iter) {
+                    P.apply(*r, *s);
 
-            size_t     iter = 1;
-            value_type rho1 = inner_product(*r, *s), rho2;
-            value_type tol2 = prm.tol * prm.tol;
-            for(; iter < prm.maxiter; ++iter) {
-                backend::spmv(1, A, *p, 0, *q);
+                    rho2 = rho1;
+                    rho1 = inner_product(*r, *s);
 
-                value_type alpha = rho1 / inner_product(*q, *p);
+                    if (iter)
+                        backend::axpby(1, *s, rho1 / rho2, *p);
+                    else
+                        backend::copy(*s, *p);
 
-                backend::axpby( alpha, *p, 1,  x);
-                backend::axpby(-alpha, *q, 1, *r);
+                    backend::spmv(1, A, *p, 0, *q);
 
-                P.apply(*r, *s);
+                    value_type alpha = rho1 / inner_product(*q, *p);
 
-                rho2 = rho1;
-                rho1 = inner_product(*r, *s);
+                    backend::axpby( alpha, *p, 1,  x);
+                    backend::axpby(-alpha, *q, 1, *r);
 
-                if (rho1 < tol2 * norm_r0) break;
+                    if (rho1 < eps * eps) break;
+                }
 
-                backend::axpby(1, *s, (rho1 / rho2), *p);
-            }
+                backend::residual(rhs, A, x, *r);
+                res_norm = norm(*r);
+            } while (res_norm > eps && iter < prm.maxiter);
 
-            return boost::make_tuple(iter, sqrt(rho1 / norm_r0));
+            return boost::make_tuple(iter, res_norm / norm_r0);
         }
 
         /// Solves the linear system for the same matrix that was used for the AMG preconditioner construction.
