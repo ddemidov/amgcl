@@ -39,22 +39,16 @@
 
 //---------------------------------------------------------------------------
 typedef boost::mpl::list<
-    amgcl::backend::block_crs<float>
-    , amgcl::backend::block_crs<double>
+      amgcl::backend::block_crs<double>
 #ifdef AMGCL_HAVE_EIGEN
-    , amgcl::backend::eigen<float>
     , amgcl::backend::eigen<double>
 #endif
 #ifdef AMGCL_HAVE_BLAZE
-    , amgcl::backend::blaze<float>
     , amgcl::backend::blaze<double>
 #endif
 #ifdef AMGCL_HAVE_VIENNACL
-    , amgcl::backend::viennacl< viennacl::compressed_matrix<float> >
     , amgcl::backend::viennacl< viennacl::compressed_matrix<double> >
-    , amgcl::backend::viennacl< viennacl::ell_matrix<float> >
     , amgcl::backend::viennacl< viennacl::ell_matrix<double> >
-    , amgcl::backend::viennacl< viennacl::hyb_matrix<float> >
     , amgcl::backend::viennacl< viennacl::hyb_matrix<double> >
 #endif
     > cpu_backend_list;
