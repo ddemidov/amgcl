@@ -33,6 +33,7 @@ THE SOFTWARE.
 
 #include <boost/tuple/tuple.hpp>
 #include <amgcl/backend/interface.hpp>
+#include <amgcl/solver/bicgstabl.hpp>
 #include <amgcl/solver/detail/default_inner_product.hpp>
 #include <amgcl/util.hpp>
 
@@ -49,9 +50,9 @@ template <
     class Backend,
     class InnerProduct = detail::default_inner_product
     >
-class bicgstab {
+class bicgstab : public bicgstabl<Backend, InnerProduct> {
     public:
-        typedef typename Backend::vector     vector;
+        typedef bicgstabl<Backend, InnerProduct> Base;
         typedef typename Backend::value_type value_type;
         typedef typename Backend::params     backend_params;
 
@@ -75,133 +76,12 @@ class bicgstab {
                 const backend_params &backend_prm = backend_params(),
                 const InnerProduct &inner_product = InnerProduct()
                 )
-            : prm(prm),
-              r ( Backend::create_vector(n, backend_prm) ),
-              p ( Backend::create_vector(n, backend_prm) ),
-              v ( Backend::create_vector(n, backend_prm) ),
-              s ( Backend::create_vector(n, backend_prm) ),
-              t ( Backend::create_vector(n, backend_prm) ),
-              rh( Backend::create_vector(n, backend_prm) ),
-              ph( Backend::create_vector(n, backend_prm) ),
-              sh( Backend::create_vector(n, backend_prm) ),
-              inner_product(inner_product)
-        { }
-
-        /// Solves the linear system for the given system matrix.
-        /**
-         * \param A   System matrix.
-         * \param P   Preconditioner.
-         * \param rhs Right-hand side.
-         * \param x   Solution vector.
-         *
-         * The system matrix may differ from the matrix used for the AMG
-         * preconditioner construction. This may be used for the solution of
-         * non-stationary problems with slowly changing coefficients. There is
-         * a strong chance that AMG built for one time step will act as a
-         * reasonably good preconditioner for several subsequent time steps
-         * \cite Demidov2012.
-         */
-        template <class Matrix, class Precond, class Vec1, class Vec2>
-        boost::tuple<size_t, value_type> operator()(
-                Matrix  const &A,
-                Precond const &P,
-                Vec1    const &rhs,
-                Vec2          &x
-                ) const
-        {
-            backend::residual(rhs, A, x, *r);
-
-            value_type norm_r0 = norm(*r);
-            if (!norm_r0) {
-                // The solution is exact
-                return boost::make_tuple(0, 0);
-            }
-
-            backend::copy(*r, *rh);
-
-            value_type rho1  = 0, rho2  = 0;
-            value_type alpha = 0, omega = 0;
-
-            size_t     iter = 0;
-            value_type res  = 2 * prm.tol;
-
-            for(; res > prm.tol && iter < prm.maxiter; ++iter) {
-
-                rho2 = rho1;
-                rho1 = inner_product(*r, *rh);
-
-                if (iter) {
-                    precondition(rho2, "Zero rho in BiCGStab");
-                    value_type beta = (rho1 * alpha) / (rho2 * omega);
-                    backend::axpbypcz(1, *r, -beta * omega, *v, beta, *p);
-                } else {
-                    backend::copy(*r, *p);
-                }
-
-                P.apply(*p, *ph);
-
-                backend::spmv(1, A, *ph, 0, *v);
-
-                alpha = rho1 / inner_product(*rh, *v);
-
-                backend::axpbypcz(1, *r, -alpha, *v, 0, *s);
-
-                if ((res = norm(*s) / norm_r0) < prm.tol) {
-                    backend::axpby(alpha, *ph, 1, x);
-                } else {
-                    P.apply(*s, *sh);
-
-                    backend::spmv(1, A, *sh, 0, *t);
-
-                    omega = inner_product(*t, *s) / inner_product(*t, *t);
-
-                    precondition(omega, "Zero omega in BiCGStab");
-
-                    backend::axpbypcz(alpha, *ph, omega, *sh, 1, x);
-                    backend::axpbypcz(1, *s, -omega, *t, 0, *r);
-
-                    res = norm(*r) / norm_r0;
-                }
-            }
-
-            return boost::make_tuple(iter, res);
-        }
-
-        /// Solves the linear system for the same matrix that was used for the AMG preconditioner construction.
-        /**
-         * \param P   AMG preconditioner.
-         * \param rhs Right-hand side.
-         * \param x   Solution vector.
-         */
-        template <class Precond, class Vec1, class Vec2>
-        boost::tuple<size_t, value_type> operator()(
-                Precond const &P,
-                Vec1    const &rhs,
-                Vec2          &x
-                ) const
-        {
-            return (*this)(P.top_matrix(), P, rhs, x);
-        }
-
-
-    private:
-        params prm;
-
-        boost::shared_ptr<vector> r;
-        boost::shared_ptr<vector> p;
-        boost::shared_ptr<vector> v;
-        boost::shared_ptr<vector> s;
-        boost::shared_ptr<vector> t;
-        boost::shared_ptr<vector> rh;
-        boost::shared_ptr<vector> ph;
-        boost::shared_ptr<vector> sh;
-
-        InnerProduct inner_product;
-
-        template <class Vec>
-        value_type norm(const Vec &x) const {
-            return sqrt(inner_product(x, x));
-        }
+            : Base(
+                    n,
+                    typename Base::params(1, prm.maxiter, prm.tol),
+                    backend_prm, inner_product
+                  )
+        {}
 };
 
 } // namespace solver
