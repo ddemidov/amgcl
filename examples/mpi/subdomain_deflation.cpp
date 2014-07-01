@@ -25,7 +25,7 @@
 #include "domain_partition.hpp"
 
 #define CONVECTION
-#define RECIRCULATION
+//#define RECIRCULATION
 
 struct linear_deflation {
     long n;
@@ -68,14 +68,14 @@ int main(int argc, char *argv[]) {
 
     prof.tic("partition");
     domain_partition<2> part(lo, hi, world.size);
-    const long chunk = part.size( world.rank );
+    long chunk = part.size( world.rank );
 
     std::vector<long> domain(world.size + 1);
     MPI_Allgather(&chunk, 1, MPI_LONG, &domain[1], 1, MPI_LONG, world);
     boost::partial_sum(domain, domain.begin());
 
-    const long chunk_start = domain[world.rank];
-    const long chunk_end   = domain[world.rank + 1];
+    long chunk_start = domain[world.rank];
+    long chunk_end   = domain[world.rank + 1];
 
     linear_deflation lindef(n);
     std::vector<long> renum(n2);
@@ -209,8 +209,8 @@ int main(int argc, char *argv[]) {
         amgcl::solver::bicgstabl
         > Solver;
 
-    typename Solver::AMG_params    amg_prm;
-    typename Solver::Solver_params slv_prm(2);
+    Solver::AMG_params    amg_prm;
+    Solver::Solver_params slv_prm(2);
     Solver solve(world,
             boost::tie(chunk, ptr, col, val),
             lindef,

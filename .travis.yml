@@ -2,13 +2,15 @@ language: cpp
 compiler:
     - clang
 before_install:
+    - sudo add-apt-repository ppa:boost-latest/ppa -y
     - sudo apt-get update -qq
-    - sudo apt-get install -qq libboost-chrono1.48-dev libboost-date-time1.48-dev libboost-system1.48-dev libboost-filesystem1.48-dev libboost-program-options1.48-dev libboost-test1.48-dev python-yaml lcov
+    - sudo apt-get install -qq libboost-chrono1.55-dev libboost-date-time1.55-dev libboost-system1.55-dev libboost-filesystem1.55-dev libboost-program-options1.55-dev libboost-test1.55-dev python-yaml lcov openmpi-bin libopenmpi-dev
     - gem install coveralls-lcov
 script:
     - mkdir -p build && cd build
     - cmake -DTEST_COVERAGE=ON -DCMAKE_BUILD_TYPE=Release ..
     - make && ctest --output-on-failure
+    - for n in 1 4 16; do echo --- $n ---; mpirun -np $n ./examples/mpi/subdomain_deflation; done
 after_success:
     - lcov --directory tests --base-directory ../amgcl --capture --output-file coverage.info
     - lcov --remove coverage.info '/usr*' -o coverage.info
