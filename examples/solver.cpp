@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
         > solve( amgcl::adapter::make_matrix(poisson_2d(m)) );
     prof.toc("build");
 
-    std::cout << solve << std::endl;
+    std::cout << solve.amg() << std::endl;
 
     std::vector<double> f(n, 1);
     std::vector<double> x(n, 0);

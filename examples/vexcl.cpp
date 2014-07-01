@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
     Solver solve( boost::tie(n, ptr, col, val), prm );
     prof.toc("build");
 
-    std::cout << solve << std::endl;
+    std::cout << solve.amg() << std::endl;
 
     vex::vector<double> f(ctx, rhs);
     vex::vector<double> x(ctx, n);

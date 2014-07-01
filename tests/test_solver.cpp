@@ -92,7 +92,7 @@ void test_solver(const typename Backend::params &prm = typename Backend::params(
 
     AMG solve(boost::tie(n, ptr, col, val), amg_params);
 
-    std::cout << solve << std::endl;
+    std::cout << solve.amg() << std::endl;
 
     boost::shared_ptr<vector> y = Backend::copy_vector(rhs, prm);
     boost::shared_ptr<vector> x = Backend::create_vector(n, prm);

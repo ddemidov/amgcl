@@ -337,7 +337,7 @@ class make_solver {
     public:
         typedef typename Backend::value_type value_type;
 
-        typedef amg<Backend, Coarsening, Relax> AMG;
+        typedef amgcl::amg<Backend, Coarsening, Relax> AMG;
         typedef IterativeSolver<Backend, solver::detail::default_inner_product> Solver;
 
         typedef typename AMG::params    AMG_params;
@@ -351,7 +351,7 @@ class make_solver {
                 const Solver_params &solver_params = Solver_params()
                 )
             : P(A, amg_params),
-              solver(backend::rows(A), solver_params, amg_params.backend)
+              S(backend::rows(A), solver_params, amg_params.backend)
         {}
 
         /// Solves the linear system for the given system matrix.
@@ -374,7 +374,7 @@ class make_solver {
                 Vec2          &x
                 ) const
         {
-            return solver(A, P, rhs, x);
+            return S(A, P, rhs, x);
         }
 
         /// Solves the linear system for the given right-hand side.
@@ -388,16 +388,20 @@ class make_solver {
                 Vec2          &x
                 ) const
         {
-            return solver(P, rhs, x);
+            return S(P, rhs, x);
+        }
+
+        const AMG& amg() const {
+            return P;
+        }
+
+        const Solver& solver() const {
+            return S;
         }
 
     private:
         AMG    P;
-        Solver solver;
-
-        friend std::ostream& operator<<(std::ostream &os, const make_solver &s) {
-            return os << s.P;
-        }
+        Solver S;
 };
 
 } // namespace amgcl
