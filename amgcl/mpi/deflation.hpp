@@ -160,7 +160,7 @@ class subdomain_deflation {
                 )
         : comm(mpi_comm),
           nrows(backend::rows(Astrip)), ndv(def_vec.dim()), nz(comm.size * ndv),
-          df( nz ), dx( nz ),
+          dtype( datatype<value_type>::get() ), df( nz ), dx( nz ),
           q( Backend::create_vector(nrows, amg_params.backend) ),
           dd( Backend::create_vector(nz, amg_params.backend) ),
           Z( ndv )
@@ -244,69 +244,12 @@ class subdomain_deflation {
                 num_recv[cur_nbr]++;
             }
 
-            // Second pass over Astrip rows:
-            // 1. Build local and remote matrix parts.
-            // 2. Build local part of AZ matrix.
-            aloc->nrows = nrows;
-            aloc->ncols = nrows;
-            aloc->ptr.reserve(nrows + 1);
-            aloc->col.reserve(loc_nnz);
-            aloc->val.reserve(loc_nnz);
-            aloc->ptr.push_back(0);
-
-            arem->nrows = nrows;
-            arem->ncols = rc.size();
-            arem->ptr.reserve(nrows + 1);
-            arem->col.reserve(rem_nnz);
-            arem->val.reserve(rem_nnz);
-            arem->ptr.push_back(0);
-
-            boost::partial_sum(az->ptr, az->ptr.begin());
-            az->col.resize(az->ptr.back());
-            az->val.resize(az->ptr.back());
-            boost::fill(marker, -1);
-
-            for(long i = 0; i < nrows; ++i) {
-                long az_row_beg = az->ptr[i];
-                long az_row_end = az_row_beg;
-
-                for(row_iterator1 a = backend::row_begin(Astrip, i); a; ++a) {
-                    long       c = a.col();
-                    value_type v = a.value();
-
-                    if ( domain[comm.rank] <= c && c < domain[comm.rank + 1] ) {
-                        long loc_c = c - chunk_start;
-                        aloc->col.push_back(loc_c);
-                        aloc->val.push_back(v);
-
-                        for(long j = 0, k = comm.rank * ndv; j < ndv; ++j, ++k) {
-                            if (marker[k] < az_row_beg) {
-                                marker[k] = az_row_end;
-                                az->col[az_row_end] = k;
-                                az->val[az_row_end] = v * def_vec(loc_c, j);
-                                ++az_row_end;
-                            } else {
-                                az->val[marker[k]] += v * def_vec(loc_c, j);
-                            }
-                        }
-                    } else {
-                        arem->col.push_back(rc[c]);
-                        arem->val.push_back(v);
-                    }
-                }
-
-                az->ptr[i] = az_row_end;
-
-                aloc->ptr.push_back(aloc->col.size());
-                arem->ptr.push_back(arem->col.size());
-            }
-
             /*** Set up communication pattern. ***/
+            // Who sends to whom and how many
             boost::multi_array<long, 2> comm_matrix(
                     boost::extents[comm.size][comm.size]
                     );
 
-            // Who sends to whom and how many
             MPI_Allgather(
                     num_recv.data(),    comm.size, MPI_LONG,
                     comm_matrix.data(), comm.size, MPI_LONG,
@@ -364,6 +307,67 @@ class subdomain_deflation {
                 MPI_Isend(&recv_cols[recv.ptr[i]], comm_matrix[comm.rank][recv.nbr[i]],
                         MPI_LONG, recv.nbr[i], tag_exc_cols, comm, &recv.req[i]);
 
+            /* While messages are in flight, */
+
+            // Second pass over Astrip rows:
+            // 1. Build local and remote matrix parts.
+            // 2. Build local part of AZ matrix.
+            aloc->nrows = nrows;
+            aloc->ncols = nrows;
+            aloc->ptr.reserve(nrows + 1);
+            aloc->col.reserve(loc_nnz);
+            aloc->val.reserve(loc_nnz);
+            aloc->ptr.push_back(0);
+
+            arem->nrows = nrows;
+            arem->ncols = rc.size();
+            arem->ptr.reserve(nrows + 1);
+            arem->col.reserve(rem_nnz);
+            arem->val.reserve(rem_nnz);
+            arem->ptr.push_back(0);
+
+            boost::partial_sum(az->ptr, az->ptr.begin());
+            az->col.resize(az->ptr.back());
+            az->val.resize(az->ptr.back());
+            boost::fill(marker, -1);
+
+            for(long i = 0; i < nrows; ++i) {
+                long az_row_beg = az->ptr[i];
+                long az_row_end = az_row_beg;
+
+                for(row_iterator1 a = backend::row_begin(Astrip, i); a; ++a) {
+                    long       c = a.col();
+                    value_type v = a.value();
+
+                    if ( domain[comm.rank] <= c && c < domain[comm.rank + 1] ) {
+                        long loc_c = c - chunk_start;
+                        aloc->col.push_back(loc_c);
+                        aloc->val.push_back(v);
+
+                        for(long j = 0, k = comm.rank * ndv; j < ndv; ++j, ++k) {
+                            if (marker[k] < az_row_beg) {
+                                marker[k] = az_row_end;
+                                az->col[az_row_end] = k;
+                                az->val[az_row_end] = v * def_vec(loc_c, j);
+                                ++az_row_end;
+                            } else {
+                                az->val[marker[k]] += v * def_vec(loc_c, j);
+                            }
+                        }
+                    } else {
+                        arem->col.push_back(rc[c]);
+                        arem->val.push_back(v);
+                    }
+                }
+
+                az->ptr[i] = az_row_end;
+
+                aloc->ptr.push_back(aloc->col.size());
+                arem->ptr.push_back(arem->col.size());
+            }
+
+
+            /* Finish communication pattern setup. */
             MPI_Waitall(recv.req.size(), recv.req.data(), MPI_STATUSES_IGNORE);
             MPI_Waitall(send.req.size(), send.req.data(), MPI_STATUSES_IGNORE);
 
@@ -379,20 +383,16 @@ class subdomain_deflation {
             for(size_t i = 0; i < recv.nbr.size(); ++i)
                 MPI_Irecv(
                         &zrecv[recv.ptr[i]][0], ndv * (recv.ptr[i+1] - recv.ptr[i]),
-                        datatype<value_type>::get(), recv.nbr[i], tag_exc_vals,
-                        comm, &recv.req[i]
-                        );
+                        dtype, recv.nbr[i], tag_exc_vals, comm, &recv.req[i]);
 
             for(size_t i = 0; i < send_col.size(); ++i)
                 for(long j = 0; j < ndv; ++j)
                     zsend[i][j] = def_vec(send_col[i], j);
 
             for(size_t i = 0; i < send.nbr.size(); ++i)
-                MPI_Send(
+                MPI_Isend(
                         &zsend[send.ptr[i]][0], ndv * (send.ptr[i+1] - send.ptr[i]),
-                        datatype<value_type>::get(), send.nbr[i], tag_exc_vals,
-                        comm
-                        );
+                        dtype, send.nbr[i], tag_exc_vals, comm, &send.req[i]);
 
             MPI_Waitall(recv.req.size(), recv.req.data(), MPI_STATUSES_IGNORE);
 
@@ -426,6 +426,8 @@ class subdomain_deflation {
 
             std::rotate(az->ptr.begin(), az->ptr.end() - 1, az->ptr.end());
             az->ptr.front() = 0;
+
+            MPI_Waitall(send.req.size(), send.req.data(), MPI_STATUSES_IGNORE);
 
             /* Build deflated matrix E. */
             boost::multi_array<value_type, 2> erow(boost::extents[ndv][nz]);
@@ -472,14 +474,8 @@ class subdomain_deflation {
             // Exchange strips of E.
             for(int p = 0; p < comm.size; ++p) {
                 int ns = Eptr[(p + 1) * ndv] - Eptr[p * ndv];
-                MPI_Bcast(
-                        &Ecol[Eptr[p * ndv]], ns, MPI_INT,
-                        p, comm
-                        );
-                MPI_Bcast(
-                        &Eval[Eptr[p * ndv]], ns, datatype<value_type>::get(),
-                        p, comm
-                        );
+                MPI_Bcast(&Ecol[Eptr[p * ndv]], ns, MPI_INT, p, comm);
+                MPI_Bcast(&Eval[Eptr[p * ndv]], ns, dtype,   p, comm);
             }
 
             // Prepare E factorization.
@@ -540,6 +536,8 @@ class subdomain_deflation {
         communicator comm;
         long nrows, ndv, nz;
 
+        MPI_Datatype dtype;
+
         boost::shared_ptr<matrix> Arem;
 
         boost::shared_ptr<AMG>    P;
@@ -591,11 +589,7 @@ class subdomain_deflation {
             for(long j = 0; j < ndv; ++j)
                 dx[j] += backend::inner_product(x, *Z[j]);
 
-            MPI_Allgather(
-                    dx.data(), ndv, datatype<value_type>::get(),
-                    df.data(), ndv, datatype<value_type>::get(),
-                    comm
-                    );
+            MPI_Allgather(dx.data(), ndv, dtype, df.data(), ndv, dtype, comm);
 
             (*E)(df, dx);
 
@@ -611,11 +605,7 @@ class subdomain_deflation {
             for(long j = 0; j < ndv; ++j)
                 dx[j] += backend::inner_product(f, *Z[j])
                        - backend::inner_product(*q, *Z[j]);
-            MPI_Allgather(
-                    dx.data(), ndv, datatype<value_type>::get(),
-                    df.data(), ndv, datatype<value_type>::get(),
-                    comm
-                    );
+            MPI_Allgather(dx.data(), ndv, dtype, df.data(), ndv, dtype, comm);
 
             (*E)(df, dx);
 
@@ -633,9 +623,7 @@ class subdomain_deflation {
             for(size_t i = 0; i < recv.nbr.size(); ++i)
                 MPI_Irecv(
                         &recv.val[recv.ptr[i]], recv.ptr[i+1] - recv.ptr[i],
-                        datatype<value_type>::get(), recv.nbr[i], tag_exc_vals,
-                        comm, &recv.req[i]
-                        );
+                        dtype, recv.nbr[i], tag_exc_vals, comm, &recv.req[i]);
 
             // Gather values to send to our neighbours.
             if (!send.val.empty()) (*gather)(x, send.val);
@@ -644,9 +632,7 @@ class subdomain_deflation {
             for(size_t i = 0; i < send.nbr.size(); ++i)
                 MPI_Isend(
                         &send.val[send.ptr[i]], send.ptr[i+1] - send.ptr[i],
-                        datatype<value_type>::get(), send.nbr[i], tag_exc_vals,
-                        comm, &send.req[i]
-                        );
+                        dtype, send.nbr[i], tag_exc_vals, comm, &send.req[i]);
         }
 
         void finish_exchange() const {
