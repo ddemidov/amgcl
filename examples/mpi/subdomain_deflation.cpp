@@ -86,8 +86,10 @@ int main(int argc, char *argv[]) {
             boost::array<long,2> lo = part.domain(v.first).min_corner();
             boost::array<long,2> hi = part.domain(v.first).max_corner();
 
-            lindef.x[v.second] = (i - (lo[0] + hi[0]) / 2);
-            lindef.y[v.second] = (j - (lo[1] + hi[1]) / 2);
+            if (v.first == world.rank) {
+                lindef.x[v.second] = (i - (lo[0] + hi[0]) / 2);
+                lindef.y[v.second] = (j - (lo[1] + hi[1]) / 2);
+            }
         }
     }
     prof.toc("partition");
