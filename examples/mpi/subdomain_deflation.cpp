@@ -108,10 +108,10 @@ int main(int argc, char *argv[]) {
     ptr.push_back(0);
 
     const double hinv = (n - 1);
-    const double h    = 1 / hinv;
     const double h2i  = (n - 1) * (n - 1);
 #ifdef RECIRCULATION
-    const double eps = 1e-5;
+    const double h    = 1 / hinv;
+    const double eps  = 1e-5;
 
     for(long j = 0, idx = 0; j < n; ++j) {
         double y = h * j;
