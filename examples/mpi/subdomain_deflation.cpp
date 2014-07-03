@@ -28,12 +28,10 @@
 //#define RECIRCULATION
 
 struct linear_deflation {
-    long n;
-    double h;
     std::vector<double> x;
     std::vector<double> y;
 
-    linear_deflation(long n) : n(n), x(n * n), y(n * n) {}
+    linear_deflation(long n) : x(n), y(n) {}
 
     size_t dim() const { return 3; }
 
@@ -77,7 +75,7 @@ int main(int argc, char *argv[]) {
     long chunk_start = domain[world.rank];
     long chunk_end   = domain[world.rank + 1];
 
-    linear_deflation lindef(n);
+    linear_deflation lindef(chunk);
     std::vector<long> renum(n2);
     for(long j = 0, idx = 0; j < n; ++j) {
         for(long i = 0; i < n; ++i, ++idx) {
@@ -88,8 +86,8 @@ int main(int argc, char *argv[]) {
             boost::array<long,2> lo = part.domain(v.first).min_corner();
             boost::array<long,2> hi = part.domain(v.first).max_corner();
 
-            lindef.x[renum[idx]] = (i - (lo[0] + hi[0]) / 2);
-            lindef.y[renum[idx]] = (j - (lo[1] + hi[1]) / 2);
+            lindef.x[v.second] = (i - (lo[0] + hi[0]) / 2);
+            lindef.y[v.second] = (j - (lo[1] + hi[1]) / 2);
         }
     }
     prof.toc("partition");

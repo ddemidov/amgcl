@@ -165,8 +165,9 @@ class subdomain_deflation {
           dd( Backend::create_vector(nz, amg_params.backend) ),
           Z( ndv )
         {
-            typedef typename backend::row_iterator<Matrix>::type row_iterator;
-            typedef backend::crs<value_type, long> build_matrix;
+            typedef backend::crs<value_type, long>                     build_matrix;
+            typedef typename backend::row_iterator<Matrix>::type       row_iterator1;
+            typedef typename backend::row_iterator<build_matrix>::type row_iterator2;
 
             boost::shared_ptr<build_matrix> aloc = boost::make_shared<build_matrix>();
             boost::shared_ptr<build_matrix> arem = boost::make_shared<build_matrix>();
@@ -183,17 +184,13 @@ class subdomain_deflation {
                 std::vector<value_type> z(nrows);
                 for(int j = 0; j < ndv; ++j) {
                     for(long i = 0; i < nrows; ++i)
-                        z[i] = def_vec(i + chunk_start, j);
+                        z[i] = def_vec(i, j);
                     Z[j] = Backend::copy_vector(z, amg_params.backend);
                 }
             }
 
             // Number of nonzeros in local and remote parts of the matrix.
             long loc_nnz = 0, rem_nnz = 0;
-
-            // Local contribution to E.
-            boost::multi_array<value_type, 2> erow(boost::extents[ndv][nz]);
-            std::fill_n(erow.data(), erow.num_elements(), 0);
 
             // Maps remote column numbers to local ids:
             std::map<long, long> rc;
@@ -202,22 +199,16 @@ class subdomain_deflation {
             // First pass over Astrip rows:
             // 1. Count local and remote nonzeros,
             // 2. Build set of remote columns,
-            // 3. Compute local contribution to E = (Z^t A Z),
-            // 4. Build sparsity pattern of matrix AZ.
+            // 3. Build sparsity pattern of matrix AZ.
             az->nrows = nrows;
             az->ncols = nz;
             az->ptr.resize(nrows + 1, 0);
 
             std::vector<long> marker(nz, -1);
-            std::vector<value_type> dvi(ndv);
 
             for(long i = 0; i < nrows; ++i) {
-                for(long ii = 0; ii < ndv; ++ii)
-                    dvi[ii] = def_vec(i + chunk_start, ii);
-
-                for(row_iterator a = backend::row_begin(Astrip, i); a; ++a) {
-                    long       c = a.col();
-                    value_type v = a.value();
+                for(row_iterator1 a = backend::row_begin(Astrip, i); a; ++a) {
+                    long c = a.col();
 
                     // Domain the column belongs to
                     long d = boost::upper_bound(domain, c) - domain.begin() - 1;
@@ -227,14 +218,6 @@ class subdomain_deflation {
                     } else {
                         ++rem_nnz;
                         rc_it = rc.insert(rc_it, std::make_pair(c, 0));
-                    }
-
-                    for(long jj = 0; jj < ndv; ++jj) {
-                        long k = d * ndv + jj;
-                        value_type dvj = def_vec(c, jj);
-
-                        for(long ii = 0; ii < ndv; ++ii)
-                            erow[ii][k] += v * dvi[ii] * dvj;
                     }
 
                     if (marker[d] != i) {
@@ -263,7 +246,7 @@ class subdomain_deflation {
 
             // Second pass over Astrip rows:
             // 1. Build local and remote matrix parts.
-            // 2. Build AZ matrix.
+            // 2. Build local part of AZ matrix.
             aloc->nrows = nrows;
             aloc->ncols = nrows;
             aloc->ptr.reserve(nrows + 1);
@@ -287,34 +270,32 @@ class subdomain_deflation {
                 long az_row_beg = az->ptr[i];
                 long az_row_end = az_row_beg;
 
-                for(row_iterator a = backend::row_begin(Astrip, i); a; ++a) {
+                for(row_iterator1 a = backend::row_begin(Astrip, i); a; ++a) {
                     long       c = a.col();
                     value_type v = a.value();
 
-                    // Domain the column belongs to
-                    long d = boost::upper_bound(domain, c) - domain.begin() - 1;
-
-                    if ( d == comm.rank ) {
-                        aloc->col.push_back(c - chunk_start);
+                    if ( domain[comm.rank] <= c && c < domain[comm.rank + 1] ) {
+                        long loc_c = c - chunk_start;
+                        aloc->col.push_back(loc_c);
                         aloc->val.push_back(v);
+
+                        for(long j = 0, k = comm.rank * ndv; j < ndv; ++j, ++k) {
+                            if (marker[k] < az_row_beg) {
+                                marker[k] = az_row_end;
+                                az->col[az_row_end] = k;
+                                az->val[az_row_end] = v * def_vec(loc_c, j);
+                                ++az_row_end;
+                            } else {
+                                az->val[marker[k]] += v * def_vec(loc_c, j);
+                            }
+                        }
                     } else {
                         arem->col.push_back(rc[c]);
                         arem->val.push_back(v);
                     }
-
-                    for(long j = 0; j < ndv; ++j) {
-                        long k = d * ndv + j;
-
-                        if (marker[k] < az_row_beg) {
-                            marker[k] = az_row_end;
-                            az->col[az_row_end] = k;
-                            az->val[az_row_end] = v * def_vec(c, j);
-                            ++az_row_end;
-                        } else {
-                            az->val[marker[k]] += v * def_vec(c, j);
-                        }
-                    }
                 }
+
+                az->ptr[i] = az_row_end;
 
                 aloc->ptr.push_back(aloc->col.size());
                 arem->ptr.push_back(arem->col.size());
@@ -390,16 +371,83 @@ class subdomain_deflation {
             BOOST_FOREACH(long &c, send_col) c -= chunk_start;
 
 
-            /*** Prepare coarse matrix E. ***/
+            /* Finish construction of AZ */
+            boost::multi_array<value_type, 2> zsend(boost::extents[send.val.size()][ndv]);
+            boost::multi_array<value_type, 2> zrecv(boost::extents[recv.val.size()][ndv]);
+
+            // Exchange deflation vectors
+            for(size_t i = 0; i < recv.nbr.size(); ++i)
+                MPI_Irecv(
+                        &zrecv[recv.ptr[i]][0], ndv * (recv.ptr[i+1] - recv.ptr[i]),
+                        datatype<value_type>::get(), recv.nbr[i], tag_exc_vals,
+                        comm, &recv.req[i]
+                        );
+
+            for(size_t i = 0; i < send_col.size(); ++i)
+                for(long j = 0; j < ndv; ++j)
+                    zsend[i][j] = def_vec(send_col[i], j);
+
+            for(size_t i = 0; i < send.nbr.size(); ++i)
+                MPI_Send(
+                        &zsend[send.ptr[i]][0], ndv * (send.ptr[i+1] - send.ptr[i]),
+                        datatype<value_type>::get(), send.nbr[i], tag_exc_vals,
+                        comm
+                        );
+
+            MPI_Waitall(recv.req.size(), recv.req.data(), MPI_STATUSES_IGNORE);
+
+            boost::fill(marker, -1);
+
+            for(long i = 0; i < nrows; ++i) {
+                long az_row_beg = az->ptr[i];
+                long az_row_end = az_row_beg;
+
+                for(row_iterator2 a = backend::row_begin(*arem, i); a; ++a) {
+                    long       c = a.col();
+                    value_type v = a.value();
+
+                    // Domain the column belongs to
+                    long d = recv.nbr[boost::upper_bound(recv.ptr, c) - recv.ptr.begin() - 1];
+
+                    for(long j = 0, k = d * ndv; j < ndv; ++j, ++k) {
+                        if (marker[k] < az_row_beg) {
+                            marker[k] = az_row_end;
+                            az->col[az_row_end] = k;
+                            az->val[az_row_end] = v * zrecv[c][j];
+                            ++az_row_end;
+                        } else {
+                            az->val[marker[k]] += v * zrecv[c][j];
+                        }
+                    }
+                }
+
+                az->ptr[i] = az_row_end;
+            }
+
+            std::rotate(az->ptr.begin(), az->ptr.end() - 1, az->ptr.end());
+            az->ptr.front() = 0;
+
+            /* Build deflated matrix E. */
+            boost::multi_array<value_type, 2> erow(boost::extents[ndv][nz]);
+            std::fill_n(erow.data(), erow.num_elements(), 0);
+
+            for(long i = 0; i < nrows; ++i) {
+                for(row_iterator2 a = backend::row_begin(*az, i); a; ++a) {
+                    long       c = a.col();
+                    value_type v = a.value();
+
+                    for(long j = 0; j < ndv; ++j)
+                        erow[j][c] += v * def_vec(i, j);
+                }
+            }
+
             // Count nonzeros in E.
             std::vector<int> Eptr(nz + 1, 0);
-            for(int i = 0; i < comm.size; ++i) {
-                for(int j = 0; j < comm.size; ++j) {
+            for(int i = 0; i < comm.size; ++i)
+                for(int j = 0; j < comm.size; ++j)
                     if (j == i || comm_matrix[i][j])
                         for(int k = 0; k < ndv; ++k)
                             Eptr[i * ndv + k + 1] += ndv;
-                }
-            }
 
             boost::partial_sum(Eptr, Eptr.begin());
 
