@@ -107,6 +107,36 @@ struct cols_impl< boost::tuple<N, PRng, CRng, VRng> >
 };
 
 template < typename N, typename PRng, typename CRng, typename VRng >
+struct ptr_data_impl< boost::tuple<N, PRng, CRng, VRng> > {
+    typedef const typename boost::range_value<
+        typename boost::decay<PRng>::type
+        >::type * type;
+    static type get(const boost::tuple<N, PRng, CRng, VRng> &A) {
+        return &boost::get<1>(A)[0];
+    }
+};
+
+template < typename N, typename PRng, typename CRng, typename VRng >
+struct col_data_impl< boost::tuple<N, PRng, CRng, VRng> > {
+    typedef const typename boost::range_value<
+        typename boost::decay<CRng>::type
+        >::type * type;
+    static type get(const boost::tuple<N, PRng, CRng, VRng> &A) {
+        return &boost::get<2>(A)[0];
+    }
+};
+
+template < typename N, typename PRng, typename CRng, typename VRng >
+struct val_data_impl< boost::tuple<N, PRng, CRng, VRng> > {
+    typedef const typename boost::range_value<
+        typename boost::decay<VRng>::type
+        >::type * type;
+    static type get(const boost::tuple<N, PRng, CRng, VRng> &A) {
+        return &boost::get<3>(A)[0];
+    }
+};
+
+template < typename N, typename PRng, typename CRng, typename VRng >
 struct nonzeros_impl< boost::tuple<N, PRng, CRng, VRng> >
 {
     static size_t get(

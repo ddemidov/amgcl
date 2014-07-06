@@ -435,6 +435,30 @@ struct cols_impl< crs<V, C, P> > {
 };
 
 template < typename V, typename C, typename P >
+struct ptr_data_impl< crs<V, C, P> > {
+    typedef const P* type;
+    static type get(const crs<V, C, P> &A) {
+        return A.ptr.data();
+    }
+};
+
+template < typename V, typename C, typename P >
+struct col_data_impl< crs<V, C, P> > {
+    typedef const C* type;
+    static type get(const crs<V, C, P> &A) {
+        return A.col.data();
+    }
+};
+
+template < typename V, typename C, typename P >
+struct val_data_impl< crs<V, C, P> > {
+    typedef const V* type;
+    static type get(const crs<V, C, P> &A) {
+        return A.val.data();
+    }
+};
+
+template < typename V, typename C, typename P >
 struct nonzeros_impl< crs<V, C, P> > {
     static size_t get(const crs<V, C, P> &A) {
         return A.ptr.empty() ? 0 : A.ptr.back();

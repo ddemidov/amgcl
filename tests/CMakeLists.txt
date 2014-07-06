@@ -42,3 +42,7 @@ endfunction()
 
 add_amgcl_test(test_solver     test_solver.cpp)
 add_amgcl_test(test_skyline_lu test_skyline_lu.cpp)
+
+if (EIGEN_INCLUDE)
+    add_amgcl_test(test_eigen_solver test_eigen_solver.cpp)
+endif()

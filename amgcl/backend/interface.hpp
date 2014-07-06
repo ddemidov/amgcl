@@ -86,6 +86,21 @@ struct cols_impl {
     typedef typename Matrix::COLS_NOT_IMPLEMENTED type;
 };
 
+template <class Matrix, class Enable = void>
+struct ptr_data_impl {
+    typedef typename Matrix::PTR_DATA_NOT_IMPLEMENTED type;
+};
+
+template <class Matrix, class Enable = void>
+struct col_data_impl {
+    typedef typename Matrix::COL_DATA_NOT_IMPLEMENTED type;
+};
+
+template <class Matrix, class Enable = void>
+struct val_data_impl {
+    typedef typename Matrix::VAL_DATA_NOT_IMPLEMENTED type;
+};
+
 /// Implementation for function returning the number of nonzeros in a matrix.
 /** \note Used in nonzeros() */
 template <class Matrix, class Enable = void>
@@ -196,6 +211,24 @@ size_t rows(const Matrix &matrix) {
 template <class Matrix>
 size_t cols(const Matrix &matrix) {
     return cols_impl<Matrix>::get(matrix);
+}
+
+template <class Matrix>
+typename ptr_data_impl<Matrix>::type
+ptr_data(const Matrix &matrix) {
+    return ptr_data_impl<Matrix>::get(matrix);
+}
+
+template <class Matrix>
+typename col_data_impl<Matrix>::type
+col_data(const Matrix &matrix) {
+    return col_data_impl<Matrix>::get(matrix);
+}
+
+template <class Matrix>
+typename val_data_impl<Matrix>::type
+val_data(const Matrix &matrix) {
+    return val_data_impl<Matrix>::get(matrix);
 }
 
 /// Returns the number of nonzeros in a matrix.
