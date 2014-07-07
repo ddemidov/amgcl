@@ -585,9 +585,8 @@ class subdomain_deflation {
 
         template <class Vector>
         void project(Vector &x) const {
-            boost::fill(dx, 0);
             for(long j = 0; j < ndv; ++j)
-                dx[j] += backend::inner_product(x, *Z[j]);
+                dx[j] = backend::inner_product(x, *Z[j]);
 
             MPI_Allgather(dx.data(), ndv, dtype, df.data(), ndv, dtype, comm);
 
@@ -598,17 +597,20 @@ class subdomain_deflation {
         }
 
         template <class Vec1, class Vec2>
-        void postprocess(const Vec1 &f, Vec2 &x) const {
+        void postprocess(const Vec1 &rhs, Vec2 &x) const {
+            // q = Ax
             mul(1, x, 0, *q);
 
-            boost::fill(dx, 0);
+            // df = transp(Z) * (rhs - Ax)
             for(long j = 0; j < ndv; ++j)
-                dx[j] += backend::inner_product(f, *Z[j])
-                       - backend::inner_product(*q, *Z[j]);
+                dx[j] = backend::inner_product(rhs, *Z[j])
+                      - backend::inner_product(*q,  *Z[j]);
             MPI_Allgather(dx.data(), ndv, dtype, df.data(), ndv, dtype, comm);
 
+            // dx = inv(E) * df
             (*E)(df, dx);
 
+            // x += Z * dx
             long j = 0, k = comm.rank * ndv;
             for(; j + 1 < ndv; j += 2, k += 2)
                 backend::axpbypcz(dx[k], *Z[j], dx[k+1], *Z[j+1], 1, x);
