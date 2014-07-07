@@ -219,20 +219,21 @@ struct row_begin_impl <
     }
 };
 
-template < class M, class V >
+template < class M, class V1, class V2 >
 struct spmv_impl<
-    M, V, V,
+    M, V1, V2,
     typename boost::enable_if<
             typename boost::mpl::and_<
                 typename is_eigen_sparse_matrix<M>::type,
-                typename is_eigen_type<V>::type
+                typename is_eigen_type<V1>::type,
+                typename is_eigen_type<V2>::type
             >::type
         >::type
     >
 {
     typedef typename value_type<M>::type real;
 
-    static void apply(real alpha, const M &A, const V &x, real beta, V &y)
+    static void apply(real alpha, const M &A, const V1 &x, real beta, V2 &y)
     {
         if (beta)
             y = alpha * A * x + beta * y;
@@ -241,18 +242,20 @@ struct spmv_impl<
     }
 };
 
-template < class M, class V >
+template < class M, class V1, class V2, class V3 >
 struct residual_impl<
-    M, V, V, V,
+    M, V1, V2, V3,
     typename boost::enable_if<
             typename boost::mpl::and_<
                 typename is_eigen_sparse_matrix<M>::type,
-                typename is_eigen_type<V>::type
+                typename is_eigen_type<V1>::type,
+                typename is_eigen_type<V2>::type,
+                typename is_eigen_type<V3>::type
             >::type
         >::type
     >
 {
-    static void apply(const V &rhs, const M &A, const V &x, V &r)
+    static void apply(const V1 &rhs, const M &A, const V2 &x, V3 &r)
     {
         r = rhs - A * x;
     }
@@ -270,28 +273,38 @@ struct clear_impl<
     }
 };
 
-template < typename V >
+template < class V1, class V2 >
 struct inner_product_impl<
-    V, V,
-    typename boost::enable_if< typename is_eigen_type<V>::type >::type
+    V1, V2,
+    typename boost::enable_if<
+            typename boost::mpl::and_<
+                typename is_eigen_type<V1>::type,
+                typename is_eigen_type<V2>::type
+            >::type
+        >::type
     >
 {
-    typedef typename value_type<V>::type real;
-    static real get(const V &x, const V &y)
+    typedef typename value_type<V1>::type real;
+    static real get(const V1 &x, const V2 &y)
     {
         return x.dot(y);
     }
 };
 
-template < typename V >
+template < class V1, class V2 >
 struct axpby_impl<
-    V, V,
-    typename boost::enable_if< typename is_eigen_type<V>::type >::type
+    V1, V2,
+    typename boost::enable_if<
+            typename boost::mpl::and_<
+                typename is_eigen_type<V1>::type,
+                typename is_eigen_type<V2>::type
+            >::type
+        >::type
     >
 {
-    typedef typename value_type<V>::type real;
+    typedef typename value_type<V1>::type real;
 
-    static void apply(real a, const V &x, real b, V &y)
+    static void apply(real a, const V1 &x, real b, V2 &y)
     {
         if (b)
             y = a * x + b * y;
@@ -300,18 +313,24 @@ struct axpby_impl<
     }
 };
 
-template < typename V >
+template < class V1, class V2, class V3 >
 struct axpbypcz_impl<
-    V, V, V,
-    typename boost::enable_if< typename is_eigen_type<V>::type >::type
+    V1, V2, V3,
+    typename boost::enable_if<
+            typename boost::mpl::and_<
+                typename is_eigen_type<V1>::type,
+                typename is_eigen_type<V2>::type,
+                typename is_eigen_type<V3>::type
+            >::type
+        >::type
     >
 {
-    typedef typename value_type<V>::type real;
+    typedef typename value_type<V1>::type real;
 
     static void apply(
-            real a, const V &x,
-            real b, const V &y,
-            real c,       V &z
+            real a, const V1 &x,
+            real b, const V2 &y,
+            real c,       V3 &z
             )
     {
         if (c)
@@ -321,15 +340,21 @@ struct axpbypcz_impl<
     }
 };
 
-template < typename V >
+template < class V1, class V2, class V3 >
 struct vmul_impl<
-    V, V, V,
-    typename boost::enable_if< typename is_eigen_type<V>::type >::type
+    V1, V2, V3,
+    typename boost::enable_if<
+            typename boost::mpl::and_<
+                typename is_eigen_type<V1>::type,
+                typename is_eigen_type<V2>::type,
+                typename is_eigen_type<V3>::type
+            >::type
+        >::type
     >
 {
-    typedef typename value_type<V>::type real;
+    typedef typename value_type<V1>::type real;
 
-    static void apply(real a, const V &x, const V &y, real b, V &z)
+    static void apply(real a, const V1 &x, const V2 &y, real b, V3 &z)
     {
         if (b)
             z.array() = a * x.array() * y.array() + b * z.array();
@@ -338,13 +363,18 @@ struct vmul_impl<
     }
 };
 
-template < typename V >
+template < class V1, class V2 >
 struct copy_impl<
-    V, V,
-    typename boost::enable_if< typename is_eigen_type<V>::type >::type
+    V1, V2,
+    typename boost::enable_if<
+            typename boost::mpl::and_<
+                typename is_eigen_type<V1>::type,
+                typename is_eigen_type<V2>::type
+            >::type
+        >::type
     >
 {
-    static void apply(const V &x, V &y)
+    static void apply(const V1 &x, V2 &y)
     {
         y = x;
     }
