@@ -7,8 +7,8 @@
 #include <vector>
 #include <cmath>
 
-#include <boost/range/algorithm.hpp>
 #include <boost/scope_exit.hpp>
+#include <boost/range/algorithm.hpp>
 
 #include <amgcl/amgcl.hpp>
 #include <amgcl/backend/vexcl.hpp>
@@ -23,6 +23,27 @@
 #include "domain_partition.hpp"
 
 #define CONVECTION
+
+struct linear_deflation {
+    std::vector<double> x;
+    std::vector<double> y;
+
+    linear_deflation(long n) : x(n), y(n) {}
+
+    size_t dim() const { return 3; }
+
+    double operator()(long i, int j) const {
+        switch(j) {
+            default:
+            case 0:
+                return 1;
+            case 1:
+                return x[i];
+            case 2:
+                return y[i];
+        }
+    }
+};
 
 int main(int argc, char *argv[]) {
     MPI_Init(&argc, &argv);
@@ -42,21 +63,30 @@ int main(int argc, char *argv[]) {
 
     prof.tic("partition");
     domain_partition<2> part(lo, hi, world.size);
-    const long chunk = part.size( world.rank );
+    long chunk = part.size( world.rank );
 
     std::vector<long> domain(world.size + 1);
     MPI_Allgather(&chunk, 1, MPI_LONG, &domain[1], 1, MPI_LONG, world);
     boost::partial_sum(domain, domain.begin());
 
-    const long chunk_start = domain[world.rank];
-    const long chunk_end   = domain[world.rank + 1];
+    long chunk_start = domain[world.rank];
+    long chunk_end   = domain[world.rank + 1];
 
+    linear_deflation lindef(chunk);
     std::vector<long> renum(n2);
     for(long j = 0, idx = 0; j < n; ++j) {
         for(long i = 0; i < n; ++i, ++idx) {
             boost::array<long, 2> p = {{i, j}};
             std::pair<int,long> v = part.index(p);
             renum[idx] = domain[v.first] + v.second;
+
+            boost::array<long,2> lo = part.domain(v.first).min_corner();
+            boost::array<long,2> hi = part.domain(v.first).max_corner();
+
+            if (v.first == world.rank) {
+                lindef.x[v.second] = (i - (lo[0] + hi[0]) / 2);
+                lindef.y[v.second] = (j - (lo[1] + hi[1]) / 2);
+            }
         }
     }
     prof.toc("partition");
@@ -76,6 +106,7 @@ int main(int argc, char *argv[]) {
 
     const double hinv = (n - 1);
     const double h2i  = (n - 1) * (n - 1);
+
     for(long j = 0, idx = 0; j < n; ++j) {
         for(long i = 0; i < n; ++i, ++idx) {
             if (renum[idx] < chunk_start || renum[idx] >= chunk_end) continue;
@@ -87,19 +118,11 @@ int main(int argc, char *argv[]) {
 
             if (i > 0) {
                 col.push_back(renum[idx - 1]);
-                val.push_back(-h2i
-#ifdef CONVECTION
-                        - hinv
-#endif
-                        );
+                val.push_back(-h2i - hinv);
             }
 
             col.push_back(renum[idx]);
-            val.push_back(4 * h2i
-#ifdef CONVECTION
-                    + hinv
-#endif
-                    );
+            val.push_back(4 * h2i + hinv);
 
             if (i + 1 < n) {
                 col.push_back(renum[idx + 1]);
@@ -133,23 +156,23 @@ int main(int argc, char *argv[]) {
                 vex::Filter::Count(1)
                 ) );
 
-    typename Solver::AMG_params    amg_prm;
+    Solver::Solver_params slv_prm(2);
+    Solver::AMG_params    amg_prm;
     amg_prm.backend.q = ctx;
-
-    typename Solver::Solver_params slv_prm(2, 500, 1e-6);
 
     Solver solve(world,
             boost::tie(chunk, ptr, col, val),
-            amgcl::mpi::constant_deflation(),
+            lindef,
             amg_prm, slv_prm
             );
     prof.toc("setup");
 
-    prof.tic("solve");
     vex::vector<double> f(ctx, rhs);
     vex::vector<double> x(ctx, chunk);
     x = 0;
+    ctx.finish();
 
+    prof.tic("solve");
     size_t iters;
     double resid;
     boost::tie(iters, resid) = solve(f, x);
