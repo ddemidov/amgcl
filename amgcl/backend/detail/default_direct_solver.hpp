@@ -51,8 +51,11 @@ struct default_direct_solver {
             boost::shared_ptr<host_matrix> A,
             typename Backend::params const &prm
             )
-        : Ainv ( Backend::copy_matrix(boost::make_shared<host_matrix>( inverse(*A) ), prm) )
-    { }
+    {
+        boost::shared_ptr<host_matrix> ainv = boost::make_shared<host_matrix>();
+        *ainv = inverse(*A);
+        Ainv = Backend::copy_matrix(ainv, prm);
+    }
 
     template <class Vec1, class Vec2>
     void operator()(const Vec1 &rhs, Vec2 &x) const {

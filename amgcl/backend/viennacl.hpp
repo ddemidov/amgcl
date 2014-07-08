@@ -108,9 +108,9 @@ struct viennacl {
 
     /// Create direct solver for coarse level
     static boost::shared_ptr<direct_solver>
-    create_solver(boost::shared_ptr< typename builtin<real>::matrix > A, const params &prm)
+    create_solver(boost::shared_ptr< typename builtin<value_type>::matrix > A, const params &prm)
     {
-        return boost::make_shared<direct_solver>(*A, prm);
+        return boost::make_shared<direct_solver>(A, prm);
     }
 
     private:
@@ -279,22 +279,22 @@ struct cols_impl<
 };
 
 template <class V>
-struct nonzeros_impl< viennacl::compressed_matrix<V> > {
-    static size_t get(const viennacl::compressed_matrix<V> &A) {
+struct nonzeros_impl< ::viennacl::compressed_matrix<V> > {
+    static size_t get(const ::viennacl::compressed_matrix<V> &A) {
         return A.nnz();
     }
 };
 
 template <class V>
-struct nonzeros_impl< viennacl::ell_matrix<V> > {
-    static size_t get(const viennacl::ell_matrix<V> &A) {
+struct nonzeros_impl< ::viennacl::ell_matrix<V> > {
+    static size_t get(const ::viennacl::ell_matrix<V> &A) {
         return A.nnz();
     }
 };
 
 template <class V>
-struct nonzeros_impl< viennacl::hyb_matrix<V> > {
-    static size_t get(const viennacl::hyb_matrix<V> &A) {
+struct nonzeros_impl< ::viennacl::hyb_matrix<V> > {
+    static size_t get(const ::viennacl::hyb_matrix<V> &A) {
         return A.ell_nnz() + A.csr_nnz();
     }
 };
