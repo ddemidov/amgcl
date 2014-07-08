@@ -56,6 +56,9 @@ int main(int argc, char *argv[]) {
 
     amgcl::mpi::communicator world(MPI_COMM_WORLD);
 
+    if (world.rank == 0)
+        std::cout << "World size: " << world.size << std::endl;
+
     const long n  = argc > 1 ? atoi(argv[1]) : 1024;
     const long n2 = n * n;
 

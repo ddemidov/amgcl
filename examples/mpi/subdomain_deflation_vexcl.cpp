@@ -53,6 +53,9 @@ int main(int argc, char *argv[]) {
 
     amgcl::mpi::communicator world(MPI_COMM_WORLD);
 
+    if (world.rank == 0)
+        std::cout << "World size: " << world.size << std::endl;
+
     const long n  = argc > 1 ? atoi(argv[1]) : 1024;
     const long n2 = n * n;
 
@@ -155,6 +158,8 @@ int main(int argc, char *argv[]) {
                 vex::Filter::DoublePrecision &&
                 vex::Filter::Count(1)
                 ) );
+
+    std::cout << world.rank << ": " << ctx.queue(0) << std::endl;
 
     Solver::Solver_params slv_prm(2);
     Solver::AMG_params    amg_prm;
