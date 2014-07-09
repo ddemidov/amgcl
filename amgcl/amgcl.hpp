@@ -145,6 +145,10 @@ class amg {
                 TIC("transfer operators");
                 boost::tie(P, R) = Coarsening::transfer_operators(
                         *A, prm.coarsening);
+                precondition(
+                        backend::cols(*P) > 0,
+                        "Zero-sized coarse level in amgcl (diagonal matrix?)"
+                        );
                 TOC("transfer operators");
 
                 TIC("move to backend")
