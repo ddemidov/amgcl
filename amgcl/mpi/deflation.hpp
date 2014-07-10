@@ -159,15 +159,23 @@ class subdomain_deflation {
                 const DirectSolver_params &direct_solver_params = DirectSolver_params()
                 )
         : comm(mpi_comm),
-          nrows(backend::rows(Astrip)), ndv(def_vec.dim()), nz(comm.size * ndv),
-          dtype( datatype<value_type>::get() ), df( nz ), dx( nz ),
-          q( Backend::create_vector(nrows, amg_params.backend) ),
-          dd( Backend::create_vector(nz, amg_params.backend) ),
-          Z( ndv )
+          nrows(backend::rows(Astrip)), ndv(def_vec.dim()),
+          dtype( datatype<value_type>::get() ), dv_start(comm.size + 1, 0),
+          Z( ndv ), q( Backend::create_vector(nrows, amg_params.backend) )
         {
             typedef backend::crs<value_type, long>                     build_matrix;
             typedef typename backend::row_iterator<Matrix>::type       row_iterator1;
             typedef typename backend::row_iterator<build_matrix>::type row_iterator2;
+
+            // Lets see how many deflation vectors are there.
+            std::vector<long> dv_size(comm.size);
+            MPI_Allgather(&ndv, 1, MPI_LONG, &dv_size[0], 1, MPI_LONG, comm);
+            boost::partial_sum(dv_size, dv_start.begin() + 1);
+            nz = dv_start.back();
+
+            df.resize(nz);
+            dx.resize(nz);
+            dd = Backend::create_vector(nz, amg_params.backend);
 
             boost::shared_ptr<build_matrix> aloc = boost::make_shared<build_matrix>();
             boost::shared_ptr<build_matrix> arem = boost::make_shared<build_matrix>();
@@ -222,7 +230,7 @@ class subdomain_deflation {
 
                     if (marker[d] != i) {
                         marker[d] = i;
-                        az->ptr[i + 1] += ndv;
+                        az->ptr[i + 1] += dv_size[d];
                     }
                 }
             }
@@ -344,7 +352,7 @@ class subdomain_deflation {
                         aloc->col.push_back(loc_c);
                         aloc->val.push_back(v);
 
-                        for(long j = 0, k = comm.rank * ndv; j < ndv; ++j, ++k) {
+                        for(long j = 0, k = dv_start[comm.rank]; j < ndv; ++j, ++k) {
                             if (marker[k] < az_row_beg) {
                                 marker[k] = az_row_end;
                                 az->col[az_row_end] = k;
@@ -376,28 +384,45 @@ class subdomain_deflation {
 
 
             /* Finish construction of AZ */
-            boost::multi_array<value_type, 2> zsend(boost::extents[send.val.size()][ndv]);
-            boost::multi_array<value_type, 2> zrecv(boost::extents[recv.val.size()][ndv]);
-
             // Exchange deflation vectors
-            for(size_t i = 0; i < recv.nbr.size(); ++i)
-                MPI_Irecv(
-                        &zrecv[recv.ptr[i]][0], ndv * (recv.ptr[i+1] - recv.ptr[i]),
-                        dtype, recv.nbr[i], tag_exc_vals, comm, &recv.req[i]);
+            std::vector<long> zrecv_ptr(recv.nbr.size() + 1, 0);
+            std::vector<long> zcol_ptr;
+            zcol_ptr.reserve(recv.val.size() + 1);
+            zcol_ptr.push_back(0);
 
-            for(size_t i = 0; i < send_col.size(); ++i)
-                for(long j = 0; j < ndv; ++j)
-                    zsend[i][j] = def_vec(send_col[i], j);
+            for(size_t i = 0; i < recv.nbr.size(); ++i) {
+                long size = dv_size[recv.nbr[i]] * (recv.ptr[i + 1] - recv.ptr[i]);
+                zrecv_ptr[i + 1] = zrecv_ptr[i] + size;
+
+                for(long j = 0; j < size; ++j)
+                    zcol_ptr.push_back(zcol_ptr.back() + dv_size[recv.nbr[i]]);
+            }
+
+            std::vector<value_type> zrecv(zrecv_ptr.back());
+            std::vector<value_type> zsend(send.val.size() * ndv);
+
+            for(size_t i = 0; i < recv.nbr.size(); ++i) {
+                long begin = zrecv_ptr[i];
+                long size  = zrecv_ptr[i + 1] - begin;
+
+                MPI_Irecv(&zrecv[begin], size, dtype, recv.nbr[i],
+                        tag_exc_vals, comm, &recv.req[i]);
+            }
+
+            for(size_t i = 0, k = 0; i < send_col.size(); ++i)
+                for(long j = 0; j < ndv; ++j, ++k)
+                    zsend[k] = def_vec(send_col[i], j);
 
             for(size_t i = 0; i < send.nbr.size(); ++i)
                 MPI_Isend(
-                        &zsend[send.ptr[i]][0], ndv * (send.ptr[i+1] - send.ptr[i]),
+                        &zsend[ndv * send.ptr[i]], ndv * (send.ptr[i+1] - send.ptr[i]),
                         dtype, send.nbr[i], tag_exc_vals, comm, &send.req[i]);
 
             MPI_Waitall(recv.req.size(), recv.req.data(), MPI_STATUSES_IGNORE);
 
             boost::fill(marker, -1);
 
+            // AZ += Arem * Z
             for(long i = 0; i < nrows; ++i) {
                 long az_row_beg = az->ptr[i];
                 long az_row_end = az_row_beg;
@@ -409,14 +434,15 @@ class subdomain_deflation {
                     // Domain the column belongs to
                     long d = recv.nbr[boost::upper_bound(recv.ptr, c) - recv.ptr.begin() - 1];
 
-                    for(long j = 0, k = d * ndv; j < ndv; ++j, ++k) {
+                    value_type *zval = &zrecv[ zcol_ptr[c] ];
+                    for(long j = 0, k = dv_start[d]; j < dv_size[d]; ++j, ++k) {
                         if (marker[k] < az_row_beg) {
                             marker[k] = az_row_end;
                             az->col[az_row_end] = k;
-                            az->val[az_row_end] = v * zrecv[c][j];
+                            az->val[az_row_end] = v * zval[j];
                             ++az_row_end;
                         } else {
-                            az->val[marker[k]] += v * zrecv[c][j];
+                            az->val[marker[k]] += v * zval[j];
                         }
                     }
                 }
@@ -448,8 +474,8 @@ class subdomain_deflation {
             for(int i = 0; i < comm.size; ++i)
                 for(int j = 0; j < comm.size; ++j)
                     if (j == i || comm_matrix[i][j])
-                        for(int k = 0; k < ndv; ++k)
-                            Eptr[i * ndv + k + 1] += ndv;
+                        for(int k = 0; k < dv_size[i]; ++k)
+                            Eptr[dv_start[i] + k + 1] += dv_size[j];
 
             boost::partial_sum(Eptr, Eptr.begin());
 
@@ -458,11 +484,11 @@ class subdomain_deflation {
 
             // Fill local strip of E.
             for(int i = 0; i < ndv; ++i) {
-                int row_head = Eptr[comm.rank * ndv + i];
+                int row_head = Eptr[dv_start[comm.rank] + i];
                 for(int j = 0; j < comm.size; ++j) {
                     if (j == comm.rank || comm_matrix[comm.rank][j]) {
-                        for(int k = 0; k < ndv; ++k) {
-                            int c = j * ndv + k;
+                        for(int k = 0; k < dv_size[j]; ++k) {
+                            int c = dv_start[j] + k;
                             Ecol[row_head] = c;
                             Eval[row_head] = erow[i][c];
                             ++row_head;
@@ -473,9 +499,9 @@ class subdomain_deflation {
 
             // Exchange strips of E.
             for(int p = 0; p < comm.size; ++p) {
-                int ns = Eptr[(p + 1) * ndv] - Eptr[p * ndv];
-                MPI_Bcast(&Ecol[Eptr[p * ndv]], ns, MPI_INT, p, comm);
-                MPI_Bcast(&Eval[Eptr[p * ndv]], ns, dtype,   p, comm);
+                int ns = Eptr[dv_start[p + 1]] - Eptr[dv_start[p]];
+                MPI_Bcast(&Ecol[Eptr[dv_start[p]]], ns, MPI_INT, p, comm);
+                MPI_Bcast(&Eval[Eptr[dv_start[p]]], ns, dtype,   p, comm);
             }
 
             // Prepare E factorization.
@@ -544,13 +570,16 @@ class subdomain_deflation {
         boost::shared_ptr<Solver> solve;
 
         mutable std::vector<value_type> df, dx;
+        std::vector<long> dv_start;
+
+        std::vector< boost::shared_ptr<vector> > Z;
+
         boost::shared_ptr<DirectSolver> E;
 
         boost::shared_ptr<matrix> AZ;
         boost::shared_ptr<vector> q;
         boost::shared_ptr<vector> dd;
         boost::shared_ptr<vector> dv;
-        std::vector< boost::shared_ptr<vector> > Z;
 
         boost::shared_ptr< typename Backend::gather > gather;
 
@@ -585,10 +614,10 @@ class subdomain_deflation {
 
         template <class Vector>
         void project(Vector &x) const {
-            for(long j = 0; j < ndv; ++j)
-                dx[j] = backend::inner_product(x, *Z[j]);
+            for(long j = 0, k = dv_start[comm.rank]; j < ndv; ++j, ++k)
+                df[k] = backend::inner_product(x, *Z[j]);
 
-            MPI_Allgather(dx.data(), ndv, dtype, df.data(), ndv, dtype, comm);
+            allgather_deflated_vec(df);
 
             (*E)(df, dx);
 
@@ -602,10 +631,10 @@ class subdomain_deflation {
             mul(1, x, 0, *q);
 
             // df = transp(Z) * (rhs - Ax)
-            for(long j = 0; j < ndv; ++j)
-                dx[j] = backend::inner_product(rhs, *Z[j])
+            for(long j = 0, k = dv_start[comm.rank]; j < ndv; ++j, ++k)
+                df[k] = backend::inner_product(rhs, *Z[j])
                       - backend::inner_product(*q,  *Z[j]);
-            MPI_Allgather(dx.data(), ndv, dtype, df.data(), ndv, dtype, comm);
+            allgather_deflated_vec(df);
 
             // dx = inv(E) * df
             (*E)(df, dx);
@@ -640,6 +669,14 @@ class subdomain_deflation {
         void finish_exchange() const {
             MPI_Waitall(recv.req.size(), recv.req.data(), MPI_STATUSES_IGNORE);
             MPI_Waitall(send.req.size(), send.req.data(), MPI_STATUSES_IGNORE);
+        }
+
+        void allgather_deflated_vec(std::vector<value_type> &x) const {
+            for(int p = 0; p < comm.size; ++p) {
+                long begin = dv_start[p];
+                long size  = dv_start[p + 1] - begin;
+                MPI_Bcast(&x[begin], size, dtype, p, comm);
+            }
         }
 };
 
