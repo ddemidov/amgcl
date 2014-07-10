@@ -11,6 +11,10 @@
 
 #include "sample_problem.hpp"
 
+namespace amgcl {
+    profiler<> prof;
+}
+
 struct poisson_2d {
     typedef double val_type;
     typedef long   col_type;
@@ -57,8 +61,7 @@ struct poisson_2d {
 };
 
 int main(int argc, char *argv[]) {
-    amgcl::profiler<> prof;
-
+    using amgcl::prof;
 
     int m = argc > 1 ? atoi(argv[1]) : 1024;
     int n = m * m;

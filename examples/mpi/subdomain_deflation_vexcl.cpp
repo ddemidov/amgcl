@@ -24,6 +24,10 @@
 
 #define CONVECTION
 
+namespace amgcl {
+    profiler<> prof;
+}
+
 struct linear_deflation {
     std::vector<double> x;
     std::vector<double> y;
@@ -62,7 +66,7 @@ int main(int argc, char *argv[]) {
     boost::array<long, 2> lo = { {0, 0} };
     boost::array<long, 2> hi = { {n - 1, n - 1} };
 
-    amgcl::profiler<> prof;
+    using amgcl::prof;
 
     prof.tic("partition");
     domain_partition<2> part(lo, hi, world.size);

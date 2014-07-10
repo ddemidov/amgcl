@@ -26,6 +26,13 @@
 
 #include "amgcl.h"
 
+#ifdef AMGCL_PROFILING
+#include <amgcl/profiler.hpp>
+namespace amgcl {
+    profiler<> prof;
+}
+#endif
+
 //---------------------------------------------------------------------------
 template <
     class Backend,

@@ -11,8 +11,12 @@
 
 #include "sample_problem.hpp"
 
+namespace amgcl {
+    profiler<> prof;
+}
+
 int main(int argc, char *argv[]) {
-    amgcl::profiler<> prof;
+    using amgcl::prof;
 
     vex::Context ctx( vex::Filter::Env );
     std::cout << ctx << std::endl;

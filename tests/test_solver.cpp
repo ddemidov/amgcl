@@ -35,7 +35,13 @@
 #include <amgcl/solver/bicgstabl.hpp>
 #include <amgcl/solver/gmres.hpp>
 
+#include <amgcl/profiler.hpp>
+
 #include "sample_problem.hpp"
+
+namespace amgcl {
+    profiler<> prof;
+}
 
 //---------------------------------------------------------------------------
 typedef boost::mpl::list<
