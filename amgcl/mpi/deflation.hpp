@@ -93,6 +93,7 @@ struct mpi_inner_product {
     template <class Vec1, class Vec2>
     typename backend::value_type<Vec1>::type
     operator()(const Vec1 &x, const Vec2 &y) const {
+        TIC("inner product");
         typedef typename backend::value_type<Vec1>::type value_type;
 
         value_type lsum = backend::inner_product(x, y);
@@ -100,6 +101,7 @@ struct mpi_inner_product {
 
         MPI_Allreduce(&lsum, &gsum, 1, datatype<value_type>::get(), MPI_SUM, comm);
 
+        TOC("inner product");
         return gsum;
     }
 };
@@ -543,6 +545,7 @@ class subdomain_deflation {
 
         template <class Vec1, class Vec2, class Vec3>
         void residual(const Vec1 &f, const Vec2 &x, Vec3 &r) const {
+            TIC("top/residual");
             start_exchange(x);
             backend::residual(f, P->top_matrix(), x, r);
 
@@ -552,6 +555,7 @@ class subdomain_deflation {
                 backend::copy_to_backend(recv.val, *dv);
                 backend::spmv(-1, *Arem, *dv, 1, r);
             }
+            TOC("top/residual");
 
             project(r);
         }
@@ -601,6 +605,8 @@ class subdomain_deflation {
 
         template <class Vec1, class Vec2>
         void mul(value_type alpha, const Vec1 &x, value_type beta, Vec2 &y) const {
+            TIC("top/spmv");
+
             start_exchange(x);
             backend::spmv(alpha, P->top_matrix(), x, beta, y);
 
@@ -610,10 +616,14 @@ class subdomain_deflation {
                 backend::copy_to_backend(recv.val, *dv);
                 backend::spmv(alpha, *Arem, *dv, 1, y);
             }
+
+            TOC("top/spmv");
         }
 
         template <class Vector>
         void project(Vector &x) const {
+            TIC("project");
+
             for(long j = 0, k = dv_start[comm.rank]; j < ndv; ++j, ++k)
                 df[k] = backend::inner_product(x, *Z[j]);
 
@@ -623,10 +633,14 @@ class subdomain_deflation {
 
             backend::copy_to_backend(dx, *dd);
             backend::spmv(-1, *AZ, *dd, 1, x);
+
+            TOC("project");
         }
 
         template <class Vec1, class Vec2>
         void postprocess(const Vec1 &rhs, Vec2 &x) const {
+            TIC("postprocess");
+
             // q = Ax
             mul(1, x, 0, *q);
 
@@ -646,6 +660,8 @@ class subdomain_deflation {
 
             for(; j < ndv; ++j, ++k)
                 backend::axpby(dx[k], *Z[j], 1, x);
+
+            TOC("postprocess");
         }
 
         template <class Vector>
