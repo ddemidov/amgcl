@@ -17,6 +17,7 @@
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
 #include <amgcl/coarsening/ruge_stuben.hpp>
 #include <amgcl/relaxation/spai0.hpp>
+#include <amgcl/relaxation/ilu0.hpp>
 #include <amgcl/relaxation/gauss_seidel.hpp>
 #include <amgcl/solver/bicgstabl.hpp>
 #include <amgcl/mpi/deflation.hpp>
@@ -37,7 +38,7 @@ struct linear_deflation {
 
     linear_deflation(long n) : x(n), y(n) {}
 
-    size_t dim() const { return 3; }
+    size_t dim() const { return 1; }
 
     double operator()(long i, int j) const {
         switch(j) {
@@ -207,7 +208,7 @@ int main(int argc, char *argv[]) {
         amgcl::coarsening::smoothed_aggregation<
             amgcl::coarsening::plain_aggregates
             >,
-        amgcl::relaxation::spai0,
+        amgcl::relaxation::ilu0,
         amgcl::solver::bicgstabl
         > CoarseSolver;
 

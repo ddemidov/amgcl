@@ -197,7 +197,7 @@ class skyline_lu {
     public:
         struct params {};
 
-        static size_t coarse_enough() { return 5000; }
+        static size_t coarse_enough() { return 50; }
 
         template <class Matrix>
         skyline_lu(const Matrix &A, const params &prm = params())

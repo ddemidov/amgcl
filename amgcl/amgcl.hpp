@@ -393,7 +393,9 @@ class make_solver {
                 Vec2          &x
                 ) const
         {
-            return S(P, rhs, x);
+            boost::tuple<size_t, value_type> cnv = S(P, rhs, x);
+            std::cout << boost::get<0>(cnv) << "/" << boost::get<1>(cnv) << std::endl;
+            return cnv;
         }
 
         const AMG& amg() const {
