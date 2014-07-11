@@ -164,7 +164,8 @@ class subdomain_deflation {
         : comm(mpi_comm),
           nrows(backend::rows(Astrip)), ndv(def_vec.dim()),
           dtype( datatype<value_type>::get() ), dv_start(comm.size + 1, 0),
-          Z( ndv ), q( Backend::create_vector(nrows, amg_params.backend) )
+          Z( ndv ), q( Backend::create_vector(nrows, amg_params.backend) ),
+          req(comm.size)
         {
             typedef backend::crs<value_type, long>                     build_matrix;
             typedef typename backend::row_iterator<Matrix>::type       row_iterator1;
@@ -589,6 +590,8 @@ class subdomain_deflation {
 
         boost::shared_ptr< typename Backend::gather > gather;
 
+        mutable std::vector<MPI_Request> req;
+
         struct {
             std::vector<long> nbr;
             std::vector<long> ptr;
@@ -702,8 +705,10 @@ class subdomain_deflation {
                 for(int p = 1; p < comm.size; ++p) {
                     long begin = dv_start[p];
                     long size  = dv_start[p + 1] - begin;
-                    MPI_Recv(&x[begin], size, dtype, p, tag_exc_dvec, comm, MPI_STATUS_IGNORE);
+                    MPI_Irecv(&x[begin], size, dtype, p, tag_exc_dvec, comm, &req[p]);
                 }
+
+                MPI_Waitall(comm.size - 1, &req[1], MPI_STATUSES_IGNORE);
             } else {
                 long begin = dv_start[comm.rank];
                 long size  = dv_start[comm.rank + 1] - begin;
