@@ -202,6 +202,15 @@ int main(int argc, char *argv[]) {
     prof.toc("assemble");
 
     prof.tic("setup");
+    typedef amgcl::make_solver<
+        amgcl::backend::builtin<double>,
+        amgcl::coarsening::smoothed_aggregation<
+            amgcl::coarsening::plain_aggregates
+            >,
+        amgcl::relaxation::spai0,
+        amgcl::solver::bicgstabl
+        > CoarseSolver;
+
     typedef amgcl::mpi::subdomain_deflation<
         amgcl::backend::builtin<double>,
 #ifdef RECIRCULATION
@@ -213,7 +222,8 @@ int main(int argc, char *argv[]) {
             >,
         amgcl::relaxation::spai0,
 #endif
-        amgcl::solver::bicgstabl
+        amgcl::solver::bicgstabl,
+        CoarseSolver
         > Solver;
 
     Solver::AMG_params    amg_prm;

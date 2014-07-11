@@ -346,6 +346,7 @@ class make_solver {
 
         typedef typename AMG::params    AMG_params;
         typedef typename Solver::params Solver_params;
+        typedef AMG_params params;
 
         /// Constructs the AMG hierarchy and creates iterative solver.
         template <class Matrix>
