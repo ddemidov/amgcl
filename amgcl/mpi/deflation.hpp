@@ -167,6 +167,7 @@ class subdomain_deflation {
           Z( ndv ), q( Backend::create_vector(nrows, amg_params.backend) ),
           req(comm.size)
         {
+            TIC("setup deflation");
             typedef backend::crs<value_type, long>                     build_matrix;
             typedef typename backend::row_iterator<Matrix>::type       row_iterator1;
             typedef typename backend::row_iterator<build_matrix>::type row_iterator2;
@@ -192,6 +193,7 @@ class subdomain_deflation {
             long chunk_start = domain[comm.rank];
 
             // Fill deflation vectors.
+            TIC("copy deflation vectors");
             {
                 std::vector<value_type> z(nrows);
                 for(int j = 0; j < ndv; ++j) {
@@ -200,6 +202,7 @@ class subdomain_deflation {
                     Z[j] = Backend::copy_vector(z, amg_params.backend);
                 }
             }
+            TOC("copy deflation vectors");
 
             // Number of nonzeros in local and remote parts of the matrix.
             long loc_nnz = 0, rem_nnz = 0;
@@ -208,6 +211,7 @@ class subdomain_deflation {
             std::map<long, long> rc;
             std::map<long, long>::iterator rc_it = rc.begin();
 
+            TIC("first pass");
             // First pass over Astrip rows:
             // 1. Count local and remote nonzeros,
             // 2. Build set of remote columns,
@@ -238,7 +242,9 @@ class subdomain_deflation {
                     }
                 }
             }
+            TOC("first pass");
 
+            TIC("setup communication");
             // Find out:
             // 1. How many columns do we need from each process,
             // 2. What columns do we need from them.
@@ -319,8 +325,10 @@ class subdomain_deflation {
                 MPI_Isend(&recv_cols[recv.ptr[i]], comm_matrix[comm.rank][recv.nbr[i]],
                         MPI_LONG, recv.nbr[i], tag_exc_cols, comm, &recv.req[i]);
 
+            TOC("setup communication");
             /* While messages are in flight, */
 
+            TIC("second pass");
             // Second pass over Astrip rows:
             // 1. Build local and remote matrix parts.
             // 2. Build local part of AZ matrix.
@@ -377,7 +385,7 @@ class subdomain_deflation {
                 aloc->ptr.push_back(aloc->col.size());
                 arem->ptr.push_back(arem->col.size());
             }
-
+            TOC("second pass");
 
             /* Finish communication pattern setup. */
             MPI_Waitall(recv.req.size(), recv.req.data(), MPI_STATUSES_IGNORE);
@@ -387,6 +395,7 @@ class subdomain_deflation {
             BOOST_FOREACH(long &c, send_col) c -= chunk_start;
 
 
+            TIC("A*Z");
             /* Finish construction of AZ */
             // Exchange deflation vectors
             std::vector<long> zrecv_ptr(recv.nbr.size() + 1, 0);
@@ -456,10 +465,12 @@ class subdomain_deflation {
 
             std::rotate(az->ptr.begin(), az->ptr.end() - 1, az->ptr.end());
             az->ptr.front() = 0;
+            TOC("A*Z");
 
             MPI_Waitall(send.req.size(), send.req.data(), MPI_STATUSES_IGNORE);
 
             /* Build deflated matrix E. */
+            TIC("assemble E");
             boost::multi_array<value_type, 2> erow(boost::extents[ndv][nz]);
             std::fill_n(erow.data(), erow.num_elements(), 0);
 
@@ -507,11 +518,16 @@ class subdomain_deflation {
                 MPI_Bcast(&Ecol[Eptr[dv_start[p]]], ns, MPI_INT, p, comm);
                 MPI_Bcast(&Eval[Eptr[dv_start[p]]], ns, dtype,   p, comm);
             }
+            TOC("assemble E");
 
             // Prepare E factorization.
+            TIC("factorize E");
             E = boost::make_shared<DirectSolver>(
                     boost::tie(nz, Eptr, Ecol, Eval), direct_solver_params
                     );
+            TOC("factorize E");
+
+            TOC("setup deflation");
 
             // Create local AMG preconditioner.
             P = boost::make_shared<AMG>( *aloc, amg_params );
