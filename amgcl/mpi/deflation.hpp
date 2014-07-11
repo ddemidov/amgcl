@@ -625,15 +625,23 @@ class subdomain_deflation {
         void project(Vector &x) const {
             TIC("project");
 
+            TIC("local inner product");
             for(long j = 0, k = dv_start[comm.rank]; j < ndv; ++j, ++k)
                 df[k] = backend::inner_product(x, *Z[j]);
+            TOC("local inner product");
 
+            TIC("gather");
             allgather_deflated_vec(df);
+            TOC("gather");
 
+            TIC("coarse solve");
             (*E)(df, dx);
+            TOC("coarse solve");
 
+            TIC("spmv");
             backend::copy_to_backend(dx, *dd);
             backend::spmv(-1, *AZ, *dd, 1, x);
+            TOC("spmv");
 
             TOC("project");
         }
