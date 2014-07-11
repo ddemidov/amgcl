@@ -563,6 +563,7 @@ class subdomain_deflation {
     private:
         static const int tag_exc_cols = 1001;
         static const int tag_exc_vals = 2001;
+        static const int tag_exc_dvec = 3001;
 
         communicator comm;
         long nrows, ndv, nz;
@@ -697,11 +698,19 @@ class subdomain_deflation {
         }
 
         void allgather_deflated_vec(std::vector<value_type> &x) const {
-            for(int p = 0; p < comm.size; ++p) {
-                long begin = dv_start[p];
-                long size  = dv_start[p + 1] - begin;
-                MPI_Bcast(&x[begin], size, dtype, p, comm);
+            if (comm.rank == 0) {
+                for(int p = 1; p < comm.size; ++p) {
+                    long begin = dv_start[p];
+                    long size  = dv_start[p + 1] - begin;
+                    MPI_Recv(&x[begin], size, dtype, p, tag_exc_dvec, comm, MPI_STATUS_IGNORE);
+                }
+            } else {
+                long begin = dv_start[comm.rank];
+                long size  = dv_start[comm.rank + 1] - begin;
+                MPI_Send(&x[begin], size, dtype, 0, tag_exc_dvec, comm);
             }
+
+            MPI_Bcast(x.data(), x.size(), dtype, 0, comm);
         }
 };
 
