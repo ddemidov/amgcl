@@ -187,25 +187,27 @@ int main(int argc, char *argv[]) {
     boost::tie(iters, resid) = solve(f, x);
     prof.toc("solve");
 
-    prof.tic("save");
-    if (world.rank == 0) {
-        std::vector<double> X(n2);
-        vex::copy(x.begin(), x.end(), X.begin());
+    if (n < 4096) {
+        prof.tic("save");
+        if (world.rank == 0) {
+            std::vector<double> X(n2);
+            vex::copy(x.begin(), x.end(), X.begin());
 
-        for(int i = 1; i < world.size; ++i)
-            MPI_Recv(&X[domain[i]], domain[i+1] - domain[i], MPI_DOUBLE, i, 42, world, MPI_STATUS_IGNORE);
+            for(int i = 1; i < world.size; ++i)
+                MPI_Recv(&X[domain[i]], domain[i+1] - domain[i], MPI_DOUBLE, i, 42, world, MPI_STATUS_IGNORE);
 
-        std::ofstream f("out.dat", std::ios::binary);
-        int m = n2;
-        f.write((char*)&m, sizeof(int));
-        for(long i = 0; i < n2; ++i)
-            f.write((char*)&X[renum[i]], sizeof(double));
-    } else {
-        std::vector<double> X(chunk);
-        vex::copy(x, X);
-        MPI_Send(X.data(), chunk, MPI_DOUBLE, 0, 42, world);
+            std::ofstream f("out.dat", std::ios::binary);
+            int m = n2;
+            f.write((char*)&m, sizeof(int));
+            for(long i = 0; i < n2; ++i)
+                f.write((char*)&X[renum[i]], sizeof(double));
+        } else {
+            std::vector<double> X(chunk);
+            vex::copy(x, X);
+            MPI_Send(X.data(), chunk, MPI_DOUBLE, 0, 42, world);
+        }
+        prof.toc("save");
     }
-    prof.toc("save");
 
     if (world.rank == 0) {
         std::cout
