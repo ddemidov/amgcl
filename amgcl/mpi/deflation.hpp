@@ -513,18 +513,33 @@ class subdomain_deflation {
             }
 
             // Exchange strips of E.
-            for(int p = 0; p < comm.size; ++p) {
-                int ns = Eptr[dv_start[p + 1]] - Eptr[dv_start[p]];
-                MPI_Bcast(&Ecol[Eptr[dv_start[p]]], ns, MPI_INT, p, comm);
-                MPI_Bcast(&Eval[Eptr[dv_start[p]]], ns, dtype,   p, comm);
+            if (comm.rank == 0) {
+                std::vector<MPI_Request> req(2 * (comm.size - 1));
+
+                MPI_Request *r = &req[0];
+                for(int p = 1; p < comm.size; ++p) {
+                    int begin = Eptr[dv_start[p]];
+                    int size  = Eptr[dv_start[p + 1]] - begin;
+                    MPI_Irecv(&Ecol[begin], size, MPI_INT, p, tag_exc_dmat, comm, r++);
+                    MPI_Irecv(&Eval[begin], size, dtype,   p, tag_exc_dmat, comm, r++);
+                }
+
+                MPI_Waitall(req.size(), req.data(), MPI_STATUSES_IGNORE);
+            } else {
+                int p = comm.rank;
+                int begin = Eptr[dv_start[p]];
+                int size  = Eptr[dv_start[p + 1]] - begin;
+                MPI_Send(&Ecol[begin], size, MPI_INT, 0, tag_exc_dmat, comm);
+                MPI_Send(&Eval[begin], size, dtype,   0, tag_exc_dmat, comm);
             }
             TOC("assemble E");
 
             // Prepare E factorization.
             TIC("factorize E");
-            E = boost::make_shared<DirectSolver>(
-                    boost::tie(nz, Eptr, Ecol, Eval), direct_solver_params
-                    );
+            if (comm.rank == 0)
+                E = boost::make_shared<DirectSolver>(
+                        boost::tie(nz, Eptr, Ecol, Eval), direct_solver_params
+                        );
             TOC("factorize E");
 
             TOC("setup deflation");
@@ -580,7 +595,8 @@ class subdomain_deflation {
     private:
         static const int tag_exc_cols = 1001;
         static const int tag_exc_vals = 2001;
-        static const int tag_exc_dvec = 3001;
+        static const int tag_exc_dmat = 3001;
+        static const int tag_exc_dvec = 4001;
 
         communicator comm;
         long nrows, ndv, nz;
@@ -650,13 +666,7 @@ class subdomain_deflation {
                 df[k] = backend::inner_product(x, *Z[j]);
             TOC("local inner product");
 
-            TIC("gather");
-            allgather_deflated_vec(df);
-            TOC("gather");
-
-            TIC("coarse solve");
-            (*E)(df, dx);
-            TOC("coarse solve");
+            coarse_solve(df, dx);
 
             TIC("spmv");
             backend::copy_to_backend(dx, *dd);
@@ -674,13 +684,14 @@ class subdomain_deflation {
             mul(1, x, 0, *q);
 
             // df = transp(Z) * (rhs - Ax)
+            TIC("local inner product");
             for(long j = 0, k = dv_start[comm.rank]; j < ndv; ++j, ++k)
                 df[k] = backend::inner_product(rhs, *Z[j])
                       - backend::inner_product(*q,  *Z[j]);
-            allgather_deflated_vec(df);
+            TOC("local inner product");
 
             // dx = inv(E) * df
-            (*E)(df, dx);
+            coarse_solve(df, dx);
 
             // x += Z * dx
             long j = 0, k = dv_start[comm.rank];
@@ -716,22 +727,27 @@ class subdomain_deflation {
             MPI_Waitall(send.req.size(), send.req.data(), MPI_STATUSES_IGNORE);
         }
 
-        void allgather_deflated_vec(std::vector<value_type> &x) const {
+        void coarse_solve(std::vector<value_type> &f, std::vector<value_type> &x) const
+        {
+            TIC("coarse solve");
             if (comm.rank == 0) {
                 for(int p = 1; p < comm.size; ++p) {
                     long begin = dv_start[p];
                     long size  = dv_start[p + 1] - begin;
-                    MPI_Irecv(&x[begin], size, dtype, p, tag_exc_dvec, comm, &req[p]);
+                    MPI_Irecv(&f[begin], size, dtype, p, tag_exc_dvec, comm, &req[p]);
                 }
 
                 MPI_Waitall(comm.size - 1, &req[1], MPI_STATUSES_IGNORE);
+
+                (*E)(f, x);
             } else {
                 long begin = dv_start[comm.rank];
                 long size  = dv_start[comm.rank + 1] - begin;
-                MPI_Send(&x[begin], size, dtype, 0, tag_exc_dvec, comm);
+                MPI_Send(&f[begin], size, dtype, 0, tag_exc_dvec, comm);
             }
 
             MPI_Bcast(x.data(), x.size(), dtype, 0, comm);
+            TOC("coarse solve");
         }
 };
 
