@@ -110,12 +110,13 @@ class bicgstabl {
          * reasonably good preconditioner for several subsequent time steps
          * \cite Demidov2012.
          */
-        template <class Matrix, class Precond, class Vec1, class Vec2>
+        template <class Matrix, class Precond, class Vec1, class Vec2, class Vec3>
         boost::tuple<size_t, value_type> operator()(
                 Matrix  const &A,
                 Precond const &P,
                 Vec1    const &rhs,
-                Vec2          &x
+                Vec2          &x,
+                Vec3          &err
                 ) const
         {
             const int L = prm.L;
@@ -125,6 +126,8 @@ class bicgstabl {
             value_type norm_r0 = norm(*r0);
             if (norm_r0 == 0)
                 return boost::make_tuple(0, 0);
+
+            err.push_back(norm_r0);
 
             value_type res_norm = norm_r0;
             value_type eps      = prm.tol * norm_r0;
@@ -198,6 +201,7 @@ class bicgstabl {
                     }
 
                     res_norm = norm(*r[0]);
+                    err.push_back(res_norm);
                 }
 
                 P.apply(x, *q);
@@ -215,14 +219,15 @@ class bicgstabl {
          * \param rhs Right-hand side.
          * \param x   Solution vector.
          */
-        template <class Precond, class Vec1, class Vec2>
+        template <class Precond, class Vec1, class Vec2, class Vec3>
         boost::tuple<size_t, value_type> operator()(
                 Precond const &P,
                 Vec1    const &rhs,
-                Vec2          &x
+                Vec2          &x,
+                Vec3          &err
                 ) const
         {
-            return (*this)(P.top_matrix(), P, rhs, x);
+            return (*this)(P.top_matrix(), P, rhs, x, err);
         }
     private:
         params prm;

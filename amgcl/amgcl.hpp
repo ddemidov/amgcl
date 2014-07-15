@@ -371,14 +371,15 @@ class make_solver {
          * reasonably good preconditioner for several subsequent time steps
          * \cite Demidov2012.
          */
-        template <class Matrix, class Vec1, class Vec2>
+        template <class Matrix, class Vec1, class Vec2, class Vec3>
         boost::tuple<size_t, value_type> operator()(
                 Matrix  const &A,
                 Vec1    const &rhs,
-                Vec2          &x
+                Vec2          &x,
+                Vec3          &err
                 ) const
         {
-            return S(A, P, rhs, x);
+            return S(A, P, rhs, x, err);
         }
 
         /// Solves the linear system for the given right-hand side.
@@ -386,13 +387,14 @@ class make_solver {
          * \param rhs Right-hand side.
          * \param x   Solution vector.
          */
-        template <class Vec1, class Vec2>
+        template <class Vec1, class Vec2, class Vec3>
         boost::tuple<size_t, value_type> operator()(
                 Vec1    const &rhs,
-                Vec2          &x
+                Vec2          &x,
+                Vec3          &err
                 ) const
         {
-            return S(P, rhs, x);
+            return S(P, rhs, x, err);
         }
 
         const AMG& amg() const {
