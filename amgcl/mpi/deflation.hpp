@@ -683,7 +683,7 @@ class subdomain_deflation {
             (*E)(df, dx);
 
             // x += Z * dx
-            long j = 0, k = comm.rank * ndv;
+            long j = 0, k = dv_start[comm.rank];
             for(; j + 1 < ndv; j += 2, k += 2)
                 backend::axpbypcz(dx[k], *Z[j], dx[k+1], *Z[j+1], 1, x);
 
