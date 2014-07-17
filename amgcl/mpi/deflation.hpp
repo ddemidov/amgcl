@@ -45,7 +45,7 @@ THE SOFTWARE.
 #include <amgcl/amgcl.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
-#include <amgcl/solver/skyline_lu.hpp>
+#include <amgcl/mpi/skyline_lu.hpp>
 
 namespace amgcl {
 
@@ -124,7 +124,7 @@ template <
     class                         Coarsening,
     template <class> class        Relax,
     template <class, class> class IterativeSolver,
-    class                         DirectSolver = solver::skyline_lu<typename Backend::value_type>
+    class                         DirectSolver = mpi::skyline_lu<typename Backend::value_type>
     >
 class subdomain_deflation {
     public:
@@ -165,7 +165,7 @@ class subdomain_deflation {
           nrows(backend::rows(Astrip)), ndv(def_vec.dim()),
           dtype( datatype<value_type>::get() ), dv_start(comm.size + 1, 0),
           Z( ndv ), q( Backend::create_vector(nrows, amg_params.backend) ),
-          req(comm.size)
+          req(2 * comm.size)
         {
             TIC("setup deflation");
             typedef backend::crs<value_type, long>                     build_matrix;
@@ -178,7 +178,7 @@ class subdomain_deflation {
             boost::partial_sum(dv_size, dv_start.begin() + 1);
             nz = dv_start.back();
 
-            df.resize(nz);
+            df.resize(ndv);
             dx.resize(nz);
             dd = Backend::create_vector(nz, amg_params.backend);
 
@@ -471,6 +471,44 @@ class subdomain_deflation {
 
             /* Build deflated matrix E. */
             TIC("assemble E");
+            // Who is responsible for solution of coarse problem
+            nmasters = DirectSolver::comm_size(nz);
+            nslaves  = (comm.size + nmasters - 1) / nmasters;
+
+            master = comm.rank / nslaves;
+
+            if (comm.rank < nmasters) {
+                slaves.resize(nmasters + 1, 0);
+
+                for(int p = 0; p <= nmasters; ++p)
+                    slaves[p] = std::min(p * nslaves, comm.size);
+
+                nslaves = slaves[comm.rank + 1] - slaves[comm.rank];
+            }
+
+            // Count nonzeros in E.
+            std::vector<int> eptr(ndv + 1, 0);
+            for(int j = 0; j < comm.size; ++j)
+                if (j == comm.rank || comm_matrix[comm.rank][j])
+                    for(int k = 0; k < ndv; ++k)
+                        eptr[k + 1] += dv_size[j];
+
+            std::vector<int> Eptr;
+
+            if (comm.rank < nmasters) {
+                Eptr.resize(dv_start[slaves[comm.rank+1]] - dv_start[slaves[comm.rank]] + 1);
+
+                for(int p = slaves[comm.rank], offset = dv_start[p]; p < slaves[comm.rank + 1]; ++p) {
+                    int begin = dv_start[p] - offset + 1;
+                    int size  = dv_start[p + 1] - dv_start[p];
+                    MPI_Irecv(&Eptr[begin], size, MPI_INT, p, tag_exc_lnnz, comm, &req[p]);
+                }
+            }
+
+            MPI_Send(&eptr[1], ndv, MPI_INT, master, tag_exc_lnnz, comm);
+            boost::partial_sum(eptr, eptr.begin());
+
+            // Build local strip of E.
             boost::multi_array<value_type, 2> erow(boost::extents[ndv][nz]);
             std::fill_n(erow.data(), erow.num_elements(), 0);
 
@@ -484,28 +522,16 @@ class subdomain_deflation {
                 }
             }
 
-            // Count nonzeros in E.
-            std::vector<int> Eptr(nz + 1, 0);
-            for(int i = 0; i < comm.size; ++i)
-                for(int j = 0; j < comm.size; ++j)
-                    if (j == i || comm_matrix[i][j])
-                        for(int k = 0; k < dv_size[i]; ++k)
-                            Eptr[dv_start[i] + k + 1] += dv_size[j];
-
-            boost::partial_sum(Eptr, Eptr.begin());
-
-            std::vector<int>        Ecol(Eptr.back());
-            std::vector<value_type> Eval(Eptr.back());
-
-            // Fill local strip of E.
+            std::vector<int>        ecol(eptr.back());
+            std::vector<value_type> eval(eptr.back());
             for(int i = 0; i < ndv; ++i) {
-                int row_head = Eptr[dv_start[comm.rank] + i];
+                int row_head = eptr[i];
                 for(int j = 0; j < comm.size; ++j) {
                     if (j == comm.rank || comm_matrix[comm.rank][j]) {
                         for(int k = 0; k < dv_size[j]; ++k) {
                             int c = dv_start[j] + k;
-                            Ecol[row_head] = c;
-                            Eval[row_head] = erow[i][c];
+                            ecol[row_head] = c;
+                            eval[row_head] = erow[i][c];
                             ++row_head;
                         }
                     }
@@ -513,33 +539,45 @@ class subdomain_deflation {
             }
 
             // Exchange strips of E.
-            if (comm.rank == 0) {
-                std::vector<MPI_Request> req(2 * (comm.size - 1));
+            std::vector<int>        Ecol;
+            std::vector<value_type> Eval;
+            if (comm.rank < nmasters) {
+                MPI_Waitall(nslaves, &req[slaves[comm.rank]], MPI_STATUSES_IGNORE);
+                boost::partial_sum(Eptr, Eptr.begin());
 
-                MPI_Request *r = &req[0];
-                for(int p = 1; p < comm.size; ++p) {
-                    int begin = Eptr[dv_start[p]];
-                    int size  = Eptr[dv_start[p + 1]] - begin;
-                    MPI_Irecv(&Ecol[begin], size, MPI_INT, p, tag_exc_dmat, comm, r++);
-                    MPI_Irecv(&Eval[begin], size, dtype,   p, tag_exc_dmat, comm, r++);
+                Ecol.resize(Eptr.back());
+                Eval.resize(Eptr.back());
+
+                for(int p = slaves[comm.rank], offset = dv_start[p]; p < slaves[comm.rank + 1]; ++p) {
+                    int begin = Eptr[dv_start[p]     - offset];
+                    int size  = Eptr[dv_start[p + 1] - offset] - begin;
+
+                    MPI_Irecv(&Ecol[begin], size, MPI_INT, p, tag_exc_dmat, comm, &req[2 * p + 0]);
+                    MPI_Irecv(&Eval[begin], size, dtype,   p, tag_exc_dmat, comm, &req[2 * p + 1]);
                 }
-
-                MPI_Waitall(req.size(), req.data(), MPI_STATUSES_IGNORE);
-            } else {
-                int p = comm.rank;
-                int begin = Eptr[dv_start[p]];
-                int size  = Eptr[dv_start[p + 1]] - begin;
-                MPI_Send(&Ecol[begin], size, MPI_INT, 0, tag_exc_dmat, comm);
-                MPI_Send(&Eval[begin], size, dtype,   0, tag_exc_dmat, comm);
             }
+
+            MPI_Send(ecol.data(), ecol.size(), MPI_INT, 0, tag_exc_dmat, comm);
+            MPI_Send(eval.data(), eval.size(), dtype,   0, tag_exc_dmat, comm);
             TOC("assemble E");
 
             // Prepare E factorization.
             TIC("factorize E");
-            if (comm.rank == 0)
+            MPI_Comm_split(comm,
+                    comm.rank < nmasters ? 0 : MPI_UNDEFINED,
+                    comm.rank, &masters_comm
+                    );
+
+            if (comm.rank < nmasters) {
+                MPI_Waitall(2 * nslaves, &req[2 * slaves[comm.rank]], MPI_STATUSES_IGNORE);
+
                 E = boost::make_shared<DirectSolver>(
-                        boost::tie(nz, Eptr, Ecol, Eval), direct_solver_params
+                        masters_comm, Eptr.size() - 1, Eptr, Ecol, Eval, direct_solver_params
                         );
+
+                cf.resize(Eptr.size() - 1);
+                cx.resize(Eptr.size() - 1);
+            }
             TOC("factorize E");
 
             TOC("setup deflation");
@@ -560,6 +598,10 @@ class subdomain_deflation {
             // Columns gatherer. Will retrieve columns to send from backend.
             gather = boost::make_shared<typename Backend::gather>(
                     nrows, send_col, amg_params.backend);
+        }
+
+        ~subdomain_deflation() {
+            if (masters_comm != MPI_COMM_NULL) MPI_Comm_free(&masters_comm);
         }
 
         template <class Vec1, class Vec2>
@@ -597,6 +639,7 @@ class subdomain_deflation {
         static const int tag_exc_vals = 2001;
         static const int tag_exc_dmat = 3001;
         static const int tag_exc_dvec = 4001;
+        static const int tag_exc_lnnz = 5001;
 
         communicator comm;
         long nrows, ndv, nz;
@@ -608,11 +651,14 @@ class subdomain_deflation {
         boost::shared_ptr<AMG>    P;
         boost::shared_ptr<Solver> solve;
 
-        mutable std::vector<value_type> df, dx;
+        mutable std::vector<value_type> df, dx, cf, cx;
         std::vector<long> dv_start;
 
         std::vector< boost::shared_ptr<vector> > Z;
 
+        MPI_Comm masters_comm;
+        int nmasters, nslaves, master;
+        std::vector<int> slaves;
         boost::shared_ptr<DirectSolver> E;
 
         boost::shared_ptr<matrix> AZ;
@@ -662,8 +708,8 @@ class subdomain_deflation {
             TIC("project");
 
             TIC("local inner product");
-            for(long j = 0, k = dv_start[comm.rank]; j < ndv; ++j, ++k)
-                df[k] = backend::inner_product(x, *Z[j]);
+            for(long j = 0; j < ndv; ++j)
+                df[j] = backend::inner_product(x, *Z[j]);
             TOC("local inner product");
 
             coarse_solve(df, dx);
@@ -685,8 +731,8 @@ class subdomain_deflation {
 
             // df = transp(Z) * (rhs - Ax)
             TIC("local inner product");
-            for(long j = 0, k = dv_start[comm.rank]; j < ndv; ++j, ++k)
-                df[k] = backend::inner_product(rhs, *Z[j])
+            for(long j = 0; j < ndv; ++j)
+                df[j] = backend::inner_product(rhs, *Z[j])
                       - backend::inner_product(*q,  *Z[j]);
             TOC("local inner product");
 
@@ -730,20 +776,33 @@ class subdomain_deflation {
         void coarse_solve(std::vector<value_type> &f, std::vector<value_type> &x) const
         {
             TIC("coarse solve");
-            if (comm.rank == 0) {
-                for(int p = 1; p < comm.size; ++p) {
-                    long begin = dv_start[p];
-                    long size  = dv_start[p + 1] - begin;
-                    MPI_Irecv(&f[begin], size, dtype, p, tag_exc_dvec, comm, &req[p]);
+            if (comm.rank < nmasters) {
+                for(int p = slaves[comm.rank], offset = dv_start[p]; p < slaves[comm.rank + 1]; ++p) {
+                    long begin = dv_start[p] - offset;
+                    long size  = dv_start[p + 1] - dv_start[p];
+                    MPI_Irecv(&cf[begin], size, dtype, p, tag_exc_dvec, comm, &req[p]);
+                }
+            }
+
+            MPI_Send(f.data(), f.size(), dtype, 0, tag_exc_dvec, comm);
+
+            if (comm.rank < nmasters) {
+                MPI_Waitall(nslaves, &req[slaves[comm.rank]], MPI_STATUSES_IGNORE);
+
+                (*E)(cf, cx);
+
+                if (comm.rank == 0) {
+                    for(int p = 0; p < nmasters; ++p) {
+                        int begin = dv_start[slaves[p]];
+                        int size  = dv_start[slaves[p+1]] - begin;
+                        MPI_Irecv(&x[begin], size, dtype, p, tag_exc_dvec, comm, &req[p]);
+                    }
                 }
 
-                MPI_Waitall(comm.size - 1, &req[1], MPI_STATUSES_IGNORE);
+                MPI_Send(cx.data(), cx.size(), dtype, 0, tag_exc_dvec, comm);
 
-                (*E)(f, x);
-            } else {
-                long begin = dv_start[comm.rank];
-                long size  = dv_start[comm.rank + 1] - begin;
-                MPI_Send(&f[begin], size, dtype, 0, tag_exc_dvec, comm);
+                if (comm.rank == 0)
+                    MPI_Waitall(nmasters, req.data(), MPI_STATUSES_IGNORE);
             }
 
             MPI_Bcast(x.data(), x.size(), dtype, 0, comm);
