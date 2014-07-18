@@ -1,6 +1,3 @@
-#ifndef SDD_CG_HPP
-#define SDD_CG_HPP
-
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -21,6 +18,10 @@
 #include <amgcl/solver/bicgstabl.hpp>
 #include <amgcl/mpi/deflation.hpp>
 #include <amgcl/profiler.hpp>
+
+#ifdef HAVE_PASTIX
+#include <amgcl/mpi/pastix.hpp>
+#endif
 
 #include "domain_partition.hpp"
 
@@ -214,6 +215,9 @@ int main(int argc, char *argv[]) {
         amgcl::relaxation::spai0,
 #endif
         amgcl::solver::bicgstabl
+#ifdef HAVE_PASTIX
+        , amgcl::mpi::PaStiX<double>
+#endif
         > Solver;
 
     Solver::AMG_params    amg_prm;
@@ -261,5 +265,3 @@ int main(int argc, char *argv[]) {
     }
 
 }
-
-#endif

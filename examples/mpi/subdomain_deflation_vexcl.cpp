@@ -1,6 +1,3 @@
-#ifndef SDD_CG_HPP
-#define SDD_CG_HPP
-
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -217,5 +214,3 @@ int main(int argc, char *argv[]) {
             << prof << std::endl;
     }
 }
-
-#endif

@@ -45,45 +45,13 @@ THE SOFTWARE.
 #include <amgcl/amgcl.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
+#include <amgcl/mpi/util.hpp>
 #include <amgcl/mpi/skyline_lu.hpp>
 
 namespace amgcl {
 
 /// Algorithms and structures for distributed computing.
 namespace mpi {
-
-template <class T, class Enable = void>
-struct datatype;
-
-template <>
-struct datatype<float> {
-    static MPI_Datatype get() { return MPI_FLOAT; }
-};
-
-template <>
-struct datatype<double> {
-    static MPI_Datatype get() { return MPI_DOUBLE; }
-};
-
-template <>
-struct datatype<long double> {
-    static MPI_Datatype get() { return MPI_LONG_DOUBLE; }
-};
-
-struct communicator {
-    MPI_Comm comm;
-    int      rank;
-    int      size;
-
-    communicator(MPI_Comm comm) : comm(comm) {
-        MPI_Comm_rank(comm, &rank);
-        MPI_Comm_size(comm, &size);
-    };
-
-    operator MPI_Comm() const {
-        return comm;
-    }
-};
 
 namespace detail {
 struct mpi_inner_product {
@@ -472,7 +440,7 @@ class subdomain_deflation {
             /* Build deflated matrix E. */
             TIC("assemble E");
             // Who is responsible for solution of coarse problem
-            nmasters = DirectSolver::comm_size(nz);
+            nmasters = std::min(comm.size, DirectSolver::comm_size(nz));
             nslaves  = (comm.size + nmasters - 1) / nmasters;
 
             master = comm.rank / nslaves;
@@ -488,10 +456,15 @@ class subdomain_deflation {
 
             // Count nonzeros in E.
             std::vector<int> eptr(ndv + 1, 0);
-            for(int j = 0; j < comm.size; ++j)
-                if (j == comm.rank || comm_matrix[comm.rank][j])
+            for(int j = 0; j < comm.size; ++j) {
+                if (j == comm.rank || comm_matrix[comm.rank][j]
+                        || comm_matrix[j][comm.rank] // To keep coarse matrix graph symmetric
+                   )
+                {
                     for(int k = 0; k < ndv; ++k)
                         eptr[k + 1] += dv_size[j];
+                }
+            }
 
             std::vector<int> Eptr;
 
@@ -527,7 +500,10 @@ class subdomain_deflation {
             for(int i = 0; i < ndv; ++i) {
                 int row_head = eptr[i];
                 for(int j = 0; j < comm.size; ++j) {
-                    if (j == comm.rank || comm_matrix[comm.rank][j]) {
+                    if (j == comm.rank || comm_matrix[comm.rank][j]
+                            || comm_matrix[j][comm.rank] // To keep coarse matrix graph symmetric
+                       )
+                    {
                         for(int k = 0; k < dv_size[j]; ++k) {
                             int c = dv_start[j] + k;
                             ecol[row_head] = c;
@@ -557,8 +533,8 @@ class subdomain_deflation {
                 }
             }
 
-            MPI_Send(ecol.data(), ecol.size(), MPI_INT, 0, tag_exc_dmat, comm);
-            MPI_Send(eval.data(), eval.size(), dtype,   0, tag_exc_dmat, comm);
+            MPI_Send(ecol.data(), ecol.size(), MPI_INT, master, tag_exc_dmat, comm);
+            MPI_Send(eval.data(), eval.size(), dtype,   master, tag_exc_dmat, comm);
             TOC("assemble E");
 
             // Prepare E factorization.
@@ -601,6 +577,7 @@ class subdomain_deflation {
         }
 
         ~subdomain_deflation() {
+            E.reset();
             if (masters_comm != MPI_COMM_NULL) MPI_Comm_free(&masters_comm);
         }
 
@@ -784,7 +761,7 @@ class subdomain_deflation {
                 }
             }
 
-            MPI_Send(f.data(), f.size(), dtype, 0, tag_exc_dvec, comm);
+            MPI_Send(f.data(), f.size(), dtype, master, tag_exc_dvec, comm);
 
             if (comm.rank < nmasters) {
                 MPI_Waitall(nslaves, &req[slaves[comm.rank]], MPI_STATUSES_IGNORE);

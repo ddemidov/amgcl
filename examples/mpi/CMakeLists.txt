@@ -8,12 +8,35 @@ function(add_mpi_example example sources)
         ${Boost_LIBRARIES}
         ${MPI_CXX_LIBRARIES}
         )
+
+    if (HAVE_PASTIX)
+        target_link_libraries(${example}
+            ${PASTIX_LIBRARIES}
+            ${SCOTCH_LIBRARIES}
+            ${BLAS_LIBRARIES}
+            )
+    endif()
 endfunction()
 
 find_package(MPI QUIET)
 
 if (MPI_CXX_FOUND)
     include_directories(${MPI_CXX_INCLUDE_PATH})
+
+    #------------------------------------------------------------------------
+    # Find Pastix
+    #------------------------------------------------------------------------
+    find_package(Pastix QUIET)
+    find_package(Scotch QUIET)
+    find_package(BLAS   QUIET)
+
+    if (PASTIX_INCLUDES AND SCOTCH_INCLUDES AND BLAS_FOUND)
+        set(HAVE_PASTIX ON)
+        include_directories(${PASTIX_INCLUDES} ${SCOTCH_INCLUDES})
+        add_definitions(-DHAVE_PASTIX)
+        add_mpi_example(check_pastix check_pastix.cpp)
+    endif()
+
     add_mpi_example(subdomain_deflation subdomain_deflation.cpp)
 
     if (VEXCL_ROOT)
