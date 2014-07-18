@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(AMGCL)
 
+set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 #----------------------------------------------------------------------------
@@ -76,7 +77,6 @@ if (VEXCL_ROOT)
     # Find VexCL backend
     #----------------------------------------------------------------------------
     if ("${VEXCL_BACKEND}" STREQUAL "OpenCL")
-        set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
         find_package(OpenCL REQUIRED)
         include_directories( ${OPENCL_INCLUDE_DIRS} )
         set(VEXCL_BACKEND_LIBRARIES ${OPENCL_LIBRARIES})
