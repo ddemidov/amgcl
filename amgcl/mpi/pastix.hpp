@@ -60,7 +60,8 @@ class PaStiX {
         struct params {};
 
         static int comm_size(int n_global_rows) {
-            return std::max(1, n_global_rows / 5000);
+            const int dofs_per_process = 5000;
+            return (n_global_rows + dofs_per_process - 1) / dofs_per_process;
         }
 
         template <class PRng, class CRng, class VRng>
