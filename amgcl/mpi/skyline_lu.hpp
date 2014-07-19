@@ -40,15 +40,30 @@ distributed direct solver interface but always works sequentially.
 namespace amgcl {
 namespace mpi {
 
+/// Provides distributed direct solver interface for Skyline LU solver.
 template <typename value_type>
 class skyline_lu {
     public:
         typedef typename solver::skyline_lu<value_type>::params params;
 
+        /// The number of processes optimal for the given problem size.
         static int comm_size(int n_global_rows) {
             return 1;
         }
 
+        /// Constructor.
+        /**
+         * \param comm MPI communicator containing processes to participate in
+         *        solution of the problem. The number of processes in
+         *        communicator should be (but not necessarily) equal to the
+         *        result of comm_size().
+         * \param n_local_rows Number of matrix rows belonging to the calling
+         *        process.
+         * \param ptr Start of each row in col and val arrays.
+         * \param col Column numbers of nonzero elements.
+         * \param val Values of nonzero elements.
+         * \param prm Solver parameters.
+         */
         template <class PRng, class CRng, class VRng>
         skyline_lu(
                 MPI_Comm comm,
@@ -60,6 +75,11 @@ class skyline_lu {
                 ) : S( boost::tie(n_local_rows, ptr, col, val), prm )
         {}
 
+        /// Solves the problem for the given right-hand side.
+        /**
+         * \param rhs The right-hand side.
+         * \param x   The solution.
+         */
         template <class Vec1, class Vec2>
         void operator()(const Vec1 &rhs, Vec2 &x) const {
             S(rhs, x);

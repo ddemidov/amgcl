@@ -50,20 +50,38 @@ extern "C" {
 namespace amgcl {
 namespace mpi {
 
+/// Provides distributed direct solver interface for PaStiX solver.
+/** See http://pastix.gforge.inria.fr */
 template <typename value_type>
 class PaStiX {
     public:
-        BOOST_STATIC_ASSERT_MSG(
-                (boost::is_same<value_type, pastix_float_t>::value),
-                "Unsupported value type for PaStiX solver"
+        BOOST_STATIC_ASSERT_MSG( (
+                 boost::is_same<value_type, float >::value ||
+                 boost::is_same<value_type, double>::value
+                ), "Unsupported value type for PaStiX solver"
                 );
+
         struct params {};
 
+        /// The number of processes optimal for the given problem size.
         static int comm_size(int n_global_rows) {
             const int dofs_per_process = 5000;
             return (n_global_rows + dofs_per_process - 1) / dofs_per_process;
         }
 
+        /// Constructor.
+        /**
+         * \param comm MPI communicator containing processes to participate in
+         *        solution of the problem. The number of processes in
+         *        communicator should be (but not necessarily) equal to the
+         *        result of comm_size().
+         * \param n_local_rows Number of matrix rows belonging to the calling
+         *        process.
+         * \param ptr Start of each row in col and val arrays.
+         * \param col Column numbers of nonzero elements.
+         * \param val Values of nonzero elements.
+         * \param prm Solver parameters.
+         */
         template <class PRng, class CRng, class VRng>
         PaStiX(
                 MPI_Comm mpi_comm,
@@ -77,7 +95,7 @@ class PaStiX {
               ptr(boost::begin(p_ptr), boost::end(p_ptr)),
               col(boost::begin(p_col), boost::end(p_col)),
               val(boost::begin(p_val), boost::end(p_val)),
-              row(nrows), perm(nrows, 0), invp(nrows, 0)
+              row(nrows), perm(nrows)
         {
             std::vector<int> domain(comm.size + 1, 0);
             MPI_Allgather(&nrows, 1, MPI_INT, &domain[1], 1, MPI_INT, comm);
@@ -88,9 +106,6 @@ class PaStiX {
                     row.begin()
                     );
 
-            boost::copy(boost::irange(1, nrows + 1), perm.begin());
-            boost::copy(boost::irange(1, nrows + 1), invp.begin());
-
             // PaStiX needs 1-based matrices:
             BOOST_FOREACH(pastix_int_t &p, ptr) ++p;
             BOOST_FOREACH(pastix_int_t &c, col) ++c;
@@ -98,7 +113,7 @@ class PaStiX {
 
             // Initialize parameters with default values:
             iparm[IPARM_MODIFY_PARAMETER] = API_NO;
-            call_pastix(API_TASK_INIT, API_TASK_INIT, NULL);
+            call_pastix(API_TASK_INIT, API_TASK_INIT);
 
             // Factorize the matrix.
             iparm[IPARM_VERBOSE        ] = API_VERBOSE_NOT;
@@ -106,13 +121,19 @@ class PaStiX {
             iparm[IPARM_SYM            ] = API_SYM_NO;
             iparm[IPARM_FACTORIZATION  ] = API_FACT_LU;
             iparm[IPARM_TRANSPOSE_SOLVE] = API_YES;
-            call_pastix(API_TASK_ORDERING, API_TASK_NUMFACT, NULL);
+            call_pastix(API_TASK_ORDERING, API_TASK_NUMFACT);
         }
 
+        /// Cleans up internal PaStiX data.
         ~PaStiX() {
-            call_pastix(API_TASK_CLEAN, API_TASK_CLEAN, NULL);
+            call_pastix(API_TASK_CLEAN, API_TASK_CLEAN);
         }
 
+        /// Solves the problem for the given right-hand side.
+        /**
+         * \param rhs The right-hand side.
+         * \param x   The solution.
+         */
         template <class Vec1, class Vec2>
         void operator()(const Vec1 &rhs, Vec2 &x) const {
             boost::copy(rhs, &x[0]);
@@ -130,28 +151,42 @@ class PaStiX {
         mutable pastix_int_t   iparm[IPARM_SIZE];
         mutable double         dparm[DPARM_SIZE];
 
-        std::vector<pastix_int_t>   ptr;
-        std::vector<pastix_int_t>   col;
-        std::vector<pastix_float_t> val;
+        std::vector<pastix_int_t> ptr;
+        std::vector<pastix_int_t> col;
+        std::vector<value_type>   val;
 
         // Local to global mapping
         std::vector<pastix_int_t> row;
 
-        // Permutation arrays
-        std::vector<pastix_int_t> perm, invp;
+        // Permutation array
+        std::vector<pastix_int_t> perm;
 
-        void call_pastix(int beg, int end, pastix_float_t *x) const {
+        void call_pastix(int beg, int end, value_type *x = NULL) const {
             iparm[IPARM_START_TASK] = beg;
             iparm[IPARM_END_TASK  ] = end;
 
-            dpastix(&pastix_data, comm, nrows,
-                    const_cast<pastix_int_t*  >(ptr.data()),
-                    const_cast<pastix_int_t*  >(col.data()),
-                    const_cast<pastix_float_t*>(val.data()),
-                    const_cast<pastix_int_t*  >(row.data()),
-                    const_cast<pastix_int_t*  >(perm.data()),
-                    const_cast<pastix_int_t*  >(invp.data()),
-                    x, 1, iparm, dparm
+            call_pastix(x);
+        }
+
+        void call_pastix(double *x) const {
+            d_dpastix(&pastix_data, comm, nrows,
+                    const_cast<pastix_int_t*>(ptr.data()),
+                    const_cast<pastix_int_t*>(col.data()),
+                    const_cast<double*      >(val.data()),
+                    const_cast<pastix_int_t*>(row.data()),
+                    const_cast<pastix_int_t*>(perm.data()),
+                    NULL, x, 1, iparm, dparm
+                   );
+        }
+
+        void call_pastix(float *x) const {
+            s_dpastix(&pastix_data, comm, nrows,
+                    const_cast<pastix_int_t*>(ptr.data()),
+                    const_cast<pastix_int_t*>(col.data()),
+                    const_cast<float*       >(val.data()),
+                    const_cast<pastix_int_t*>(row.data()),
+                    const_cast<pastix_int_t*>(perm.data()),
+                    NULL, x, 1, iparm, dparm
                    );
         }
 };

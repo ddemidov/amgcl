@@ -37,6 +37,7 @@ THE SOFTWARE.
 namespace amgcl {
 namespace mpi {
 
+/// Converts C type to MPI datatype.
 template <class T, class Enable = void>
 struct datatype;
 
@@ -55,6 +56,7 @@ struct datatype<long double> {
     static MPI_Datatype get() { return MPI_LONG_DOUBLE; }
 };
 
+/// Convenience wrapper around MPI_Comm.
 struct communicator {
     MPI_Comm comm;
     int      rank;
