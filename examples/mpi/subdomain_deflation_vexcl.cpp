@@ -14,7 +14,7 @@
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
 #include <amgcl/relaxation/spai0.hpp>
 #include <amgcl/solver/bicgstabl.hpp>
-#include <amgcl/mpi/deflation.hpp>
+#include <amgcl/mpi/subdomain_deflation.hpp>
 #include <amgcl/profiler.hpp>
 
 #include "domain_partition.hpp"

@@ -1,5 +1,5 @@
-#ifndef AMGCL_MPI_DEFLATION_HPP
-#define AMGCL_MPI_DEFLATION_HPP
+#ifndef AMGCL_MPI_SUBDOMAIN_DEFLATION_HPP
+#define AMGCL_MPI_SUBDOMAIN_DEFLATION_HPP
 
 /*
 The MIT License
@@ -27,9 +27,9 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/mpi/deflatedion.hpp
+ * \file   amgcl/mpi/subdomain_deflatedion.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
- * \brief  Subdomain deflation support.
+ * \brief  Distributed solver based on subdomain deflation.
  */
 
 #include <vector>
@@ -50,7 +50,7 @@ THE SOFTWARE.
 
 namespace amgcl {
 
-/// Algorithms and structures for distributed computing.
+/// Distributed algorithms and structures.
 namespace mpi {
 
 namespace detail {
@@ -83,7 +83,7 @@ struct constant_deflation {
     int operator()(long row, int j) const { return 1; }
 };
 
-/// Distributed solver with subdomain deflation.
+/// Distributed solver based on subdomain deflation.
 /**
  * \sa \cite Frank2001
  */

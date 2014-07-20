@@ -16,7 +16,7 @@
 #include <amgcl/relaxation/spai0.hpp>
 #include <amgcl/relaxation/gauss_seidel.hpp>
 #include <amgcl/solver/bicgstabl.hpp>
-#include <amgcl/mpi/deflation.hpp>
+#include <amgcl/mpi/subdomain_deflation.hpp>
 #include <amgcl/profiler.hpp>
 
 #ifdef HAVE_PASTIX
