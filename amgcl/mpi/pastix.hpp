@@ -51,7 +51,9 @@ namespace amgcl {
 namespace mpi {
 
 /// Provides distributed direct solver interface for PaStiX solver.
-/** See http://pastix.gforge.inria.fr */
+/**
+ * \sa http://pastix.gforge.inria.fr, \cite Henon2002
+ */
 template <typename value_type>
 class PaStiX {
     public:

@@ -310,7 +310,7 @@ library.
   - Smoothed aggregation:
     `amgcl::coarsening::smoothed_aggregation<Aggregates>`
     ([amgcl/coarsening/smoothed_aggregation.hpp][]).
-  - Smoothed aggregation with energy minimization (see [5]):
+  - Smoothed aggregation with energy minimization (see [6]):
     `amgcl::coarsening::smoothed_aggr_emin<Aggregates>`
     ([amgcl/coarsening/smoothed_aggr_emin.hpp][]).
 
@@ -482,17 +482,20 @@ Have a look at [amgcl/relaxation/damped_jacobi.hpp][] for an example.
    Journal of Computational Science, 3(6):460–462, 2012.
 4. J. Frank and C. Vuik. On the construction of deflation-based
    preconditioners. SIAM Journal on Scientific Computing, 23(2):442–462, 2001.
-5. M. Sala and R. S. Tuminaro. A new petrov-galerkin smoothed aggregation
+5. Pascal Hénon, Pierre Ramet, and Jean Roman. Pastix: a high-performance
+   parallel direct solver for sparse symmetric positive definite systems.
+   Parallel Computing, 28(2):301–321, 2002.
+6. M. Sala and R. S. Tuminaro. A new petrov-galerkin smoothed aggregation
    preconditioner for nonsymmetric linear systems. SIAM Journal on Scientific
    Computing, 31(1):143–166, 2008.
-6. G. L. G. Sleijpen and D. R. Fokkema. Bicgstab (l) for linear equations
+7. G. L. G. Sleijpen and D. R. Fokkema. Bicgstab (l) for linear equations
    involving unsymmetric matrices with complex spectrum. Electronic
    Transactions on Numerical Analysis, 1(11):2000, 1993.
-7. K. Stuben. Algebraic multigrid (AMG): an introduction with applications. GMD
+8. K. Stuben. Algebraic multigrid (AMG): an introduction with applications. GMD
    Report 70, GMD, Sankt Augustin, Germany, 1999.
-8. U. Trottenberg, C. Oosterlee, and A. Schüller. Multigrid. Academic Press,
+9. U. Trottenberg, C. Oosterlee, and A. Schüller. Multigrid. Academic Press,
    London, 2001. 631 p.
-9. P. Vanek, J. Mandel, and M. Brezina. Algebraic multigrid by smoothed
+10. P. Vanek, J. Mandel, and M. Brezina. Algebraic multigrid by smoothed
    aggregation for second and fourth order elliptic problems. Computing,
    56(3):179–196, 1996.
 
