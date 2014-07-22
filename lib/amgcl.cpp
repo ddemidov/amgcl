@@ -4,9 +4,10 @@
 
 #include <amgcl/amgcl.hpp>
 
+#include <amgcl/adapter/crs_tuple.hpp>
+
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/backend/block_crs.hpp>
-#include <amgcl/adapter/crs_tuple.hpp>
 
 #include <amgcl/coarsening/ruge_stuben.hpp>
 #include <amgcl/coarsening/pointwise_aggregates.hpp>
@@ -79,7 +80,14 @@ template <
     class Coarsening,
     class Func
     >
-void process(amgclRelaxation relaxation, const Func &func)
+typename boost::enable_if<
+    boost::is_same<
+        amgcl::backend::builtin<typename Backend::value_type>,
+        Backend
+        >,
+    void
+    >::type
+process(amgclRelaxation relaxation, const Func &func)
 {
     switch (relaxation) {
         case amgclRelaxationDampedJacobi:
@@ -117,6 +125,48 @@ void process(amgclRelaxation relaxation, const Func &func)
                 amgcl::relaxation::ilu0
                 >(func);
             break;
+    }
+}
+
+//---------------------------------------------------------------------------
+template <
+    class Backend,
+    class Coarsening,
+    class Func
+    >
+typename boost::disable_if<
+    boost::is_same<
+        amgcl::backend::builtin<typename Backend::value_type>,
+        Backend
+        >,
+    void
+    >::type
+process(amgclRelaxation relaxation, const Func &func)
+{
+    switch (relaxation) {
+        case amgclRelaxationDampedJacobi:
+            process<
+                Backend,
+                Coarsening,
+                amgcl::relaxation::damped_jacobi
+                >(func);
+            break;
+        case amgclRelaxationChebyshev:
+            process<
+                Backend,
+                Coarsening,
+                amgcl::relaxation::chebyshev
+                >(func);
+            break;
+        case amgclRelaxationSPAI0:
+            process<
+                Backend,
+                Coarsening,
+                amgcl::relaxation::spai0
+                >(func);
+            break;
+        default:
+            amgcl::precondition(false, "Unsupported relaxation scheme");
     }
 }
 
@@ -177,6 +227,10 @@ void process(
     switch (backend) {
         case amgclBackendBuiltin:
             process< amgcl::backend::builtin<double> >(
+                    coarsening, relaxation, func);
+            break;
+        case amgclBackendBlockCRS:
+            process< amgcl::backend::block_crs<double> >(
                     coarsening, relaxation, func);
             break;
     }

@@ -39,7 +39,8 @@ extern "C" {
 
 // Backends
 typedef enum {
-    amgclBackendBuiltin  = 1
+    amgclBackendBuiltin  = 1,
+    amgclBackendBlockCRS = 2
 } amgclBackend;
 
 // Coarsening
