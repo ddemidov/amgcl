@@ -40,6 +40,7 @@ THE SOFTWARE.
 
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/solver/detail/default_inner_product.hpp>
+#include <amgcl/util.hpp>
 
 namespace amgcl {
 namespace solver {
@@ -76,6 +77,12 @@ class gmres {
             {
                 precondition(M > 0, "M in GMRES(M) should be >=1");
             }
+
+            params(const boost::property_tree::ptree &p)
+                : AMGCL_PARAMS_IMPORT_VALUE(p, M),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, tol)
+            {}
         };
 
         /// \copydoc amgcl::solver::cg::cg

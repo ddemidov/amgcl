@@ -32,6 +32,7 @@ THE SOFTWARE.
  */
 
 #include <amgcl/backend/interface.hpp>
+#include <amgcl/util.hpp>
 
 namespace amgcl {
 namespace relaxation {
@@ -48,7 +49,10 @@ namespace relaxation {
 template <class Backend>
 struct gauss_seidel {
     /// Relaxation parameters.
-    struct params { };
+    struct params {
+        params() {}
+        params(const boost::property_tree::ptree&) {}
+    };
 
     /// \copydoc amgcl::relaxation::damped_jacobi::damped_jacobi
     template <class Matrix>

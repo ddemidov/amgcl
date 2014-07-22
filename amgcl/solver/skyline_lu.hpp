@@ -73,6 +73,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/range/algorithm_ext.hpp>
 
 #include <amgcl/backend/interface.hpp>
+#include <amgcl/util.hpp>
 
 namespace amgcl {
 namespace solver {
@@ -195,7 +196,10 @@ template <
     >
 class skyline_lu {
     public:
-        struct params {};
+        struct params {
+            params() {}
+            params(const boost::property_tree::ptree&) {}
+        };
 
         static size_t coarse_enough() { return 5000; }
 

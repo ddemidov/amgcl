@@ -92,6 +92,13 @@ struct aggregation {
         params() : over_interp(1.5f) {
             aggr.eps_strong = 0.1f;
         }
+
+        params(const boost::property_tree::ptree &p)
+            : AMGCL_PARAMS_IMPORT_VALUE(p, over_interp),
+              AMGCL_PARAMS_IMPORT_CHILD(p, aggr)
+        {
+            aggr.eps_strong = 0.1f;
+        }
     };
 
     /// Creates transfer operators for the given system matrix.

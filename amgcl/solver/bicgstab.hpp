@@ -67,6 +67,11 @@ class bicgstab : public bicgstabl<Backend, InnerProduct> {
             params(size_t maxiter = 100, value_type tol = 1e-8)
                 : maxiter(maxiter), tol(tol)
             {}
+
+            params(const boost::property_tree::ptree &p)
+                : AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, tol)
+            {}
         };
 
         /// \copydoc amgcl::solver::cg::cg

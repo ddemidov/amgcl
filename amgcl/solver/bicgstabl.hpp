@@ -73,6 +73,12 @@ class bicgstabl {
             {
                 precondition(L > 0, "L in BiCGStab(L) should be >=1");
             }
+
+            params(const boost::property_tree::ptree &p)
+                : AMGCL_PARAMS_IMPORT_VALUE(p, L),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, tol)
+            {}
         };
 
         /// \copydoc amgcl::solver::cg::cg

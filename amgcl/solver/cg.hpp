@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include <boost/tuple/tuple.hpp>
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/solver/detail/default_inner_product.hpp>
+#include <amgcl/util.hpp>
 
 namespace amgcl {
 
@@ -78,6 +79,11 @@ class cg {
 
             params(size_t maxiter = 100, value_type tol = 1e-8)
                 : maxiter(maxiter), tol(tol)
+            {}
+
+            params(const boost::property_tree::ptree &p)
+                : AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, tol)
             {}
         };
 

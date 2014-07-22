@@ -33,6 +33,7 @@ THE SOFTWARE.
 
 #include <vector>
 #include <boost/foreach.hpp>
+#include <amgcl/util.hpp>
 #include <amgcl/backend/builtin.hpp>
 
 namespace amgcl {
@@ -71,6 +72,10 @@ struct plain_aggregates {
         float eps_strong;
 
         params() : eps_strong(0.08f) {}
+
+        params(const boost::property_tree::ptree &p)
+            : AMGCL_PARAMS_IMPORT_VALUE(p, eps_strong)
+        {}
     };
 
     static const long undefined = -1;

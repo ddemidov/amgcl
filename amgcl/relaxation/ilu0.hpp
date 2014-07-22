@@ -34,6 +34,10 @@ struct ilu0 {
         float damping;
 
         params(float damping = 0.72) : damping(damping) {}
+
+        params(const boost::property_tree::ptree &p)
+            : AMGCL_PARAMS_IMPORT_VALUE(p, damping)
+        {}
     };
 
     /// \copydoc amgcl::relaxation::damped_jacobi::damped_jacobi

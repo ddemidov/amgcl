@@ -40,6 +40,7 @@ THE SOFTWARE.
 #include <viennacl/linalg/inner_prod.hpp>
 #include <viennacl/linalg/prod.hpp>
 
+#include <amgcl/util.hpp>
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/backend/detail/default_direct_solver.hpp>
@@ -66,7 +67,10 @@ struct viennacl {
     typedef detail::default_direct_solver<viennacl>    direct_solver;
 
     /// Backend parameters.
-    struct params {};
+    struct params {
+        params() {}
+        params(const boost::property_tree::ptree&) {}
+    };
 
     /// Copy matrix from builtin backend.
     static boost::shared_ptr<matrix>

@@ -33,6 +33,7 @@ THE SOFTWARE.
 
 #include <boost/shared_ptr.hpp>
 #include <amgcl/backend/interface.hpp>
+#include <amgcl/util.hpp>
 
 namespace amgcl {
 
@@ -58,6 +59,10 @@ struct damped_jacobi {
 
         params(typename Backend::value_type damping = 0.72)
             : damping(damping) {}
+
+        params(const boost::property_tree::ptree &p)
+            : AMGCL_PARAMS_IMPORT_VALUE(p, damping)
+        {}
     };
 
     boost::shared_ptr<typename Backend::vector> dia;

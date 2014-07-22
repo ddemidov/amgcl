@@ -77,6 +77,12 @@ struct ruge_stuben {
         float eps_trunc;
 
         params() : eps_strong(0.25f), do_trunc(true), eps_trunc(0.2f) {}
+
+        params(const boost::property_tree::ptree &p)
+            : AMGCL_PARAMS_IMPORT_VALUE(p, eps_strong),
+              AMGCL_PARAMS_IMPORT_VALUE(p, do_trunc),
+              AMGCL_PARAMS_IMPORT_VALUE(p, eps_trunc)
+        {}
     };
 
     /// \copydoc amgcl::coarsening::aggregation::transfer_operators

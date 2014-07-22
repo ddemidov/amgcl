@@ -59,7 +59,10 @@ struct blaze {
     typedef solver::skyline_lu<real>        direct_solver;
 
     /// Backend parameters.
-    struct params {};
+    struct params {
+        params() {}
+        params(const boost::property_tree::ptree&) {}
+    };
 
     /// Copy matrix from builtin backend.
     static boost::shared_ptr<matrix>

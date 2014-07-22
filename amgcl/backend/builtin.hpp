@@ -351,7 +351,10 @@ struct builtin {
     typedef solver::skyline_lu<value_type> direct_solver;
 
     /// Backend parameters.
-    struct params {};
+    struct params {
+        params() {}
+        params(const boost::property_tree::ptree&) {}
+    };
 
     /// Copy matrix.
     /** This is a noop for builtin backend. */

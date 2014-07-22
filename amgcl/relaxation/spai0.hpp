@@ -33,6 +33,7 @@ THE SOFTWARE.
 
 #include <boost/shared_ptr.hpp>
 #include <amgcl/backend/interface.hpp>
+#include <amgcl/util.hpp>
 
 namespace amgcl {
 namespace relaxation {
@@ -49,7 +50,10 @@ struct spai0 {
     typedef typename Backend::vector     vector;
 
     /// Relaxation parameters.
-    struct params {};
+    struct params {
+        params() {}
+        params(const boost::property_tree::ptree&) {}
+    };
 
     /// \copydoc amgcl::relaxation::damped_jacobi::damped_jacobi
     template <class Matrix>

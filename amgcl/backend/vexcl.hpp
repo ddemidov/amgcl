@@ -36,6 +36,7 @@ THE SOFTWARE.
 
 #include <vexcl/vexcl.hpp>
 
+#include <amgcl/util.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/backend/detail/default_direct_solver.hpp>
 
@@ -63,6 +64,9 @@ struct vexcl {
     struct params {
         /// Command queues that identify compute devices to use with VexCL.
         std::vector< vex::backend::command_queue > q;
+
+        params() {}
+        params(const boost::property_tree::ptree&) {}
     };
 
     /// Copy matrix from builtin backend.

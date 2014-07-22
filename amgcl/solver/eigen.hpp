@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include <Eigen/SparseCore>
 
 #include <amgcl/backend/builtin.hpp>
+#include <amgcl/util.hpp>
 
 namespace amgcl {
 namespace solver {
@@ -45,7 +46,10 @@ class EigenSolver {
         typedef typename Solver::MatrixType MatrixType;
         typedef typename Solver::Scalar     value_type;
 
-        struct params {};
+        struct params {
+            params() {}
+            params(const boost::property_tree::ptree&) {}
+        };
 
         template <class Matrix>
         EigenSolver(const Matrix &A, const params &prm = params())

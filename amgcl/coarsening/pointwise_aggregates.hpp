@@ -63,6 +63,10 @@ class pointwise_aggregates {
             unsigned block_size;
 
             params() : block_size(1) {}
+
+            params(const boost::property_tree::ptree &p)
+                : AMGCL_PARAMS_IMPORT_VALUE(p, block_size)
+            {}
         };
 
         static const long undefined = -1;

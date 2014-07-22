@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
 #include <Eigen/Sparse>
+#include <amgcl/util.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/solver/skyline_lu.hpp>
 
@@ -65,7 +66,10 @@ struct eigen {
     typedef solver::skyline_lu<real> direct_solver;
 
     /// Backend parameters.
-    struct params {};
+    struct params {
+        params() {}
+        params(const boost::property_tree::ptree&) {}
+    };
 
     /// Copy matrix from builtin backend.
     static boost::shared_ptr<matrix>

@@ -32,6 +32,7 @@ THE SOFTWARE.
  */
 
 #include <stdexcept>
+#include <boost/property_tree/ptree.hpp>
 
 /* Performance measurement macros
  *
@@ -59,7 +60,22 @@ namespace amgcl { extern profiler<> prof; }
               << std::setw(15) << std::setprecision(8) << std::scientific      \
               << (x) << std::endl
 
+#define AMGCL_PARAMS_IMPORT_VALUE(p, name)                                     \
+    name( p.get(#name, params().name) )
+
+#define AMGCL_PARAMS_IMPORT_CHILD(p, name)                                     \
+    name( p.get_child(#name, amgcl::detail::empty_ptree()) )
+
 namespace amgcl {
+
+namespace detail {
+
+const boost::property_tree::ptree& empty_ptree() {
+    static const boost::property_tree::ptree p;
+    return p;
+}
+
+}
 
 /// Throws \p message if \p condition is not true.
 template <class Condition, class Message>

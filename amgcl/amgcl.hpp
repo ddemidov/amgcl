@@ -117,6 +117,15 @@ class amg {
                 npost        (   1 ),
                 ncycle       (   1 )
             {}
+
+            params(const boost::property_tree::ptree &p)
+                : AMGCL_PARAMS_IMPORT_VALUE(p, coarse_enough),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, npre),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, npost),
+                  AMGCL_PARAMS_IMPORT_CHILD(p, backend),
+                  AMGCL_PARAMS_IMPORT_CHILD(p, coarsening),
+                  AMGCL_PARAMS_IMPORT_CHILD(p, relax)
+            {}
         } prm;
 
         /// Builds the AMG hierarchy for the system matrix.

@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include <boost/range/algorithm.hpp>
 #include <boost/range/numeric.hpp>
 
+#include <amgcl/util.hpp>
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/solver/skyline_lu.hpp>
@@ -163,6 +164,9 @@ struct block_crs {
         size_t block_size;
 
         params(size_t block_size = 4) : block_size(block_size) {}
+        params(const boost::property_tree::ptree &p)
+            : AMGCL_PARAMS_IMPORT_VALUE(p, block_size)
+        {}
     };
 
     /// Copy matrix from builtin backend.
