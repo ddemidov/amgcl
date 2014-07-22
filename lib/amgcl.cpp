@@ -34,6 +34,33 @@ namespace amgcl {
 #endif
 
 //---------------------------------------------------------------------------
+amgclParams amgcl_params_create() {
+    using boost::property_tree::ptree;
+    ptree *p = new ptree();
+    return static_cast<amgclParams>(p);
+}
+
+//---------------------------------------------------------------------------
+void amgcl_params_seti(amgclParams prm, const char *name, int value) {
+    using boost::property_tree::ptree;
+    ptree *p = static_cast<ptree*>(prm);
+    p->put(name, value);
+}
+
+//---------------------------------------------------------------------------
+void amgcl_params_setf(amgclParams prm, const char *name, float value) {
+    using boost::property_tree::ptree;
+    ptree *p = static_cast<ptree*>(prm);
+    p->put(name, value);
+}
+
+//---------------------------------------------------------------------------
+void amgcl_params_destroy(amgclParams prm) {
+    using boost::property_tree::ptree;
+    delete static_cast<ptree*>(prm);
+}
+
+//---------------------------------------------------------------------------
 template <
     class Backend,
     class Coarsening,
@@ -62,11 +89,11 @@ void process(amgclRelaxation relaxation, const Func &func)
                 amgcl::relaxation::damped_jacobi
                 >(func);
             break;
-        case amgclRelaxationSPAI0:
+        case amgclRelaxationGaussSeidel:
             process<
                 Backend,
                 Coarsening,
-                amgcl::relaxation::spai0
+                amgcl::relaxation::gauss_seidel
                 >(func);
             break;
         case amgclRelaxationChebyshev:
@@ -74,6 +101,20 @@ void process(amgclRelaxation relaxation, const Func &func)
                 Backend,
                 Coarsening,
                 amgcl::relaxation::chebyshev
+                >(func);
+            break;
+        case amgclRelaxationSPAI0:
+            process<
+                Backend,
+                Coarsening,
+                amgcl::relaxation::spai0
+                >(func);
+            break;
+        case amgclRelaxationILU0:
+            process<
+                Backend,
+                Coarsening,
+                amgcl::relaxation::ilu0
                 >(func);
             break;
     }
@@ -138,10 +179,6 @@ void process(
             process< amgcl::backend::builtin<double> >(
                     coarsening, relaxation, func);
             break;
-        case amgclBackendBlockCRS:
-            process< amgcl::backend::block_crs<double> >(
-                    coarsening, relaxation, func);
-            break;
     }
 }
 
@@ -156,6 +193,8 @@ struct Handle {
 
 //---------------------------------------------------------------------------
 struct do_create {
+    amgclParams prm;
+
     size_t  n;
 
     const long   *ptr;
@@ -165,23 +204,28 @@ struct do_create {
     mutable void *handle;
 
     do_create(
+            amgclParams prm,
             size_t  n,
             const long   *ptr,
             const long   *col,
             const double *val
           )
-        : n(n), ptr(ptr), col(col), val(val), handle(0)
+        : prm(prm), n(n), ptr(ptr), col(col), val(val), handle(0)
     {}
 
     template <class AMG>
     void process() const {
+        using boost::property_tree::ptree;
+        const ptree *p = static_cast<const ptree*>(prm);
+
         AMG *amg = new AMG(
                 boost::make_tuple(
                     n,
                     boost::make_iterator_range(ptr, ptr + n + 1),
                     boost::make_iterator_range(col, col + ptr[n]),
                     boost::make_iterator_range(val, val + ptr[n])
-                    )
+                    ),
+                *p
                 );
 
         std::cout << *amg << std::endl;
@@ -195,13 +239,14 @@ amgclHandle amgcl_create(
         amgclBackend    backend,
         amgclCoarsening coarsening,
         amgclRelaxation relaxation,
+        amgclParams     prm,
         size_t n,
         const long   *ptr,
         const long   *col,
         const double *val
         )
 {
-    do_create c(n, ptr, col, val);
+    do_create c(prm, n, ptr, col, val);
     process(backend, coarsening, relaxation, c);
 
     Handle *h = new Handle();
@@ -237,19 +282,24 @@ void amgcl_destroy(amgclHandle handle) {
 struct do_solve {
     void *handle;
     amgclSolver solver;
+    amgclParams prm;
     const double *rhs;
     double *x;
 
-    do_solve(void *handle, amgclSolver solver,
+    do_solve(void *handle, amgclSolver solver, amgclParams prm,
         const double *rhs, double *x
-        ) : handle(handle), solver(solver), rhs(rhs), x(x)
+        ) : handle(handle), solver(solver), prm(prm), rhs(rhs), x(x)
     {}
 
     template <class Solver, class AMG>
     void solve(const AMG &amg) const {
         const size_t n = amgcl::backend::rows( amg.top_matrix() );
 
-        Solver s(n);
+        using boost::property_tree::ptree;
+
+        const ptree *p = static_cast<const ptree*>(prm);
+        Solver s(n, *p);
+
         size_t iters;
         double resid;
 
@@ -278,6 +328,9 @@ struct do_solve {
             case amgclSolverBiCGStab:
                 solve< amgcl::solver::bicgstab<Backend> >(*amg);
                 break;
+            case amgclSolverBiCGStabL:
+                solve< amgcl::solver::bicgstabl<Backend> >(*amg);
+                break;
             case amgclSolverGMRES:
                 solve< amgcl::solver::gmres<Backend> >(*amg);
                 break;
@@ -288,6 +341,7 @@ struct do_solve {
 //---------------------------------------------------------------------------
 void amgcl_solve(
         amgclSolver solver,
+        amgclParams prm,
         amgclHandle handle,
         const double *rhs,
         double *x
@@ -296,5 +350,5 @@ void amgcl_solve(
     Handle *h = static_cast<Handle*>(handle);
 
     process(h->backend, h->coarsening, h->relaxation,
-            do_solve(h->amg, solver, rhs, x));
+            do_solve(h->amg, solver, prm, rhs, x));
 }

@@ -119,12 +119,13 @@ class amg {
             {}
 
             params(const boost::property_tree::ptree &p)
-                : AMGCL_PARAMS_IMPORT_VALUE(p, coarse_enough),
+                : AMGCL_PARAMS_IMPORT_CHILD(p, backend),
+                  AMGCL_PARAMS_IMPORT_CHILD(p, coarsening),
+                  AMGCL_PARAMS_IMPORT_CHILD(p, relax),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, coarse_enough),
                   AMGCL_PARAMS_IMPORT_VALUE(p, npre),
                   AMGCL_PARAMS_IMPORT_VALUE(p, npost),
-                  AMGCL_PARAMS_IMPORT_CHILD(p, backend),
-                  AMGCL_PARAMS_IMPORT_CHILD(p, coarsening),
-                  AMGCL_PARAMS_IMPORT_CHILD(p, relax)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, ncycle)
             {}
         } prm;
 

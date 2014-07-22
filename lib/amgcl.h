@@ -39,31 +39,43 @@ extern "C" {
 
 // Backends
 typedef enum {
-    amgclBackendBuiltin  = 0,
-    amgclBackendBlockCRS = 1
+    amgclBackendBuiltin  = 1
 } amgclBackend;
 
 // Coarsening
 typedef enum {
-    amgclCoarseningRugeStuben          = 0,
-    amgclCoarseningAggregation         = 1,
-    amgclCoarseningSmoothedAggregation = 2,
-    amgclCoarseningSmoothedAggrEMin    = 3
+    amgclCoarseningRugeStuben          = 1,
+    amgclCoarseningAggregation         = 2,
+    amgclCoarseningSmoothedAggregation = 3,
+    amgclCoarseningSmoothedAggrEMin    = 4
 } amgclCoarsening;
 
 // Relaxation
 typedef enum {
-    amgclRelaxationDampedJacobi = 0,
-    amgclRelaxationSPAI0        = 1,
-    amgclRelaxationChebyshev    = 2
+    amgclRelaxationDampedJacobi = 1,
+    amgclRelaxationGaussSeidel  = 2,
+    amgclRelaxationChebyshev    = 3,
+    amgclRelaxationSPAI0        = 4,
+    amgclRelaxationILU0         = 5
 } amgclRelaxation;
 
 // Solver
 typedef enum {
-    amgclSolverCG       = 0,
-    amgclSolverBiCGStab = 1,
-    amgclSolverGMRES    = 2
+    amgclSolverCG        = 1,
+    amgclSolverBiCGStab  = 2,
+    amgclSolverBiCGStabL = 3,
+    amgclSolverGMRES     = 4
 } amgclSolver;
+
+typedef void* amgclParams;
+
+amgclParams amgcl_params_create();
+
+void amgcl_params_seti(amgclParams prm, const char *name, int   value);
+
+void amgcl_params_setf(amgclParams prm, const char *name, float value);
+
+void amgcl_params_destroy(amgclParams prm);
 
 typedef void* amgclHandle;
 
@@ -71,6 +83,7 @@ amgclHandle amgcl_create(
         amgclBackend    backend,
         amgclCoarsening coarsening,
         amgclRelaxation relaxation,
+        amgclParams     prm,
         size_t n,
         const long   *ptr,
         const long   *col,
@@ -79,6 +92,7 @@ amgclHandle amgcl_create(
 
 void amgcl_solve(
         amgclSolver solver,
+        amgclParams prm,
         amgclHandle amg,
         const double *rhs,
         double *x

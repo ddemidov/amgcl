@@ -94,8 +94,8 @@ struct aggregation {
         }
 
         params(const boost::property_tree::ptree &p)
-            : AMGCL_PARAMS_IMPORT_VALUE(p, over_interp),
-              AMGCL_PARAMS_IMPORT_CHILD(p, aggr)
+            : AMGCL_PARAMS_IMPORT_CHILD(p, aggr),
+              AMGCL_PARAMS_IMPORT_VALUE(p, over_interp)
         {
             aggr.eps_strong = 0.1f;
         }

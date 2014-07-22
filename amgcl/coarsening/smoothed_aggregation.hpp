@@ -84,8 +84,8 @@ struct smoothed_aggregation {
         }
 
         params(const boost::property_tree::ptree &p)
-            : AMGCL_PARAMS_IMPORT_VALUE(p, relax),
-              AMGCL_PARAMS_IMPORT_CHILD(p, aggr)
+            : AMGCL_PARAMS_IMPORT_CHILD(p, aggr),
+              AMGCL_PARAMS_IMPORT_VALUE(p, relax)
         {
             aggr.eps_strong = 0.08f;
         }
