@@ -193,7 +193,7 @@ class PaStiX {
         }
 };
 
-}
-}
+} // namespace mpi
+} // namespace amgcl
 
 #endif
