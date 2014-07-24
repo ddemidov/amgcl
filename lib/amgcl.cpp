@@ -35,28 +35,28 @@ namespace amgcl {
 #endif
 
 //---------------------------------------------------------------------------
-amgclParams amgcl_params_create() {
+amgclHandle amgcl_params_create() {
     using boost::property_tree::ptree;
     ptree *p = new ptree();
-    return static_cast<amgclParams>(p);
+    return static_cast<amgclHandle>(p);
 }
 
 //---------------------------------------------------------------------------
-void amgcl_params_seti(amgclParams prm, const char *name, int value) {
+void amgcl_params_seti(amgclHandle prm, const char *name, int value) {
     using boost::property_tree::ptree;
     ptree *p = static_cast<ptree*>(prm);
     p->put(name, value);
 }
 
 //---------------------------------------------------------------------------
-void amgcl_params_setf(amgclParams prm, const char *name, float value) {
+void amgcl_params_setf(amgclHandle prm, const char *name, float value) {
     using boost::property_tree::ptree;
     ptree *p = static_cast<ptree*>(prm);
     p->put(name, value);
 }
 
 //---------------------------------------------------------------------------
-void amgcl_params_destroy(amgclParams prm) {
+void amgcl_params_destroy(amgclHandle prm) {
     using boost::property_tree::ptree;
     delete static_cast<ptree*>(prm);
 }
@@ -68,7 +68,7 @@ template <
     template <class> class Relaxation,
     class Func
     >
-void process(const Func &func)
+void process_precond(const Func &func)
 {
     typedef amgcl::amg<Backend, Coarsening, Relaxation> AMG;
     func.template process<AMG>();
@@ -87,39 +87,39 @@ typename boost::enable_if<
         >,
     void
     >::type
-process(amgclRelaxation relaxation, const Func &func)
+process_precond(amgclRelaxation relaxation, const Func &func)
 {
     switch (relaxation) {
         case amgclRelaxationDampedJacobi:
-            process<
+            process_precond<
                 Backend,
                 Coarsening,
                 amgcl::relaxation::damped_jacobi
                 >(func);
             break;
         case amgclRelaxationGaussSeidel:
-            process<
+            process_precond<
                 Backend,
                 Coarsening,
                 amgcl::relaxation::gauss_seidel
                 >(func);
             break;
         case amgclRelaxationChebyshev:
-            process<
+            process_precond<
                 Backend,
                 Coarsening,
                 amgcl::relaxation::chebyshev
                 >(func);
             break;
         case amgclRelaxationSPAI0:
-            process<
+            process_precond<
                 Backend,
                 Coarsening,
                 amgcl::relaxation::spai0
                 >(func);
             break;
         case amgclRelaxationILU0:
-            process<
+            process_precond<
                 Backend,
                 Coarsening,
                 amgcl::relaxation::ilu0
@@ -141,25 +141,25 @@ typename boost::disable_if<
         >,
     void
     >::type
-process(amgclRelaxation relaxation, const Func &func)
+process_precond(amgclRelaxation relaxation, const Func &func)
 {
     switch (relaxation) {
         case amgclRelaxationDampedJacobi:
-            process<
+            process_precond<
                 Backend,
                 Coarsening,
                 amgcl::relaxation::damped_jacobi
                 >(func);
             break;
         case amgclRelaxationChebyshev:
-            process<
+            process_precond<
                 Backend,
                 Coarsening,
                 amgcl::relaxation::chebyshev
                 >(func);
             break;
         case amgclRelaxationSPAI0:
-            process<
+            process_precond<
                 Backend,
                 Coarsening,
                 amgcl::relaxation::spai0
@@ -175,7 +175,7 @@ template <
     class Backend,
     class Func
     >
-void process(
+void process_precond(
         amgclCoarsening coarsening,
         amgclRelaxation relaxation,
         const Func &func
@@ -183,13 +183,13 @@ void process(
 {
     switch (coarsening) {
         case amgclCoarseningRugeStuben:
-            process<
+            process_precond<
                 Backend,
                 amgcl::coarsening::ruge_stuben
                 >(relaxation, func);
             break;
         case amgclCoarseningAggregation:
-            process<
+            process_precond<
                 Backend,
                 amgcl::coarsening::aggregation<
                     amgcl::coarsening::pointwise_aggregates
@@ -197,7 +197,7 @@ void process(
                 >(relaxation, func);
             break;
         case amgclCoarseningSmoothedAggregation:
-            process<
+            process_precond<
                 Backend,
                 amgcl::coarsening::smoothed_aggregation<
                     amgcl::coarsening::pointwise_aggregates
@@ -205,7 +205,7 @@ void process(
                 >(relaxation, func);
             break;
         case amgclCoarseningSmoothedAggrEMin:
-            process<
+            process_precond<
                 Backend,
                 amgcl::coarsening::smoothed_aggr_emin<
                     amgcl::coarsening::pointwise_aggregates
@@ -217,7 +217,7 @@ void process(
 
 //---------------------------------------------------------------------------
 template <class Func>
-void process(
+void process_precond(
         amgclBackend    backend,
         amgclCoarsening coarsening,
         amgclRelaxation relaxation,
@@ -226,42 +226,42 @@ void process(
 {
     switch (backend) {
         case amgclBackendBuiltin:
-            process< amgcl::backend::builtin<double> >(
+            process_precond< amgcl::backend::builtin<double> >(
                     coarsening, relaxation, func);
             break;
         case amgclBackendBlockCRS:
-            process< amgcl::backend::block_crs<double> >(
+            process_precond< amgcl::backend::block_crs<double> >(
                     coarsening, relaxation, func);
             break;
     }
 }
 
 //---------------------------------------------------------------------------
-struct Handle {
+struct AMGHandle {
     amgclBackend    backend;
     amgclCoarsening coarsening;
     amgclRelaxation relaxation;
 
-    void *amg;
+    void *handle;
 };
 
 //---------------------------------------------------------------------------
-struct do_create {
-    amgclParams prm;
+struct do_create_precond {
+    amgclHandle prm;
 
     size_t  n;
 
-    const long   *ptr;
-    const long   *col;
+    const int    *ptr;
+    const int    *col;
     const double *val;
 
     mutable void *handle;
 
-    do_create(
-            amgclParams prm,
+    do_create_precond(
+            amgclHandle prm,
             size_t  n,
-            const long   *ptr,
-            const long   *col,
+            const int    *ptr,
+            const int    *col,
             const double *val
           )
         : prm(prm), n(n), ptr(ptr), col(col), val(val), handle(0)
@@ -289,35 +289,66 @@ struct do_create {
 };
 
 //---------------------------------------------------------------------------
-amgclHandle amgcl_create(
+amgclHandle amgcl_precond_create(
         amgclBackend    backend,
         amgclCoarsening coarsening,
         amgclRelaxation relaxation,
-        amgclParams     prm,
-        size_t n,
-        const long   *ptr,
-        const long   *col,
+        amgclHandle     prm,
+        int n,
+        const int    *ptr,
+        const int    *col,
         const double *val
         )
 {
-    do_create c(prm, n, ptr, col, val);
-    process(backend, coarsening, relaxation, c);
+    do_create_precond create(prm, n, ptr, col, val);
+    process_precond(backend, coarsening, relaxation, create);
 
-    Handle *h = new Handle();
+    AMGHandle *h = new AMGHandle();
 
     h->backend    = backend;
     h->coarsening = coarsening;
     h->relaxation = relaxation;
-    h->amg        = c.handle;
+    h->handle     = create.handle;
 
     return static_cast<amgclHandle>(h);
 }
 
 //---------------------------------------------------------------------------
-struct do_destroy {
+struct do_apply_precond {
+    void *handle;
+    double const *rhs;
+    double       *x;
+
+    do_apply_precond(void *handle, const double *rhs, double *x)
+        : handle(handle), rhs(rhs), x(x) {}
+
+    template <class AMG>
+    void process() const {
+        AMG *amg = static_cast<AMG*>(handle);
+        const size_t n = amgcl::backend::rows( amg->top_matrix() );
+
+        boost::iterator_range<const double*> rhs_range(rhs, rhs + n);
+        boost::iterator_range<double*> x_range(x, x + n);
+
+        amg->apply(rhs_range, x_range);
+    }
+};
+
+//---------------------------------------------------------------------------
+void amgcl_precond_apply(amgclHandle handle, const double *rhs, double *x) {
+    AMGHandle *h = static_cast<AMGHandle*>(handle);
+
+    process_precond(
+            h->backend, h->coarsening, h->relaxation,
+            do_apply_precond(h->handle, rhs, x)
+            );
+}
+
+//---------------------------------------------------------------------------
+struct do_destroy_precond {
     void *handle;
 
-    do_destroy(void *handle) : handle(handle) {}
+    do_destroy_precond(void *handle) : handle(handle) {}
 
     template <class AMG>
     void process() const {
@@ -326,83 +357,189 @@ struct do_destroy {
 };
 
 //---------------------------------------------------------------------------
-void amgcl_destroy(amgclHandle handle) {
-    Handle *h = static_cast<Handle*>(handle);
+void amgcl_precond_destroy(amgclHandle handle) {
+    AMGHandle *h = static_cast<AMGHandle*>(handle);
 
-    process(h->backend, h->coarsening, h->relaxation, do_destroy(h->amg));
+    process_precond(
+            h->backend, h->coarsening, h->relaxation,
+            do_destroy_precond(h->handle)
+            );
+
+    delete h;
 }
 
 //---------------------------------------------------------------------------
-struct do_solve {
-    void *handle;
-    amgclSolver solver;
-    amgclParams prm;
-    const double *rhs;
-    double *x;
-
-    do_solve(void *handle, amgclSolver solver, amgclParams prm,
-        const double *rhs, double *x
-        ) : handle(handle), solver(solver), prm(prm), rhs(rhs), x(x)
-    {}
-
-    template <class Solver, class AMG>
-    void solve(const AMG &amg) const {
-        const size_t n = amgcl::backend::rows( amg.top_matrix() );
-
-        using boost::property_tree::ptree;
-
-        const ptree *p = static_cast<const ptree*>(prm);
-        Solver s(n, *p);
-
-        size_t iters;
-        double resid;
-
-        boost::iterator_range<const double*> rhs_range(rhs, rhs + n);
-        boost::iterator_range<double*> x_range(x, x + n);
-
-        boost::tie(iters, resid) = s(amg, rhs_range, x_range);
-
-        std::cout
-            << "Iterations: " << iters << std::endl
-            << "Error:      " << resid << std::endl
-            << std::endl;
-
+template <
+    class Backend,
+    class Func
+    >
+void process_solver(amgclSolver solver, const Func &func)
+{
+    switch(solver) {
+        case amgclSolverCG:
+            func.template process< amgcl::solver::cg<Backend> >();
+            break;
+        case amgclSolverBiCGStab:
+            func.template process< amgcl::solver::bicgstab<Backend> >();
+            break;
+        case amgclSolverBiCGStabL:
+            func.template process< amgcl::solver::bicgstabl<Backend> >();
+            break;
+        case amgclSolverGMRES:
+            func.template process< amgcl::solver::gmres<Backend> >();
+            break;
     }
+}
 
-    template <class AMG>
+//---------------------------------------------------------------------------
+template <class Func>
+void process_solver(
+        amgclBackend backend,
+        amgclSolver  solver,
+        const Func &func
+        )
+{
+    switch (backend) {
+        case amgclBackendBuiltin:
+            process_solver< amgcl::backend::builtin<double> >(solver, func);
+            break;
+        case amgclBackendBlockCRS:
+            process_solver< amgcl::backend::block_crs<double> >(solver, func);
+            break;
+    }
+}
+
+//---------------------------------------------------------------------------
+struct do_create_solver {
+    amgclHandle prm;
+    int n;
+
+    mutable void *handle;
+
+    do_create_solver(amgclHandle prm, int n) : prm(prm), n(n) {}
+
+    template <class Solver>
     void process() const {
-        typedef typename AMG::backend_type Backend;
+        using boost::property_tree::ptree;
+        ptree *p = static_cast<ptree*>(prm);
 
-        AMG *amg = static_cast<AMG*>(handle);
-
-        switch (solver) {
-            case amgclSolverCG:
-                solve< amgcl::solver::cg<Backend> >(*amg);
-                break;
-            case amgclSolverBiCGStab:
-                solve< amgcl::solver::bicgstab<Backend> >(*amg);
-                break;
-            case amgclSolverBiCGStabL:
-                solve< amgcl::solver::bicgstabl<Backend> >(*amg);
-                break;
-            case amgclSolverGMRES:
-                solve< amgcl::solver::gmres<Backend> >(*amg);
-                break;
-        }
+        handle = static_cast<void*>(new Solver(n, *p));
     }
 };
 
 //---------------------------------------------------------------------------
-void amgcl_solve(
-        amgclSolver solver,
-        amgclParams prm,
-        amgclHandle handle,
+struct SolverHandle {
+    amgclBackend backend;
+    amgclSolver  solver;
+
+    void *handle;
+};
+
+//---------------------------------------------------------------------------
+amgclHandle amgcl_solver_create(
+        amgclBackend backend,
+        amgclSolver  solver,
+        amgclHandle  prm,
+        int n
+        )
+{
+    do_create_solver create(prm, n);
+    process_solver(backend, solver, create);
+
+    SolverHandle *h = new SolverHandle();
+    h->backend = backend;
+    h->solver  = solver;
+    h->handle  = create.handle;
+
+    return static_cast<amgclHandle>(h);
+}
+
+//---------------------------------------------------------------------------
+struct do_destroy_solver {
+    mutable void *handle;
+
+    do_destroy_solver(void* handle) : handle(handle) {}
+
+    template <class Solver>
+    void process() const {
+        delete static_cast<Solver*>(handle);
+    }
+};
+
+//---------------------------------------------------------------------------
+void amgcl_solver_destroy(amgclHandle handle) {
+    SolverHandle *h = static_cast<SolverHandle*>(handle);
+
+    process_solver(h->backend, h->solver, do_destroy_solver(h->handle));
+
+    delete h;
+}
+
+//---------------------------------------------------------------------------
+struct do_solve {
+    void *slv_handle;
+    void *amg_handle;
+
+    const double *rhs;
+    double *x;
+
+    do_solve(void *slv_handle, void *amg_handle, const double *rhs, double *x)
+        : slv_handle(slv_handle), amg_handle(amg_handle), rhs(rhs), x(x)
+    {}
+
+    template <class Solver>
+    struct call_solver {
+        Solver *solve;
+        void *amg_handle;
+
+        const double *rhs;
+        double *x;
+
+        call_solver(Solver *solve, void *amg_handle, const double *rhs, double *x)
+            : solve(solve), amg_handle(amg_handle), rhs(rhs), x(x)
+        {}
+
+        template <class AMG>
+        void process() const {
+            AMG *amg = static_cast<AMG*>(amg_handle);
+            const size_t n = amgcl::backend::rows( amg->top_matrix() );
+
+            boost::iterator_range<const double*> rhs_range(rhs, rhs + n);
+            boost::iterator_range<double*> x_range(x, x + n);
+
+            size_t iters;
+            double resid;
+
+            boost::tie(iters, resid) = (*solve)(*amg, rhs_range, x_range);
+
+            std::cout
+                << "Iterations: " << iters << std::endl
+                << "Error:      " << resid << std::endl
+                << std::endl;
+        }
+    };
+
+    template <class Solver>
+    void process() const {
+        AMGHandle *amg    = static_cast<AMGHandle*>(amg_handle);
+        Solver    *solver = static_cast<Solver*   >(slv_handle);
+
+        process_precond(amg->backend, amg->coarsening, amg->relaxation,
+                call_solver<Solver>(solver, amg->handle, rhs, x));
+    }
+};
+
+//---------------------------------------------------------------------------
+void amgcl_solver_solve(
+        amgclHandle solver,
+        amgclHandle amg,
         const double *rhs,
         double *x
         )
 {
-    Handle *h = static_cast<Handle*>(handle);
+    SolverHandle *h = static_cast<SolverHandle*>(solver);
 
-    process(h->backend, h->coarsening, h->relaxation,
-            do_solve(h->amg, solver, prm, rhs, x));
+    process_solver(h->backend, h->solver,
+            do_solve(h->handle, amg, rhs, x)
+            );
 }

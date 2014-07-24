@@ -68,47 +68,59 @@ typedef enum {
     amgclSolverGMRES     = 4
 } amgclSolver;
 
-// Generic parameter list.
-typedef void* amgclParams;
+typedef void* amgclHandle;
 
 // Create parameter list.
-amgclParams amgcl_params_create();
+amgclHandle amgcl_params_create();
 
 // Set integer parameter in a parameter list.
-void amgcl_params_seti(amgclParams prm, const char *name, int   value);
+void amgcl_params_seti(amgclHandle prm, const char *name, int   value);
 
 // Set floating point parameter in a parameter list.
-void amgcl_params_setf(amgclParams prm, const char *name, float value);
+void amgcl_params_setf(amgclHandle prm, const char *name, float value);
 
 // Destroy parameter list.
-void amgcl_params_destroy(amgclParams prm);
+void amgcl_params_destroy(amgclHandle prm);
 
 // AMG preconditioner data structure.
 typedef void* amgclHandle;
 
 // Create AMG preconditioner.
-amgclHandle amgcl_create(
+amgclHandle amgcl_precond_create(
         amgclBackend    backend,
         amgclCoarsening coarsening,
         amgclRelaxation relaxation,
-        amgclParams     prm,
-        size_t n,
-        const long   *ptr,
-        const long   *col,
+        amgclHandle     parameters,
+        int n,
+        const int    *ptr,
+        const int    *col,
         const double *val
         );
 
+// Apply AMG preconditioner (x = M^(-1) * rhs).
+void amgcl_precond_apply(amgclHandle amg, const double *rhs, double *x);
+
+// Destroy AMG preconditioner
+void amgcl_precond_destroy(amgclHandle amg);
+
+// Create iterative solver.
+amgclHandle amgcl_solver_create(
+        amgclBackend backend,
+        amgclSolver  solver,
+        amgclHandle  parameters,
+        int n
+        );
+
 // Solve the problem for the given right-hand side.
-void amgcl_solve(
-        amgclSolver solver,
-        amgclParams prm,
+void amgcl_solver_solve(
+        amgclHandle solver,
         amgclHandle amg,
         const double *rhs,
         double *x
         );
 
-// Destroy AMG preconditioner.
-void amgcl_destroy(amgclHandle handle);
+// Destroy iterative solver.
+void amgcl_solver_destroy(amgclHandle solver);
 
 #ifdef __cplusplus
 } // extern "C"
