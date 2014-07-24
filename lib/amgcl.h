@@ -33,6 +33,12 @@ THE SOFTWARE.
 
 #include <stddef.h>
 
+#if defined (WIN32) && defined (amgcl_EXPORTS)
+#  define AMGCL_C_API __declspec(dllexport)
+#else
+#  define AMGCL_C_API
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -71,22 +77,19 @@ typedef enum {
 typedef void* amgclHandle;
 
 // Create parameter list.
-amgclHandle amgcl_params_create();
+AMGCL_C_API amgclHandle amgcl_params_create();
 
 // Set integer parameter in a parameter list.
-void amgcl_params_seti(amgclHandle prm, const char *name, int   value);
+AMGCL_C_API void amgcl_params_seti(amgclHandle prm, const char *name, int   value);
 
 // Set floating point parameter in a parameter list.
-void amgcl_params_setf(amgclHandle prm, const char *name, float value);
+AMGCL_C_API void amgcl_params_setf(amgclHandle prm, const char *name, float value);
 
 // Destroy parameter list.
-void amgcl_params_destroy(amgclHandle prm);
-
-// AMG preconditioner data structure.
-typedef void* amgclHandle;
+AMGCL_C_API void amgcl_params_destroy(amgclHandle prm);
 
 // Create AMG preconditioner.
-amgclHandle amgcl_precond_create(
+AMGCL_C_API amgclHandle amgcl_precond_create(
         amgclBackend    backend,
         amgclCoarsening coarsening,
         amgclRelaxation relaxation,
@@ -98,13 +101,13 @@ amgclHandle amgcl_precond_create(
         );
 
 // Apply AMG preconditioner (x = M^(-1) * rhs).
-void amgcl_precond_apply(amgclHandle amg, const double *rhs, double *x);
+AMGCL_C_API void amgcl_precond_apply(amgclHandle amg, const double *rhs, double *x);
 
 // Destroy AMG preconditioner
-void amgcl_precond_destroy(amgclHandle amg);
+AMGCL_C_API void amgcl_precond_destroy(amgclHandle amg);
 
 // Create iterative solver.
-amgclHandle amgcl_solver_create(
+AMGCL_C_API amgclHandle amgcl_solver_create(
         amgclBackend backend,
         amgclSolver  solver,
         amgclHandle  parameters,
@@ -112,7 +115,7 @@ amgclHandle amgcl_solver_create(
         );
 
 // Solve the problem for the given right-hand side.
-void amgcl_solver_solve(
+AMGCL_C_API void amgcl_solver_solve(
         amgclHandle solver,
         amgclHandle amg,
         const double *rhs,
@@ -120,7 +123,7 @@ void amgcl_solver_solve(
         );
 
 // Destroy iterative solver.
-void amgcl_solver_destroy(amgclHandle solver);
+AMGCL_C_API void amgcl_solver_destroy(amgclHandle solver);
 
 #ifdef __cplusplus
 } // extern "C"
