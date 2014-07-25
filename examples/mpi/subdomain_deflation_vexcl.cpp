@@ -162,15 +162,10 @@ int main(int argc, char *argv[]) {
 
     std::cout << world.rank << ": " << ctx.queue(0) << std::endl;
 
-    Solver::Solver_params slv_prm(2);
-    Solver::AMG_params    amg_prm;
-    amg_prm.backend.q = ctx;
+    Solver::params prm;
+    prm.amg.backend.q = ctx;
 
-    Solver solve(world,
-            boost::tie(chunk, ptr, col, val),
-            lindef,
-            amg_prm, slv_prm
-            );
+    Solver solve(world, boost::tie(chunk, ptr, col, val), lindef, prm);
     prof.toc("setup");
 
     vex::vector<double> f(ctx, rhs);

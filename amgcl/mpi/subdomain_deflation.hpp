@@ -104,17 +104,18 @@ class subdomain_deflation {
             Backend, detail::mpi_inner_product
             > Solver;
 
-        typedef
-            typename AMG::params
-            AMG_params;
+        struct params {
+            typename AMG::params          amg;
+            typename Solver::params       solver;
+            typename DirectSolver::params direct_solver;
 
-        typedef
-            typename Solver::params
-            Solver_params;
-
-        typedef
-            typename DirectSolver::params
-            DirectSolver_params;
+            params() {}
+            params(const boost::property_tree::ptree &p)
+                : AMGCL_PARAMS_IMPORT_CHILD(p, amg),
+                  AMGCL_PARAMS_IMPORT_CHILD(p, solver),
+                  AMGCL_PARAMS_IMPORT_CHILD(p, direct_solver)
+            {}
+        };
 
         typedef typename Backend::value_type value_type;
         typedef typename Backend::matrix     matrix;
@@ -125,14 +126,12 @@ class subdomain_deflation {
                 MPI_Comm mpi_comm,
                 const Matrix &Astrip,
                 const DeflationVectors &def_vec,
-                const AMG_params          &amg_params           = AMG_params(),
-                const Solver_params       &solver_params        = Solver_params(),
-                const DirectSolver_params &direct_solver_params = DirectSolver_params()
+                const params &prm = params()
                 )
         : comm(mpi_comm),
           nrows(backend::rows(Astrip)), ndv(def_vec.dim()),
           dtype( datatype<value_type>::get() ), dv_start(comm.size + 1, 0),
-          Z( ndv ), q( Backend::create_vector(nrows, amg_params.backend) ),
+          Z( ndv ), q( Backend::create_vector(nrows, prm.amg.backend) ),
           req(2 * comm.size)
         {
             TIC("setup deflation");
@@ -148,7 +147,7 @@ class subdomain_deflation {
 
             df.resize(ndv);
             dx.resize(nz);
-            dd = Backend::create_vector(nz, amg_params.backend);
+            dd = Backend::create_vector(nz, prm.amg.backend);
 
             boost::shared_ptr<build_matrix> aloc = boost::make_shared<build_matrix>();
             boost::shared_ptr<build_matrix> arem = boost::make_shared<build_matrix>();
@@ -167,7 +166,7 @@ class subdomain_deflation {
                 for(int j = 0; j < ndv; ++j) {
                     for(long i = 0; i < nrows; ++i)
                         z[i] = def_vec(i, j);
-                    Z[j] = Backend::copy_vector(z, amg_params.backend);
+                    Z[j] = Backend::copy_vector(z, prm.amg.backend);
                 }
             }
             TOC("copy deflation vectors");
@@ -259,7 +258,7 @@ class subdomain_deflation {
             recv.val.resize(rc.size());
             recv.req.resize(rnbr);
 
-            dv = Backend::create_vector( rc.size(), amg_params.backend );
+            dv = Backend::create_vector( rc.size(), prm.amg.backend );
 
             send.nbr.reserve(snbr);
             send.ptr.reserve(snbr + 1);
@@ -548,7 +547,7 @@ class subdomain_deflation {
                 MPI_Waitall(2 * nslaves, &req[2 * slaves[comm.rank]], MPI_STATUSES_IGNORE);
 
                 E = boost::make_shared<DirectSolver>(
-                        masters_comm, Eptr.size() - 1, Eptr, Ecol, Eval, direct_solver_params
+                        masters_comm, Eptr.size() - 1, Eptr, Ecol, Eval, prm.direct_solver
                         );
 
                 cf.resize(Eptr.size() - 1);
@@ -559,21 +558,21 @@ class subdomain_deflation {
             TOC("setup deflation");
 
             // Create local AMG preconditioner.
-            P = boost::make_shared<AMG>( *aloc, amg_params );
+            P = boost::make_shared<AMG>( *aloc, prm.amg );
 
             // Create iterative solver instance.
             solve = boost::make_shared<Solver>(
-                    nrows, solver_params, amg_params.backend,
+                    nrows, prm.solver, prm.amg.backend,
                     detail::mpi_inner_product(mpi_comm)
                     );
 
             // Move matrices to backend.
-            Arem = Backend::copy_matrix(arem, amg_params.backend);
-            AZ   = Backend::copy_matrix(az,   amg_params.backend);
+            Arem = Backend::copy_matrix(arem, prm.amg.backend);
+            AZ   = Backend::copy_matrix(az,   prm.amg.backend);
 
             // Columns gatherer. Will retrieve columns to send from backend.
             gather = boost::make_shared<typename Backend::gather>(
-                    nrows, send_col, amg_params.backend);
+                    nrows, send_col, prm.amg.backend);
         }
 
         ~subdomain_deflation() {

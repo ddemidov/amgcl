@@ -203,7 +203,7 @@ int main(int argc, char *argv[]) {
     prof.toc("assemble");
 
     prof.tic("setup");
-    typedef amgcl::mpi::subdomain_deflation<
+    amgcl::mpi::subdomain_deflation<
         amgcl::backend::builtin<double>,
 #ifdef RECIRCULATION
         amgcl::coarsening::ruge_stuben,
@@ -218,15 +218,7 @@ int main(int argc, char *argv[]) {
 #ifdef HAVE_PASTIX
         , amgcl::mpi::PaStiX<double>
 #endif
-        > Solver;
-
-    Solver::AMG_params    amg_prm;
-    Solver::Solver_params slv_prm(2);
-    Solver solve(world,
-            boost::tie(chunk, ptr, col, val),
-            lindef,
-            amg_prm, slv_prm
-            );
+        > solve(world, boost::tie(chunk, ptr, col, val), lindef);
     prof.toc("setup");
 
     prof.tic("solve");
