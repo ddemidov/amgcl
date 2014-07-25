@@ -63,7 +63,10 @@ class PaStiX {
                 ), "Unsupported value type for PaStiX solver"
                 );
 
-        struct params {};
+        struct params {
+            params() {}
+            params(const boost::property_tree::ptree &p) {}
+        };
 
         /// The number of processes optimal for the given problem size.
         static int comm_size(int n_global_rows) {

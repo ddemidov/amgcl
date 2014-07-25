@@ -31,8 +31,6 @@ THE SOFTWARE.
  * \brief  C wrapper interface to amgcl.
  */
 
-#include <stddef.h>
-
 #if defined (WIN32) && defined (amgcl_EXPORTS)
 #  define AMGCL_C_API __declspec(dllexport)
 #else
@@ -116,10 +114,10 @@ AMGCL_C_API amgclHandle amgcl_solver_create(
 
 // Solve the problem for the given right-hand side.
 AMGCL_C_API void amgcl_solver_solve(
-        amgclHandle solver,
-        amgclHandle amg,
-        const double *rhs,
-        double *x
+        amgclHandle    solver,
+        amgclHandle    amg,
+        double const * rhs,
+        double       * x
         );
 
 // Destroy iterative solver.

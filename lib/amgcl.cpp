@@ -23,6 +23,7 @@
 
 #include <amgcl/solver/cg.hpp>
 #include <amgcl/solver/bicgstab.hpp>
+#include <amgcl/solver/bicgstabl.hpp>
 #include <amgcl/solver/gmres.hpp>
 
 #include "amgcl.h"
@@ -68,7 +69,7 @@ template <
     template <class> class Relaxation,
     class Func
     >
-void process_precond(const Func &func)
+static void process_precond(const Func &func)
 {
     typedef amgcl::amg<Backend, Coarsening, Relaxation> AMG;
     func.template process<AMG>();
@@ -80,7 +81,7 @@ template <
     class Coarsening,
     class Func
     >
-typename boost::enable_if<
+static typename boost::enable_if<
     boost::is_same<
         amgcl::backend::builtin<typename Backend::value_type>,
         Backend
@@ -134,7 +135,7 @@ template <
     class Coarsening,
     class Func
     >
-typename boost::disable_if<
+static typename boost::disable_if<
     boost::is_same<
         amgcl::backend::builtin<typename Backend::value_type>,
         Backend
@@ -175,7 +176,7 @@ template <
     class Backend,
     class Func
     >
-void process_precond(
+static void process_precond(
         amgclCoarsening coarsening,
         amgclRelaxation relaxation,
         const Func &func
@@ -217,7 +218,7 @@ void process_precond(
 
 //---------------------------------------------------------------------------
 template <class Func>
-void process_precond(
+static void process_precond(
         amgclBackend    backend,
         amgclCoarsening coarsening,
         amgclRelaxation relaxation,
@@ -249,7 +250,7 @@ struct AMGHandle {
 struct do_create_precond {
     amgclHandle prm;
 
-    size_t  n;
+    int  n;
 
     const int    *ptr;
     const int    *col;
@@ -259,7 +260,7 @@ struct do_create_precond {
 
     do_create_precond(
             amgclHandle prm,
-            size_t  n,
+            int  n,
             const int    *ptr,
             const int    *col,
             const double *val
@@ -373,9 +374,9 @@ template <
     class Backend,
     class Func
     >
-void process_solver(amgclSolver solver, const Func &func)
+static void process_solver(amgclSolver solver, const Func &func)
 {
-    switch(solver) {
+    switch (solver) {
         case amgclSolverCG:
             func.template process< amgcl::solver::cg<Backend> >();
             break;
@@ -393,7 +394,7 @@ void process_solver(amgclSolver solver, const Func &func)
 
 //---------------------------------------------------------------------------
 template <class Func>
-void process_solver(
+static void process_solver(
         amgclBackend backend,
         amgclSolver  solver,
         const Func &func
@@ -416,7 +417,7 @@ struct do_create_solver {
 
     mutable void *handle;
 
-    do_create_solver(amgclHandle prm, int n) : prm(prm), n(n) {}
+    do_create_solver(amgclHandle prm, int n) : prm(prm), n(n), handle(0) {}
 
     template <class Solver>
     void process() const {
@@ -456,7 +457,7 @@ amgclHandle amgcl_solver_create(
 
 //---------------------------------------------------------------------------
 struct do_destroy_solver {
-    mutable void *handle;
+    void *handle;
 
     do_destroy_solver(void* handle) : handle(handle) {}
 

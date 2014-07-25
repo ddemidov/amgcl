@@ -9,7 +9,7 @@ int main() {
     std::vector<double> val;
     std::vector<double> rhs;
 
-    size_t n = sample_problem(128l, val, col, ptr, rhs);
+    int n = sample_problem(128l, val, col, ptr, rhs);
 
     std::vector<double> x(n, 0);
 

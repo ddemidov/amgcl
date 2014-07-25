@@ -3,6 +3,7 @@ project(AMGCL)
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib)
 
 #----------------------------------------------------------------------------
 # Find Boost
@@ -107,6 +108,27 @@ if (CUDA_FOUND)
     set(CUDA_COMPUTE_CAPABILITY "35" CACHE STRING "CUDA Compute Capability")
     add_definitions(-DBOOST_DISABLE_ASSERTS)
 endif ()
+
+#----------------------------------------------------------------------------
+# Find MPI
+#----------------------------------------------------------------------------
+find_package(MPI QUIET)
+if (MPI_CXX_FOUND)
+    include_directories(${MPI_CXX_INCLUDE_PATH})
+endif()
+
+#----------------------------------------------------------------------------
+# Find Pastix
+#----------------------------------------------------------------------------
+find_package(Pastix QUIET)
+find_package(Scotch QUIET)
+find_package(BLAS   QUIET)
+
+if (PASTIX_INCLUDES AND SCOTCH_INCLUDES AND BLAS_FOUND)
+    set(HAVE_PASTIX ON)
+    include_directories(${PASTIX_INCLUDES} ${SCOTCH_INCLUDES})
+    add_definitions(-DHAVE_PASTIX)
+endif()
 
 #----------------------------------------------------------------------------
 # Protect Visual Studio from itself

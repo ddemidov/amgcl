@@ -70,7 +70,7 @@ namespace amgcl {
 
 namespace detail {
 
-const boost::property_tree::ptree& empty_ptree() {
+inline const boost::property_tree::ptree& empty_ptree() {
     static const boost::property_tree::ptree p;
     return p;
 }

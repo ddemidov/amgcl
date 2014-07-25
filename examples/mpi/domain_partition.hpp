@@ -2,7 +2,9 @@
 #define EXAMPLES_MPI_DOMAIN_PARTITION_HPP
 
 #include <vector>
+#include <utility>
 
+#include <boost/foreach.hpp>
 #include <boost/geometry.hpp>
 #include <boost/geometry/geometries/adapted/boost_array.hpp>
 #include <boost/geometry/geometries/box.hpp>
