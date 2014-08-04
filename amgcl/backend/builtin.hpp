@@ -150,7 +150,7 @@ struct crs {
     row_iterator row_begin(size_t row) const {
         ptr_type p = ptr[row];
         ptr_type e = ptr[row + 1];
-        return row_iterator(&col[p], &col[e], &val[p]);
+        return row_iterator(&col[0] + p, &col[0] + e, &val[0] + p);
     }
 
 };
