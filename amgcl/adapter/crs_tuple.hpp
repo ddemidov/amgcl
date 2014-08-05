@@ -67,6 +67,7 @@ AMG amg(boost::make_tuple(n,
 
 #include <amgcl/util.hpp>
 #include <amgcl/backend/interface.hpp>
+#include <amgcl/backend/detail/matrix_ops.hpp>
 
 namespace amgcl {
 namespace backend {
@@ -235,6 +236,15 @@ struct row_nonzeros_impl< boost::tuple<N, PRng, CRng, VRng> > {
         return boost::get<1>(A)[row + 1] - boost::get<1>(A)[row];
     }
 };
+
+namespace detail {
+
+template < typename N, typename PRng, typename CRng, typename VRng >
+struct use_builtin_matrix_ops< boost::tuple<N, PRng, CRng, VRng> >
+    : boost::true_type
+{};
+
+} // namespace detail
 
 } // namespace backend
 } // namespace amgcl

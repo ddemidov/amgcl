@@ -120,6 +120,18 @@ AMGCL_C_API void amgcl_solver_solve(
         double       * x
         );
 
+// Solve the problem for the given matrix and the right-hand side.
+AMGCL_C_API void amgcl_solver_solve_mtx(
+        amgclHandle    solver,
+        int    const * A_ptr,
+        int    const * A_col,
+        double const * A_val,
+        amgclHandle    amg,
+        double const * rhs,
+        double       * x
+        );
+
+
 // Destroy iterative solver.
 AMGCL_C_API void amgcl_solver_destroy(amgclHandle solver);
 

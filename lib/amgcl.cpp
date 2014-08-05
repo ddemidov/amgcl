@@ -544,3 +544,106 @@ void amgcl_solver_solve(
             do_solve(h->handle, amg, rhs, x)
             );
 }
+
+//---------------------------------------------------------------------------
+struct do_solve_mtx {
+    void *slv_handle;
+    void *amg_handle;
+
+    const int    * A_ptr;
+    const int    * A_col;
+    const double * A_val;
+
+    const double * rhs;
+    double * x;
+
+    do_solve_mtx(
+            void *slv_handle, void *amg_handle,
+            const int * A_ptr, const int * A_col, const double * A_val,
+            const double *rhs, double *x
+            )
+        : slv_handle(slv_handle), amg_handle(amg_handle),
+          A_ptr(A_ptr), A_col(A_col), A_val(A_val),
+          rhs(rhs), x(x)
+    {}
+
+    template <class Solver>
+    struct call_solver {
+        Solver *solve;
+        void *amg_handle;
+
+        const int    * A_ptr;
+        const int    * A_col;
+        const double * A_val;
+
+        const double *rhs;
+        double *x;
+
+        call_solver(
+                Solver *solve, void *amg_handle,
+                const int * A_ptr, const int * A_col, const double * A_val,
+                const double *rhs, double *x
+                )
+            : solve(solve), amg_handle(amg_handle),
+              A_ptr(A_ptr), A_col(A_col), A_val(A_val),
+              rhs(rhs), x(x)
+        {}
+
+        template <class AMG>
+        void process() const {
+            AMG *amg = static_cast<AMG*>(amg_handle);
+            const size_t n = amgcl::backend::rows( amg->top_matrix() );
+
+            boost::iterator_range<const double*> rhs_range(rhs, rhs + n);
+            boost::iterator_range<double*> x_range(x, x + n);
+
+            size_t iters;
+            double resid;
+
+            boost::tie(iters, resid) = (*solve)(
+                    boost::make_tuple(
+                        n,
+                        boost::make_iterator_range(A_ptr, A_ptr + n + 1),
+                        boost::make_iterator_range(A_col, A_col + A_ptr[n]),
+                        boost::make_iterator_range(A_val, A_val + A_ptr[n])
+                        ),
+                    *amg, rhs_range, x_range
+                    );
+
+            std::cout
+                << "Iterations: " << iters << std::endl
+                << "Error:      " << resid << std::endl
+                << std::endl;
+        }
+    };
+
+    template <class Solver>
+    void process() const {
+        AMGHandle *amg    = static_cast<AMGHandle*>(amg_handle);
+        Solver    *solver = static_cast<Solver*   >(slv_handle);
+
+        process_precond(amg->backend, amg->coarsening, amg->relaxation,
+                call_solver<Solver>(
+                    solver, amg->handle, A_ptr, A_col, A_val, rhs, x
+                    )
+                );
+    }
+};
+
+//---------------------------------------------------------------------------
+void amgcl_solver_solve_mtx(
+        amgclHandle solver,
+        int    const * A_ptr,
+        int    const * A_col,
+        double const * A_val,
+        amgclHandle amg,
+        const double *rhs,
+        double *x
+        )
+{
+    SolverHandle *h = static_cast<SolverHandle*>(solver);
+
+    process_solver(h->backend, h->solver,
+            do_solve_mtx(h->handle, amg, A_ptr, A_col, A_val, rhs, x)
+            );
+}

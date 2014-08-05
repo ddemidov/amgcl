@@ -50,6 +50,7 @@ THE SOFTWARE.
 #include <amgcl/solver/skyline_lu.hpp>
 #include <amgcl/detail/inverse.hpp>
 #include <amgcl/detail/sort_row.hpp>
+#include <amgcl/backend/detail/matrix_ops.hpp>
 
 namespace amgcl {
 namespace backend {
@@ -491,52 +492,6 @@ struct row_nonzeros_impl< crs<V, C, P> > {
     }
 };
 
-template < typename V, typename C, typename P, class Vec1, class Vec2 >
-struct spmv_impl< crs<V, C, P>, Vec1, Vec2 >
-{
-    typedef crs<V, C, P> matrix;
-
-    static void apply(V alpha, const matrix &A, const Vec1 &x, V beta, Vec2 &y)
-    {
-        const size_t n = rows(A);
-        if (beta) {
-#pragma omp parallel for
-            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-                V sum = 0;
-                for(typename matrix::row_iterator a = A.row_begin(i); a; ++a)
-                    sum += a.value() * x[ a.col() ];
-                y[i] = alpha * sum + beta * y[i];
-            }
-        } else {
-#pragma omp parallel for
-            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-                V sum = 0;
-                for(typename matrix::row_iterator a = A.row_begin(i); a; ++a)
-                    sum += a.value() * x[ a.col() ];
-                y[i] = alpha * sum;
-            }
-        }
-    }
-};
-
-template < typename V, typename C, typename P, class Vec1, class Vec2, class Vec3 >
-struct residual_impl< crs<V, C, P>, Vec1, Vec2, Vec3 >
-{
-    typedef crs<V, C, P> matrix;
-
-    static void apply(const Vec1 &rhs, const matrix &A, const Vec2 &x, Vec3 &r)
-    {
-        const size_t n = rows(A);
-#pragma omp parallel for
-        for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-            V sum = 0;
-            for(typename matrix::row_iterator a = A.row_begin(i); a; ++a)
-                sum += a.value() * x[ a.col() ];
-            r[i] = rhs[i] - sum;
-        }
-    }
-};
-
 template < class Vec >
 struct clear_impl<
     Vec,
@@ -720,6 +675,15 @@ struct copy_to_backend_impl<
             typename is_builtin_vector<Vec>::type
         >::type
     > : copy_impl< std::vector<typename value_type<Vec>::type>, Vec > {};
+
+namespace detail {
+
+template <typename V, typename C, typename P>
+struct use_builtin_matrix_ops< amgcl::backend::crs<V, C, P> >
+    : boost::true_type
+{};
+
+} // namespace detail
 
 } // namespace backend
 } // namespace amgcl

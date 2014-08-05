@@ -1,5 +1,6 @@
 #include <vector>
 
+#include <boost/range/algorithm.hpp>
 #include <lib/amgcl.h>
 #include "sample_problem.hpp"
 
@@ -10,8 +11,6 @@ int main() {
     std::vector<double> rhs;
 
     int n = sample_problem(128l, val, col, ptr, rhs);
-
-    std::vector<double> x(n, 0);
 
     amgclHandle prm = amgcl_params_create();
     amgcl_params_seti(prm, "coarse_enough", 1000);
@@ -32,7 +31,13 @@ int main() {
             prm, n
             );
 
+    std::vector<double> x(n, 0);
     amgcl_solver_solve(solver, amg, rhs.data(), x.data());
+
+    // Solve same problem again, but explicitly provide the matrix this time:
+    boost::fill(x, 0);
+    amgcl_solver_solve_mtx(solver, ptr.data(), col.data(), val.data(), amg,
+            rhs.data(), x.data());
 
     amgcl_solver_destroy(solver);
     amgcl_precond_destroy(amg);

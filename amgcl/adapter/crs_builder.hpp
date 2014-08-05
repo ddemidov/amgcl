@@ -89,6 +89,9 @@ amgcl::make_solver<
 \endcode
 */
 
+#include <amgcl/backend/interface.hpp>
+#include <amgcl/backend/detail/matrix_ops.hpp>
+
 namespace amgcl {
 namespace adapter {
 
@@ -221,6 +224,15 @@ struct row_begin_impl< adapter::matrix_builder<RowBuilder> >
         return matrix.row_begin(row);
     }
 };
+
+namespace detail {
+
+template <class RowBuilder>
+struct use_builtin_matrix_ops< amgcl::adapter::matrix_builder<RowBuilder> >
+    : boost::true_type
+{};
+
+} // namespace detail
 
 } // namespace backend
 } // namespace amgcl
