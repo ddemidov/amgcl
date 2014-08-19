@@ -14,7 +14,7 @@ int main() {
 
     amgclHandle prm = amgcl_params_create();
     amgcl_params_seti(prm, "coarse_enough", 1000);
-    amgcl_params_setf(prm, "aggr.eps_strong", 1e-3);
+    amgcl_params_setf(prm, "coarsening.aggr.eps_strong", 1e-3);
 
     amgclHandle amg = amgcl_precond_create(
             amgclBackendBuiltin,
