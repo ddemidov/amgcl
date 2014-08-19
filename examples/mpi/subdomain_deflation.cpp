@@ -3,6 +3,9 @@
 #include <fstream>
 #include <vector>
 #include <cmath>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 #include <boost/scope_exit.hpp>
 #include <boost/range/algorithm.hpp>
@@ -219,14 +222,15 @@ int main(int argc, char *argv[]) {
         , amgcl::mpi::PaStiX<double>
 #endif
         > solve(world, boost::tie(chunk, ptr, col, val), lindef);
-    prof.toc("setup");
+    double tm_setup = prof.toc("setup");
+
+    std::vector<double> x(chunk, 0);
 
     prof.tic("solve");
-    std::vector<double> x(chunk, 0);
     size_t iters;
     double resid;
     boost::tie(iters, resid) = solve(rhs, x);
-    prof.toc("solve");
+    double tm_solve = prof.toc("solve");
 
     if (n <= 4096) {
         prof.tic("save");
@@ -254,6 +258,17 @@ int main(int argc, char *argv[]) {
             << "Error:      " << resid << std::endl
             << std::endl
             << prof << std::endl;
+
+#ifdef _OPENMP
+        int nt = omp_get_max_threads();
+#else
+        int nt = 1;
+#endif
+        std::ostringstream log_name;
+        log_name << "log_" << n2 << "_" << nt << "_" << world.size << ".txt";
+        std::ofstream log(log_name.str().c_str(), std::ios::app);
+        log << n2 << "\t" << nt << "\t" << world.size
+            << "\t" << tm_setup << "\t" << tm_solve << std::endl;
     }
 
 }
