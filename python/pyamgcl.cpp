@@ -1,6 +1,7 @@
 #include <vector>
 #include <string>
 #include <sstream>
+#include <cstring>
 #include <amgcl.h>
 
 #include <boost/shared_ptr.hpp>
@@ -11,6 +12,9 @@
 #include <boost/python.hpp>
 #include <boost/python/extract.hpp>
 #include <boost/python/numeric.hpp>
+#include <boost/python/raw_function.hpp>
+#include <boost/python/stl_iterator.hpp>
+
 
 //---------------------------------------------------------------------------
 struct params {
@@ -38,6 +42,25 @@ struct params {
 
     boost::shared_ptr<void> h;
 };
+
+//---------------------------------------------------------------------------
+params make_params(boost::python::tuple args, boost::python::dict kwargs) {
+    params p;
+
+    using namespace boost::python;
+
+    for(stl_input_iterator<tuple> arg(kwargs.items()), end; arg != end; ++arg) {
+        const char *name = extract<const char*>((*arg)[0]);
+        const char *type = extract<const char*>((*arg)[1].attr("__class__").attr("__name__"));
+
+        if (strcmp(type, "int") == 0)
+            p.seti(name, extract<int>((*arg)[1]));
+        else
+            p.setf(name, extract<float>((*arg)[1]));
+    }
+
+    return p;
+}
 
 //---------------------------------------------------------------------------
 struct precond {
@@ -195,6 +218,8 @@ BOOST_PYTHON_MODULE(pyamgcl)
                 >())
         .def("apply", &precond::apply)
         ;
+
+    def("make_params", raw_function(make_params));
 
     class_<solver>("solver",
             init<
