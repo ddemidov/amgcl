@@ -158,10 +158,12 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 endif ()
 
 #----------------------------------------------------------------------------
-# Tests
-#----------------------------------------------------------------------------
 enable_testing()
-add_subdirectory(lib)
 add_subdirectory(tests)
+
+#----------------------------------------------------------------------------
+set(BUILD_SHARED_LIBS ON)
+add_subdirectory(lib)
+add_subdirectory(python)
 add_subdirectory(examples)
 add_subdirectory(doc)
