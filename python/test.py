@@ -1,57 +1,61 @@
 #!/usr/bin/python
 
-import numpy as np
+import numpy   as np
 import pyamgcl as amg
+from scipy.sparse import *
+from pylab import *
 
 # Assemble problem
-n = 16 * 1024;
+n = 256
+n2 = n * n
 
-ptr = np.zeros([n + 1]).astype(np.int)
-col = np.zeros([n*3 - 4]).astype(np.int)
-val = np.zeros([n*3 - 4])
+A = dok_matrix((n2, n2), dtype = np.float64)
 
-j = 0
-for i in xrange(0,n):
-    if (i == 0 or i == n - 1):
-        col[j] = i
-        val[j] = 1.0
+boundaries = [0, n-1]
 
-        j = j + 1
-    else:
-        col[j+0] = i - 1
-        col[j+1] = i
-        col[j+2] = i + 1
+idx = 0
+for i in xrange(0, n):
+    for j in xrange(0, n):
+        if i in boundaries or j in boundaries:
+            A[idx,idx] = 1
+        else:
+            A[idx,idx-n] = -1
+            A[idx,idx-1] = -1
+            A[idx,idx  ] =  4
+            A[idx,idx+1] = -1
+            A[idx,idx+n] = -1
 
-        val[j+0] = -1.0
-        val[j+1] =  2.0
-        val[j+2] = -1.0
+        idx += 1
 
-        j = j + 3
-
-    ptr[i+1] = j
+A = A.tocsr()
 
 # Setup preconditioner
 P = amg.precond(
         amg.backend.builtin,
         amg.coarsening.smoothed_aggregation,
         amg.relaxation.spai0,
-        amg.params(), ptr, col, val
+        amg.params(), A.indptr.astype(np.int), A.indices.astype(np.int), A.data
         )
 
 # Setup solver
 S = amg.solver(
         amg.backend.builtin,
         amg.solver_type.bicgstab,
-        amg.params(), n
+        amg.params(), n2
         )
 
 # Solve
-rhs = np.ones([n])
-rhs[0]   = 0
-rhs[n-1] = 0
+rhs = np.ones([n2])
+rhs[0   ] = 0
+rhs[n2-1] = 0
 
-x = np.zeros([n])
+x = np.zeros([n2])
 
 S.solve(P, rhs, x)
 
-print x
+# Plot result
+figure(num=1, figsize=(7,7))
+imshow(x.reshape((n,n)), origin='lower')
+colorbar()
+
+show()
