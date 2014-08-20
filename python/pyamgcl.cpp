@@ -148,10 +148,10 @@ BOOST_PYTHON_MODULE(pyamgcl)
     using namespace boost::python;
 
     class_<params>("params")
-        .def("set",      &params::seti)
-        .def("set",      &params::setf)
-        .def("__str__",  &params::str)
-        .def("__repr__", &params::repr)
+        .def("__setitem__", &params::seti)
+        .def("__setitem__", &params::setf)
+        .def("__str__",     &params::str)
+        .def("__repr__",    &params::repr)
         ;
 
     enum_<amgclBackend>("backend")
