@@ -17,8 +17,8 @@ tic = time()
 n2 = n * n
 nnz = n2 + 4 * (n - 2) * (n - 2)
 
-ptr = np.zeros(n2 + 1)
-col = np.zeros(nnz)
+ptr = np.zeros(n2 + 1).astype(np.int32)
+col = np.zeros(nnz).astype(np.int32)
 val = np.zeros(nnz)
 
 boundaries = (0, n-1)
@@ -49,7 +49,7 @@ P = amg.precond(
         amg.backend.builtin,
         amg.coarsening.smoothed_aggregation,
         amg.relaxation.spai0,
-        amg.params(), ptr.astype(np.int), col.astype(np.int), val
+        amg.params(), ptr, col, val
         )
 
 # Setup solver

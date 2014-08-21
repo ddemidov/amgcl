@@ -15,6 +15,9 @@
 #include <boost/python/raw_function.hpp>
 #include <boost/python/stl_iterator.hpp>
 
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#include "numpy_boost_python.hpp"
+
 
 //---------------------------------------------------------------------------
 struct params {
@@ -69,58 +72,32 @@ struct precond {
             amgclCoarsening coarsening,
             amgclRelaxation relaxation,
             const params    &prm,
-            const boost::python::numeric::array &ptr,
-            const boost::python::numeric::array &col,
-            const boost::python::numeric::array &val
+            const numpy_boost<int,    1>    &ptr,
+            const numpy_boost<int,    1>    &col,
+            const numpy_boost<double, 1> &val
            )
     {
         using namespace boost::python;
 
-        int n = extract<int>(ptr.attr("size")) - 1;
-        std::vector<int> t_ptr(n + 1);
-
-        for(int i = 0; i <= n; ++i) t_ptr[i] = extract<int>(ptr[i]);
-
-        int nnz = t_ptr[n];
-
-        std::vector<int>    t_col(nnz);
-        std::vector<double> t_val(nnz);
-
-        for(int i = 0; i < nnz; ++i) t_col[i] = extract<int>   (col[i]);
-        for(int i = 0; i < nnz; ++i) t_val[i] = extract<double>(val[i]);
+        int n = ptr.num_elements() - 1;
 
         h.reset(
                 amgcl_precond_create(
                     backend, coarsening, relaxation, prm.h.get(),
-                    n,
-                    t_ptr.data(),
-                    t_col.data(),
-                    t_val.data()
+                    n, ptr.data(), col.data(), val.data()
                     ),
                 amgcl_precond_destroy
                );
     }
 
     void apply(
-            boost::python::numeric::array const &rhs,
-            boost::python::numeric::array       &x
+            numpy_boost<double, 1> const &rhs,
+            numpy_boost<double, 1>       &x
             ) const
     {
         using namespace boost::python;
 
-        int n = extract<int>(rhs.attr("size"));
-
-        std::vector<double> t_rhs(n);
-        std::vector<double> t_x(n);
-
-        for(int i = 0; i < n; ++i) {
-            t_rhs[i] = extract<double>(rhs[i]);
-            t_x[i]   = extract<double>(x[i]);
-        }
-
-        amgcl_precond_apply(h.get(), t_rhs.data(), t_x.data());
-
-        for(int i = 0; i < n; ++i) x[i] = t_x[i];
+        amgcl_precond_apply(h.get(), rhs.data(), x.data());
     }
 
     boost::shared_ptr<void> h;
@@ -142,25 +119,13 @@ struct solver {
 
     void solve(
             const precond &P,
-            boost::python::numeric::array const &rhs,
-            boost::python::numeric::array       &x
+            const numpy_boost<double, 1> &rhs,
+            const numpy_boost<double, 1> &x
             ) const
     {
         using namespace boost::python;
 
-        int n = extract<int>(rhs.attr("size"));
-
-        std::vector<double> t_rhs(n);
-        std::vector<double> t_x(n);
-
-        for(int i = 0; i < n; ++i) {
-            t_rhs[i] = extract<double>(rhs[i]);
-            t_x[i]   = extract<double>(x[i]);
-        }
-
-        amgcl_solver_solve(h.get(), P.h.get(), t_rhs.data(), t_x.data());
-
-        for(int i = 0; i < n; ++i) x[i] = t_x[i];
+        amgcl_solver_solve(h.get(), P.h.get(), rhs.data(), const_cast<double*>(x.data()));
     }
 
     boost::shared_ptr<void> h;
@@ -204,7 +169,9 @@ BOOST_PYTHON_MODULE(pyamgcl)
         .value("gmres",     amgclSolverGMRES)
         ;
 
-    numeric::array::set_module_and_type("numpy", "ndarray");
+    import_array();
+    numpy_boost_python_register_type<int,    1>();
+    numpy_boost_python_register_type<double, 1>();
 
     class_<precond>("precond",
             init<
@@ -212,9 +179,9 @@ BOOST_PYTHON_MODULE(pyamgcl)
                 amgclCoarsening,
                 amgclRelaxation,
                 const params&,
-                const numeric::array&,
-                const numeric::array&,
-                const numeric::array&
+                const numpy_boost<int,    1>&,
+                const numpy_boost<int,    1>&,
+                const numpy_boost<double, 1>&
                 >())
         .def("apply", &precond::apply)
         ;
