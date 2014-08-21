@@ -5,6 +5,7 @@ import numpy   as np
 import pyamgcl as amg
 from scipy.sparse import *
 from pylab import *
+from time import time
 
 # Assemble problem
 if len(argv[1:]) > 0:
@@ -12,34 +13,43 @@ if len(argv[1:]) > 0:
 else:
     n = 256
 
+tic = time()
 n2 = n * n
+nnz = n2 + 4 * (n - 2) * (n - 2)
 
-A = dok_matrix((n2, n2), dtype = np.float64)
+ptr = np.zeros(n2 + 1)
+col = np.zeros(nnz)
+val = np.zeros(nnz)
 
-boundaries = [0, n-1]
+boundaries = (0, n-1)
+col_stencil = np.array([-n, -1, 0,  1,  n])
+val_stencil = np.array([-1, -1, 4, -1, -1])
 
-idx = 0
+idx  = 0
+head = 0
 for i in xrange(0, n):
     for j in xrange(0, n):
         if i in boundaries or j in boundaries:
-            A[idx,idx] = 1
+            col[head] = idx
+            val[head] = 1
+            head += 1
         else:
-            A[idx,idx-n] = -1
-            A[idx,idx-1] = -1
-            A[idx,idx  ] =  4
-            A[idx,idx+1] = -1
-            A[idx,idx+n] = -1
+            col[head:head+5] = idx + col_stencil
+            val[head:head+5] = val_stencil
+            head += 5
 
         idx += 1
+        ptr[idx] = head
 
-A = A.tocsr()
+print "Assemble: %.2f" % (time() - tic)
 
 # Setup preconditioner
+tic = time()
 P = amg.precond(
         amg.backend.builtin,
         amg.coarsening.smoothed_aggregation,
         amg.relaxation.spai0,
-        amg.params(), A.indptr.astype(np.int), A.indices.astype(np.int), A.data
+        amg.params(), ptr.astype(np.int), col.astype(np.int), val
         )
 
 # Setup solver
@@ -48,6 +58,7 @@ S = amg.solver(
         amg.solver_type.bicgstab,
         amg.params(), n2
         )
+print "Setup: %.2f" % (time() - tic)
 
 # Solve
 rhs = np.ones([n2])
@@ -56,7 +67,9 @@ rhs[n2-1] = 0
 
 x = np.zeros([n2])
 
+tic = time()
 S.solve(P, rhs, x)
+print "Solve: %.2f" % (time() - tic)
 
 # Plot result
 figure(num=1, figsize=(7,7))
