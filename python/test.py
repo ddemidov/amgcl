@@ -1,12 +1,17 @@
 #!/usr/bin/python
 
+from sys import argv
 import numpy   as np
 import pyamgcl as amg
 from scipy.sparse import *
 from pylab import *
 
 # Assemble problem
-n = 256
+if len(argv[1:]) > 0:
+    n = int(argv[1])
+else:
+    n = 256
+
 n2 = n * n
 
 A = dok_matrix((n2, n2), dtype = np.float64)
