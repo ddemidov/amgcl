@@ -268,7 +268,8 @@ int main(int argc, char *argv[]) {
         log_name << "log_" << n2 << "_" << nt << "_" << world.size << ".txt";
         std::ofstream log(log_name.str().c_str(), std::ios::app);
         log << n2 << "\t" << nt << "\t" << world.size
-            << "\t" << tm_setup << "\t" << tm_solve << std::endl;
+            << "\t" << tm_setup << "\t" << tm_solve
+            << "\t" << iters << "\t" << std::endl;
     }
 
 }

@@ -765,7 +765,9 @@ class subdomain_deflation {
             if (comm.rank < nmasters) {
                 MPI_Waitall(nslaves, &req[slaves[comm.rank]], MPI_STATUSES_IGNORE);
 
+                TIC("call solver");
                 (*E)(cf, cx);
+                TOC("call solver");
 
                 if (comm.rank == 0) {
                     for(int p = 0; p < nmasters; ++p) {
