@@ -30,8 +30,7 @@ if (MPI_CXX_FOUND)
     if (VEXCL_ROOT)
         add_mpi_example(subdomain_deflation_vexcl subdomain_deflation_vexcl.cpp)
         target_link_libraries(subdomain_deflation_vexcl ${VEXCL_BACKEND_LIBRARIES})
-        set_target_properties(subdomain_deflation_vexcl PROPERTIES
-            COMPILE_FLAGS -std=c++11)
+        set_target_properties(subdomain_deflation_vexcl PROPERTIES COMPILE_FLAGS ${CXX11_FLAG})
     endif()
 
     configure_file(
