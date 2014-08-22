@@ -13,8 +13,10 @@ if (NUMPY_FOUND)
     target_link_Libraries(pyamgcl amgcl ${Boost_LIBRARIES})
 
     configure_file(
-        ${CMAKE_CURRENT_SOURCE_DIR}/test.py
-        ${CMAKE_CURRENT_BINARY_DIR}/test.py
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_pyamgcl
+        ${CMAKE_CURRENT_BINARY_DIR}/test_pyamgcl
         COPYONLY
         )
+
+    add_test(test_pyamgcl test_pyamgcl)
 endif()
