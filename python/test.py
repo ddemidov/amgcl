@@ -43,20 +43,14 @@ for i in xrange(0, n):
 
 print "Assemble: %.2f" % (time() - tic)
 
-# Setup preconditioner
+# Setup
 tic = time()
-P = amg.precond(
+solve = amg.solver(
         amg.backend.builtin,
         amg.coarsening.smoothed_aggregation,
         amg.relaxation.spai0,
-        amg.params(), ptr, col, val
-        )
-
-# Setup solver
-S = amg.solver(
-        amg.backend.builtin,
         amg.solver_type.bicgstab,
-        amg.params(), n2
+        amg.params(), ptr, col, val
         )
 print "Setup: %.2f" % (time() - tic)
 
@@ -65,10 +59,8 @@ rhs = np.ones([n2])
 rhs[0   ] = 0
 rhs[n2-1] = 0
 
-x = np.zeros([n2])
-
 tic = time()
-S.solve(P, rhs, x)
+x = solve(rhs)
 print "Solve: %.2f" % (time() - tic)
 
 # Plot result

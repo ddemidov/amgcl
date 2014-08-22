@@ -66,22 +66,24 @@ params make_params(boost::python::tuple args, boost::python::dict kwargs) {
 }
 
 //---------------------------------------------------------------------------
-struct precond {
-    precond(
+struct solver {
+    solver(
             amgclBackend    backend,
             amgclCoarsening coarsening,
             amgclRelaxation relaxation,
+            amgclSolver     solver_type,
             const params    &prm,
-            const numpy_boost<int,    1>    &ptr,
-            const numpy_boost<int,    1>    &col,
+            const numpy_boost<int,    1> &ptr,
+            const numpy_boost<int,    1> &col,
             const numpy_boost<double, 1> &val
+          )
+        : n(ptr.num_elements() - 1),
+          hs(
+                amgcl_solver_create(backend, solver_type, prm.h.get(), n),
+                amgcl_solver_destroy
            )
     {
-        using namespace boost::python;
-
-        int n = ptr.num_elements() - 1;
-
-        h.reset(
+        hp.reset(
                 amgcl_precond_create(
                     backend, coarsening, relaxation, prm.h.get(),
                     n, ptr.data(), col.data(), val.data()
@@ -90,45 +92,18 @@ struct precond {
                );
     }
 
-    void apply(
-            numpy_boost<double, 1> const &rhs,
-            numpy_boost<double, 1>       &x
-            ) const
-    {
-        using namespace boost::python;
+    PyObject* solve(const numpy_boost<double, 1> &rhs) const {
+        numpy_boost<double, 1> x(&n);
+        amgcl_solver_solve(hs.get(), hp.get(), rhs.data(), x.data());
 
-        amgcl_precond_apply(h.get(), rhs.data(), x.data());
+        PyObject *result = x.py_ptr();
+        Py_INCREF(result);
+        return result;
     }
 
-    boost::shared_ptr<void> h;
-};
-
-//---------------------------------------------------------------------------
-struct solver {
-    solver(
-            amgclBackend backend,
-            amgclSolver  solver_type,
-            const params &prm,
-            int n
-          )
-        : h(
-                amgcl_solver_create(backend, solver_type, prm.h.get(), n),
-                amgcl_solver_destroy
-           )
-    {}
-
-    void solve(
-            const precond &P,
-            const numpy_boost<double, 1> &rhs,
-            const numpy_boost<double, 1> &x
-            ) const
-    {
-        using namespace boost::python;
-
-        amgcl_solver_solve(h.get(), P.h.get(), rhs.data(), const_cast<double*>(x.data()));
-    }
-
-    boost::shared_ptr<void> h;
+    int n;
+    boost::shared_ptr<void> hs;
+    boost::shared_ptr<void> hp;
 };
 
 BOOST_PYTHON_MODULE(pyamgcl)
@@ -141,6 +116,8 @@ BOOST_PYTHON_MODULE(pyamgcl)
         .def("__str__",     &params::str)
         .def("__repr__",    &params::repr)
         ;
+
+    def("make_params", raw_function(make_params));
 
     enum_<amgclBackend>("backend")
         .value("builtin",   amgclBackendBuiltin)
@@ -173,29 +150,17 @@ BOOST_PYTHON_MODULE(pyamgcl)
     numpy_boost_python_register_type<int,    1>();
     numpy_boost_python_register_type<double, 1>();
 
-    class_<precond>("precond",
+    class_<solver>("solver",
             init<
                 amgclBackend,
                 amgclCoarsening,
                 amgclRelaxation,
+                amgclSolver,
                 const params&,
                 const numpy_boost<int,    1>&,
                 const numpy_boost<int,    1>&,
                 const numpy_boost<double, 1>&
                 >())
-        .def("apply", &precond::apply)
-        ;
-
-    def("make_params", raw_function(make_params));
-
-    class_<solver>("solver",
-            init<
-                amgclBackend,
-                amgclSolver,
-                const params&,
-                int
-                >()
-            )
-        .def("solve", &solver::solve)
+        .def("__call__", &solver::solve)
         ;
 }
