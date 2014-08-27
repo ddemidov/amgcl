@@ -34,18 +34,6 @@ THE SOFTWARE.
 #include <mpi.h>
 #include <amgcl.h>
 
-#if defined (WIN32) && defined (amgcl_mpi_EXPORTS)
-#  define AMGCL_MPI_C_API __declspec(dllexport)
-#else
-#  define AMGCL_MPI_C_API
-#endif
-
-#ifdef WIN32
-#  define STDCALL __stdcall
-#else
-#  define STDCALL
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -60,7 +48,7 @@ typedef enum {
 } amgclDirectSolver;
 
 // Create distributed solver.
-AMGCL_MPI_C_API amgclHandle amgcl_mpi_create(
+amgclHandle STDCALL amgcl_mpi_create(
         amgclBackend         backend,
         amgclCoarsening      coarsening,
         amgclRelaxation      relaxation,
@@ -78,14 +66,14 @@ AMGCL_MPI_C_API amgclHandle amgcl_mpi_create(
         );
 
 // Find soltion for the given RHS.
-AMGCL_MPI_C_API void amgcl_mpi_solve(
+void STDCALL amgcl_mpi_solve(
         amgclHandle   solver,
         double const *rhs,
         double       *x
         );
 
 // Destroy the distributed solver.
-AMGCL_MPI_C_API void amgcl_mpi_destroy(
+void STDCALL amgcl_mpi_destroy(
         amgclHandle solver
         );
 

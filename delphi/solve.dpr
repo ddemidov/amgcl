@@ -4,7 +4,6 @@ program solve;
 
 uses
     SysUtils,
-    Classes,
     amgcl in 'amgcl.pas';
 
 const

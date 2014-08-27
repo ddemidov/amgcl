@@ -31,10 +31,10 @@ THE SOFTWARE.
  * \brief  C wrapper interface to amgcl.
  */
 
-#if defined (WIN32) && defined (amgcl_EXPORTS)
-#  define AMGCL_C_API __declspec(dllexport)
+#ifdef WIN32
+#  define STDCALL __stdcall
 #else
-#  define AMGCL_C_API
+#  define STDCALL
 #endif
 
 #ifdef __cplusplus
@@ -75,19 +75,19 @@ typedef enum {
 typedef void* amgclHandle;
 
 // Create parameter list.
-AMGCL_C_API amgclHandle amgcl_params_create();
+amgclHandle STDCALL amgcl_params_create();
 
 // Set integer parameter in a parameter list.
-AMGCL_C_API void amgcl_params_seti(amgclHandle prm, const char *name, int   value);
+void STDCALL amgcl_params_seti(amgclHandle prm, const char *name, int   value);
 
 // Set floating point parameter in a parameter list.
-AMGCL_C_API void amgcl_params_setf(amgclHandle prm, const char *name, float value);
+void STDCALL amgcl_params_setf(amgclHandle prm, const char *name, float value);
 
 // Destroy parameter list.
-AMGCL_C_API void amgcl_params_destroy(amgclHandle prm);
+void STDCALL amgcl_params_destroy(amgclHandle prm);
 
 // Create AMG preconditioner.
-AMGCL_C_API amgclHandle amgcl_precond_create(
+amgclHandle STDCALL amgcl_precond_create(
         amgclBackend    backend,
         amgclCoarsening coarsening,
         amgclRelaxation relaxation,
@@ -99,13 +99,13 @@ AMGCL_C_API amgclHandle amgcl_precond_create(
         );
 
 // Apply AMG preconditioner (x = M^(-1) * rhs).
-AMGCL_C_API void amgcl_precond_apply(amgclHandle amg, const double *rhs, double *x);
+void STDCALL amgcl_precond_apply(amgclHandle amg, const double *rhs, double *x);
 
 // Destroy AMG preconditioner
-AMGCL_C_API void amgcl_precond_destroy(amgclHandle amg);
+void STDCALL amgcl_precond_destroy(amgclHandle amg);
 
 // Create iterative solver.
-AMGCL_C_API amgclHandle amgcl_solver_create(
+amgclHandle STDCALL amgcl_solver_create(
         amgclBackend backend,
         amgclSolver  solver,
         amgclHandle  parameters,
@@ -113,7 +113,7 @@ AMGCL_C_API amgclHandle amgcl_solver_create(
         );
 
 // Solve the problem for the given right-hand side.
-AMGCL_C_API void amgcl_solver_solve(
+void STDCALL amgcl_solver_solve(
         amgclHandle    solver,
         amgclHandle    amg,
         double const * rhs,
@@ -121,7 +121,7 @@ AMGCL_C_API void amgcl_solver_solve(
         );
 
 // Solve the problem for the given matrix and the right-hand side.
-AMGCL_C_API void amgcl_solver_solve_mtx(
+void STDCALL amgcl_solver_solve_mtx(
         amgclHandle    solver,
         int    const * A_ptr,
         int    const * A_col,
@@ -133,7 +133,7 @@ AMGCL_C_API void amgcl_solver_solve_mtx(
 
 
 // Destroy iterative solver.
-AMGCL_C_API void amgcl_solver_destroy(amgclHandle solver);
+void STDCALL amgcl_solver_destroy(amgclHandle solver);
 
 #ifdef __cplusplus
 } // extern "C"

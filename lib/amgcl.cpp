@@ -36,28 +36,28 @@ namespace amgcl {
 #endif
 
 //---------------------------------------------------------------------------
-amgclHandle amgcl_params_create() {
+amgclHandle STDCALL amgcl_params_create() {
     using boost::property_tree::ptree;
     ptree *p = new ptree();
     return static_cast<amgclHandle>(p);
 }
 
 //---------------------------------------------------------------------------
-void amgcl_params_seti(amgclHandle prm, const char *name, int value) {
+void STDCALL amgcl_params_seti(amgclHandle prm, const char *name, int value) {
     using boost::property_tree::ptree;
     ptree *p = static_cast<ptree*>(prm);
     p->put(name, value);
 }
 
 //---------------------------------------------------------------------------
-void amgcl_params_setf(amgclHandle prm, const char *name, float value) {
+void STDCALL amgcl_params_setf(amgclHandle prm, const char *name, float value) {
     using boost::property_tree::ptree;
     ptree *p = static_cast<ptree*>(prm);
     p->put(name, value);
 }
 
 //---------------------------------------------------------------------------
-void amgcl_params_destroy(amgclHandle prm) {
+void STDCALL amgcl_params_destroy(amgclHandle prm) {
     using boost::property_tree::ptree;
     delete static_cast<ptree*>(prm);
 }
@@ -290,7 +290,7 @@ struct do_create_precond {
 };
 
 //---------------------------------------------------------------------------
-amgclHandle amgcl_precond_create(
+amgclHandle STDCALL amgcl_precond_create(
         amgclBackend    backend,
         amgclCoarsening coarsening,
         amgclRelaxation relaxation,
@@ -336,7 +336,7 @@ struct do_apply_precond {
 };
 
 //---------------------------------------------------------------------------
-void amgcl_precond_apply(amgclHandle handle, const double *rhs, double *x) {
+void STDCALL amgcl_precond_apply(amgclHandle handle, const double *rhs, double *x) {
     AMGHandle *h = static_cast<AMGHandle*>(handle);
 
     process_precond(
@@ -358,7 +358,7 @@ struct do_destroy_precond {
 };
 
 //---------------------------------------------------------------------------
-void amgcl_precond_destroy(amgclHandle handle) {
+void STDCALL amgcl_precond_destroy(amgclHandle handle) {
     AMGHandle *h = static_cast<AMGHandle*>(handle);
 
     process_precond(
@@ -437,7 +437,7 @@ struct SolverHandle {
 };
 
 //---------------------------------------------------------------------------
-amgclHandle amgcl_solver_create(
+amgclHandle STDCALL amgcl_solver_create(
         amgclBackend backend,
         amgclSolver  solver,
         amgclHandle  prm,
@@ -468,7 +468,7 @@ struct do_destroy_solver {
 };
 
 //---------------------------------------------------------------------------
-void amgcl_solver_destroy(amgclHandle handle) {
+void STDCALL amgcl_solver_destroy(amgclHandle handle) {
     SolverHandle *h = static_cast<SolverHandle*>(handle);
 
     process_solver(h->backend, h->solver, do_destroy_solver(h->handle));
@@ -531,7 +531,7 @@ struct do_solve {
 };
 
 //---------------------------------------------------------------------------
-void amgcl_solver_solve(
+void STDCALL amgcl_solver_solve(
         amgclHandle solver,
         amgclHandle amg,
         const double *rhs,
@@ -631,7 +631,7 @@ struct do_solve_mtx {
 };
 
 //---------------------------------------------------------------------------
-void amgcl_solver_solve_mtx(
+void STDCALL amgcl_solver_solve_mtx(
         amgclHandle solver,
         int    const * A_ptr,
         int    const * A_col,
