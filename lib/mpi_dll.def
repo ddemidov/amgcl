@@ -1,0 +1,5 @@
+LIBRARY amgcl_mpi
+EXPORTS
+    amgcl_mpi_create
+    amgcl_mpi_solve
+    amgcl_mpi_destroy
