@@ -18,7 +18,5 @@ if (NUMPY_FOUND)
         COPYONLY
         )
 
-    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        add_test(test_pyamgcl test_pyamgcl)
-    endif()
+    add_test(test_pyamgcl test_pyamgcl)
 endif()
