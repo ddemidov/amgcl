@@ -494,11 +494,11 @@ struct do_solve {
     void *slv_handle;
     void *amg_handle;
 
-    int    &iters;
-    double &resid;
-
     const double *rhs;
     double *x;
+
+    int    &iters;
+    double &resid;
 
     do_solve(void *slv_handle, void *amg_handle, const double *rhs, double *x,
         int &iters, double &resid
