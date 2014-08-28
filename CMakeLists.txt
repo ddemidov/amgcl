@@ -106,6 +106,7 @@ endif()
 find_package(CUDA QUIET)
 if (CUDA_FOUND)
     set(CUDA_COMPUTE_CAPABILITY "35" CACHE STRING "CUDA Compute Capability")
+    add_definitions(-DAMGCL_HAVE_CUDA)
     add_definitions(-DBOOST_DISABLE_ASSERTS)
 endif ()
 
