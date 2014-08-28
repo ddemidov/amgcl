@@ -83,6 +83,9 @@ begin
 
     solver.solve(rhs, x);
 
+    writeln('iters: ', solver.iters);
+    writeln('resid: ', solver.resid);
+
     solver.free;
     prm.free;
 

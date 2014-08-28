@@ -433,6 +433,9 @@ struct SolverHandle {
     amgclBackend backend;
     amgclSolver  solver;
 
+    int    iters;
+    double resid;
+
     void *handle;
 };
 
@@ -453,6 +456,16 @@ amgclHandle STDCALL amgcl_solver_create(
     h->handle  = create.handle;
 
     return static_cast<amgclHandle>(h);
+}
+
+//---------------------------------------------------------------------------
+int STDCALL amgcl_solver_get_iters(amgclHandle h) {
+    return static_cast<SolverHandle*>(h)->iters;
+}
+
+//---------------------------------------------------------------------------
+double STDCALL amgcl_solver_get_resid(amgclHandle h) {
+    return static_cast<SolverHandle*>(h)->resid;
 }
 
 //---------------------------------------------------------------------------
@@ -481,11 +494,17 @@ struct do_solve {
     void *slv_handle;
     void *amg_handle;
 
+    int    &iters;
+    double &resid;
+
     const double *rhs;
     double *x;
 
-    do_solve(void *slv_handle, void *amg_handle, const double *rhs, double *x)
-        : slv_handle(slv_handle), amg_handle(amg_handle), rhs(rhs), x(x)
+    do_solve(void *slv_handle, void *amg_handle, const double *rhs, double *x,
+        int &iters, double &resid
+        )
+        : slv_handle(slv_handle), amg_handle(amg_handle), rhs(rhs), x(x),
+          iters(iters), resid(resid)
     {}
 
     template <class Solver>
@@ -496,8 +515,13 @@ struct do_solve {
         const double *rhs;
         double *x;
 
-        call_solver(Solver *solve, void *amg_handle, const double *rhs, double *x)
-            : solve(solve), amg_handle(amg_handle), rhs(rhs), x(x)
+        int    &iters;
+        double &resid;
+
+        call_solver(Solver *solve, void *amg_handle, const double *rhs, double *x,
+                    int &iters, double &resid)
+            : solve(solve), amg_handle(amg_handle), rhs(rhs), x(x),
+              iters(iters), resid(resid)
         {}
 
         template <class AMG>
@@ -507,9 +531,6 @@ struct do_solve {
 
             boost::iterator_range<const double*> rhs_range(rhs, rhs + n);
             boost::iterator_range<double*> x_range(x, x + n);
-
-            size_t iters;
-            double resid;
 
             boost::tie(iters, resid) = (*solve)(*amg, rhs_range, x_range);
 
@@ -526,7 +547,7 @@ struct do_solve {
         Solver    *solver = static_cast<Solver*   >(slv_handle);
 
         process_precond(amg->backend, amg->coarsening, amg->relaxation,
-                call_solver<Solver>(solver, amg->handle, rhs, x));
+                call_solver<Solver>(solver, amg->handle, rhs, x, iters, resid));
     }
 };
 
@@ -541,7 +562,7 @@ void STDCALL amgcl_solver_solve(
     SolverHandle *h = static_cast<SolverHandle*>(solver);
 
     process_solver(h->backend, h->solver,
-            do_solve(h->handle, amg, rhs, x)
+            do_solve(h->handle, amg, rhs, x, h->iters, h->resid)
             );
 }
 
@@ -557,14 +578,17 @@ struct do_solve_mtx {
     const double * rhs;
     double * x;
 
+    int    &iters;
+    double &resid;
+
     do_solve_mtx(
             void *slv_handle, void *amg_handle,
             const int * A_ptr, const int * A_col, const double * A_val,
-            const double *rhs, double *x
+            const double *rhs, double *x, int &iters, double &resid
             )
         : slv_handle(slv_handle), amg_handle(amg_handle),
           A_ptr(A_ptr), A_col(A_col), A_val(A_val),
-          rhs(rhs), x(x)
+          rhs(rhs), x(x), iters(iters), resid(resid)
     {}
 
     template <class Solver>
@@ -579,14 +603,17 @@ struct do_solve_mtx {
         const double *rhs;
         double *x;
 
+        int    &iters;
+        double &resid;
+
         call_solver(
                 Solver *solve, void *amg_handle,
                 const int * A_ptr, const int * A_col, const double * A_val,
-                const double *rhs, double *x
+                const double *rhs, double *x, int &iters, double &resid
                 )
             : solve(solve), amg_handle(amg_handle),
               A_ptr(A_ptr), A_col(A_col), A_val(A_val),
-              rhs(rhs), x(x)
+              rhs(rhs), x(x), iters(iters), resid(resid)
         {}
 
         template <class AMG>
@@ -596,9 +623,6 @@ struct do_solve_mtx {
 
             boost::iterator_range<const double*> rhs_range(rhs, rhs + n);
             boost::iterator_range<double*> x_range(x, x + n);
-
-            size_t iters;
-            double resid;
 
             boost::tie(iters, resid) = (*solve)(
                     boost::make_tuple(
@@ -624,7 +648,7 @@ struct do_solve_mtx {
 
         process_precond(amg->backend, amg->coarsening, amg->relaxation,
                 call_solver<Solver>(
-                    solver, amg->handle, A_ptr, A_col, A_val, rhs, x
+                    solver, amg->handle, A_ptr, A_col, A_val, rhs, x, iters, resid
                     )
                 );
     }
@@ -644,6 +668,7 @@ void STDCALL amgcl_solver_solve_mtx(
     SolverHandle *h = static_cast<SolverHandle*>(solver);
 
     process_solver(h->backend, h->solver,
-            do_solve_mtx(h->handle, amg, A_ptr, A_col, A_val, rhs, x)
+            do_solve_mtx(h->handle, amg, A_ptr, A_col, A_val, rhs, x,
+                    h->iters, h->resid)
             );
 }

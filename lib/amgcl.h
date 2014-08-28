@@ -131,6 +131,11 @@ void STDCALL amgcl_solver_solve_mtx(
         double       * x
         );
 
+// Get iterations from the last time 'solve' was called.
+int STDCALL amgcl_solver_get_iters(amgclHandle h);
+
+// Get residual from the last time 'solve' was called.
+double STDCALL amgcl_solver_get_resid(amgclHandle h);
 
 // Destroy iterative solver.
 void STDCALL amgcl_solver_destroy(amgclHandle solver);

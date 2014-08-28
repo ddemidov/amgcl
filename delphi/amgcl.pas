@@ -97,6 +97,9 @@ type
                 var rhs: Array of Double;
                 var x:   Array of Double
                 );
+
+	    function iters: Integer;
+	    function resid: Double;
     end;
 
     procedure load;
@@ -170,6 +173,9 @@ Var
         x:     PDouble
         ); stdcall;
 
+    amgcl_solver_get_iters: function(hs: Pointer): Integer; stdcall;
+    amgcl_solver_get_resid: function(hs: Pointer): Double;  stdcall;
+
     amgcl_solver_destroy: procedure(p: Pointer); stdcall;
 
 constructor TParams.Create;
@@ -216,6 +222,16 @@ begin
     amgcl_solver_solve(hs, hp, @rhs[0], @x[0]);
 end;
 
+function TSolver.iters: Integer;
+begin
+    iters := amgcl_solver_get_iters(hs);
+end;
+
+function TSolver.resid: Double;
+begin
+    resid := amgcl_solver_get_resid(hs);
+end;
+
 destructor TSolver.Destroy;
 begin
     amgcl_precond_destroy(hp);
@@ -248,6 +264,8 @@ begin
         @amgcl_solver_create    := get_function('amgcl_solver_create');
         @amgcl_solver_solve     := get_function('amgcl_solver_solve');
         @amgcl_solver_solve_mtx := get_function('amgcl_solver_solve_mtx');
+        @amgcl_solver_get_iters := get_function('amgcl_solver_get_iters');
+        @amgcl_solver_get_resid := get_function('amgcl_solver_get_resid');
         @amgcl_solver_destroy   := get_function('amgcl_solver_destroy');
     except
         on e: Exception do begin
