@@ -94,6 +94,7 @@ struct solver {
 
     PyObject* solve(const numpy_boost<double, 1> &rhs) const {
         numpy_boost<double, 1> x(&n);
+        std::fill_n(x.data(), n, 0);
         amgcl_solver_solve(hs.get(), hp.get(), rhs.data(), x.data());
 
         PyObject *result = x.py_ptr();
