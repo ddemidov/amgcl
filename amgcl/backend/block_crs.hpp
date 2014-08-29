@@ -158,6 +158,8 @@ struct block_crs {
     typedef typename builtin<real>::vector     vector;
     typedef solver::skyline_lu<value_type>     direct_solver;
 
+    struct provides_row_iterator : boost::false_type {};
+
     /// Backend parameters.
     struct params {
         /// Block size to use with the created matrices.

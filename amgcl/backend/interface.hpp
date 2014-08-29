@@ -345,6 +345,11 @@ void vmul(
     vmul_impl<Vector1, Vector2, Vector3>::apply(alpha, x, y, beta, z);
 }
 
+
+/// Is the relaxation supported by the backend?
+template <class Backend, template <class> class Relaxation, class Enable = void>
+struct relaxation_is_supported : boost::true_type {};
+
 } // namespace backend
 } // namespace amgcl
 

@@ -347,6 +347,8 @@ struct builtin {
     typedef real value_type;
     typedef long index_type;
 
+    struct provides_row_iterator : boost::true_type {};
+
     typedef crs<value_type, index_type>    matrix;
     typedef std::vector<value_type>        vector;
     typedef solver::skyline_lu<value_type> direct_solver;

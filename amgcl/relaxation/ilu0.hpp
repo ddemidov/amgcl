@@ -148,6 +148,20 @@ struct ilu0 {
 };
 
 } // namespace relaxation
+
+namespace backend {
+
+template <class Backend>
+struct relaxation_is_supported<
+    Backend,
+    relaxation::ilu0,
+    typename boost::disable_if<
+            typename Backend::provides_row_iterator
+        >::type
+    > : boost::false_type
+{};
+
+} // namespace backend
 } // namespace amgcl
 
 

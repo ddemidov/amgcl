@@ -65,6 +65,8 @@ struct eigen {
 
     typedef solver::skyline_lu<real> direct_solver;
 
+    struct provides_row_iterator : boost::true_type {};
+
     /// Backend parameters.
     struct params {
         params() {}

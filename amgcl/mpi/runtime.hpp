@@ -94,7 +94,12 @@ template <
     template <class, class> class IterativeSolver,
     class Func
     >
-inline void process_sdd(
+inline
+typename boost::enable_if<
+    typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+    void
+>::type
+process_sdd(
         runtime::direct_solver::type direct_solver,
         const Func &func
         )
@@ -127,6 +132,26 @@ inline void process_sdd(
             break;
 #endif
     }
+}
+
+template <
+    class Backend,
+    class Coarsening,
+    template <class> class Relaxation,
+    template <class, class> class IterativeSolver,
+    class Func
+    >
+inline
+typename boost::disable_if<
+    typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+    void
+>::type
+process_sdd(
+        runtime::direct_solver::type direct_solver,
+        const Func &func
+        )
+{
+    throw std::logic_error("The relaxation scheme is not supported by the backend");
 }
 
 template <

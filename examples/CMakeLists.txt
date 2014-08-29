@@ -16,6 +16,10 @@ if (VEXCL_ROOT)
     add_executable(vexcl vexcl.cpp)
     target_link_libraries(vexcl ${Boost_LIBRARIES} ${VEXCL_BACKEND_LIBRARIES})
     set_target_properties(vexcl PROPERTIES COMPILE_FLAGS ${CXX11_FLAG})
+
+    add_executable(runtime_vexcl runtime_vexcl.cpp)
+    target_link_libraries(runtime_vexcl ${Boost_LIBRARIES} ${VEXCL_BACKEND_LIBRARIES})
+    set_target_properties(runtime_vexcl PROPERTIES COMPILE_FLAGS ${CXX11_FLAG})
 endif()
 
 if (CUDA_FOUND)

@@ -208,6 +208,8 @@ struct cuda {
     typedef thrust::device_vector<real>         vector;
     typedef detail::default_direct_solver<cuda> direct_solver;
 
+    struct provides_row_iterator : boost::false_type {};
+
     /// Backend parameters.
     struct params {
         /// CUSPARSE handle.

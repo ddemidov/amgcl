@@ -54,6 +54,8 @@ struct blaze {
     typedef real value_type;
     typedef long index_type;
 
+    struct provides_row_iterator : boost::false_type {};
+
     typedef ::blaze::CompressedMatrix<real> matrix;
     typedef ::blaze::DynamicVector<real>    vector;
     typedef solver::skyline_lu<real>        direct_solver;

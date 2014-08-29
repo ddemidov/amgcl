@@ -210,9 +210,29 @@ template <
     template <class> class Relaxation,
     class Func
     >
-inline void process_amg(const Func &func) {
+inline
+typename boost::enable_if<
+    typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+    void
+>::type
+process_amg(const Func &func) {
     typedef amgcl::amg<Backend, Coarsening, Relaxation> AMG;
     func.template process<AMG>();
+}
+
+template <
+    class Backend,
+    class Coarsening,
+    template <class> class Relaxation,
+    class Func
+    >
+inline
+typename boost::disable_if<
+    typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+    void
+>::type
+process_amg(const Func &func) {
+    throw std::logic_error("The relaxation scheme is not supported by the backend");
 }
 
 //---------------------------------------------------------------------------

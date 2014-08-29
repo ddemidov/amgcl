@@ -66,6 +66,8 @@ struct viennacl {
     typedef ::viennacl::vector<value_type>             vector;
     typedef detail::default_direct_solver<viennacl>    direct_solver;
 
+    struct provides_row_iterator : boost::false_type {};
+
     /// Backend parameters.
     struct params {
         params() {}
