@@ -128,7 +128,7 @@ find_package(BLAS   QUIET)
 if (PASTIX_INCLUDES AND SCOTCH_INCLUDES AND BLAS_FOUND)
     set(HAVE_PASTIX ON)
     include_directories(${PASTIX_INCLUDES} ${SCOTCH_INCLUDES})
-    add_definitions(-DHAVE_PASTIX)
+    add_definitions(-DAMGCL_HAVE_PASTIX)
 endif()
 
 #----------------------------------------------------------------------------

@@ -10,21 +10,12 @@
 #include <boost/scope_exit.hpp>
 #include <boost/range/algorithm.hpp>
 
-#include <amgcl/amgcl.hpp>
-#include <amgcl/backend/builtin.hpp>
-#include <amgcl/adapter/crs_tuple.hpp>
-#include <amgcl/coarsening/plain_aggregates.hpp>
-#include <amgcl/coarsening/smoothed_aggregation.hpp>
-#include <amgcl/coarsening/ruge_stuben.hpp>
-#include <amgcl/relaxation/spai0.hpp>
-#include <amgcl/relaxation/gauss_seidel.hpp>
-#include <amgcl/solver/bicgstabl.hpp>
-#include <amgcl/mpi/subdomain_deflation.hpp>
-#include <amgcl/profiler.hpp>
+#include <boost/program_options.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
 
-#ifdef AMGCL_HAVE_PASTIX
-#include <amgcl/mpi/pastix.hpp>
-#endif
+#include <amgcl/mpi/runtime.hpp>
+#include <amgcl/profiler.hpp>
 
 #include "domain_partition.hpp"
 
@@ -67,7 +58,68 @@ int main(int argc, char *argv[]) {
     if (world.rank == 0)
         std::cout << "World size: " << world.size << std::endl;
 
-    const long n  = argc > 1 ? atoi(argv[1]) : 1024;
+    // Read configuration from command line
+    long n = 1024;
+
+    amgcl::runtime::coarsening::type    coarsening       = amgcl::runtime::coarsening::smoothed_aggregation;
+    amgcl::runtime::relaxation::type    relaxation       = amgcl::runtime::relaxation::spai0;
+    amgcl::runtime::solver::type        iterative_solver = amgcl::runtime::solver::bicgstabl;
+    amgcl::runtime::direct_solver::type direct_solver    = amgcl::runtime::direct_solver::skyline_lu;
+
+    std::string parameter_file;
+
+    namespace po = boost::program_options;
+    po::options_description desc("Options");
+
+    desc.add_options()
+        ("help,h", "show help")
+        (
+         "size,n",
+         po::value<long>(&n)->default_value(n),
+         "domain size"
+        )
+        (
+         "coarsening,c",
+         po::value<amgcl::runtime::coarsening::type>(&coarsening)->default_value(coarsening),
+         "ruge_stuben, aggregation, smoothed_aggregation, smoothed_aggr_emin"
+        )
+        (
+         "relaxation,r",
+         po::value<amgcl::runtime::relaxation::type>(&relaxation)->default_value(relaxation),
+         "gauss_seidel, ilu0, damped_jacobi, spai0, chebyshev"
+        )
+        (
+         "iter_solver,i",
+         po::value<amgcl::runtime::solver::type>(&iterative_solver)->default_value(iterative_solver),
+         "cg, bicgstab, bicgstabl, gmres"
+        )
+        (
+         "dir_solver,d",
+         po::value<amgcl::runtime::direct_solver::type>(&direct_solver)->default_value(direct_solver),
+         "skyline_lu"
+#ifdef AMGCL_HAVE_PASTIX
+         ", pastix"
+#endif
+        )
+        (
+         "params,p",
+         po::value<std::string>(&parameter_file),
+         "parameter file in json format"
+        )
+        ;
+
+    po::variables_map vm;
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);
+
+    if (vm.count("help")) {
+        std::cout << desc << std::endl;
+        return 0;
+    }
+
+    boost::property_tree::ptree prm;
+    if (vm.count("params")) read_json(parameter_file, prm);
+
     const long n2 = n * n;
 
     boost::array<long, 2> lo = { {0, 0} };
@@ -206,22 +258,16 @@ int main(int argc, char *argv[]) {
     prof.toc("assemble");
 
     prof.tic("setup");
-    amgcl::mpi::subdomain_deflation<
-        amgcl::backend::builtin<double>,
-#ifdef RECIRCULATION
-        amgcl::coarsening::ruge_stuben,
-        amgcl::relaxation::gauss_seidel,
-#else
-        amgcl::coarsening::smoothed_aggregation<
-            amgcl::coarsening::plain_aggregates
-            >,
-        amgcl::relaxation::spai0,
-#endif
-        amgcl::solver::bicgstabl
-#ifdef AMGCL_HAVE_PASTIX
-        , amgcl::mpi::PaStiX<double>
-#endif
-        > solve(world, boost::tie(chunk, ptr, col, val), lindef);
+    typedef
+        amgcl::runtime::mpi::subdomain_deflation<
+            amgcl::backend::builtin<double>
+            >
+        SDD;
+
+    SDD solve(
+            coarsening, relaxation, iterative_solver, direct_solver,
+            world, boost::tie(chunk, ptr, col, val), lindef, prm
+            );
     double tm_setup = prof.toc("setup");
 
     std::vector<double> x(chunk, 0);
