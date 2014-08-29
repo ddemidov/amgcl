@@ -66,6 +66,7 @@ int main(int argc, char *argv[]) {
     amgcl::runtime::solver::type        iterative_solver = amgcl::runtime::solver::bicgstabl;
     amgcl::runtime::direct_solver::type direct_solver    = amgcl::runtime::direct_solver::skyline_lu;
 
+    std::string problem = "laplace2d";
     std::string parameter_file;
 
     namespace po = boost::program_options;
@@ -73,6 +74,11 @@ int main(int argc, char *argv[]) {
 
     desc.add_options()
         ("help,h", "show help")
+        (
+         "problem",
+         po::value<std::string>(&problem)->default_value(problem),
+         "laplace2d, recirc2d"
+        )
         (
          "size,n",
          po::value<long>(&n)->default_value(n),
@@ -172,89 +178,90 @@ int main(int argc, char *argv[]) {
 
     const double hinv = (n - 1);
     const double h2i  = (n - 1) * (n - 1);
-#ifdef RECIRCULATION
-    const double h    = 1 / hinv;
-    const double eps  = 1e-5;
 
-    for(long j = 0, idx = 0; j < n; ++j) {
-        double y = h * j;
-        for(long i = 0; i < n; ++i, ++idx) {
-            double x = h * i;
+    if (problem == "recirc2d") {
+        const double h    = 1 / hinv;
+        const double eps  = 1e-5;
 
-            if (renum[idx] < chunk_start || renum[idx] >= chunk_end) continue;
+        for(long j = 0, idx = 0; j < n; ++j) {
+            double y = h * j;
+            for(long i = 0; i < n; ++i, ++idx) {
+                double x = h * i;
 
-            if (i == 0 || j == 0 || i + 1 == n || j + 1 == n) {
-                col.push_back(renum[idx]);
-                val.push_back(1);
-                rhs.push_back(
-                        sin(M_PI * x) + sin(M_PI * y) +
-                        sin(13 * M_PI * x) + sin(13 * M_PI * y)
-                        );
-            } else {
-                double a = -sin(M_PI * x) * cos(M_PI * y) * hinv;
-                double b =  sin(M_PI * y) * cos(M_PI * x) * hinv;
+                if (renum[idx] < chunk_start || renum[idx] >= chunk_end) continue;
 
-                if (j > 0) {
+                if (i == 0 || j == 0 || i + 1 == n || j + 1 == n) {
+                    col.push_back(renum[idx]);
+                    val.push_back(1);
+                    rhs.push_back(
+                            sin(M_PI * x) + sin(M_PI * y) +
+                            sin(13 * M_PI * x) + sin(13 * M_PI * y)
+                            );
+                } else {
+                    double a = -sin(M_PI * x) * cos(M_PI * y) * hinv;
+                    double b =  sin(M_PI * y) * cos(M_PI * x) * hinv;
+
+                    if (j > 0) {
+                        col.push_back(renum[idx - n]);
+                        val.push_back(-eps * h2i - std::max(b, 0.0));
+                    }
+
+                    if (i > 0) {
+                        col.push_back(renum[idx - 1]);
+                        val.push_back(-eps * h2i - std::max(a, 0.0));
+                    }
+
+                    col.push_back(renum[idx]);
+                    val.push_back(4 * eps * h2i + fabs(a) + fabs(b));
+
+                    if (i + 1 < n) {
+                        col.push_back(renum[idx + 1]);
+                        val.push_back(-eps * h2i + std::min(a, 0.0));
+                    }
+
+                    if (j + 1 < n) {
+                        col.push_back(renum[idx + n]);
+                        val.push_back(-eps * h2i + std::min(b, 0.0));
+                    }
+
+                    rhs.push_back(1.0);
+                }
+                ptr.push_back( col.size() );
+            }
+        }
+    } else {
+        for(long j = 0, idx = 0; j < n; ++j) {
+            for(long i = 0; i < n; ++i, ++idx) {
+                if (renum[idx] < chunk_start || renum[idx] >= chunk_end) continue;
+
+                if (j > 0)  {
                     col.push_back(renum[idx - n]);
-                    val.push_back(-eps * h2i - std::max(b, 0.0));
+                    val.push_back(-h2i);
                 }
 
                 if (i > 0) {
                     col.push_back(renum[idx - 1]);
-                    val.push_back(-eps * h2i - std::max(a, 0.0));
+                    val.push_back(-h2i - hinv);
                 }
 
                 col.push_back(renum[idx]);
-                val.push_back(4 * eps * h2i + fabs(a) + fabs(b));
+                val.push_back(4 * h2i + hinv);
 
                 if (i + 1 < n) {
                     col.push_back(renum[idx + 1]);
-                    val.push_back(-eps * h2i + std::min(a, 0.0));
+                    val.push_back(-h2i);
                 }
 
                 if (j + 1 < n) {
                     col.push_back(renum[idx + n]);
-                    val.push_back(-eps * h2i + std::min(b, 0.0));
+                    val.push_back(-h2i);
                 }
 
-                rhs.push_back(1.0);
+                rhs.push_back(1);
+                ptr.push_back( col.size() );
             }
-            ptr.push_back( col.size() );
         }
     }
-#else
-    for(long j = 0, idx = 0; j < n; ++j) {
-        for(long i = 0; i < n; ++i, ++idx) {
-            if (renum[idx] < chunk_start || renum[idx] >= chunk_end) continue;
-
-            if (j > 0)  {
-                col.push_back(renum[idx - n]);
-                val.push_back(-h2i);
-            }
-
-            if (i > 0) {
-                col.push_back(renum[idx - 1]);
-                val.push_back(-h2i - hinv);
-            }
-
-            col.push_back(renum[idx]);
-            val.push_back(4 * h2i + hinv);
-
-            if (i + 1 < n) {
-                col.push_back(renum[idx + 1]);
-                val.push_back(-h2i);
-            }
-
-            if (j + 1 < n) {
-                col.push_back(renum[idx + n]);
-                val.push_back(-h2i);
-            }
-
-            rhs.push_back(1);
-            ptr.push_back( col.size() );
-        }
-    }
-#endif
     prof.toc("assemble");
 
     prof.tic("setup");
