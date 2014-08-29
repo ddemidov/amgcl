@@ -41,35 +41,29 @@ THE SOFTWARE.
 extern "C" {
 #endif
 
-// Backends
-typedef enum {
-    amgclBackendBuiltin  = 1,
-    amgclBackendBlockCRS = 2
-} amgclBackend;
-
 // Coarsening
 typedef enum {
-    amgclCoarseningRugeStuben          = 1,
-    amgclCoarseningAggregation         = 2,
-    amgclCoarseningSmoothedAggregation = 3,
-    amgclCoarseningSmoothedAggrEMin    = 4
+    amgclCoarseningRugeStuben,
+    amgclCoarseningAggregation,
+    amgclCoarseningSmoothedAggregation,
+    amgclCoarseningSmoothedAggrEMin
 } amgclCoarsening;
 
 // Relaxation
 typedef enum {
-    amgclRelaxationDampedJacobi = 1,
-    amgclRelaxationGaussSeidel  = 2,
-    amgclRelaxationChebyshev    = 3,
-    amgclRelaxationSPAI0        = 4,
-    amgclRelaxationILU0         = 5
+    amgclRelaxationGaussSeidel,
+    amgclRelaxationILU0,
+    amgclRelaxationDampedJacobi,
+    amgclRelaxationSPAI0,
+    amgclRelaxationChebyshev
 } amgclRelaxation;
 
 // Solver
 typedef enum {
-    amgclSolverCG        = 1,
-    amgclSolverBiCGStab  = 2,
-    amgclSolverBiCGStabL = 3,
-    amgclSolverGMRES     = 4
+    amgclSolverCG,
+    amgclSolverBiCGStab,
+    amgclSolverBiCGStabL,
+    amgclSolverGMRES
 } amgclSolver;
 
 typedef void* amgclHandle;
@@ -88,7 +82,6 @@ void STDCALL amgcl_params_destroy(amgclHandle prm);
 
 // Create AMG preconditioner.
 amgclHandle STDCALL amgcl_precond_create(
-        amgclBackend    backend,
         amgclCoarsening coarsening,
         amgclRelaxation relaxation,
         amgclHandle     parameters,
@@ -104,38 +97,40 @@ void STDCALL amgcl_precond_apply(amgclHandle amg, const double *rhs, double *x);
 // Destroy AMG preconditioner
 void STDCALL amgcl_precond_destroy(amgclHandle amg);
 
-// Create iterative solver.
+// Create iterative solver preconditioned by AMG.
 amgclHandle STDCALL amgcl_solver_create(
-        amgclBackend backend,
-        amgclSolver  solver,
-        amgclHandle  parameters,
-        int n
+        amgclCoarsening coarsening,
+        amgclRelaxation relaxation,
+        amgclSolver     solver,
+        amgclHandle     parameters,
+        int n,
+        const int    *ptr,
+        const int    *col,
+        const double *val
         );
 
+// Convergence info
+struct conv_info {
+    int    iterations;
+    double residual;
+};
+
 // Solve the problem for the given right-hand side.
-void STDCALL amgcl_solver_solve(
+conv_info STDCALL amgcl_solver_solve(
         amgclHandle    solver,
-        amgclHandle    amg,
         double const * rhs,
         double       * x
         );
 
 // Solve the problem for the given matrix and the right-hand side.
-void STDCALL amgcl_solver_solve_mtx(
+conv_info STDCALL amgcl_solver_solve_mtx(
         amgclHandle    solver,
         int    const * A_ptr,
         int    const * A_col,
         double const * A_val,
-        amgclHandle    amg,
         double const * rhs,
         double       * x
         );
-
-// Get iterations from the last time 'solve' was called.
-int STDCALL amgcl_solver_get_iters(amgclHandle h);
-
-// Get residual from the last time 'solve' was called.
-double STDCALL amgcl_solver_get_resid(amgclHandle h);
 
 // Destroy iterative solver.
 void STDCALL amgcl_solver_destroy(amgclHandle solver);

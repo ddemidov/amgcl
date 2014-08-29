@@ -41,18 +41,17 @@ extern "C" {
 typedef double (STDCALL *amgclDefVecFunction)(int vec, long coo, void *data);
 
 typedef enum {
-    amgclDirectSolverSkylineLU = 1
-#ifdef HAVE_PASTIX
-    , amgclDirectSolverPastix  = 2
+    amgclDirectSolverSkylineLU
+#ifdef AMGCL_HAVE_PASTIX
+  , amgclDirectSolverPastix
 #endif
 } amgclDirectSolver;
 
 // Create distributed solver.
 amgclHandle STDCALL amgcl_mpi_create(
-        amgclBackend         backend,
         amgclCoarsening      coarsening,
         amgclRelaxation      relaxation,
-        amgclSolver          solver,
+        amgclSolver          iterative_solver,
         amgclDirectSolver    direct_solver,
         amgclHandle          params,
         MPI_Comm             comm,
@@ -66,16 +65,14 @@ amgclHandle STDCALL amgcl_mpi_create(
         );
 
 // Find soltion for the given RHS.
-void STDCALL amgcl_mpi_solve(
+conv_info STDCALL amgcl_mpi_solve(
         amgclHandle   solver,
         double const *rhs,
         double       *x
         );
 
 // Destroy the distributed solver.
-void STDCALL amgcl_mpi_destroy(
-        amgclHandle solver
-        );
+void STDCALL amgcl_mpi_destroy(amgclHandle solver);
 
 #ifdef __cplusplus
 } // extern "C"

@@ -474,6 +474,10 @@ class amg : boost::noncopyable {
             return *top.matrix;
         }
 
+        size_t size() const {
+            return backend::rows( top_matrix() );
+        }
+
         friend std::ostream& operator<<(std::ostream &os, const amg &a)
         {
             runtime::detail::process_amg<Backend>(
@@ -482,6 +486,7 @@ class amg : boost::noncopyable {
                     );
             return os;
         }
+
     private:
         const runtime::coarsening::type coarsening;
         const runtime::relaxation::type relaxation;
@@ -655,6 +660,10 @@ class make_solver : boost::noncopyable {
 
         const runtime::amg<Backend>& amg() const {
             return P;
+        }
+
+        size_t size() const {
+            return P.size();
         }
     private:
         runtime::amg<Backend>        P;

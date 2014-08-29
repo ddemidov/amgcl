@@ -104,11 +104,10 @@ int main(int argc, char *argv[]) {
     // Setup
     amgclHandle prm    = amgcl_params_create();
     amgclHandle solver = amgcl_mpi_create(
-            amgclBackendBuiltin,
             amgclCoarseningSmoothedAggregation,
             amgclRelaxationSPAI0,
             amgclSolverBiCGStabL,
-#ifdef HAVE_PASTIX
+#ifdef AMGCL_HAVE_PASTIX
             amgclDirectSolverPastix,
 #else
             amgclDirectSolverSkylineLU,
@@ -120,7 +119,10 @@ int main(int argc, char *argv[]) {
 
     // Solve
     std::vector<double> x(chunk, 0);
-    amgcl_mpi_solve(solver, rhs.data(), x.data());
+    conv_info cnv = amgcl_mpi_solve(solver, rhs.data(), x.data());
+
+    std::cout << "Iterations: " << cnv.iterations << std::endl
+              << "Error:      " << cnv.residual   << std::endl;
 
     // Clean up
     amgcl_mpi_destroy(solver);

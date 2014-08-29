@@ -380,7 +380,9 @@ class subdomain_deflation : boost::noncopyable {
             : coarsening(coarsening),
               relaxation(relaxation),
               iterative_solver(iterative_solver),
-              direct_solver(direct_solver)
+              direct_solver(direct_solver),
+              n( backend::rows(A) ),
+              handle(0)
         {
             runtime::mpi::detail::process_sdd<Backend>(
                     coarsening,
@@ -422,12 +424,16 @@ class subdomain_deflation : boost::noncopyable {
             return boost::make_tuple(iters, resid);
         }
 
+        size_t local_size() const {
+            return n;
+        }
     private:
         const runtime::coarsening::type    coarsening;
         const runtime::relaxation::type    relaxation;
         const runtime::solver::type        iterative_solver;
         const runtime::direct_solver::type direct_solver;
 
+        size_t n;
         void * handle;
 };
 
