@@ -87,8 +87,6 @@ std::ostream& operator<<(std::ostream &os, type c) {
 
 std::istream& operator>>(std::istream &in, type &c)
 {
-    namespace po = boost::program_options;
-
     std::string val;
     in >> val;
 
@@ -137,8 +135,6 @@ std::ostream& operator<<(std::ostream &os, type r)
 
 std::istream& operator>>(std::istream &in, type &r)
 {
-    namespace po = boost::program_options;
-
     std::string val;
     in >> val;
 
@@ -186,8 +182,6 @@ std::ostream& operator<<(std::ostream &os, type s)
 
 std::istream& operator>>(std::istream &in, type &s)
 {
-    namespace po = boost::program_options;
-
     std::string val;
     in >> val;
 

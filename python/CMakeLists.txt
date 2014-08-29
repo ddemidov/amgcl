@@ -10,7 +10,7 @@ if (NUMPY_FOUND)
 
     add_library(pyamgcl pyamgcl.cpp)
     set_target_properties(pyamgcl PROPERTIES PREFIX "")
-    target_link_Libraries(pyamgcl amgcl ${Boost_LIBRARIES})
+    target_link_Libraries(pyamgcl ${Boost_LIBRARIES})
 
     configure_file(
         ${CMAKE_CURRENT_SOURCE_DIR}/test_pyamgcl

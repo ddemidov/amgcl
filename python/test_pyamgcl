@@ -42,8 +42,7 @@ class TestPyAMGCL(unittest.TestCase):
                 ptr[idx] = head
 
         # Setup solver
-        solve = amg.solver(
-                amg.backend.builtin,
+        solve = amg.make_solver(
                 amg.coarsening.smoothed_aggregation,
                 amg.relaxation.spai0,
                 amg.solver_type.bicgstab,
@@ -51,8 +50,13 @@ class TestPyAMGCL(unittest.TestCase):
                 ptr, col, val
                 )
 
+        print "%s" % solve
+
         # Solve
         x = solve(rhs)
+
+        print "Iterations: %s" % solve.iterations()
+        print "Error:      %s" % solve.residual()
 
         # Check residual
         A   = csr_matrix((val,col,ptr), shape=(n2,n2))
