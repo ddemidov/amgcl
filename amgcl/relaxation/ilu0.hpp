@@ -156,7 +156,10 @@ struct relaxation_is_supported<
     Backend,
     relaxation::ilu0,
     typename boost::disable_if<
-            typename Backend::provides_row_iterator
+            typename boost::is_same<
+                Backend,
+                builtin<typename Backend::value_type>
+            >::type
         >::type
     > : boost::false_type
 {};
