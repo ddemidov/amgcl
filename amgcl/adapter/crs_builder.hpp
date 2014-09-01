@@ -93,6 +93,8 @@ amgcl::make_solver<
 #include <amgcl/backend/detail/matrix_ops.hpp>
 
 namespace amgcl {
+
+/// Matrix adapters.
 namespace adapter {
 
 /// Generates matrix rows as needed with help of user-provided functor.
