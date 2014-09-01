@@ -309,7 +309,7 @@ class amg {
     friend std::ostream& operator<<(std::ostream &os, const amg<B, C, R> &a);
 };
 
-/// Outputs information about the AMG hierarchy to output stream.
+/// Sends information about the AMG hierarchy to output stream.
 template <class B, class C, template <class> class R>
 std::ostream& operator<<(std::ostream &os, const amg<B, C, R> &a)
 {
@@ -410,10 +410,12 @@ class make_solver {
             return S(P, rhs, x);
         }
 
+        /// Reference to the constructed AMG hierarchy.
         const AMG& amg() const {
             return P;
         }
 
+        /// Reference to the iterative solver.
         const Solver& solver() const {
             return S;
         }

@@ -42,6 +42,7 @@ namespace amgcl {
 
 namespace runtime {
 
+/// Direct solvers.
 namespace direct_solver {
 enum type {
     skyline_lu
@@ -83,6 +84,7 @@ std::istream& operator>>(std::istream &in, type &s)
 
 } // namespace direct_solver
 
+/// Distributed algorithms and structures.
 namespace mpi {
 
 namespace detail {
@@ -360,6 +362,10 @@ struct sdd_solve {
 
 } // namespace detail
 
+/// Runtime-configurable distributed solver based on subdomain deflation.
+/**
+ * \sa \cite Frank2001
+ */
 template <class Backend>
 class subdomain_deflation : boost::noncopyable {
     public:

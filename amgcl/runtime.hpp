@@ -60,8 +60,11 @@ THE SOFTWARE.
 
 
 namespace amgcl {
+
+/// Runtime-configurable interface to AMGCL.
 namespace runtime {
 
+/// Coarsening kinds.
 namespace coarsening {
 enum type {
     ruge_stuben,
@@ -106,6 +109,7 @@ std::istream& operator>>(std::istream &in, type &c)
 
 } // namespace coarsening
 
+/// Relaxation schemes.
 namespace relaxation {
 enum type {
     gauss_seidel,
@@ -156,6 +160,7 @@ std::istream& operator>>(std::istream &in, type &r)
 
 } // namespace relaxation
 
+/// Iterative solvers.
 namespace solver {
 enum type {
     cg,
@@ -418,6 +423,7 @@ struct amg_print {
 
 } // namespace detail
 
+/// Runtime-configurable AMG preconditioner.
 template <class Backend>
 class amg : boost::noncopyable {
     public:
@@ -429,6 +435,22 @@ class amg : boost::noncopyable {
 
         typedef boost::property_tree::ptree params;
 
+        /// Constructs the AMG hierarchy.
+        /**
+         * \param coarsening Coarsening kind.
+         * \param relaxation Relaxation scheme.
+         * \param A          The system matrix.
+         * \param prm        Parameters.
+         *
+         * \note The prm argument is an instance of boost::property_tree::ptree
+         * class. The structure of the property tree should copy the structure
+         * of amgcl::AMG::params struct. E.g., one could
+         \code
+         prm.put("coarsening.aggr.eps_strong", 1e-2);
+         \endcode
+         * Any parameters that are not relevant to the current AMG class, are
+         * silently ignored.
+         */
         template <class Matrix>
         amg(
                 runtime::coarsening::type coarsening,
@@ -443,6 +465,14 @@ class amg : boost::noncopyable {
                     );
         }
 
+        /// Constructs the AMG hierarchy with default coarsening and relaxation.
+        /**
+         * \param A          The system matrix.
+         * \param prm        Parameters.
+         *
+         * \note The default values for coarsening and relaxation are
+         * smoothed_aggregation and spai0 correspondingly.
+         */
         template <class Matrix>
         amg(const Matrix &A, const params &prm = params())
             : coarsening(runtime::coarsening::smoothed_aggregation),
@@ -455,6 +485,7 @@ class amg : boost::noncopyable {
                     );
         }
 
+        /// Destructor.
         ~amg() {
             runtime::detail::process_amg<Backend>(
                     coarsening, relaxation,
@@ -462,6 +493,11 @@ class amg : boost::noncopyable {
                     );
         }
 
+        /// Performs single V-cycle for the given right-hand side and solution.
+        /**
+         * \param rhs Right-hand side vector.
+         * \param x   Solution vector.
+         */
         template <class Vec1, class Vec2>
         void cycle(const Vec1 &rhs, Vec2 &x) const {
             runtime::detail::process_amg<Backend>(
@@ -470,6 +506,13 @@ class amg : boost::noncopyable {
                     );
         }
 
+        /// Performs single V-cycle after clearing x.
+        /**
+         * This is intended for use as a preconditioning procedure.
+         *
+         * \param rhs Right-hand side vector.
+         * \param x   Solution vector.
+         */
         template <class Vec1, class Vec2>
         void apply(const Vec1 &rhs, Vec2 &x) const {
             runtime::detail::process_amg<Backend>(
@@ -478,6 +521,7 @@ class amg : boost::noncopyable {
                     );
         }
 
+        /// Returns the system matrix from the finest level.
         const matrix& top_matrix() const {
             runtime::detail::amg_top_matrix<matrix> top(handle);
             runtime::detail::process_amg<Backend>(
@@ -486,10 +530,12 @@ class amg : boost::noncopyable {
             return *top.matrix;
         }
 
+        /// Returns problem size at the finest level.
         size_t size() const {
             return backend::rows( top_matrix() );
         }
 
+        /// Sends information about the AMG hierarchy to output stream.
         friend std::ostream& operator<<(std::ostream &os, const amg &a)
         {
             runtime::detail::process_amg<Backend>(
@@ -611,12 +657,31 @@ struct solver_solve {
 
 } // namespace detail
 
+/// Runtime-configurable class that creates a pair of AMG preconditioner and iterative solver
 template <class Backend>
 class make_solver : boost::noncopyable {
     public:
         typedef typename Backend::value_type value_type;
         typedef boost::property_tree::ptree params;
 
+        /// Constructs the AMG hierarchy and creates iterative solver.
+        /**
+         * \param coarsening Coarsening kind.
+         * \param relaxation Relaxation scheme.
+         * \param solver     Iterative solver.
+         * \param A          The system matrix.
+         * \param prm        Parameters.
+         *
+         * \note The prm argument is an instance of boost::property_tree::ptree
+         * class. The structure of the property tree is a union of AMG::params
+         * and Solver::params struct. E.g., one could
+         \code
+         prm.put("coarsening.aggr.eps_strong", 1e-2);
+         prm.put("tol", 1e-6);
+         \endcode
+         * Any parameters that are not relevant to the current AMG or Solver
+         * classes, are silently ignored.
+         */
         template <class Matrix>
         make_solver(
                 runtime::coarsening::type coarsening,
@@ -635,6 +700,7 @@ class make_solver : boost::noncopyable {
                     );
         }
 
+        /// Destructor.
         ~make_solver() {
             runtime::detail::process_solver<Backend>(
                     solver,
@@ -642,6 +708,19 @@ class make_solver : boost::noncopyable {
                     );
         }
 
+        /// Solves the linear system for the given system matrix.
+        /**
+         * \param A   System matrix.
+         * \param rhs Right-hand side.
+         * \param x   Solution vector.
+         *
+         * The system matrix may differ from the matrix used for the AMG
+         * preconditioner construction. This may be used for the solution of
+         * non-stationary problems with slowly changing coefficients. There is
+         * a strong chance that AMG built for one time step will act as a
+         * reasonably good preconditioner for several subsequent time steps
+         * \cite Demidov2012.
+         */
         template <class Matrix, class Vec1, class Vec2>
         boost::tuple<size_t, value_type> operator()(
                 Matrix  const &A,
@@ -661,6 +740,11 @@ class make_solver : boost::noncopyable {
             return boost::make_tuple(iters, resid);
         }
 
+        /// Solves the linear system for the given right-hand side.
+        /**
+         * \param rhs Right-hand side.
+         * \param x   Solution vector.
+         */
         template <class Vec1, class Vec2>
         boost::tuple<size_t, value_type> operator()(
                 Vec1    const &rhs,
@@ -670,10 +754,12 @@ class make_solver : boost::noncopyable {
             return (*this)(P.top_matrix(), rhs, x);
         }
 
+        /// Reference to the constructed AMG hierarchy.
         const runtime::amg<Backend>& amg() const {
             return P;
         }
 
+        /// Returns problem size at the finest level.
         size_t size() const {
             return P.size();
         }
