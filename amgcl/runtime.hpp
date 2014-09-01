@@ -443,6 +443,18 @@ class amg : boost::noncopyable {
                     );
         }
 
+        template <class Matrix>
+        amg(const Matrix &A, const params &prm = params())
+            : coarsening(runtime::coarsening::smoothed_aggregation),
+              relaxation(runtime::relaxation::spai0),
+              handle(0)
+        {
+            runtime::detail::process_amg<Backend>(
+                    coarsening, relaxation,
+                    runtime::detail::amg_create<Matrix>(handle, A, prm)
+                    );
+        }
+
         ~amg() {
             runtime::detail::process_amg<Backend>(
                     coarsening, relaxation,

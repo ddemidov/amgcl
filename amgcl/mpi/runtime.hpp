@@ -395,6 +395,30 @@ class subdomain_deflation : boost::noncopyable {
                     );
         }
 
+        template <class Matrix, class DefVec>
+        subdomain_deflation(
+                MPI_Comm comm,
+                const Matrix &A,
+                const DefVec &def_vec,
+                const params &prm
+                )
+            : coarsening(amgcl::runtime::coarsening::smoothed_aggregation),
+              relaxation(amgcl::runtime::relaxation::spai0),
+              iterative_solver(amgcl::runtime::solver::bicgstabl),
+              direct_solver(amgcl::runtime::direct_solver::skyline_lu),
+              n( backend::rows(A) ), handle(0)
+        {
+            runtime::mpi::detail::process_sdd<Backend>(
+                    coarsening,
+                    relaxation,
+                    iterative_solver,
+                    direct_solver,
+                    runtime::mpi::detail::sdd_create<Matrix, DefVec>(
+                        handle, comm, A, def_vec, prm
+                        )
+                    );
+        }
+
         ~subdomain_deflation() {
             runtime::mpi::detail::process_sdd<Backend>(
                     coarsening,
