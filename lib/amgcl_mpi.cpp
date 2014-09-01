@@ -40,7 +40,7 @@ struct deflation_vectors {
 };
 
 //---------------------------------------------------------------------------
-amgclHandle amgcl_mpi_create(
+amgclHandle STDCALL amgcl_mpi_create(
         amgclCoarsening      coarsening,
         amgclRelaxation      relaxation,
         amgclSolver          iterative_solver,
@@ -76,7 +76,7 @@ amgclHandle amgcl_mpi_create(
 }
 
 //---------------------------------------------------------------------------
-conv_info amgcl_mpi_solve(
+conv_info STDCALL amgcl_mpi_solve(
         amgclHandle   handle,
         double const *rhs,
         double       *x
@@ -99,6 +99,6 @@ conv_info amgcl_mpi_solve(
 }
 
 //---------------------------------------------------------------------------
-void amgcl_mpi_destroy(amgclHandle handle) {
+void STDCALL amgcl_mpi_destroy(amgclHandle handle) {
     delete static_cast<Solver*>(handle);
 }

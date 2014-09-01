@@ -305,40 +305,45 @@ class amg {
             }
         }
 
-    /// Outputs information about the AMG hierarchy to output stream.
-    friend std::ostream& operator<<(std::ostream &os, const amg &a)
-    {
-        boost::io::ios_all_saver stream_state(os);
-
-        size_t sum_dof = 0;
-        size_t sum_nnz = 0;
-
-        BOOST_FOREACH(const level &lvl, a.levels) {
-            sum_dof += lvl.rows();
-            sum_nnz += lvl.nonzeros();
-        }
-
-        os << "Number of levels:    "   << a.levels.size()
-           << "\nOperator complexity: " << std::fixed << std::setprecision(2)
-                                        << 1.0 * sum_nnz / a.levels.front().nonzeros()
-           << "\nGrid complexity:     " << std::fixed << std::setprecision(2)
-                                        << 1.0 * sum_dof / a.levels.front().rows()
-           << "\n\nlevel     unknowns       nonzeros\n"
-           << "---------------------------------\n";
-
-        size_t depth = 0;
-        BOOST_FOREACH(const level &lvl, a.levels) {
-            os << std::setw(5)  << depth++
-               << std::setw(13) << lvl.rows()
-               << std::setw(15) << lvl.nonzeros() << " ("
-               << std::setw(5) << std::fixed << std::setprecision(2)
-               << 100.0 * lvl.nonzeros() / sum_nnz
-               << "%)" << std::endl;
-        }
-
-        return os;
-    }
+    template <class B, class C, template <class> class R>
+    friend std::ostream& operator<<(std::ostream &os, const amg<B, C, R> &a);
 };
+
+/// Outputs information about the AMG hierarchy to output stream.
+template <class B, class C, template <class> class R>
+std::ostream& operator<<(std::ostream &os, const amg<B, C, R> &a)
+{
+    typedef typename amg<B, C, R>::level level;
+    boost::io::ios_all_saver stream_state(os);
+
+    size_t sum_dof = 0;
+    size_t sum_nnz = 0;
+
+    BOOST_FOREACH(const level &lvl, a.levels) {
+        sum_dof += lvl.rows();
+        sum_nnz += lvl.nonzeros();
+    }
+
+    os << "Number of levels:    "   << a.levels.size()
+        << "\nOperator complexity: " << std::fixed << std::setprecision(2)
+        << 1.0 * sum_nnz / a.levels.front().nonzeros()
+        << "\nGrid complexity:     " << std::fixed << std::setprecision(2)
+        << 1.0 * sum_dof / a.levels.front().rows()
+        << "\n\nlevel     unknowns       nonzeros\n"
+        << "---------------------------------\n";
+
+    size_t depth = 0;
+    BOOST_FOREACH(const level &lvl, a.levels) {
+        os << std::setw(5)  << depth++
+            << std::setw(13) << lvl.rows()
+            << std::setw(15) << lvl.nonzeros() << " ("
+            << std::setw(5) << std::fixed << std::setprecision(2)
+            << 100.0 * lvl.nonzeros() / sum_nnz
+            << "%)" << std::endl;
+    }
+
+    return os;
+}
 
 /// Convenience class that creates a pair of AMG preconditioner and iterative solver
 template <

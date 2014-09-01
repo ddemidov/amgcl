@@ -10,6 +10,4 @@ EXPORTS
     amgcl_solver_create
     amgcl_solver_solve
     amgcl_solver_solve_mtx
-    amgcl_solver_get_iters
-    amgcl_solver_get_resid
     amgcl_solver_destroy
