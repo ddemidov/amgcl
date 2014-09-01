@@ -15,8 +15,9 @@ var
     ptr, col: Array of Integer;
     val, rhs, x: Array of Double;
 
-    prm:   amgcl.TParams;
+    prm:    amgcl.TParams;
     solver: amgcl.TSolver;
+    conv:   amgcl.TConvInfo;
 begin
     try
         amgcl.load;
@@ -74,17 +75,16 @@ begin
     prm := amgcl.TParams.Create;
 
     solver := amgcl.TSolver.Create(
-        amgcl.backendBuiltin,
         amgcl.coarseningSmoothedAggregation,
         amgcl.relaxationSPAI0,
         amgcl.solverBiCGStabL,
         prm, n, ptr, col, val
         );
 
-    solver.solve(rhs, x);
+    conv := solver.solve(rhs, x);
 
-    writeln('iters: ', solver.iters);
-    writeln('resid: ', solver.resid);
+    writeln('iters: ', conv.iterations);
+    writeln('resid: ', conv.residual);
 
     solver.free;
     prm.free;

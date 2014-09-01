@@ -31,34 +31,27 @@ interface
 
 type
     {$Z4}
-    TBackend  = (
-        backendBuiltin  = 1,
-        backendBlockCRS = 2
-    );
 
-    {$Z4}
     TCoarsening = (
-        coarseningRugeStuben          = 1,
-        coarseningAggregation         = 2,
-        coarseningSmoothedAggregation = 3,
-        coarseningSmoothedAggrEMin    = 4
+        coarseningRugeStuben          = 0,
+        coarseningAggregation         = 1,
+        coarseningSmoothedAggregation = 2,
+        coarseningSmoothedAggrEMin    = 3
         );
 
-    {$Z4}
     TRelaxation = (
-        relaxationDampedJacobi = 1,
-        relaxationGaussSeidel  = 2,
-        relaxationChebyshev    = 3,
-        relaxationSPAI0        = 4,
-        relaxationILU0         = 5
+        relaxationGaussSeidel  = 0,
+        relaxationILU0         = 1,
+        relaxationDampedJacobi = 2,
+        relaxationSPAI0        = 3,
+        relaxationChebyshev    = 4
         );
 
-    {$Z4}
     TSolverType = (
-        solverCG        = 1,
-        solverBiCGStab  = 2,
-        solverBiCGStabL = 3,
-        solverGMRES     = 4
+        solverCG        = 0,
+        solverBiCGStab  = 1,
+        solverBiCGStabL = 2,
+        solverGMRES     = 3
         );
 
     TParams = class
@@ -73,14 +66,17 @@ type
             procedure setprm(name: string; value: Single);  overload;
     end;
 
+    TConvInfo = record
+	iterations: Integer;
+	residual:   Double;
+    end;
+
     TSolver = class
         private
-            hp: Pointer;
-            hs: Pointer;
+            h: Pointer;
 
         public
             constructor Create(
-                backend:     TBackend;
                 coarsening:  TCoarsening;
                 relaxation:  TRelaxation;
                 solver_type: TSolverType;
@@ -93,13 +89,10 @@ type
 
             destructor Destroy; override;
 
-            procedure solve(
+            function solve(
                 var rhs: Array of Double;
                 var x:   Array of Double
-                );
-
-	    function iters: Integer;
-	    function resid: Double;
+                ) : TConvInfo;
     end;
 
     procedure load;
@@ -136,10 +129,10 @@ Var
 
     amgcl_params_destroy: procedure(p: Pointer); stdcall;
 
-    amgcl_precond_create: function(
-        backend:     TBackend;
+    amgcl_solver_create: function(
         coarsening:  TCoarsening;
         relaxation:  TRelaxation;
+        solver_type: TSolverType;
         prm:         Pointer;
         n:           Integer;
         ptr:         PInteger;
@@ -147,36 +140,22 @@ Var
         val:         PDouble
         ): Pointer; stdcall;
 
-    amgcl_precond_destroy: procedure(p: Pointer); stdcall;
-
-    amgcl_solver_create: function(
-        backend:     TBackend;
-        solver_type: TSolverType;
-        prm:         Pointer;
-        n:           Integer
-        ): Pointer; stdcall;
-
-    amgcl_solver_solve: procedure(
-        hs:  Pointer;
-        hp:  Pointer;
+    amgcl_solver_solve: function(
+        h:   Pointer;
         rhs: PDouble;
         x:   PDouble
-        ); stdcall;
+        ): TConvInfo; stdcall;
 
     amgcl_solver_solve_mtx: procedure(
-        hs:    Pointer;
+        h:     Pointer;
         A_ptr: PInteger;
         A_col: PInteger;
         A_val: PDouble;
-        hp:    Pointer;
         rhs:   PDouble;
         x:     PDouble
         ); stdcall;
 
-    amgcl_solver_get_iters: function(hs: Pointer): Integer; stdcall;
-    amgcl_solver_get_resid: function(hs: Pointer): Double;  stdcall;
-
-    amgcl_solver_destroy: procedure(p: Pointer); stdcall;
+    amgcl_solver_destroy: procedure(h: Pointer); stdcall;
 
 constructor TParams.Create;
 begin
@@ -199,7 +178,6 @@ begin
 end;
 
 constructor TSolver.Create(
-    backend:     TBackend;
     coarsening:  TCoarsening;
     relaxation:  TRelaxation;
     solver_type: TSolverType;
@@ -210,32 +188,23 @@ constructor TSolver.Create(
     var val:     Array of Double
     );
 begin
-    hp := amgcl_precond_create(backend, coarsening, relaxation, prm.h, n, @ptr[0], @col[0], @val[0]);
-    hs := amgcl_solver_create(backend, solver_type, prm.h, n);
+    h := amgcl_solver_create(
+                coarsening, relaxation, solver_type, prm.h,
+                n, @ptr[0], @col[0], @val[0]
+                );
 end;
 
-procedure TSolver.solve(
+function TSolver.solve(
     var rhs: Array of Double;
     var x:   Array of Double
-    );
+    ): TConvInfo;
 begin
-    amgcl_solver_solve(hs, hp, @rhs[0], @x[0]);
-end;
-
-function TSolver.iters: Integer;
-begin
-    iters := amgcl_solver_get_iters(hs);
-end;
-
-function TSolver.resid: Double;
-begin
-    resid := amgcl_solver_get_resid(hs);
+    solve := amgcl_solver_solve(h, @rhs[0], @x[0]);
 end;
 
 destructor TSolver.Destroy;
 begin
-    amgcl_precond_destroy(hp);
-    amgcl_solver_destroy(hs);
+    amgcl_solver_destroy(h);
 end;
 
 procedure load;
@@ -258,14 +227,9 @@ begin
         @amgcl_params_setf      := get_function('amgcl_params_setf');
         @amgcl_params_destroy   := get_function('amgcl_params_destroy');
 
-        @amgcl_precond_create   := get_function('amgcl_precond_create');
-        @amgcl_precond_destroy  := get_function('amgcl_precond_destroy');
-
         @amgcl_solver_create    := get_function('amgcl_solver_create');
         @amgcl_solver_solve     := get_function('amgcl_solver_solve');
         @amgcl_solver_solve_mtx := get_function('amgcl_solver_solve_mtx');
-        @amgcl_solver_get_iters := get_function('amgcl_solver_get_iters');
-        @amgcl_solver_get_resid := get_function('amgcl_solver_get_resid');
         @amgcl_solver_destroy   := get_function('amgcl_solver_destroy');
     except
         on e: Exception do begin
