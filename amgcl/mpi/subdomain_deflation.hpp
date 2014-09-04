@@ -188,6 +188,7 @@ class subdomain_deflation {
             az->ptr.resize(nrows + 1, 0);
 
             std::vector<long> marker(nz, -1);
+            std::vector<value_type> dia(nrows);
 
             for(long i = 0; i < nrows; ++i) {
                 for(row_iterator1 a = backend::row_begin(Astrip, i); a; ++a) {
@@ -198,6 +199,8 @@ class subdomain_deflation {
 
                     if (d == comm.rank) {
                         ++loc_nnz;
+
+                        if (c == i + chunk_start) dia[i] = sqrt(1 / a.value());
                     } else {
                         ++rem_nnz;
                         rc_it = rc.insert(rc_it, std::make_pair(c, 0));
@@ -292,8 +295,37 @@ class subdomain_deflation {
                 MPI_Isend(&recv_cols[recv.ptr[i]], comm_matrix[comm.rank][recv.nbr[i]],
                         MPI_LONG, recv.nbr[i], tag_exc_cols, comm, &recv.req[i]);
 
+            /* Finish communication pattern setup. */
+            MPI_Waitall(recv.req.size(), recv.req.data(), MPI_STATUSES_IGNORE);
+            MPI_Waitall(send.req.size(), send.req.data(), MPI_STATUSES_IGNORE);
+
+            // Shift columns to send to local numbering:
+            BOOST_FOREACH(long &c, send_col) c -= chunk_start;
             TOC("setup communication");
-            /* While messages are in flight, */
+
+            TIC("Exchange diagonals");
+            // Start receiving ghost values from our neighbours.
+            for(size_t i = 0; i < recv.nbr.size(); ++i)
+                MPI_Irecv(
+                        &recv.val[recv.ptr[i]], recv.ptr[i+1] - recv.ptr[i],
+                        dtype, recv.nbr[i], tag_exc_vals, comm, &recv.req[i]);
+
+            // Gather values to send to our neighbours.
+            send.val.clear();
+            BOOST_FOREACH(long c, send_col) send.val.push_back(dia[c]);
+
+            // Start sending our data to neighbours.
+            for(size_t i = 0; i < send.nbr.size(); ++i)
+                MPI_Isend(
+                        &send.val[send.ptr[i]], send.ptr[i+1] - send.ptr[i],
+                        dtype, send.nbr[i], tag_exc_vals, comm, &send.req[i]);
+
+            // Finish exchange
+            MPI_Waitall(recv.req.size(), recv.req.data(), MPI_STATUSES_IGNORE);
+            MPI_Waitall(send.req.size(), send.req.data(), MPI_STATUSES_IGNORE);
+
+            std::vector<value_type> &rdia = recv.val;
+            TOC("Exchange diagonals");
 
             TIC("second pass");
             // Second pass over Astrip rows:
@@ -324,10 +356,12 @@ class subdomain_deflation {
 
                 for(row_iterator1 a = backend::row_begin(Astrip, i); a; ++a) {
                     long       c = a.col();
-                    value_type v = a.value();
+                    value_type v = a.value() * dia[i];
 
                     if ( domain[comm.rank] <= c && c < domain[comm.rank + 1] ) {
                         long loc_c = c - chunk_start;
+                        v *= dia[loc_c];
+
                         aloc->col.push_back(loc_c);
                         aloc->val.push_back(v);
 
@@ -342,6 +376,8 @@ class subdomain_deflation {
                             }
                         }
                     } else {
+                        v *= rdia[rc[c]];
+
                         arem->col.push_back(rc[c]);
                         arem->val.push_back(v);
                     }
@@ -353,14 +389,6 @@ class subdomain_deflation {
                 arem->ptr.push_back(arem->col.size());
             }
             TOC("second pass");
-
-            /* Finish communication pattern setup. */
-            MPI_Waitall(recv.req.size(), recv.req.data(), MPI_STATUSES_IGNORE);
-            MPI_Waitall(send.req.size(), send.req.data(), MPI_STATUSES_IGNORE);
-
-            // Shift columns to send to local numbering:
-            BOOST_FOREACH(long &c, send_col) c -= chunk_start;
-
 
             TIC("A*Z");
             /* Finish construction of AZ */
@@ -569,6 +597,8 @@ class subdomain_deflation {
             // Move matrices to backend.
             Arem = Backend::copy_matrix(arem, prm.amg.backend);
             AZ   = Backend::copy_matrix(az,   prm.amg.backend);
+            D    = Backend::copy_vector(dia,  prm.amg.backend);
+            F    = Backend::create_vector(nrows, prm.amg.backend);
 
             // Columns gatherer. Will retrieve columns to send from backend.
             gather = boost::make_shared<typename Backend::gather>(
@@ -583,8 +613,12 @@ class subdomain_deflation {
         template <class Vec1, class Vec2>
         boost::tuple<size_t, value_type>
         operator()(const Vec1 &rhs, Vec2 &x) const {
-            boost::tuple<size_t, value_type> cnv = (*solve)(*this, *P, rhs, x);
-            postprocess(rhs, x);
+            backend::vmul(1, *D, rhs, 0, *F);
+
+            boost::tuple<size_t, value_type> cnv = (*solve)(*this, *P, *F, x);
+            postprocess(*F, x);
+
+            backend::vmul(1, *D, x, 0, x);
             return cnv;
         }
 
@@ -645,6 +679,9 @@ class subdomain_deflation {
         boost::shared_ptr< typename Backend::gather > gather;
 
         mutable std::vector<MPI_Request> req;
+
+        boost::shared_ptr<vector> D;
+        boost::shared_ptr<vector> F;
 
         struct {
             std::vector<long> nbr;
