@@ -79,7 +79,7 @@ struct bcrs {
     {
 #pragma omp parallel
         {
-            std::vector<long> marker(bcols, -1);
+            std::vector<ptrdiff_t> marker(bcols, -1);
 
 #ifdef _OPENMP
             int nt  = omp_get_num_threads();
@@ -151,8 +151,8 @@ struct bcrs {
  */
 template <typename real>
 struct block_crs {
-    typedef real value_type;
-    typedef long index_type;
+    typedef real      value_type;
+    typedef ptrdiff_t index_type;
 
     typedef bcrs<real, index_type, index_type> matrix;
     typedef typename builtin<real>::vector     vector;

@@ -34,7 +34,7 @@ struct deflation_vectors {
 
     int dim() const { return n; }
 
-    double operator()(int i, long j) const {
+    double operator()(int i, ptrdiff_t j) const {
         return user_func(i, j, user_data);
     }
 };
@@ -47,9 +47,9 @@ amgclHandle STDCALL amgcl_mpi_create(
         amgclDirectSolver    direct_solver,
         amgclHandle          params,
         MPI_Comm             comm,
-        long                 n,
-        const long          *ptr,
-        const long          *col,
+        ptrdiff_t            n,
+        const ptrdiff_t     *ptr,
+        const ptrdiff_t     *col,
         const double        *val,
         int                  n_def_vec,
         amgclDefVecFunction  def_vec_func,

@@ -6,7 +6,12 @@ find_package(NumPy QUIET)
 if (NUMPY_FOUND)
     include_directories(${NUMPY_INCLUDE_DIRS})
 
-    find_package(Boost COMPONENTS python)
+    find_package(Boost COMPONENTS
+        chrono
+        system
+        filesystem
+        python
+        )
 
     add_library(pyamgcl pyamgcl.cpp)
     set_target_properties(pyamgcl PROPERTIES PREFIX "")

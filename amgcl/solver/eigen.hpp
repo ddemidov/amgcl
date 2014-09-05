@@ -75,7 +75,7 @@ class EigenSolver {
             X = S.solve(RHS);
         }
     private:
-        long n;
+        ptrdiff_t n;
         Solver S;
 };
 

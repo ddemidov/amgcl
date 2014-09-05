@@ -141,7 +141,7 @@ struct smoothed_aggr_emin {
                 size_t chunk_end   = n;
 #endif
 
-                std::vector<long> marker(nc, -1);
+                std::vector<ptrdiff_t> marker(nc, -1);
 
                 // Compute A * P_tent product. P_tent is stored implicitly in aggr.
 
@@ -162,7 +162,7 @@ struct smoothed_aggr_emin {
                         if (static_cast<size_t>(c) != i && !aggr.strong_connection[j])
                             continue;
 
-                        long g = aggr.id[c]; if (g < 0) continue;
+                        ptrdiff_t g = aggr.id[c]; if (g < 0) continue;
 
                         if (static_cast<size_t>(marker[g]) != i) {
                             marker[g] = i;
@@ -194,7 +194,7 @@ struct smoothed_aggr_emin {
                         if (static_cast<size_t>(c) != i && !aggr.strong_connection[j])
                             continue;
 
-                        long g = aggr.id[c]; if (g < 0) continue;
+                        ptrdiff_t g = aggr.id[c]; if (g < 0) continue;
 
                         Val v = (static_cast<size_t>(c) == i ? D[i] : A.val[j]);
 
@@ -303,7 +303,7 @@ struct smoothed_aggr_emin {
                     if (c != i && !aggr.strong_connection[j])
                         continue;
 
-                    long g = aggr.id[c]; if (g < 0) continue;
+                    ptrdiff_t g = aggr.id[c]; if (g < 0) continue;
                     if (omega_p[g] < w || w < 0) w = omega_p[g];
                 }
 
@@ -336,7 +336,7 @@ struct smoothed_aggr_emin {
             // Get structure of R_tent from aggr
             std::vector<Ptr> R_tent_ptr(nc + 1, 0);
             for(size_t i = 0; i < n; ++i) {
-                long g = aggr.id[i]; if (g < 0) continue;
+                ptrdiff_t g = aggr.id[i]; if (g < 0) continue;
                 ++R_tent_ptr[g + 1];
             }
 
@@ -344,7 +344,7 @@ struct smoothed_aggr_emin {
             std::vector<Col> R_tent_col(R_tent_ptr.back());
 
             for(size_t i = 0; i < n; ++i) {
-                long g = aggr.id[i]; if (g < 0) continue;
+                ptrdiff_t g = aggr.id[i]; if (g < 0) continue;
                 R_tent_col[R_tent_ptr[g]++] = i;
             }
 
@@ -371,7 +371,7 @@ struct smoothed_aggr_emin {
                 size_t chunk_end   = nc;
 #endif
 
-                std::vector<long> marker(n, -1);
+                std::vector<ptrdiff_t> marker(n, -1);
 
                 for(size_t ir = chunk_start; ir < chunk_end; ++ir) {
                     for(Ptr jr = R_tent_ptr[ir], er = R_tent_ptr[ir + 1]; jr < er; ++jr) {

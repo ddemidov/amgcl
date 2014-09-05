@@ -4,14 +4,14 @@
 // Generates matrix for poisson problem in a unit cube.
 template <typename real, typename index>
 int sample_problem(
-        long               n,
+        ptrdiff_t           n,
         std::vector<real>  &val,
         std::vector<index> &col,
         std::vector<index> &ptr,
         std::vector<real>  &rhs
         )
 {
-    long n3  = n * n * n;
+    ptrdiff_t n3  = n * n * n;
     real h2i = static_cast<real>((n - 1) * (n - 1));
 
     ptr.clear();
@@ -25,9 +25,9 @@ int sample_problem(
     rhs.reserve(n3);
 
     ptr.push_back(0);
-    for(long k = 0, idx = 0; k < n; ++k) {
-        for(long j = 0; j < n; ++j) {
-            for (long i = 0; i < n; ++i, ++idx) {
+    for(ptrdiff_t k = 0, idx = 0; k < n; ++k) {
+        for(ptrdiff_t j = 0; j < n; ++j) {
+            for (ptrdiff_t i = 0; i < n; ++i, ++idx) {
                 if (
                         i == 0 || i == n - 1 ||
                         j == 0 || j == n - 1 ||

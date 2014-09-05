@@ -39,11 +39,11 @@ struct linear_deflation {
     std::vector<double> x;
     std::vector<double> y;
 
-    linear_deflation(long n) : x(n), y(n) {}
+    linear_deflation(ptrdiff_t n) : x(n), y(n) {}
 
     size_t dim() const { return 3; }
 
-    double operator()(long i, int j) const {
+    double operator()(ptrdiff_t i, int j) const {
         switch(j) {
             default:
             case 0:
@@ -67,35 +67,35 @@ int main(int argc, char *argv[]) {
     if (world.rank == 0)
         std::cout << "World size: " << world.size << std::endl;
 
-    const long n  = argc > 1 ? atoi(argv[1]) : 1024;
-    const long n2 = n * n;
+    const ptrdiff_t n  = argc > 1 ? atoi(argv[1]) : 1024;
+    const ptrdiff_t n2 = n * n;
 
-    boost::array<long, 2> lo = { {0, 0} };
-    boost::array<long, 2> hi = { {n - 1, n - 1} };
+    boost::array<ptrdiff_t, 2> lo = { {0, 0} };
+    boost::array<ptrdiff_t, 2> hi = { {n - 1, n - 1} };
 
     using amgcl::prof;
 
     prof.tic("partition");
     domain_partition<2> part(lo, hi, world.size);
-    long chunk = part.size( world.rank );
+    ptrdiff_t chunk = part.size( world.rank );
 
-    std::vector<long> domain(world.size + 1);
+    std::vector<ptrdiff_t> domain(world.size + 1);
     MPI_Allgather(&chunk, 1, MPI_LONG, &domain[1], 1, MPI_LONG, world);
     boost::partial_sum(domain, domain.begin());
 
-    long chunk_start = domain[world.rank];
-    long chunk_end   = domain[world.rank + 1];
+    ptrdiff_t chunk_start = domain[world.rank];
+    ptrdiff_t chunk_end   = domain[world.rank + 1];
 
     linear_deflation lindef(chunk);
-    std::vector<long> renum(n2);
-    for(long j = 0, idx = 0; j < n; ++j) {
-        for(long i = 0; i < n; ++i, ++idx) {
-            boost::array<long, 2> p = {{i, j}};
-            std::pair<int,long> v = part.index(p);
+    std::vector<ptrdiff_t> renum(n2);
+    for(ptrdiff_t j = 0, idx = 0; j < n; ++j) {
+        for(ptrdiff_t i = 0; i < n; ++i, ++idx) {
+            boost::array<ptrdiff_t, 2> p = {{i, j}};
+            std::pair<int,ptrdiff_t> v = part.index(p);
             renum[idx] = domain[v.first] + v.second;
 
-            boost::array<long,2> lo = part.domain(v.first).min_corner();
-            boost::array<long,2> hi = part.domain(v.first).max_corner();
+            boost::array<ptrdiff_t,2> lo = part.domain(v.first).min_corner();
+            boost::array<ptrdiff_t,2> hi = part.domain(v.first).max_corner();
 
             if (v.first == world.rank) {
                 lindef.x[v.second] = (i - (lo[0] + hi[0]) / 2);
@@ -106,10 +106,10 @@ int main(int argc, char *argv[]) {
     prof.toc("partition");
 
     prof.tic("assemble");
-    std::vector<long>   ptr;
-    std::vector<long>   col;
-    std::vector<double> val;
-    std::vector<double> rhs;
+    std::vector<ptrdiff_t> ptr;
+    std::vector<ptrdiff_t> col;
+    std::vector<double>    val;
+    std::vector<double>    rhs;
 
     ptr.reserve(chunk + 1);
     col.reserve(chunk * 5);
@@ -124,9 +124,9 @@ int main(int argc, char *argv[]) {
     const double h    = 1 / hinv;
     const double eps  = 1e-5;
 
-    for(long j = 0, idx = 0; j < n; ++j) {
+    for(ptrdiff_t j = 0, idx = 0; j < n; ++j) {
         double y = h * j;
-        for(long i = 0; i < n; ++i, ++idx) {
+        for(ptrdiff_t i = 0; i < n; ++i, ++idx) {
             double x = h * i;
 
             if (renum[idx] < chunk_start || renum[idx] >= chunk_end) continue;
@@ -171,8 +171,8 @@ int main(int argc, char *argv[]) {
         }
     }
 #else
-    for(long j = 0, idx = 0; j < n; ++j) {
-        for(long i = 0; i < n; ++i, ++idx) {
+    for(ptrdiff_t j = 0, idx = 0; j < n; ++j) {
+        for(ptrdiff_t i = 0; i < n; ++i, ++idx) {
             if (renum[idx] < chunk_start || renum[idx] >= chunk_end) continue;
 
             if (j > 0)  {
@@ -244,7 +244,7 @@ int main(int argc, char *argv[]) {
             std::ofstream f("out.dat", std::ios::binary);
             int m = n2;
             f.write((char*)&m, sizeof(int));
-            for(long i = 0; i < n2; ++i)
+            for(ptrdiff_t i = 0; i < n2; ++i)
                 f.write((char*)&X[renum[i]], sizeof(double));
         } else {
             MPI_Send(x.data(), chunk, MPI_DOUBLE, 0, 42, world);

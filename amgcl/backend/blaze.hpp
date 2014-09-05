@@ -51,8 +51,8 @@ namespace backend {
  */
 template <class real>
 struct blaze {
-    typedef real value_type;
-    typedef long index_type;
+    typedef real      value_type;
+    typedef ptrdiff_t index_type;
 
     struct provides_row_iterator : boost::false_type {};
 

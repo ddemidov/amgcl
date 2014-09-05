@@ -78,8 +78,8 @@ struct plain_aggregates {
         {}
     };
 
-    static const long undefined = -1;
-    static const long removed   = -2;
+    static const ptrdiff_t undefined = -1;
+    static const ptrdiff_t removed   = -2;
 
     /// Number of aggregates.
     size_t count;
@@ -94,7 +94,7 @@ struct plain_aggregates {
     /// Aggerate id that each fine-level variable belongs to.
     /** When id[i] < 0, then variable i stays at the fine level (this could be
      * the case for a Dirichelt condition variable).*/
-    std::vector<long> id;
+    std::vector<ptrdiff_t> id;
 
     /// Constructs aggregates for a given matrix.
     /**
@@ -118,8 +118,8 @@ struct plain_aggregates {
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
             V eps_dia_i = eps_squared * dia[i];
 
-            for(long j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
-                long c = A.col[j];
+            for(ptrdiff_t j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
+                ptrdiff_t c = A.col[j];
                 V    v = A.val[j];
 
                 strong_connection[j] = (c != i) && (v * v > eps_dia_i * dia[c]);
@@ -131,10 +131,10 @@ struct plain_aggregates {
         // Remove lonely nodes.
         size_t max_neib = 0;
         for(size_t i = 0; i < n; ++i) {
-            long j = A.ptr[i], e = A.ptr[i+1];
-            max_neib = std::max<size_t>(max_neib, e - j);
+            ptrdiff_t j = A.ptr[i], e = A.ptr[i+1];
+            max_neib    = std::max<size_t>(max_neib, e - j);
 
-            long state = removed;
+            ptrdiff_t state = removed;
             for(; j < e; ++j)
                 if (strong_connection[j]) {
                     state = undefined;
@@ -144,7 +144,7 @@ struct plain_aggregates {
             id[i] = state;
         }
 
-        std::vector<long> neib;
+        std::vector<ptrdiff_t> neib;
         neib.reserve(max_neib);
 
         // Perform plain aggregation
@@ -153,13 +153,13 @@ struct plain_aggregates {
 
             // The point is not adjacent to a core of any previous aggregate:
             // so its a seed of a new aggregate.
-            long cur_id = static_cast<long>(count++);
+            ptrdiff_t cur_id = static_cast<ptrdiff_t>(count++);
             id[i] = cur_id;
 
             // Include its neighbors as well.
             neib.clear();
-            for(long j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
-                long c = A.col[j];
+            for(ptrdiff_t j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
+                ptrdiff_t c = A.col[j];
                 if (strong_connection[j] && id[c] != removed) {
                     id[c] = cur_id;
                     neib.push_back(c);
@@ -169,9 +169,9 @@ struct plain_aggregates {
             // Temporarily mark undefined points adjacent to the new aggregate
             // as members of the aggregate.
             // If nobody claims them later, they will stay here.
-            BOOST_FOREACH(long c, neib) {
-                for(long j = A.ptr[c], e = A.ptr[c+1]; j < e; ++j) {
-                    long cc = A.col[j];
+            BOOST_FOREACH(ptrdiff_t c, neib) {
+                for(ptrdiff_t j = A.ptr[c], e = A.ptr[c+1]; j < e; ++j) {
+                    ptrdiff_t cc = A.col[j];
                     if (strong_connection[j] && id[cc] == undefined)
                         id[cc] = cur_id;
                 }

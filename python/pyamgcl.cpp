@@ -20,12 +20,15 @@
 #include <amgcl/runtime.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 
-namespace amgcl { namespace backend {
-
+namespace amgcl {
+#ifdef AMGCL_PROFILING
+profiler<> prof;
+#endif
+namespace backend {
 template <>
 struct is_builtin_vector< numpy_boost<double,1> > : boost::true_type {};
-
-} }
+}
+}
 
 //---------------------------------------------------------------------------
 struct params {

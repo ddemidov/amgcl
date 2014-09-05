@@ -48,17 +48,17 @@ struct ilu0 {
     {
         const size_t n = backend::rows(A);
 
-        std::vector<long> work(n, -1);
+        std::vector<ptrdiff_t> work(n, -1);
 
         for(size_t i = 0; i < n; ++i) {
-            long row_beg = A.ptr[i];
-            long row_end = A.ptr[i + 1];
+            ptrdiff_t row_beg = A.ptr[i];
+            ptrdiff_t row_end = A.ptr[i + 1];
 
-            for(long j = row_beg; j < row_end; ++j)
+            for(ptrdiff_t j = row_beg; j < row_end; ++j)
                 work[ A.col[j] ] = j;
 
-            for(long j = row_beg; j < row_end; ++j) {
-                long c = A.col[j];
+            for(ptrdiff_t j = row_beg; j < row_end; ++j) {
+                ptrdiff_t c = A.col[j];
 
                 // Exit if diagonal is reached
                 if (static_cast<size_t>(c) >= i) {
@@ -77,14 +77,14 @@ struct ilu0 {
                 luval[j] = tl;
 
                 // Perform linear combination
-                for(long k = dia[c] + 1; k < A.ptr[c + 1]; ++k) {
-                    long w = work[A.col[k]];
+                for(ptrdiff_t k = dia[c] + 1; k < A.ptr[c + 1]; ++k) {
+                    ptrdiff_t w = work[A.col[k]];
                     if (w >= 0) luval[w] -= tl * luval[k];
                 }
             }
 
             // Refresh work
-            for(long j = row_beg; j < row_end; ++j)
+            for(ptrdiff_t j = row_beg; j < row_end; ++j)
                 work[A.col[j]] = -1;
         }
     }
@@ -111,7 +111,7 @@ struct ilu0 {
 
     private:
         std::vector<value_type> luval;
-        std::vector<long>       dia;
+        std::vector<ptrdiff_t>  dia;
 
         template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
         void apply(
@@ -124,18 +124,18 @@ struct ilu0 {
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
                 value_type buf = rhs[i];
-                for(long j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j)
+                for(ptrdiff_t j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j)
                     buf -= A.val[j] * x[A.col[j]];
                 tmp[i] = buf;
             }
 
             for(size_t i = 0; i < n; i++) {
-                for(long j = A.ptr[i], e = dia[i]; j < e; ++j)
+                for(ptrdiff_t j = A.ptr[i], e = dia[i]; j < e; ++j)
                     tmp[i] -= luval[j] * tmp[A.col[j]];
             }
 
             for(size_t i = n; i-- > 0;) {
-                for(long j = dia[i] + 1, e = A.ptr[i + 1]; j < e; ++j)
+                for(ptrdiff_t j = dia[i] + 1, e = A.ptr[i + 1]; j < e; ++j)
                     tmp[i] -= luval[j] * tmp[A.col[j]];
                 tmp[i] *= luval[dia[i]];
             }

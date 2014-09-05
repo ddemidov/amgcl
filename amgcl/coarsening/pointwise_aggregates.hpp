@@ -69,8 +69,8 @@ class pointwise_aggregates {
             {}
         };
 
-        static const long undefined = -1;
-        static const long removed   = -2;
+        static const ptrdiff_t undefined = -1;
+        static const ptrdiff_t removed   = -2;
 
         /// \copydoc amgcl::coarsening::plain_aggregates::count
         size_t count;
@@ -79,7 +79,7 @@ class pointwise_aggregates {
         std::vector<char> strong_connection;
 
         /// \copydoc amgcl::coarsening::plain_aggregates::id
-        std::vector<long> id;
+        std::vector<ptrdiff_t> id;
 
         /// \copydoc amgcl::coarsening::plain_aggregates::plain_aggregates
         template <class Matrix>
@@ -102,7 +102,7 @@ class pointwise_aggregates {
 
 #pragma omp parallel
                 {
-                    std::vector<long> marker(Ap.nrows, -1);
+                    std::vector<ptrdiff_t> marker(Ap.nrows, -1);
 
 #ifdef _OPENMP
                     int nt  = omp_get_num_threads();
@@ -117,14 +117,14 @@ class pointwise_aggregates {
 #endif
 
                     for(size_t ip = chunk_start, ia = ip * prm.block_size; ip < chunk_end; ++ip) {
-                        long row_beg = Ap.ptr[ip];
-                        long row_end = row_beg;
+                        ptrdiff_t row_beg = Ap.ptr[ip];
+                        ptrdiff_t row_end = row_beg;
 
                         for(unsigned k = 0; k < prm.block_size; ++k, ++ia) {
                             id[ia] = prm.block_size * pw_aggr.id[ip] + k;
 
-                            for(long ja = A.ptr[ia], ea = A.ptr[ia+1]; ja < ea; ++ja) {
-                                long cp = A.col[ja] / prm.block_size;
+                            for(ptrdiff_t ja = A.ptr[ia], ea = A.ptr[ia+1]; ja < ea; ++ja) {
+                                ptrdiff_t cp = A.col[ja] / prm.block_size;
 
                                 if (marker[cp] < row_beg) {
                                     marker[cp] = row_end;
@@ -161,7 +161,7 @@ class pointwise_aggregates {
 
 #pragma omp parallel
             {
-                std::vector<long> marker(mp, -1);
+                std::vector<ptrdiff_t> marker(mp, -1);
 
 #ifdef _OPENMP
                 int nt  = omp_get_num_threads();
@@ -179,7 +179,7 @@ class pointwise_aggregates {
                 for(size_t ip = chunk_start, ia = ip * block_size; ip < chunk_end; ++ip) {
                     for(unsigned k = 0; k < block_size; ++k, ++ia) {
                         for(row_iterator a = backend::row_begin(A, ia); a; ++a) {
-                            long cp = a.col() / block_size;
+                            ptrdiff_t cp = a.col() / block_size;
                             if (static_cast<size_t>(marker[cp]) != ip) {
                                 marker[cp] = ip;
                                 ++Ap.ptr[ip + 1];
@@ -200,12 +200,12 @@ class pointwise_aggregates {
 
                 // Fill the reduced matrix. Use max norm for blocks.
                 for(size_t ip = chunk_start, ia = ip * block_size; ip < chunk_end; ++ip) {
-                    long row_beg = Ap.ptr[ip];
-                    long row_end = row_beg;
+                    ptrdiff_t row_beg = Ap.ptr[ip];
+                    ptrdiff_t row_end = row_beg;
 
                     for(unsigned k = 0; k < block_size; ++k, ++ia) {
                         for(row_iterator a = backend::row_begin(A, ia); a; ++a) {
-                            long cb = a.col() / block_size;
+                            ptrdiff_t cb = a.col() / block_size;
                             V    va = fabs(a.value());
 
                             if (marker[cb] < row_beg) {

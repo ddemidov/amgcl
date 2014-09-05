@@ -94,7 +94,7 @@ struct ruge_stuben {
         const size_t n = rows(A);
 
         std::vector<char> cf(n, 'U');
-        backend::crs<char, long, long> S;
+        backend::crs<char, ptrdiff_t, ptrdiff_t> S;
 
         TIC("C/F split");
         connect(A, prm.eps_strong, S, cf);
@@ -103,9 +103,9 @@ struct ruge_stuben {
 
         TIC("interpolation");
         size_t nc = 0;
-        std::vector<long> cidx(n);
+        std::vector<ptrdiff_t> cidx(n);
         for(size_t i = 0; i < n; ++i)
-            if (cf[i] == 'C') cidx[i] = static_cast<long>(nc++);
+            if (cf[i] == 'C') cidx[i] = static_cast<ptrdiff_t>(nc++);
 
         boost::shared_ptr<Matrix> P = boost::make_shared<Matrix>();
         P->nrows = n;
@@ -129,7 +129,7 @@ struct ruge_stuben {
             if (prm.do_trunc) {
                 Val amin = 0, amax = 0;
 
-                for(long j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
+                for(ptrdiff_t j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
                     if (!S.val[j] || cf[ A.col[j] ] != 'C') continue;
 
                     amin = std::min(amin, A.val[j]);
@@ -139,14 +139,14 @@ struct ruge_stuben {
                 Amin[i] = (amin *= prm.eps_trunc);
                 Amax[i] = (amax *= prm.eps_trunc);
 
-                for(long j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
+                for(ptrdiff_t j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
                     if (!S.val[j] || cf[A.col[j]] != 'C') continue;
 
                     if (A.val[j] <= amin || A.val[j] >= amax)
                         ++P->ptr[i + 1];
                 }
             } else {
-                for(long j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j)
+                for(ptrdiff_t j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j)
                     if (S.val[j] && cf[A.col[j]] == 'C')
                         ++P->ptr[i + 1];
             }
@@ -158,7 +158,7 @@ struct ruge_stuben {
 
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-            long row_head = P->ptr[i];
+            ptrdiff_t row_head = P->ptr[i];
 
             if (cf[i] == 'C') {
                 P->col[row_head] = cidx[i];
@@ -171,8 +171,8 @@ struct ruge_stuben {
             Val b_num = 0, b_den = 0;
             Val d_neg = 0, d_pos = 0;
 
-            for(long j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
-                long c = A.col[j];
+            for(ptrdiff_t j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
+                ptrdiff_t c = A.col[j];
                 Val  v = A.val[j];
 
                 if (c == i) {
@@ -208,8 +208,8 @@ struct ruge_stuben {
             Val alpha = fabs(a_den) > 1e-32 ? -cf_neg * a_num / (dia * a_den) : 0;
             Val beta  = fabs(b_den) > 1e-32 ? -cf_pos * b_num / (dia * b_den) : 0;
 
-            for(long j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
-                long c = A.col[j];
+            for(ptrdiff_t j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
+                ptrdiff_t c = A.col[j];
                 Val  v = A.val[j];
 
                 if (!S.val[j] || cf[c] != 'C') continue;

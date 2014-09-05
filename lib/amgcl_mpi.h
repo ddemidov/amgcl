@@ -38,7 +38,7 @@ THE SOFTWARE.
 extern "C" {
 #endif
 
-typedef double (STDCALL *amgclDefVecFunction)(int vec, long coo, void *data);
+typedef double (STDCALL *amgclDefVecFunction)(int vec, ptrdiff_t coo, void *data);
 
 typedef enum {
     amgclDirectSolverSkylineLU
@@ -55,9 +55,9 @@ amgclHandle STDCALL amgcl_mpi_create(
         amgclDirectSolver    direct_solver,
         amgclHandle          params,
         MPI_Comm             comm,
-        long                 n,
-        const long          *ptr,
-        const long          *col,
+        ptrdiff_t            n,
+        const ptrdiff_t     *ptr,
+        const ptrdiff_t     *col,
         const double        *val,
         int                  n_def_vec,
         amgclDefVecFunction  def_vec_func,

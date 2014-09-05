@@ -16,8 +16,8 @@ namespace amgcl {
 }
 
 struct poisson_2d {
-    typedef double val_type;
-    typedef long   col_type;
+    typedef double    val_type;
+    typedef ptrdiff_t col_type;
 
     size_t n;
     double h2i;
