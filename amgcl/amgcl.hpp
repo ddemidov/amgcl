@@ -111,11 +111,15 @@ class amg {
             /// Number of cycles (1 for V-cycle, 2 for W-cycle, etc.).
             unsigned ncycle;
 
+            /// Number of cycles to make as part of preconditioning.
+            unsigned pre_cycles;
+
             params() :
                 coarse_enough( Backend::direct_solver::coarse_enough() ),
                 npre         (   1 ),
                 npost        (   1 ),
-                ncycle       (   1 )
+                ncycle       (   1 ),
+                pre_cycles   (   1 )
             {}
 
             params(const boost::property_tree::ptree &p)
@@ -125,7 +129,8 @@ class amg {
                   AMGCL_PARAMS_IMPORT_VALUE(p, coarse_enough),
                   AMGCL_PARAMS_IMPORT_VALUE(p, npre),
                   AMGCL_PARAMS_IMPORT_VALUE(p, npost),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, ncycle)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, ncycle),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, pre_cycles)
             {}
         } prm;
 
@@ -196,7 +201,8 @@ class amg {
         template <class Vec1, class Vec2>
         void apply(const Vec1 &rhs, Vec2 &x) const {
             backend::clear(x);
-            cycle(levels.begin(), rhs, x);
+            for(unsigned i = 0; i < prm.pre_cycles; ++i)
+                cycle(levels.begin(), rhs, x);
         }
 
         /// Returns the system matrix from the finest level.
