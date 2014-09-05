@@ -39,7 +39,10 @@ int main(int argc, char *argv[]) {
     ptrdiff_t chunk = part.size( rank );
 
     std::vector<ptrdiff_t> domain(size + 1);
-    MPI_Allgather(&chunk, 1, MPI_LONG, &domain[1], 1, MPI_LONG, MPI_COMM_WORLD);
+    MPI_Allgather(
+            &chunk, 1, amgcl::mpi::datatype<ptrdiff_t>::get(),
+            &domain[1], 1, amgcl::mpi::datatype<ptrdiff_t>::get(),
+            MPI_COMM_WORLD);
     boost::partial_sum(domain, domain.begin());
 
     ptrdiff_t chunk_start = domain[rank];

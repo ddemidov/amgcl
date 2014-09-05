@@ -134,6 +134,8 @@ class subdomain_deflation {
           Z( ndv ), q( Backend::create_vector(nrows, prm.amg.backend) ),
           req(2 * comm.size)
         {
+            MPI_Datatype mpi_ptrdiff_t = mpi::datatype<ptrdiff_t>::get();
+
             TIC("setup deflation");
             typedef backend::crs<value_type, ptrdiff_t>                build_matrix;
             typedef typename backend::row_iterator<Matrix>::type       row_iterator1;
@@ -141,7 +143,7 @@ class subdomain_deflation {
 
             // Lets see how many deflation vectors are there.
             std::vector<ptrdiff_t> dv_size(comm.size);
-            MPI_Allgather(&ndv, 1, MPI_LONG, &dv_size[0], 1, MPI_LONG, comm);
+            MPI_Allgather(&ndv, 1, mpi_ptrdiff_t, &dv_size[0], 1, mpi_ptrdiff_t, comm);
             boost::partial_sum(dv_size, dv_start.begin() + 1);
             nz = dv_start.back();
 
@@ -155,7 +157,7 @@ class subdomain_deflation {
 
             // Get sizes of each domain in comm.
             std::vector<ptrdiff_t> domain(comm.size + 1, 0);
-            MPI_Allgather(&nrows, 1, MPI_LONG, &domain[1], 1, MPI_LONG, comm);
+            MPI_Allgather(&nrows, 1, mpi_ptrdiff_t, &domain[1], 1, mpi_ptrdiff_t, comm);
             boost::partial_sum(domain, domain.begin());
             ptrdiff_t chunk_start = domain[comm.rank];
 
@@ -236,8 +238,8 @@ class subdomain_deflation {
                     );
 
             MPI_Allgather(
-                    num_recv.data(),    comm.size, MPI_LONG,
-                    comm_matrix.data(), comm.size, MPI_LONG,
+                    num_recv.data(),    comm.size, mpi_ptrdiff_t,
+                    comm_matrix.data(), comm.size, mpi_ptrdiff_t,
                     comm
                     );
 
@@ -285,12 +287,12 @@ class subdomain_deflation {
             // What columns do you need from me?
             for(size_t i = 0; i < send.nbr.size(); ++i)
                 MPI_Irecv(&send_col[send.ptr[i]], comm_matrix[send.nbr[i]][comm.rank],
-                        MPI_LONG, send.nbr[i], tag_exc_cols, comm, &send.req[i]);
+                        mpi_ptrdiff_t, send.nbr[i], tag_exc_cols, comm, &send.req[i]);
 
             // Here is what I need from you:
             for(size_t i = 0; i < recv.nbr.size(); ++i)
                 MPI_Isend(&recv_cols[recv.ptr[i]], comm_matrix[comm.rank][recv.nbr[i]],
-                        MPI_LONG, recv.nbr[i], tag_exc_cols, comm, &recv.req[i]);
+                        mpi_ptrdiff_t, recv.nbr[i], tag_exc_cols, comm, &recv.req[i]);
 
             TOC("setup communication");
             /* While messages are in flight, */
