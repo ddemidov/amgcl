@@ -77,7 +77,7 @@ namespace backend {
 template <typename real>
 struct vexcl {
     typedef real value_type;
-    typedef long index_type;
+    typedef int index_type;
 
     typedef vex::SpMat<value_type, index_type, index_type> matrix;
     typedef vex::vector<value_type>                        vector;
@@ -138,7 +138,7 @@ struct vexcl {
     struct gather {
         mutable vex::gather<value_type> G;
 
-        gather(size_t src_size, const std::vector<long> &I, const params &prm)
+        gather(size_t src_size, const std::vector<int> &I, const params &prm)
             : G(prm.q, src_size, std::vector<size_t>(I.begin(), I.end())) { }
 
         void operator()(const vector &vec, std::vector<value_type> &vals) const {

@@ -35,7 +35,7 @@ Example:
 \code
 struct poisson_2d {
     typedef double val_type;
-    typedef long   col_type;
+    typedef int   col_type;
 
     poisson_2d(size_t n) : n(n), h2i((n - 1) * (n - 1)) {}
 

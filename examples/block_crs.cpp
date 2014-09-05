@@ -27,7 +27,7 @@ int main() {
         amgcl::relaxation::spai0
         > AMG;
 
-    amgcl::backend::crs<double, long> A;
+    amgcl::backend::crs<double, int> A;
     std::vector<double> rhs;
 
     prof.tic("read");

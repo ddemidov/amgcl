@@ -209,7 +209,7 @@ crs<V, C, P> product(const crs<V, C, P> &A, const crs<V, C, P> &B) {
 
 #pragma omp parallel
     {
-        std::vector<long> marker(m, -1);
+        std::vector<int> marker(m, -1);
 
 #ifdef _OPENMP
         int nt  = omp_get_num_threads();
@@ -345,7 +345,7 @@ crs<V, C, P> inverse(const crs<V, C, P> &A) {
 template <typename real>
 struct builtin {
     typedef real value_type;
-    typedef long index_type;
+    typedef int index_type;
 
     struct provides_row_iterator : boost::true_type {};
 
@@ -390,9 +390,9 @@ struct builtin {
     }
 
     struct gather {
-        std::vector<long> I;
+        std::vector<int> I;
 
-        gather(size_t /*src_size*/, const std::vector<long> &I, const params&)
+        gather(size_t /*src_size*/, const std::vector<int> &I, const params&)
             : I(I) { }
 
         template <class InVec, class OutVec>

@@ -15,7 +15,7 @@ BOOST_GEOMETRY_REGISTER_BOOST_ARRAY_CS(cs::cartesian)
 template <int NDIM>
 class domain_partition {
     public:
-        typedef boost::array<long, NDIM>           point;
+        typedef boost::array<int, NDIM>           point;
         typedef boost::geometry::model::box<point> box;
         typedef std::pair<box, int>                process;
 
@@ -26,7 +26,7 @@ class domain_partition {
                 rtree.insert( std::make_pair(subdomains[i], i) );
         }
 
-        std::pair<int, long> index(point p) const {
+        std::pair<int, int> index(point p) const {
             namespace bgi = boost::geometry::index;
 
             BOOST_FOREACH(const process &v, rtree | bgi::adaptors::queried(bgi::intersects(p)) )
@@ -61,11 +61,11 @@ class domain_partition {
             boost::geometry::index::quadratic<16>
             > rtree;
 
-        static long local_index(box domain, point p) {
+        static int local_index(box domain, point p) {
             point lo = domain.min_corner();
             point hi = domain.max_corner();
 
-            long stride = 1, idx = 0;
+            int stride = 1, idx = 0;
             for(int i = 0; i < NDIM; ++i) {
                 idx += (p[i] - lo[i]) * stride;
                 stride *= hi[i] - lo[i] + 1;
@@ -88,7 +88,7 @@ class domain_partition {
             for(int i = 1; i < NDIM; ++i)
                 if (hi[i] - lo[i] > hi[wd] - lo[wd]) wd = i;
 
-            long mid = lo[wd] + (hi[wd] - lo[wd]) * (np / 2) / np;
+            int mid = lo[wd] + (hi[wd] - lo[wd]) * (np / 2) / np;
 
             box sd1 = domain;
             box sd2 = domain;

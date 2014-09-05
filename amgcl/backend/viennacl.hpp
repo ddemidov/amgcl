@@ -61,7 +61,7 @@ namespace backend {
 template <class Matrix>
 struct viennacl {
     typedef typename backend::value_type<Matrix>::type value_type;
-    typedef long                                       index_type;
+    typedef int                                       index_type;
     typedef Matrix                                     matrix;
     typedef ::viennacl::vector<value_type>             vector;
     typedef detail::default_direct_solver<viennacl>    direct_solver;
@@ -121,7 +121,7 @@ struct viennacl {
 
     private:
         struct viennacl_matrix_adapter {
-            typedef long   index_type;
+            typedef int   index_type;
             typedef size_t size_type;
 
             class const_iterator1;

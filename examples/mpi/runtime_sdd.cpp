@@ -30,11 +30,11 @@ struct linear_deflation {
     std::vector<double> x;
     std::vector<double> y;
 
-    linear_deflation(long n) : x(n), y(n) {}
+    linear_deflation(int n) : x(n), y(n) {}
 
     size_t dim() const { return 3; }
 
-    double operator()(long i, int j) const {
+    double operator()(int i, int j) const {
         switch(j) {
             default:
             case 0:
@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
         std::cout << "World size: " << world.size << std::endl;
 
     // Read configuration from command line
-    long n = 1024;
+    int n = 1024;
 
     amgcl::runtime::coarsening::type    coarsening       = amgcl::runtime::coarsening::smoothed_aggregation;
     amgcl::runtime::relaxation::type    relaxation       = amgcl::runtime::relaxation::spai0;
@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
         )
         (
          "size,n",
-         po::value<long>(&n)->default_value(n),
+         po::value<int>(&n)->default_value(n),
          "domain size"
         )
         (
@@ -126,34 +126,34 @@ int main(int argc, char *argv[]) {
     boost::property_tree::ptree prm;
     if (vm.count("params")) read_json(parameter_file, prm);
 
-    const long n2 = n * n;
+    const int n2 = n * n;
 
-    boost::array<long, 2> lo = { {0, 0} };
-    boost::array<long, 2> hi = { {n - 1, n - 1} };
+    boost::array<int, 2> lo = { {0, 0} };
+    boost::array<int, 2> hi = { {n - 1, n - 1} };
 
     using amgcl::prof;
 
     prof.tic("partition");
     domain_partition<2> part(lo, hi, world.size);
-    long chunk = part.size( world.rank );
+    int chunk = part.size( world.rank );
 
-    std::vector<long> domain(world.size + 1);
+    std::vector<int> domain(world.size + 1);
     MPI_Allgather(&chunk, 1, MPI_LONG, &domain[1], 1, MPI_LONG, world);
     boost::partial_sum(domain, domain.begin());
 
-    long chunk_start = domain[world.rank];
-    long chunk_end   = domain[world.rank + 1];
+    int chunk_start = domain[world.rank];
+    int chunk_end   = domain[world.rank + 1];
 
     linear_deflation lindef(chunk);
-    std::vector<long> renum(n2);
-    for(long j = 0, idx = 0; j < n; ++j) {
-        for(long i = 0; i < n; ++i, ++idx) {
-            boost::array<long, 2> p = {{i, j}};
-            std::pair<int,long> v = part.index(p);
+    std::vector<int> renum(n2);
+    for(int j = 0, idx = 0; j < n; ++j) {
+        for(int i = 0; i < n; ++i, ++idx) {
+            boost::array<int, 2> p = {{i, j}};
+            std::pair<int,int> v = part.index(p);
             renum[idx] = domain[v.first] + v.second;
 
-            boost::array<long,2> lo = part.domain(v.first).min_corner();
-            boost::array<long,2> hi = part.domain(v.first).max_corner();
+            boost::array<int,2> lo = part.domain(v.first).min_corner();
+            boost::array<int,2> hi = part.domain(v.first).max_corner();
 
             if (v.first == world.rank) {
                 lindef.x[v.second] = (i - (lo[0] + hi[0]) / 2);
@@ -164,8 +164,8 @@ int main(int argc, char *argv[]) {
     prof.toc("partition");
 
     prof.tic("assemble");
-    std::vector<long>   ptr;
-    std::vector<long>   col;
+    std::vector<int>   ptr;
+    std::vector<int>   col;
     std::vector<double> val;
     std::vector<double> rhs;
 
@@ -183,9 +183,9 @@ int main(int argc, char *argv[]) {
         const double h    = 1 / hinv;
         const double eps  = 1e-5;
 
-        for(long j = 0, idx = 0; j < n; ++j) {
+        for(int j = 0, idx = 0; j < n; ++j) {
             double y = h * j;
-            for(long i = 0; i < n; ++i, ++idx) {
+            for(int i = 0; i < n; ++i, ++idx) {
                 double x = h * i;
 
                 if (renum[idx] < chunk_start || renum[idx] >= chunk_end) continue;
@@ -230,8 +230,8 @@ int main(int argc, char *argv[]) {
             }
         }
     } else {
-        for(long j = 0, idx = 0; j < n; ++j) {
-            for(long i = 0; i < n; ++i, ++idx) {
+        for(int j = 0, idx = 0; j < n; ++j) {
+            for(int i = 0; i < n; ++i, ++idx) {
                 if (renum[idx] < chunk_start || renum[idx] >= chunk_end) continue;
 
                 if (j > 0)  {
@@ -297,7 +297,7 @@ int main(int argc, char *argv[]) {
             std::ofstream f("out.dat", std::ios::binary);
             int m = n2;
             f.write((char*)&m, sizeof(int));
-            for(long i = 0; i < n2; ++i)
+            for(int i = 0; i < n2; ++i)
                 f.write((char*)&X[renum[i]], sizeof(double));
         } else {
             MPI_Send(x.data(), chunk, MPI_DOUBLE, 0, 42, world);

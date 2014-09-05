@@ -113,7 +113,7 @@ struct smoothed_aggregation {
 
 #pragma omp parallel
         {
-            std::vector<long> marker(aggr.count, -1);
+            std::vector<int> marker(aggr.count, -1);
 
 #ifdef _OPENMP
             int nt  = omp_get_num_threads();
@@ -129,17 +129,17 @@ struct smoothed_aggregation {
 
             // Count number of entries in P.
             for(size_t i = chunk_start; i < chunk_end; ++i) {
-                for(long j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
+                for(int j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
                     size_t c = static_cast<size_t>(A.col[j]);
 
                     // Skip weak off-diagonal connections.
                     if (c != i && !aggr.strong_connection[j])
                         continue;
 
-                    long g = aggr.id[c];
+                    int g = aggr.id[c];
 
                     if (g >= 0 && static_cast<size_t>(marker[g]) != i) {
-                        marker[g] = static_cast<long>(i);
+                        marker[g] = static_cast<int>(i);
                         ++( P->ptr[i + 1] );
                     }
                 }
@@ -161,7 +161,7 @@ struct smoothed_aggregation {
                 // Diagonal of the filtered matrix is the original matrix
                 // diagonal minus its weak connections.
                 Val dia = 0;
-                for(long j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
+                for(int j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
                     if (static_cast<size_t>(A.col[j]) == i)
                         dia += A.val[j];
                     else if (!aggr.strong_connection[j])
@@ -169,16 +169,16 @@ struct smoothed_aggregation {
                 }
                 dia = 1 / dia;
 
-                long row_beg = P->ptr[i];
-                long row_end = row_beg;
-                for(long j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
+                int row_beg = P->ptr[i];
+                int row_end = row_beg;
+                for(int j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
                     size_t c = static_cast<size_t>(A.col[j]);
 
                     // Skip weak couplings, ...
                     if (c != i && !aggr.strong_connection[j]) continue;
 
                     // ... and the ones not in any aggregate.
-                    long g = aggr.id[c];
+                    int g = aggr.id[c];
                     if (g < 0) continue;
 
                     Val v = (c == i) ? 1 - prm.relax : -prm.relax * dia * A.val[j];

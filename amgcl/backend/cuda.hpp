@@ -72,8 +72,8 @@ class cuda_hyb_matrix {
 
         cuda_hyb_matrix(
                 size_t n, size_t m,
-                const long *ptr,
-                const long *col,
+                const int *ptr,
+                const int *col,
                 const real *val,
                 cusparseHandle_t handle
                 )
@@ -150,7 +150,7 @@ class cuda_hyb_matrix {
         }
 
         void fill_matrix(size_t n, size_t m,
-                const long *ptr, const long *col, const float *val
+                const int *ptr, const int *col, const float *val
                 )
         {
             thrust::device_vector<int>   p(ptr, ptr + n + 1);
@@ -168,7 +168,7 @@ class cuda_hyb_matrix {
         }
 
         void fill_matrix(size_t n, size_t m,
-                const long *ptr, const long *col, const double *val
+                const int *ptr, const int *col, const double *val
                 )
         {
             thrust::device_vector<int>    p(ptr, ptr + n + 1);

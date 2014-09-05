@@ -53,7 +53,7 @@ namespace backend {
 template <typename real>
 struct eigen {
     typedef real value_type;
-    typedef long index_type;
+    typedef int index_type;
 
     typedef
         Eigen::MappedSparseMatrix<value_type, Eigen::RowMajor, index_type>
@@ -116,7 +116,7 @@ struct eigen {
 
     private:
         struct hold_host {
-            typedef boost::shared_ptr< crs<real, long, long> > host_matrix;
+            typedef boost::shared_ptr< crs<real, int, int> > host_matrix;
             host_matrix host;
 
             hold_host( host_matrix host ) : host(host) {}

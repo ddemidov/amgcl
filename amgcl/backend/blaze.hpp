@@ -52,7 +52,7 @@ namespace backend {
 template <class real>
 struct blaze {
     typedef real value_type;
-    typedef long index_type;
+    typedef int index_type;
 
     struct provides_row_iterator : boost::false_type {};
 
