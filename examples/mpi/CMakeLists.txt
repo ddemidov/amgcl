@@ -23,15 +23,14 @@ if (MPI_CXX_FOUND)
         add_mpi_example(check_pastix check_pastix.cpp)
     endif()
 
-    add_mpi_example(subdomain_deflation subdomain_deflation.cpp)
     add_mpi_example(runtime_sdd         runtime_sdd.cpp)
     add_mpi_example(call_mpi_lib        call_mpi_lib.cpp)
     target_link_libraries(call_mpi_lib amgcl amgcl_mpi)
 
     if (VEXCL_ROOT)
-        add_mpi_example(subdomain_deflation_vexcl subdomain_deflation_vexcl.cpp)
-        target_link_libraries(subdomain_deflation_vexcl ${VEXCL_BACKEND_LIBRARIES})
-        set_target_properties(subdomain_deflation_vexcl PROPERTIES COMPILE_FLAGS ${CXX11_FLAG})
+        add_mpi_example(runtime_sdd_vexcl runtime_sdd_vexcl.cpp)
+        target_link_libraries(runtime_sdd_vexcl ${VEXCL_BACKEND_LIBRARIES})
+        set_target_properties(runtime_sdd_vexcl PROPERTIES COMPILE_FLAGS ${CXX11_FLAG})
     endif()
 
     configure_file(
