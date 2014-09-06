@@ -10,7 +10,7 @@ script:
     - mkdir -p build && cd build
     - cmake -DTEST_COVERAGE=ON -DCMAKE_BUILD_TYPE=Release ..
     - make && ctest --output-on-failure
-    - for n in 1 4 16; do echo --- $n ---; mpirun -np $n ./examples/mpi/subdomain_deflation; done
+    - for n in 1 4 16; do echo --- $n ---; mpirun -np $n ./examples/mpi/runtime_sdd; done
 after_success:
     - lcov --directory tests --base-directory ../amgcl --capture --output-file coverage.info
     - lcov --remove coverage.info '/usr*' -o coverage.info
