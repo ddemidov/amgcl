@@ -7,6 +7,7 @@
 #include <boost/range/algorithm.hpp>
 #include <boost/range/numeric.hpp>
 
+#include <amgcl/mpi/util.hpp>
 #include <amgcl_mpi.h>
 
 #include "domain_partition.hpp"
