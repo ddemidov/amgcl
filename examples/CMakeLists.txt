@@ -12,6 +12,11 @@ target_link_libraries(block_crs ${Boost_LIBRARIES})
 add_executable(call_lib call_lib.cpp)
 target_link_libraries(call_lib ${Boost_LIBRARIES} amgcl)
 
+if (EIGEN_INCLUDE)
+    add_executable(solve_mm solve_mm.cpp)
+    target_link_libraries(solve_mm ${Boost_LIBRARIES})
+endif()
+
 if (VEXCL_ROOT)
     add_executable(vexcl vexcl.cpp)
     target_link_libraries(vexcl ${Boost_LIBRARIES} ${VEXCL_BACKEND_LIBRARIES})
