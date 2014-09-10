@@ -31,6 +31,7 @@ THE SOFTWARE.
  * \brief  Various utilities.
  */
 
+#include <limits>
 #include <stdexcept>
 #include <boost/property_tree/ptree.hpp>
 
@@ -75,7 +76,12 @@ inline const boost::property_tree::ptree& empty_ptree() {
     return p;
 }
 
+template <class T>
+T eps(size_t n) {
+    return 2 * std::numeric_limits<T>::epsilon() * n;
 }
+
+} // namespace detail
 
 /// Throws \p message if \p condition is not true.
 template <class Condition, class Message>

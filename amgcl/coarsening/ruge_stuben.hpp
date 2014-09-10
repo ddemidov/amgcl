@@ -92,6 +92,7 @@ struct ruge_stuben {
     {
         typedef typename backend::value_type<Matrix>::type Val;
         const size_t n = rows(A);
+        const Val eps = amgcl::detail::eps<Val>(1);
 
         std::vector<char> cf(n, 'U');
         backend::crs<char, ptrdiff_t, ptrdiff_t> S;
@@ -199,14 +200,14 @@ struct ruge_stuben {
             Val cf_pos = 1;
 
             if (prm.do_trunc) {
-                if (fabs(a_den - d_neg) > 1e-32) cf_neg = a_den / (a_den - d_neg);
-                if (fabs(b_den - d_pos) > 1e-32) cf_pos = b_den / (b_den - d_pos);
+                if (fabs(a_den - d_neg) > eps) cf_neg = a_den / (a_den - d_neg);
+                if (fabs(b_den - d_pos) > eps) cf_pos = b_den / (b_den - d_pos);
             }
 
-            if (b_num > 0 && fabs(b_den) < 1e-32) dia += b_num;
+            if (b_num > 0 && fabs(b_den) < eps) dia += b_num;
 
-            Val alpha = fabs(a_den) > 1e-32 ? -cf_neg * a_num / (dia * a_den) : 0;
-            Val beta  = fabs(b_den) > 1e-32 ? -cf_pos * b_num / (dia * b_den) : 0;
+            Val alpha = fabs(a_den) > eps ? -cf_neg * a_num / (dia * a_den) : 0;
+            Val beta  = fabs(b_den) > eps ? -cf_pos * b_num / (dia * b_den) : 0;
 
             for(ptrdiff_t j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
                 ptrdiff_t c = A.col[j];
@@ -260,6 +261,7 @@ struct ruge_stuben {
 
             const size_t n   = rows(A);
             const size_t nnz = nonzeros(A);
+            const Val eps = amgcl::detail::eps<Val>(1);
 
             S.nrows = S.ncols = n;
             S.ptr.resize( n+1 );
@@ -272,7 +274,7 @@ struct ruge_stuben {
                 for(row_iterator a = row_begin(A, i); a; ++a)
                     if (a.col() != i) a_min = std::min(a_min, a.value());
 
-                if (fabs(a_min) < 1e-32) {
+                if (fabs(a_min) < eps) {
                     cf[i] = 'F';
                     continue;
                 }

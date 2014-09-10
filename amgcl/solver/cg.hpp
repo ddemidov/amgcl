@@ -130,7 +130,7 @@ class cg {
         {
             backend::residual(rhs, A, x, *r);
             value_type norm_r0 = norm(*r);
-            if (!norm_r0) {
+            if (norm_r0 < amgcl::detail::eps<value_type>(n)) {
                 // The solution is exact
                 return boost::make_tuple(0, 0);
             }

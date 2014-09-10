@@ -346,7 +346,12 @@ class skyline_lu {
          * end
          */
         void factorize() {
-            precondition(D[0] != 0, "Zero diagonal in skyline_lu");
+            const real eps = amgcl::detail::eps<real>(1);
+
+            precondition(
+                    fabs(D[0]) > eps,
+                    "Zero diagonal in skyline_lu"
+                    );
 
             for(int k = 0; k < n - 1; ++k) {
                 // check whether A(1,k+1) lies within the skyline structure
@@ -400,7 +405,10 @@ class skyline_lu {
                 for(int j = ptr[k+1]; j < ptr[k+2]; ++j)
                     sum -= L[j] * U[j];
 
-                precondition(sum != 0, "Zero sum in skyline_lu factorization");
+                precondition(
+                        fabs(sum) > eps,
+                        "Zero sum in skyline_lu factorization"
+                        );
 
                 D[k+1] = sum;
             }

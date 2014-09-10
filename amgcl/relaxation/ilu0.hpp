@@ -47,6 +47,7 @@ struct ilu0 {
           dia  ( backend::rows(A) )
     {
         const size_t n = backend::rows(A);
+        const value_type eps = amgcl::detail::eps<value_type>(1);
 
         std::vector<ptrdiff_t> work(n, -1);
 
@@ -62,10 +63,14 @@ struct ilu0 {
 
                 // Exit if diagonal is reached
                 if (static_cast<size_t>(c) >= i) {
-                    precondition(static_cast<size_t>(c) == i,
-                            "No diagonal value in system matrix");
-                    precondition(fabs(luval[j]) > 1e-32,
-                            "Zero pivot in ILU");
+                    precondition(
+                            static_cast<size_t>(c) == i,
+                            "No diagonal value in system matrix"
+                            );
+                    precondition(
+                            fabs(luval[j]) > eps,
+                            "Zero pivot in ILU"
+                            );
 
                     dia[i]   = j;
                     luval[j] = 1 / luval[j];

@@ -92,7 +92,7 @@ class gmres {
                 const backend_params &backend_prm = backend_params(),
                 const InnerProduct &inner_product = InnerProduct()
              )
-            : prm(prm),
+            : prm(prm), n(n),
               H(boost::extents[prm.M + 1][prm.M]),
               s(prm.M + 1), cs(prm.M + 1), sn(prm.M + 1), y(prm.M + 1),
               r( Backend::create_vector(n, backend_prm) ),
@@ -129,7 +129,7 @@ class gmres {
             size_t iter = 0;
 
             value_type norm_r0 = restart(A, rhs, P, x);
-            if (!norm_r0)
+            if (norm_r0 < amgcl::detail::eps<value_type>(n))
                 return boost::make_tuple(0, 0);
 
             value_type eps = prm.tol * norm_r0, res_norm;
@@ -168,6 +168,7 @@ class gmres {
         }
     private:
         params prm;
+        size_t n;
 
         mutable boost::multi_array<value_type, 2> H;
         mutable std::vector<value_type> s, cs, sn, y;

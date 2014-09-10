@@ -88,7 +88,7 @@ class bicgstabl {
                 const backend_params &backend_prm = backend_params(),
                 const InnerProduct &inner_product = InnerProduct()
                 )
-            : prm(prm),
+            : prm(prm), n(n),
               r0( Backend::create_vector(n, backend_prm) ),
               q ( Backend::create_vector(n, backend_prm) ),
               r(prm.L + 1), u(prm.L + 1),
@@ -129,7 +129,7 @@ class bicgstabl {
             backend::residual(rhs, A, x, *r0);
 
             value_type norm_r0 = norm(*r0);
-            if (norm_r0 == 0)
+            if (norm_r0 < amgcl::detail::eps<value_type>(n))
                 return boost::make_tuple(0, 0);
 
             value_type res_norm = norm_r0;
@@ -232,6 +232,7 @@ class bicgstabl {
         }
     private:
         params prm;
+        size_t n;
 
         mutable boost::shared_ptr< vector > r0;
         mutable boost::shared_ptr< vector > q;
