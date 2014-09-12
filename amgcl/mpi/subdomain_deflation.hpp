@@ -77,10 +77,22 @@ struct mpi_inner_product {
 
 } // namespace detail
 
-/// Constant deflation vectors.
+/// Pointwise constant deflation vectors.
 struct constant_deflation {
-    int dim() const { return 1; }
-    int operator()(ptrdiff_t row, int j) const { return 1; }
+    const int block_size;
+    /// Constructor
+    /**
+     * \param block_size Number of degrees of freedom per grid point
+     */
+    constant_deflation(int block_size = 1) : block_size(block_size) {}
+
+    int dim() const {
+        return block_size;
+    }
+
+    int operator()(ptrdiff_t row, int j) const {
+        return row % block_size == j;
+    }
 };
 
 /// Distributed solver based on subdomain deflation.
