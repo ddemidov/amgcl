@@ -11,7 +11,6 @@
 
 #include <amgcl/runtime.hpp>
 #include <amgcl/backend/eigen.hpp>
-#include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/profiler.hpp>
 
 typedef Eigen::SparseMatrix<double, Eigen::RowMajor, int> EigenMatrix;

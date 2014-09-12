@@ -15,25 +15,24 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
+#include <Eigen/Dense>
+#include <Eigen/Sparse>
+#include <unsupported/Eigen/SparseExtra>
+
+extern "C" {
+#include <metis.h>
+}
+
 #include <amgcl/mpi/runtime.hpp>
+#include <amgcl/backend/eigen.hpp>
 #include <amgcl/profiler.hpp>
+
+typedef Eigen::SparseMatrix<double, Eigen::RowMajor, int> EigenMatrix;
+typedef Eigen::Matrix<double, Eigen::Dynamic, 1>          EigenVector;
 
 namespace amgcl {
     profiler<> prof;
 }
-
-//---------------------------------------------------------------------------
-struct const_deflation {
-    int block_size;
-
-    const_deflation(int block_size) : block_size(block_size) {}
-
-    size_t dim() const { return block_size; }
-
-    double operator()(ptrdiff_t i, int j) const {
-        return i % block_size == j;
-    }
-};
 
 //---------------------------------------------------------------------------
 inline size_t alignup(size_t n, size_t m) {
@@ -41,117 +40,251 @@ inline size_t alignup(size_t n, size_t m) {
 }
 
 //---------------------------------------------------------------------------
-std::vector<ptrdiff_t> read_problem(
+void pointwise_graph(
+        int n, int block_size, const int *ptr,  const int *col,
+        std::vector<int> &pptr,
+        std::vector<int> &pcol
+        )
+{
+    int np = n / block_size;
+
+    assert(np * block_size == n);
+
+    // Create pointwise matrix
+    std::vector<int> ptr1(np + 1, 0);
+    std::vector<int> marker(np, -1);
+    for(int ip = 0, i = 0; ip < np; ++ip) {
+        for(int k = 0; k < block_size; ++k, ++i) {
+            for(int j = ptr[i]; j < ptr[i+1]; ++j) {
+                int cp = col[j] / block_size;
+                if (marker[cp] != ip) {
+                    marker[cp] = ip;
+                    ++ptr1[ip+1];
+                }
+            }
+        }
+    }
+
+    boost::partial_sum(ptr1, ptr1.begin());
+    boost::fill(marker, -1);
+
+    std::vector<int> col1(ptr1.back());
+
+    for(int ip = 0, i = 0; ip < np; ++ip) {
+        int row_beg = ptr1[ip];
+        int row_end = row_beg;
+
+        for(int k = 0; k < block_size; ++k, ++i) {
+            for(int j = ptr[i]; j < ptr[i+1]; ++j) {
+                int cp = col[j] / block_size;
+
+                if (marker[cp] < row_beg) {
+                    marker[cp] = row_end;
+                    col1[row_end++] = cp;
+                }
+            }
+        }
+    }
+
+
+    // Transpose pointwise matrix
+    int nnz = ptr1.back();
+
+    std::vector<int> ptr2(np + 1, 0);
+    std::vector<int> col2(nnz);
+
+    for(int i = 0; i < nnz; ++i)
+        ++( ptr2[ col1[i] + 1 ] );
+
+    boost::partial_sum(ptr2, ptr2.begin());
+
+    for(int i = 0; i < np; ++i)
+        for(int j = ptr1[i]; j < ptr1[i+1]; ++j)
+            col2[ptr2[col1[j]]++] = i;
+
+    std::rotate(ptr2.begin(), ptr2.end() - 1, ptr2.end());
+    ptr2.front() = 0;
+
+    // Merge both matrices.
+    boost::fill(marker, -1);
+    pptr.resize(np + 1, 0);
+
+    for(int i = 0; i < np; ++i) {
+        for(int j = ptr1[i]; j < ptr1[i+1]; ++j) {
+            int c = col1[j];
+            if (marker[c] != i) {
+                marker[c] = i;
+                ++pptr[i + 1];
+            }
+        }
+
+        for(int j = ptr2[i]; j < ptr2[i+1]; ++j) {
+            int c = col2[j];
+            if (marker[c] != i) {
+                marker[c] = i;
+                ++pptr[i + 1];
+            }
+        }
+    }
+
+    boost::partial_sum(pptr, pptr.begin());
+    boost::fill(marker, -1);
+
+    pcol.resize(pptr.back());
+
+    for(int i = 0; i < np; ++i) {
+        int row_beg = pptr[i];
+        int row_end = row_beg;
+
+        for(int j = ptr1[i]; j < ptr1[i+1]; ++j) {
+            int c = col1[j];
+
+            if (marker[c] < row_beg) {
+                marker[c] = row_end;
+                pcol[row_end++] = c;
+            }
+        }
+
+        for(int j = ptr2[i]; j < ptr2[i+1]; ++j) {
+            int c = col2[j];
+
+            if (marker[c] < row_beg) {
+                marker[c] = row_end;
+                pcol[row_end++] = c;
+            }
+        }
+    }
+}
+
+//---------------------------------------------------------------------------
+std::vector<int> partition(
+        int npart,
+        const std::vector<int> &ptr,
+        const std::vector<int> &col
+        )
+{
+    int nrows = ptr.size() - 1;
+
+    std::vector<int> part(nrows);
+
+    if (npart == 1) {
+        boost::fill(part, 0);
+    } else {
+        int wgtflag = 0;
+        int numflag = 0;
+        int options = 0;
+        int edgecut;
+
+        METIS_PartGraphKway(
+                &nrows,
+                const_cast<int*>(ptr.data()),
+                const_cast<int*>(col.data()),
+                NULL,
+                NULL,
+                &wgtflag,
+                &numflag,
+                &npart,
+                &options,
+                &edgecut,
+                part.data()
+                );
+    }
+
+    return part;
+}
+
+//---------------------------------------------------------------------------
+std::vector<int> read_problem(
         const amgcl::mpi::communicator &world,
         const std::string &A_file,
-        const std::string &rhs_file,
+        const std::string &b_file,
         int block_size,
-        std::vector<ptrdiff_t> &ptr,
-        std::vector<ptrdiff_t> &col,
-        std::vector<double>    &val,
-        std::vector<double>    &rhs
+        std::vector<int> &lptr,
+        std::vector<int> &lcol,
+        std::vector<double>    &lval,
+        std::vector<double>    &lrhs
         )
 {
     using amgcl::precondition;
+    using amgcl::prof;
 
-    std::ifstream A(A_file.c_str());
-    precondition(A, "Failed to open matrix file (" + A_file + ")");
+    prof.tic("read problem");
+    EigenMatrix A;
+    EigenVector b;
 
-    std::string line;
-    ptrdiff_t n, nnz;
-    while (std::getline(A, line)) {
-        if (line[0] == '%') continue;
-        std::istringstream is(line);
-        ptrdiff_t m;
-        precondition(is >> n >> m >> nnz, "Unsupported format in matrix file");
-        precondition(n == m, "Non-square matrix in matrix file");
-        break;
+    amgcl::precondition(
+            Eigen::loadMarket(A, A_file),
+            "Failed to load matrix file (" + A_file + ")"
+            );
+
+    amgcl::precondition(
+            Eigen::loadMarketVector(b, b_file),
+            "Failed to load RHS file (" + b_file + ")"
+            );
+
+    const int    *ptr = A.outerIndexPtr();
+    const int    *col = A.innerIndexPtr();
+    const double *val = A.valuePtr();
+    prof.toc("read problem");
+
+    prof.tic("Pointwise graph");
+    std::vector<int> pptr, pcol;
+    pointwise_graph(A.rows(), block_size, ptr, col, pptr, pcol);
+    prof.toc("Pointwise graph");
+
+    prof.tic("Partition");
+    std::vector<int> part = partition(world.size, pptr, pcol);
+    prof.toc("Partition");
+
+    prof.tic("Reorder");
+    std::vector<int> dist(world.size + 1, 0);
+    BOOST_FOREACH(int p, part) dist[p + 1] += block_size;
+    boost::partial_sum(dist, dist.begin());
+
+    std::vector<int> order(A.rows());
+    std::vector<int> inv_order(A.rows());
+    for(int i = 0; i < A.rows(); ++i) {
+        int p = part[i / block_size];
+        int j = dist[p]++;
+        order[i] = j;
+        inv_order[j] = i;
+    }
+    std::rotate(dist.begin(), dist.end() - 1, dist.end());
+    dist.front() = 0;
+    prof.toc("Reorder");
+
+    prof.tic("Local matrix");
+    int chunk = dist[world.rank + 1] - dist[world.rank];
+
+    lptr.clear();
+    lcol.clear();
+    lval.clear();
+    lrhs.clear();
+
+    lptr.reserve(chunk + 1);
+    lptr.push_back(0);
+    for(int i = 0, j = dist[world.rank]; i < chunk; ++i, ++j) {
+        int p = inv_order[j];
+        lptr.push_back( lptr.back() - ptr[p] + ptr[p + 1] );
     }
 
-    precondition(n, "Empty matrix file");
-    precondition(n % block_size == 0, "Matrix size is not divisible by block_size");
+    lcol.reserve(lptr.back());
+    lval.reserve(lptr.back());
+    lrhs.reserve(chunk);
 
-    ptrdiff_t chunk = alignup((n + world.size - 1) / world.size, block_size);
-    std::vector<ptrdiff_t> domain(world.size + 1);
-    domain[0] = 0;
-    for(int i = 0; i < world.size; ++i)
-        domain[i+1] = std::min(domain[i] + chunk, n);
+    for(int i = 0, j = dist[world.rank]; i < chunk; ++i, ++j) {
+        int p = inv_order[j];
 
-    ptrdiff_t chunk_beg = domain[world.rank];
-    ptrdiff_t chunk_end = domain[world.rank + 1];
-    chunk = chunk_end - chunk_beg;
-
-    {
-        std::vector<ptrdiff_t> I, J;
-        std::vector<double>    V;
-
-        ptr.clear();
-        ptr.resize(chunk + 1, 0);
-
-        while (std::getline(A, line)) {
-            if (line[0] == '%') continue;
-            std::istringstream is(line);
-            ptrdiff_t i, j;
-            double v;
-            precondition(is >> i >> j >> v, "Unsupported format in matrix file");
-            --i;
-            --j;
-
-            if (i < chunk_beg || i >= chunk_end) continue;
-
-            ++ptr[i + 1 - chunk_beg];
-
-            I.push_back(i);
-            J.push_back(j);
-            V.push_back(v);
+        for(int k = ptr[p]; k < ptr[p+1]; ++k) {
+            lcol.push_back( order[col[k]] );
+            lval.push_back( val[k] );
         }
 
-        boost::partial_sum(ptr, ptr.begin());
-
-        ptrdiff_t loc_nnz = ptr.back();
-
-        col.clear(); col.resize(loc_nnz);
-        val.clear(); val.resize(loc_nnz);
-
-        for(ptrdiff_t i = 0; i < loc_nnz; ++i) {
-            ptrdiff_t row = I[i] - chunk_beg;
-            col[ptr[row]] = J[i];
-            val[ptr[row]] = V[i];
-            ++ptr[row];
-        }
-        std::rotate(ptr.begin(), ptr.end() - 1, ptr.end());
-        ptr[0] = 0;
+        lrhs.push_back( b[p] );
     }
+    prof.toc("Local matrix");
 
-    std::ifstream f(rhs_file.c_str());
-    precondition(f, "Failed to open rhs file (" + rhs_file + ")");
-
-    while (std::getline(f, line)) {
-        if (line[0] == '%') continue;
-        std::istringstream is(line);
-        ptrdiff_t rows, cols;
-        precondition(is >> rows >> cols, "Unsupported format in matrix file");
-        precondition(rows == n, "RHS size should coincide with matrix size");
-        break;
-    }
-
-    rhs.clear();
-    rhs.reserve(chunk);
-
-    ptrdiff_t pos = 0;
-    while (std::getline(f, line)) {
-        if (line[0] == '%') continue;
-        std::istringstream is(line);
-        double v;
-        precondition(is >> v, "Unsupported format in RHS file");
-
-        if (pos++ < chunk_beg) continue;
-        if (pos >= chunk_end) break;
-
-        rhs.push_back(v);
-    }
-
-    return domain;
+    return dist;
 }
 
 //---------------------------------------------------------------------------
@@ -243,16 +376,16 @@ int main(int argc, char *argv[]) {
     int block_size = prm.get("amg.coarsening.aggr.block_size", 1);
 
     prof.tic("read problem");
-    std::vector<ptrdiff_t> ptr;
-    std::vector<ptrdiff_t> col;
+    std::vector<int> ptr;
+    std::vector<int> col;
     std::vector<double>    val;
     std::vector<double>    rhs;
 
-    std::vector<ptrdiff_t> domain = read_problem(
+    std::vector<int> domain = read_problem(
             world, A_file, rhs_file, block_size, ptr, col, val, rhs
             );
 
-    ptrdiff_t chunk = domain[world.rank + 1] - domain[world.rank];
+    int chunk = domain[world.rank + 1] - domain[world.rank];
     prof.toc("read problem");
 
     prof.tic("setup");
@@ -265,7 +398,7 @@ int main(int argc, char *argv[]) {
     SDD solve(
             coarsening, relaxation, iterative_solver, direct_solver,
             world, boost::tie(chunk, ptr, col, val),
-            const_deflation(block_size), prm
+            amgcl::mpi::constant_deflation(block_size), prm
             );
     double tm_setup = prof.toc("setup");
 

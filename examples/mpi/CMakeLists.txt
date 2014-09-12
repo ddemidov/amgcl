@@ -25,6 +25,7 @@ if (MPI_CXX_FOUND)
 
     add_mpi_example(runtime_sdd         runtime_sdd.cpp)
     add_mpi_example(solve_mm_mpi        solve_mm_mpi.cpp)
+    target_link_libraries(solve_mm_mpi metis)
     add_mpi_example(call_mpi_lib        call_mpi_lib.cpp)
     target_link_libraries(call_mpi_lib amgcl amgcl_mpi)
 
