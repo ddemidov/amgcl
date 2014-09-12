@@ -23,19 +23,6 @@ namespace amgcl {
 }
 
 //---------------------------------------------------------------------------
-struct const_deflation {
-    int block_size;
-
-    const_deflation(int block_size) : block_size(block_size) {}
-
-    size_t dim() const { return block_size; }
-
-    double operator()(ptrdiff_t i, int j) const {
-        return i % block_size == j;
-    }
-};
-
-//---------------------------------------------------------------------------
 inline size_t alignup(size_t n, size_t m) {
     return ((n + m - 1) / m) * m;
 }
@@ -265,7 +252,7 @@ int main(int argc, char *argv[]) {
     SDD solve(
             coarsening, relaxation, iterative_solver, direct_solver,
             world, boost::tie(chunk, ptr, col, val),
-            const_deflation(block_size), prm
+            amgcl::mpi::constant_deflation(block_size), prm
             );
     double tm_setup = prof.toc("setup");
 
