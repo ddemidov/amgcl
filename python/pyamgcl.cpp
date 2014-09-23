@@ -85,8 +85,7 @@ struct make_solver {
           )
         : n(ptr.num_elements() - 1),
           S(coarsening, relaxation, solver, boost::tie(n, ptr, col, val), prm.p)
-    {
-    }
+    { }
 
     PyObject* solve(const numpy_boost<double, 1> &rhs) const {
         numpy_boost<double, 1> x(&n);
@@ -124,6 +123,45 @@ struct make_solver {
         mutable boost::tuple<int, double> cnv;
 };
 
+//---------------------------------------------------------------------------
+struct make_preconditioner {
+    make_preconditioner(
+            amgcl::runtime::coarsening::type coarsening,
+            amgcl::runtime::relaxation::type relaxation,
+            const params    &prm,
+            const numpy_boost<int,    1> &ptr,
+            const numpy_boost<int,    1> &col,
+            const numpy_boost<double, 1> &val
+          )
+        : n(ptr.num_elements() - 1),
+          P(coarsening, relaxation, boost::tie(n, ptr, col, val), prm.p)
+    { }
+
+    PyObject* apply(const numpy_boost<double, 1> &rhs) const {
+        numpy_boost<double, 1> x(&n);
+        P.apply(rhs, x);
+
+        PyObject *result = x.py_ptr();
+        Py_INCREF(result);
+        return result;
+    }
+
+    std::string str() const {
+        std::ostringstream buf;
+        buf << P;
+        return buf.str();
+    }
+
+    std::string repr() const {
+        return "amgcl: " + str();
+    }
+
+    private:
+        int n;
+        amgcl::runtime::amg< amgcl::backend::builtin<double> > P;
+};
+
+//---------------------------------------------------------------------------
 BOOST_PYTHON_MODULE(pyamgcl)
 {
     using namespace boost::python;
@@ -178,5 +216,19 @@ BOOST_PYTHON_MODULE(pyamgcl)
         .def("__repr__",   &make_solver::repr)
         .def("iterations", &make_solver::iterations)
         .def("residual",   &make_solver::residual)
+        ;
+
+    class_<make_preconditioner, boost::noncopyable>("make_preconditioner",
+            init<
+                amgcl::runtime::coarsening::type,
+                amgcl::runtime::relaxation::type,
+                const params&,
+                const numpy_boost<int,    1>&,
+                const numpy_boost<int,    1>&,
+                const numpy_boost<double, 1>&
+                >())
+        .def("__call__",   &make_preconditioner::apply)
+        .def("__str__",    &make_preconditioner::str)
+        .def("__repr__",   &make_preconditioner::repr)
         ;
 }

@@ -4,42 +4,46 @@ import unittest
 import numpy   as np
 import pyamgcl as amg
 from scipy.sparse import csr_matrix
+from scipy.sparse.linalg import bicgstab, LinearOperator
+
+def make_problem(n=256):
+    h   = 1.0 / (n - 1)
+    n2  = n * n
+    nnz = n2 + 4 * (n - 2) * (n - 2)
+
+    ptr = np.zeros(n2 + 1)
+    col = np.zeros(nnz)
+    val = np.zeros(nnz)
+    rhs = np.ones (n2)
+
+    bnd = (0, n-1)
+
+    col_stencil = np.array([-n, -1, 0,  1,  n])
+    val_stencil = np.array([-1, -1, 4, -1, -1]) / (h * h)
+
+    idx  = 0
+    head = 0
+
+    for i in range(0, n):
+        for j in range(0, n):
+            if i in bnd or j in bnd:
+                col[head] = idx
+                val[head] = 1
+                rhs[idx]  = 0
+                head += 1
+            else:
+                col[head:head+5] = col_stencil + idx
+                val[head:head+5] = val_stencil
+                head += 5
+
+            idx += 1
+            ptr[idx] = head
+
+    return ( csr_matrix( (val, col, ptr) ), rhs )
 
 class TestPyAMGCL(unittest.TestCase):
     def test_solver(self):
-        # Assemble problem
-        n   = 256
-        h   = 1.0 / (n - 1)
-        n2  = n * n
-        nnz = n2 + 4 * (n - 2) * (n - 2)
-
-        ptr = np.zeros(n2 + 1, dtype = np.int32)
-        col = np.zeros(nnz,    dtype = np.int32)
-        val = np.zeros(nnz,    dtype = np.float64)
-        rhs = np.ones (n2,     dtype = np.float64)
-
-        bnd = (0, n-1)
-
-        col_stencil = np.array([-n, -1, 0,  1,  n])
-        val_stencil = np.array([-1, -1, 4, -1, -1]) / (h * h)
-
-        idx  = 0
-        head = 0
-
-        for i in range(0, n):
-            for j in range(0, n):
-                if i in bnd or j in bnd:
-                    col[head] = idx
-                    val[head] = 1
-                    rhs[idx]  = 0
-                    head += 1
-                else:
-                    col[head:head+5] = col_stencil + idx
-                    val[head:head+5] = val_stencil
-                    head += 5
-
-                idx += 1
-                ptr[idx] = head
+        (A, rhs) = make_problem(256)
 
         # Setup solver
         solve = amg.make_solver(
@@ -47,21 +51,36 @@ class TestPyAMGCL(unittest.TestCase):
                 amg.relaxation.spai0,
                 amg.solver_type.bicgstab,
                 amg.make_params(tol = 1e-8),
-                ptr, col, val
+                A.indptr.astype(np.int32),
+                A.indices.astype(np.int32),
+                A.data.astype(np.float64)
                 )
-
-        print "%s" % solve
 
         # Solve
         x = solve(rhs)
 
-        print "Iterations: %s" % solve.iterations()
-        print "Error:      %s" % solve.residual()
+        # Check residual
+        self.assertTrue(np.linalg.norm(rhs - A * x) < 1e-6)
+
+    def test_preconditioner(self):
+        (A, rhs) = make_problem(256)
+
+        # Setup preconditioner
+        P = amg.make_preconditioner(
+                amg.coarsening.smoothed_aggregation,
+                amg.relaxation.spai0,
+                amg.params(),
+                A.indptr.astype(np.int32),
+                A.indices.astype(np.int32),
+                A.data.astype(np.float64)
+                )
+
+        # Solve
+        x,info = bicgstab(A, rhs, M = LinearOperator(A.shape, lambda x: P(x)), tol = 1e-8)
+        self.assertTrue(info == 0)
 
         # Check residual
-        A   = csr_matrix((val,col,ptr), shape=(n2,n2))
         res = rhs - A * x
-
         self.assertTrue(np.linalg.norm(res) < 1e-6)
 
 if __name__ == "__main__":
