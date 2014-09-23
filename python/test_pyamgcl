@@ -76,7 +76,7 @@ class TestPyAMGCL(unittest.TestCase):
                 )
 
         # Solve
-        x,info = bicgstab(A, rhs, M = LinearOperator(A.shape, lambda x: P(x)), tol = 1e-8)
+        x,info = bicgstab(A, rhs, M = LinearOperator(A.shape, P), tol = 1e-8)
         self.assertTrue(info == 0)
 
         # Check residual
