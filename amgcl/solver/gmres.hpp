@@ -135,16 +135,17 @@ class gmres {
             value_type eps = prm.tol * norm_r0, res_norm;
 
             do {
+                int i_last = prm.M-1;
                 for(int i = 0; i < prm.M && iter < prm.maxiter; ++i, ++iter) {
                     res_norm = iteration(A, P, i);
 
                     if (res_norm < eps) {
-                        update(x, i);
-                        return boost::make_tuple(iter + 1, res_norm / norm_r0);
+                        i_last = i;
+                        break;
                     };
                 }
 
-                update(x, prm.M-1);
+                update(x, i_last);
                 res_norm = restart(A, rhs, P, x);
             } while (iter < prm.maxiter && res_norm > eps);
 
@@ -232,6 +233,7 @@ class gmres {
                 const Precond &P, const Vec2 &x) const
         {
             backend::residual(rhs, A, x, *w);
+            value_type resid = norm(*w);
             P.apply(*w, *r);
 
             boost::fill(s, 0);
@@ -240,7 +242,7 @@ class gmres {
             if (s[0])
                 backend::axpby(1 / s[0], *r, 0, *v[0]);
 
-            return s[0];
+            return resid;
         }
 
         template <class Matrix, class Precond>
