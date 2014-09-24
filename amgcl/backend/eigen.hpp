@@ -340,7 +340,7 @@ struct axpbypcz_impl<
             )
     {
         if (c)
-            z = a * x + b * y + c * y;
+            z = a * x + b * y + c * z;
         else
             z = a * x + b * y;
     }
