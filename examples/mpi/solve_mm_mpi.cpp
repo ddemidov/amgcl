@@ -45,8 +45,8 @@ std::vector<ptrdiff_t> read_problem(
     precondition(A, "Failed to open matrix file (" + A_file + ")");
 
     std::string line;
-    ptrdiff_t n, nnz;
-    while (std::getline(A, line)) {
+    ptrdiff_t n = 0, nnz = 0;
+    while ( std::getline(A, line) ) {
         if (line[0] == '%') continue;
         std::istringstream is(line);
         ptrdiff_t m;
