@@ -32,6 +32,22 @@ struct is_builtin_vector< numpy_boost<double,1> > : boost::true_type {};
 
 //---------------------------------------------------------------------------
 struct params {
+    params() {}
+
+    params(const boost::python::dict &args) {
+        using namespace boost::python;
+
+        for(stl_input_iterator<tuple> arg(args.items()), end; arg != end; ++arg) {
+            const char *name = extract<const char*>((*arg)[0]);
+            const char *type = extract<const char*>((*arg)[1].attr("__class__").attr("__name__"));
+
+            if (strcmp(type, "int") == 0)
+                seti(name, extract<int>((*arg)[1]));
+            else
+                setf(name, extract<float>((*arg)[1]));
+        }
+    }
+
     void seti(const char *name, int value) {
         p.put(name, value);
     }
@@ -52,25 +68,6 @@ struct params {
 
     boost::property_tree::ptree p;
 };
-
-//---------------------------------------------------------------------------
-params make_params(boost::python::tuple args, boost::python::dict kwargs) {
-    params p;
-
-    using namespace boost::python;
-
-    for(stl_input_iterator<tuple> arg(kwargs.items()), end; arg != end; ++arg) {
-        const char *name = extract<const char*>((*arg)[0]);
-        const char *type = extract<const char*>((*arg)[1].attr("__class__").attr("__name__"));
-
-        if (strcmp(type, "int") == 0)
-            p.seti(name, extract<int>((*arg)[1]));
-        else
-            p.setf(name, extract<float>((*arg)[1]));
-    }
-
-    return p;
-}
 
 //---------------------------------------------------------------------------
 struct make_solver {
@@ -166,14 +163,13 @@ BOOST_PYTHON_MODULE(pyamgcl)
 {
     using namespace boost::python;
 
-    class_<params>("params")
+    class_<params>("params", init<>())
+        .def(init<const boost::python::dict &>())
         .def("__setitem__", &params::seti)
         .def("__setitem__", &params::setf)
         .def("__str__",     &params::str)
         .def("__repr__",    &params::repr)
         ;
-
-    def("make_params", raw_function(make_params));
 
     enum_<amgcl::runtime::coarsening::type>("coarsening")
         .value("ruge_stuben",          amgcl::runtime::coarsening::ruge_stuben)

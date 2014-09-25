@@ -50,7 +50,7 @@ class TestPyAMGCL(unittest.TestCase):
                 amg.coarsening.smoothed_aggregation,
                 amg.relaxation.spai0,
                 amg.solver_type.bicgstab,
-                amg.make_params(tol = 1e-8),
+                amg.params({"tol" : 1e-8}),
                 A.indptr.astype(np.int32),
                 A.indices.astype(np.int32),
                 A.data.astype(np.float64)
