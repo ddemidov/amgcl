@@ -50,7 +50,7 @@ class TestPyAMGCL(unittest.TestCase):
                 amg.coarsening.smoothed_aggregation,
                 amg.relaxation.spai0,
                 amg.solver_type.bicgstab,
-                amg.params({"tol" : 1e-8}),
+                {"tol" : 1e-8},
                 A.indptr.astype(np.int32),
                 A.indices.astype(np.int32),
                 A.data.astype(np.float64)
@@ -69,7 +69,7 @@ class TestPyAMGCL(unittest.TestCase):
         P = amg.make_preconditioner(
                 amg.coarsening.smoothed_aggregation,
                 amg.relaxation.spai0,
-                amg.params(),
+                {},
                 A.indptr.astype(np.int32),
                 A.indices.astype(np.int32),
                 A.data.astype(np.float64)

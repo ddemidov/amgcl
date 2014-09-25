@@ -31,43 +31,22 @@ struct is_builtin_vector< numpy_boost<double,1> > : boost::true_type {};
 }
 
 //---------------------------------------------------------------------------
-struct params {
-    params() {}
-
-    params(const boost::python::dict &args) {
-        using namespace boost::python;
-
-        for(stl_input_iterator<tuple> arg(args.items()), end; arg != end; ++arg) {
-            const char *name = extract<const char*>((*arg)[0]);
-            const char *type = extract<const char*>((*arg)[1].attr("__class__").attr("__name__"));
-
-            if (strcmp(type, "int") == 0)
-                seti(name, extract<int>((*arg)[1]));
-            else
-                setf(name, extract<float>((*arg)[1]));
-        }
-    }
-
-    void seti(const char *name, int value) {
-        p.put(name, value);
-    }
-
-    void setf(const char *name, float value) {
-        p.put(name, value);
-    }
-
-    std::string str() const {
-        std::ostringstream buf;
-        write_json(buf, p);
-        return buf.str();
-    }
-
-    std::string repr() const {
-        return "amgcl params: " + str();
-    }
-
+boost::property_tree::ptree make_ptree(const boost::python::dict &args) {
+    using namespace boost::python;
     boost::property_tree::ptree p;
-};
+
+    for(stl_input_iterator<tuple> arg(args.items()), end; arg != end; ++arg) {
+        const char *name = extract<const char*>((*arg)[0]);
+        const char *type = extract<const char*>((*arg)[1].attr("__class__").attr("__name__"));
+
+        if (strcmp(type, "int") == 0)
+            p.put(name, extract<int>((*arg)[1]));
+        else
+            p.put(name, extract<float>((*arg)[1]));
+    }
+
+    return p;
+}
 
 //---------------------------------------------------------------------------
 struct make_solver {
@@ -75,13 +54,13 @@ struct make_solver {
             amgcl::runtime::coarsening::type coarsening,
             amgcl::runtime::relaxation::type relaxation,
             amgcl::runtime::solver::type     solver,
-            const params    &prm,
+            const boost::python::dict    &prm,
             const numpy_boost<int,    1> &ptr,
             const numpy_boost<int,    1> &col,
             const numpy_boost<double, 1> &val
           )
         : n(ptr.num_elements() - 1),
-          S(coarsening, relaxation, solver, boost::tie(n, ptr, col, val), prm.p)
+          S(coarsening, relaxation, solver, boost::tie(n, ptr, col, val), make_ptree(prm))
     { }
 
     PyObject* solve(const numpy_boost<double, 1> &rhs) const {
@@ -118,6 +97,7 @@ struct make_solver {
         amgcl::runtime::make_solver< amgcl::backend::builtin<double> > S;
 
         mutable boost::tuple<int, double> cnv;
+
 };
 
 //---------------------------------------------------------------------------
@@ -125,13 +105,13 @@ struct make_preconditioner {
     make_preconditioner(
             amgcl::runtime::coarsening::type coarsening,
             amgcl::runtime::relaxation::type relaxation,
-            const params    &prm,
+            const boost::python::dict    &prm,
             const numpy_boost<int,    1> &ptr,
             const numpy_boost<int,    1> &col,
             const numpy_boost<double, 1> &val
           )
         : n(ptr.num_elements() - 1),
-          P(coarsening, relaxation, boost::tie(n, ptr, col, val), prm.p)
+          P(coarsening, relaxation, boost::tie(n, ptr, col, val), make_ptree(prm))
     { }
 
     PyObject* apply(const numpy_boost<double, 1> &rhs) const {
@@ -162,14 +142,6 @@ struct make_preconditioner {
 BOOST_PYTHON_MODULE(pyamgcl)
 {
     using namespace boost::python;
-
-    class_<params>("params", init<>())
-        .def(init<const boost::python::dict &>())
-        .def("__setitem__", &params::seti)
-        .def("__setitem__", &params::setf)
-        .def("__str__",     &params::str)
-        .def("__repr__",    &params::repr)
-        ;
 
     enum_<amgcl::runtime::coarsening::type>("coarsening")
         .value("ruge_stuben",          amgcl::runtime::coarsening::ruge_stuben)
@@ -202,7 +174,7 @@ BOOST_PYTHON_MODULE(pyamgcl)
                 amgcl::runtime::coarsening::type,
                 amgcl::runtime::relaxation::type,
                 amgcl::runtime::solver::type,
-                const params&,
+                const dict&,
                 const numpy_boost<int,    1>&,
                 const numpy_boost<int,    1>&,
                 const numpy_boost<double, 1>&
@@ -218,7 +190,7 @@ BOOST_PYTHON_MODULE(pyamgcl)
             init<
                 amgcl::runtime::coarsening::type,
                 amgcl::runtime::relaxation::type,
-                const params&,
+                const dict&,
                 const numpy_boost<int,    1>&,
                 const numpy_boost<int,    1>&,
                 const numpy_boost<double, 1>&
