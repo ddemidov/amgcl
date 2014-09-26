@@ -60,7 +60,9 @@ class TestPyAMGCL(unittest.TestCase):
         x = solve(rhs)
 
         # Check residual
-        self.assertTrue(np.linalg.norm(rhs - A * x) < 1e-6)
+        self.assertTrue(
+                np.linalg.norm(rhs - A * x) / np.linalg.norm(rhs) < 1e-8
+                )
 
     def test_preconditioner(self):
         (A, rhs) = make_problem(256)
@@ -80,8 +82,9 @@ class TestPyAMGCL(unittest.TestCase):
         self.assertTrue(info == 0)
 
         # Check residual
-        res = rhs - A * x
-        self.assertTrue(np.linalg.norm(res) < 1e-6)
+        self.assertTrue(
+                np.linalg.norm(rhs - A * x) / np.linalg.norm(rhs) < 1e-8
+                )
 
 if __name__ == "__main__":
     unittest.main()
