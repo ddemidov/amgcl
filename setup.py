@@ -44,6 +44,7 @@ setup(
         description='Solution of large sparse linear systems with Algebraic Multigrid Method',
         author='Denis Demidov',
         author_email='dennis.demidov@gmail.com',
+        license='MIT',
         url='https://github.com/ddemidov/amgcl',
         include_package_data=True,
         zip_safe=False,
