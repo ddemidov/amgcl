@@ -1,3 +1,3 @@
-include python/numpy_boost.hpp python/numpy_boost_python.hpp
-include python/numpy_boost_python.hpp
+include pyamgcl/numpy_boost.hpp
+include pyamgcl/numpy_boost_python.hpp
 recursive-include amgcl *.hpp

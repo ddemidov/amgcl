@@ -47,8 +47,9 @@ setup(
         url='https://github.com/ddemidov/amgcl',
         include_package_data=True,
         zip_safe=False,
+        packages=['pyamgcl'],
         ext_modules=[
-            Extension('pyamgcl', ['python/pyamgcl.cpp'],
+            Extension('pyamgcl_ext', ['pyamgcl/pyamgcl.cpp'],
                 include_dirs=['.', numpy.get_include()],
                 libraries=[boost_python_lib()],
                 extra_compile_args=['-O3']

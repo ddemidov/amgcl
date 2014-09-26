@@ -139,7 +139,7 @@ struct make_preconditioner {
 };
 
 //---------------------------------------------------------------------------
-BOOST_PYTHON_MODULE(pyamgcl)
+BOOST_PYTHON_MODULE(pyamgcl_ext)
 {
     using namespace boost::python;
     docstring_options docopts(true, true, false);

@@ -1,5 +1,4 @@
 #!/usr/bin/python
-
 import unittest
 import numpy   as np
 import pyamgcl as amg
@@ -46,15 +45,7 @@ class TestPyAMGCL(unittest.TestCase):
         (A, rhs) = make_problem(256)
 
         # Setup solver
-        solve = amg.make_solver(
-                amg.coarsening.smoothed_aggregation,
-                amg.relaxation.spai0,
-                amg.solver_type.bicgstab,
-                {"tol" : 1e-8},
-                A.indptr.astype(np.int32),
-                A.indices.astype(np.int32),
-                A.data.astype(np.float64)
-                )
+        solve = amg.make_solver(A, prm={"tol" : 1e-8})
 
         # Solve
         x = solve(rhs)
@@ -68,17 +59,10 @@ class TestPyAMGCL(unittest.TestCase):
         (A, rhs) = make_problem(256)
 
         # Setup preconditioner
-        P = amg.make_preconditioner(
-                amg.coarsening.smoothed_aggregation,
-                amg.relaxation.spai0,
-                {},
-                A.indptr.astype(np.int32),
-                A.indices.astype(np.int32),
-                A.data.astype(np.float64)
-                )
+        P = amg.make_preconditioner(A)
 
         # Solve
-        x,info = bicgstab(A, rhs, M = LinearOperator(A.shape, P), tol = 1e-8)
+        x,info = bicgstab(A, rhs, M=P, tol = 1e-8)
         self.assertTrue(info == 0)
 
         # Check residual
