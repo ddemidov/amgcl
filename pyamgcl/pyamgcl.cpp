@@ -82,14 +82,10 @@ struct make_solver {
         return boost::get<1>(cnv);
     }
 
-    std::string str() const {
-        std::ostringstream buf;
-        buf << S.amg();
-        return buf.str();
-    }
-
     std::string repr() const {
-        return "amgcl: " + str();
+        std::ostringstream buf;
+        buf << "pyamgcl solver\n" << S.amg();
+        return buf.str();
     }
 
     private:
@@ -123,14 +119,10 @@ struct make_preconditioner {
         return result;
     }
 
-    std::string str() const {
-        std::ostringstream buf;
-        buf << P;
-        return buf.str();
-    }
-
     std::string repr() const {
-        return "amgcl: " + str();
+        std::ostringstream buf;
+        buf << "pyamgcl preconditioner\n" << P;
+        return buf.str();
     }
 
     private:
@@ -194,7 +186,6 @@ BOOST_PYTHON_MODULE(pyamgcl_ext)
                 "Creates iterative solver preconditioned by AMG"
              )
             )
-        .def("__str__",    &make_solver::str)
         .def("__repr__",   &make_solver::repr)
         .def("__call__",   &make_solver::solve, args("rhs"),
                 "Solve the problem for the given RHS")
@@ -226,7 +217,6 @@ BOOST_PYTHON_MODULE(pyamgcl_ext)
                 "Creates AMG hierarchy to be used as a preconditioner"
              )
             )
-        .def("__str__",    &make_preconditioner::str)
         .def("__repr__",   &make_preconditioner::repr)
         .def("__call__",   &make_preconditioner::apply,
                 "Apply preconditioner to the given vector")
