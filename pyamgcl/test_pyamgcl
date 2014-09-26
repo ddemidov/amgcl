@@ -10,10 +10,10 @@ def make_problem(n=256):
     n2  = n * n
     nnz = n2 + 4 * (n - 2) * (n - 2)
 
-    ptr = np.zeros(n2 + 1)
-    col = np.zeros(nnz)
-    val = np.zeros(nnz)
-    rhs = np.ones (n2)
+    ptr = np.zeros(n2 + 1, dtype=np.int32)
+    col = np.zeros(nnz,    dtype=np.int32)
+    val = np.zeros(nnz,    dtype=np.float64)
+    rhs = np.ones (n2,     dtype=np.float64)
 
     bnd = (0, n-1)
 
