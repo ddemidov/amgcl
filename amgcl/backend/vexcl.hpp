@@ -99,6 +99,8 @@ struct vexcl {
         }
     };
 
+    static std::string name() { return "vexcl"; }
+
     /// Copy matrix from builtin backend.
     static boost::shared_ptr<matrix>
     copy_matrix(boost::shared_ptr< typename builtin<real>::matrix > A, const params &prm)

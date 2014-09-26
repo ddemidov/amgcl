@@ -66,6 +66,8 @@ struct blaze {
         params(const boost::property_tree::ptree&) {}
     };
 
+    static std::string name() { return "blaze"; }
+
     /// Copy matrix from builtin backend.
     static boost::shared_ptr<matrix>
     copy_matrix(

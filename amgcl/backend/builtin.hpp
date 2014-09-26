@@ -359,6 +359,8 @@ struct builtin {
         params(const boost::property_tree::ptree&) {}
     };
 
+    static std::string name() { return "builtin"; }
+
     /// Copy matrix.
     /** This is a noop for builtin backend. */
     static boost::shared_ptr<matrix>

@@ -116,7 +116,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_backends, Backend, backend_list)
     BOOST_FOREACH(amgcl::runtime::coarsening::type c, coarsening) {
         BOOST_FOREACH(amgcl::runtime::relaxation::type r, relaxation) {
             BOOST_FOREACH(amgcl::runtime::solver::type s, solver) {
-                std::cout << c << " " << r << " " << s << std::endl;
+                std::cout
+                    << Backend::name() << " "
+                    << c << " " << r << " " << s << std::endl;
 
                 try {
                     test_solver<Backend>(c, r, s);

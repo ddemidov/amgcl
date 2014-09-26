@@ -171,6 +171,8 @@ struct block_crs {
         {}
     };
 
+    static std::string name() { return "block_crs"; }
+
     /// Copy matrix from builtin backend.
     static boost::shared_ptr<matrix>
     copy_matrix(boost::shared_ptr< typename backend::builtin<real>::matrix > A,
