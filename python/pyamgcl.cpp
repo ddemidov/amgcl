@@ -142,15 +142,16 @@ struct make_preconditioner {
 BOOST_PYTHON_MODULE(pyamgcl)
 {
     using namespace boost::python;
+    docstring_options docopts(true, true, false);
 
-    enum_<amgcl::runtime::coarsening::type>("coarsening")
+    enum_<amgcl::runtime::coarsening::type>("coarsening", "coarsening kinds")
         .value("ruge_stuben",          amgcl::runtime::coarsening::ruge_stuben)
         .value("aggregation",          amgcl::runtime::coarsening::aggregation)
         .value("smoothed_aggregation", amgcl::runtime::coarsening::smoothed_aggregation)
         .value("smoothed_aggr_emin",   amgcl::runtime::coarsening::smoothed_aggr_emin)
         ;
 
-    enum_<amgcl::runtime::relaxation::type>("relaxation")
+    enum_<amgcl::runtime::relaxation::type>("relaxation", "relaxation schemes")
         .value("damped_jacobi", amgcl::runtime::relaxation::damped_jacobi)
         .value("gauss_seidel",  amgcl::runtime::relaxation::gauss_seidel)
         .value("chebyshev",     amgcl::runtime::relaxation::chebyshev)
@@ -158,7 +159,7 @@ BOOST_PYTHON_MODULE(pyamgcl)
         .value("ilu0",          amgcl::runtime::relaxation::ilu0)
         ;
 
-    enum_<amgcl::runtime::solver::type>("solver_type")
+    enum_<amgcl::runtime::solver::type>("solver_type", "iterative solvers")
         .value("cg",        amgcl::runtime::solver::cg)
         .value("bicgstab",  amgcl::runtime::solver::bicgstab)
         .value("bicgstabl", amgcl::runtime::solver::bicgstabl)
@@ -169,7 +170,9 @@ BOOST_PYTHON_MODULE(pyamgcl)
     numpy_boost_python_register_type<int,    1>();
     numpy_boost_python_register_type<double, 1>();
 
-    class_<make_solver, boost::noncopyable>("make_solver",
+    class_<make_solver, boost::noncopyable>(
+            "make_solver",
+            "Creates iterative solver preconditioned by AMG",
             init<
                 amgcl::runtime::coarsening::type,
                 amgcl::runtime::relaxation::type,
@@ -178,15 +181,32 @@ BOOST_PYTHON_MODULE(pyamgcl)
                 const numpy_boost<int,    1>&,
                 const numpy_boost<int,    1>&,
                 const numpy_boost<double, 1>&
-                >())
-        .def("__call__",   &make_solver::solve)
+            >(
+                args(
+                    "coarsening",
+                    "relaxation",
+                    "iterative_solver",
+                    "params",
+                    "indptr",
+                    "indices",
+                    "values"
+                    ),
+                "Creates iterative solver preconditioned by AMG"
+             )
+            )
         .def("__str__",    &make_solver::str)
         .def("__repr__",   &make_solver::repr)
-        .def("iterations", &make_solver::iterations)
-        .def("residual",   &make_solver::residual)
+        .def("__call__",   &make_solver::solve, args("rhs"),
+                "Solve the problem for the given RHS")
+        .def("iterations", &make_solver::iterations,
+                "Returns iterations made during last solve")
+        .def("residual",   &make_solver::residual,
+                "Returns relative error achieved during last solve")
         ;
 
-    class_<make_preconditioner, boost::noncopyable>("make_preconditioner",
+    class_<make_preconditioner, boost::noncopyable>(
+            "make_preconditioner",
+            "Creates AMG hierarchy to be used as a preconditioner",
             init<
                 amgcl::runtime::coarsening::type,
                 amgcl::runtime::relaxation::type,
@@ -194,9 +214,21 @@ BOOST_PYTHON_MODULE(pyamgcl)
                 const numpy_boost<int,    1>&,
                 const numpy_boost<int,    1>&,
                 const numpy_boost<double, 1>&
-                >())
-        .def("__call__",   &make_preconditioner::apply)
+            >(
+                args(
+                    "coarsening",
+                    "relaxation",
+                    "params",
+                    "indptr",
+                    "indices",
+                    "values"
+                    ),
+                "Creates AMG hierarchy to be used as a preconditioner"
+             )
+            )
         .def("__str__",    &make_preconditioner::str)
         .def("__repr__",   &make_preconditioner::repr)
+        .def("__call__",   &make_preconditioner::apply,
+                "Apply preconditioner to the given vector")
         ;
 }
