@@ -27,12 +27,14 @@ def boost_python_lib():
             '/opt/local/lib/'
             ]
 
-    path = find_file("libboost_python-%s.%s" % (pyver[0], pyver[1]), library_dirs)
-    if path: return path
+    boost_python = "boost_python-%s.%s" % (pyver[0], pyver[1])
+    if find_file("lib" + boost_python, library_dirs):
+        return boost_python
 
     if _version >= (3, ):
-        path = find_file("libboost_python-py%s%s" % (pyver[0], pyver[1]), library_dirs)
-        if path: return path
+        boost_python = "boost_python-py%s%s" % (pyver[0], pyver[1])
+        if find_file("lib" + boost_python, library_dirs):
+            return boost_python
 
     return "boost_python"
 
