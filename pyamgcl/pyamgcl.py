@@ -42,7 +42,7 @@ class make_preconditioner(LinearOperator):
                 Acsr.data.astype(numpy.float64)
                 )
 
-        super(make_preconditioner, self).__init__(A.shape, self.P)
+        LinearOperator.__init__(self, A.shape, self.P)
 
     def __str__(self):
         return self.P.__str__()
