@@ -46,10 +46,10 @@ setup(
         include_package_data=True,
         zip_safe=False,
         ext_modules=[
-            Extension('pyamgcl',
-                ['pyamgcl.cpp'],
-                include_dirs=['..', numpy.get_include()],
-                libraries=[boost_python_lib()]
+            Extension('pyamgcl', ['python/pyamgcl.cpp'],
+                include_dirs=['.', numpy.get_include()],
+                libraries=[boost_python_lib()],
+                extra_compile_args=['-O3']
                 )
             ]
 )
