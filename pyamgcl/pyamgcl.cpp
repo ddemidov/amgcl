@@ -74,6 +74,23 @@ struct make_solver {
         return result;
     }
 
+    PyObject* solve(
+            const numpy_boost<int,    1> &ptr,
+            const numpy_boost<int,    1> &col,
+            const numpy_boost<double, 1> &val,
+            const numpy_boost<double, 1> &rhs
+            ) const
+    {
+        numpy_boost<double, 1> x(&n);
+        BOOST_FOREACH(double &v, x) v = 0;
+
+        cnv = S(boost::tie(n, ptr, col, val), rhs, x);
+
+        PyObject *result = x.py_ptr();
+        Py_INCREF(result);
+        return result;
+    }
+
     int iterations() const {
         return boost::get<0>(cnv);
     }
@@ -162,6 +179,17 @@ BOOST_PYTHON_MODULE(pyamgcl_ext)
     numpy_boost_python_register_type<int,    1>();
     numpy_boost_python_register_type<double, 1>();
 
+    PyObject* (make_solver::*s1)(
+            const numpy_boost<double, 1>&
+            ) const = &make_solver::solve;
+
+    PyObject* (make_solver::*s2)(
+            const numpy_boost<int,    1>&,
+            const numpy_boost<int,    1>&,
+            const numpy_boost<double, 1>&,
+            const numpy_boost<double, 1>&
+            ) const = &make_solver::solve;
+
     class_<make_solver, boost::noncopyable>(
             "make_solver",
             "Creates iterative solver preconditioned by AMG",
@@ -187,8 +215,10 @@ BOOST_PYTHON_MODULE(pyamgcl_ext)
              )
             )
         .def("__repr__",   &make_solver::repr)
-        .def("__call__",   &make_solver::solve, args("rhs"),
-                "Solve the problem for the given RHS")
+        .def("__call__",   s1, args("rhs"),
+                "Solves the problem for the given RHS")
+        .def("__call__",   s2, args("ptr", "col", "val", "rhs"),
+                "Solves the problem for the given matrix and the RHS")
         .def("iterations", &make_solver::iterations,
                 "Returns iterations made during last solve")
         .def("residual",   &make_solver::residual,

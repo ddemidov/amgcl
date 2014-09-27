@@ -50,15 +50,40 @@ class make_solver:
         """
         return self.S.__repr__()
 
-    def __call__(self, rhs):
+    def __call__(self, *args):
         """
-        Solves the system for the given right-hand side.
+        Solves the system for the given system matrix and the right-hand side.
+
+        In case single argument is given, it is considered to be the right-hand
+        side. The matrix given at the construction is used for solution.
+
+        In case two arguments are given, the first one should be a new system
+        matrix, and the second is the right-hand side. In this case the
+        multigrid hierarchy initially built at construction is still used as a
+        preconditioner. This may be of use for solution of non-steady-state
+        PDEs, where the discretized system matrix slightly changes on each time
+        step, but multigrid hierarchy built for one of previous time steps is
+        still able to work as a decent preconditioner.  Thus time needed for
+        hierarchy reconstruction is saved.
 
         Parameters
         ----------
+        A : the new system matrix (optional)
         rhs : the right-hand side
         """
-        return self.S(rhs.astype(numpy.float64))
+        if len(args) == 1:
+            return self.S( args[0].astype(numpy.float64) )
+        elif len(args) == 2:
+            Acsr = args[0].tocsr()
+
+            return self.S(
+                    Acsr.indptr.astype(numpy.int32),
+                    Acsr.indices.astype(numpy.int32),
+                    Acsr.data.astype(numpy.float64),
+                    args[1].astype(numpy.float64)
+                    )
+        else:
+            raise "Wrong number of arguments"
 
     def iterations(self):
         """

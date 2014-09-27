@@ -55,6 +55,14 @@ class TestPyAMGCL(unittest.TestCase):
                 np.linalg.norm(rhs - A * x) / np.linalg.norm(rhs) < 1e-8
                 )
 
+        # Solve again, now provide system matrix explicitly
+        x = solve(A, rhs)
+
+        # Check residual
+        self.assertTrue(
+                np.linalg.norm(rhs - A * x) / np.linalg.norm(rhs) < 1e-8
+                )
+
     def test_preconditioner(self):
         (A, rhs) = make_problem(256)
 
