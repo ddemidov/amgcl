@@ -1,3 +1,4 @@
 include pyamgcl/numpy_boost.hpp
 include pyamgcl/numpy_boost_python.hpp
 recursive-include amgcl *.hpp
+include RELEASE-VERSION
