@@ -1,2 +1,5 @@
 build*
 .*.swp
+RELEASE-VERSION
+dist
+pyamgcl.egg-info
