@@ -1,17 +1,28 @@
 language: cpp
 compiler:
-    - clang
+- clang
 before_install:
-    - sudo add-apt-repository ppa:boost-latest/ppa -y
-    - sudo apt-get update -qq
-    - sudo apt-get install -qq libboost-chrono1.55-dev libboost-date-time1.55-dev libboost-system1.55-dev libboost-filesystem1.55-dev libboost-program-options1.55-dev libboost-python1.55-dev libboost-test1.55-dev python-yaml lcov openmpi-bin libopenmpi-dev python-numpy-dev python-scipy
-    - gem install coveralls-lcov
+- sudo add-apt-repository ppa:boost-latest/ppa -y
+- sudo apt-get update -qq
+- sudo apt-get install -qq libboost-chrono1.55-dev libboost-date-time1.55-dev libboost-system1.55-dev
+  libboost-filesystem1.55-dev libboost-program-options1.55-dev libboost-python1.55-dev
+  libboost-test1.55-dev python-yaml lcov openmpi-bin libopenmpi-dev python-numpy-dev
+  python-scipy
+- gem install coveralls-lcov
 script:
-    - mkdir -p build && cd build
-    - cmake -DTEST_COVERAGE=ON -DCMAKE_BUILD_TYPE=Release ..
-    - make && ctest --output-on-failure
-    - for n in 1 4 16; do echo --- $n ---; mpirun -np $n ./examples/mpi/runtime_sdd; done
+- mkdir -p build && cd build
+- cmake -DTEST_COVERAGE=ON -DCMAKE_BUILD_TYPE=Release ..
+- make && ctest --output-on-failure
+- for n in 1 4 16; do echo --- $n ---; mpirun -np $n ./examples/mpi/runtime_sdd; done
 after_success:
-    - lcov --directory tests --base-directory ../amgcl --capture --output-file coverage.info
-    - lcov --remove coverage.info '/usr*' -o coverage.info
-    - cd .. && coveralls-lcov build/coverage.info
+- lcov --directory tests --base-directory ../amgcl --capture --output-file coverage.info
+- lcov --remove coverage.info '/usr*' -o coverage.info
+- cd .. && coveralls-lcov build/coverage.info
+deploy:
+  provider: pypi
+  user: Denis.Demidov
+  password:
+    secure: kGRaOaE3EMvkl+WUOeJuyqBA7yJo0+dLrxBEvK4pMF8VQzaDpZGdzdfVyVs5hMDilMp3GTKIpi078gkCXN6l9Zh95Y864fCbYMsOFCPpPBSn5pEOSTkhOCSujYPJzz5qdHzBpD4/aKPS7a91c1Hf+N3fnmWhIqX3x9zpQAKXegg=
+  on:
+    tags: true
+    all_branches: true

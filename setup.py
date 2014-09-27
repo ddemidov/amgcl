@@ -50,8 +50,9 @@ def write_release_version(version):
 def pep386adapt(version):
     # adapt git-describe version to be in line with PEP 386
     parts = version.split('-')
-    parts[-2] = 'post'+parts[-2]
-    version = '.'.join(parts[:-1])
+    if len(parts) > 1:
+        parts[-2] = 'post'+parts[-2]
+        version = '.'.join(parts[:-1])
     return version
 
 
@@ -118,7 +119,7 @@ def boost_python_lib():
     if find_file("lib" + boost_python, library_dirs):
         return boost_python
 
-    if _version >= (3, ):
+    if pyver >= (3, ):
         boost_python = "boost_python-py%s%s" % (pyver[0], pyver[1])
         if find_file("lib" + boost_python, library_dirs):
             return boost_python
