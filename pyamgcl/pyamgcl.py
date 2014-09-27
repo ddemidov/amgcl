@@ -60,6 +60,18 @@ class make_solver:
         """
         return self.S(rhs.astype(numpy.float64))
 
+    def iterations(self):
+        """
+        Returns iterations made during last solve
+        """
+        return self.S.iterations()
+
+    def residual(self):
+        """
+        Returns relative error achieved during last solve
+        """
+        return self.S.residual()
+
 class make_preconditioner(LinearOperator):
     """
     Algebraic multigrid hierarchy that may be used as a preconditioner with
