@@ -73,7 +73,7 @@ enum type {
     smoothed_aggr_emin
 };
 
-std::ostream& operator<<(std::ostream &os, type c) {
+inline std::ostream& operator<<(std::ostream &os, type c) {
     switch (c) {
         case ruge_stuben:
             return os << "ruge_stuben";
@@ -88,7 +88,7 @@ std::ostream& operator<<(std::ostream &os, type c) {
     }
 }
 
-std::istream& operator>>(std::istream &in, type &c)
+inline std::istream& operator>>(std::istream &in, type &c)
 {
     std::string val;
     in >> val;
@@ -119,7 +119,7 @@ enum type {
     chebyshev
 };
 
-std::ostream& operator<<(std::ostream &os, type r)
+inline std::ostream& operator<<(std::ostream &os, type r)
 {
     switch (r) {
         case gauss_seidel:
@@ -137,7 +137,7 @@ std::ostream& operator<<(std::ostream &os, type r)
     }
 }
 
-std::istream& operator>>(std::istream &in, type &r)
+inline std::istream& operator>>(std::istream &in, type &r)
 {
     std::string val;
     in >> val;
@@ -169,7 +169,7 @@ enum type {
     gmres
 };
 
-std::ostream& operator<<(std::ostream &os, type s)
+inline std::ostream& operator<<(std::ostream &os, type s)
 {
     switch (s) {
         case cg:
@@ -185,7 +185,7 @@ std::ostream& operator<<(std::ostream &os, type s)
     }
 }
 
-std::istream& operator>>(std::istream &in, type &s)
+inline std::istream& operator>>(std::istream &in, type &s)
 {
     std::string val;
     in >> val;
