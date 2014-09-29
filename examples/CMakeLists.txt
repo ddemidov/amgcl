@@ -1,5 +1,17 @@
 include_directories(${CMAKE_SOURCE_DIR}/tests)
 
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/make_poisson.py
+    ${CMAKE_BINARY_DIR}/make_poisson.py
+    COPYONLY
+    )
+
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/pyamgcl_example.py
+    ${CMAKE_BINARY_DIR}/pyamgcl_example.py
+    COPYONLY
+    )
+
 add_executable(solver solver.cpp)
 target_link_libraries(solver ${Boost_LIBRARIES})
 

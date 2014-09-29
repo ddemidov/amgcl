@@ -36,9 +36,9 @@ int main(int argc, char *argv[]) {
     amgcl::runtime::relaxation::type relaxation = amgcl::runtime::relaxation::spai0;
     amgcl::runtime::solver::type     solver     = amgcl::runtime::solver::bicgstab;
     std::string parameter_file;
-    std::string A_file   = "A.mm";
-    std::string rhs_file = "rhs.mm";
-    std::string out_file = "out.mm";
+    std::string A_file   = "A.mtx";
+    std::string rhs_file = "rhs.mtx";
+    std::string out_file = "out.mtx";
 
     namespace po = boost::program_options;
     po::options_description desc("Options");

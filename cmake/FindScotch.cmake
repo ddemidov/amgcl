@@ -7,14 +7,15 @@ if (NOT (SCOTCH_INCLUDES AND SCOTCH_LIBRARIES))
         PATH_SUFFIXES scotch
         )
 
-
-    find_library(SCOTCH_LIBRARY      scotch      PATHS $ENV{SCOTCHDIR})
-    find_library(PTSCOTCH_LIBRARY    ptscotch    PATHS $ENV{SCOTCHDIR})
-    find_library(SCOTCHERR_LIBRARY   scotcherr   PATHS $ENV{SCOTCHDIR})
-    find_library(PTSCOTCHERR_LIBRARY ptscotcherr PATHS $ENV{SCOTCHDIR})
+ 
+    find_library(SCOTCH_LIBRARY       scotch      PATHS $ENV{SCOTCHDIR})
+    find_library(PTSCOTCH_LIBRARY     ptscotch    PATHS $ENV{SCOTCHDIR})
+    find_library(SCOTCHERR_LIBRARY    scotcherr   PATHS $ENV{SCOTCHDIR})
+    find_library(PTSCOTCHERR_LIBRARY  ptscotcherr PATHS $ENV{SCOTCHDIR})
+    find_library(SCOTCH_METIS_LIBRARY scotchmetis PATHS $ENV{SCOTCHDIR})
 
     set(SCOTCH_LIBRARIES
-        "${SCOTCH_LIBRARY};${PTSCOTCH_LIBRARY};${SCOTCHERR_LIBRARY};${PTSCOTCHERR_LIBRARY}"
+        "${SCOTCH_LIBRARY};${PTSCOTCH_LIBRARY};${SCOTCHERR_LIBRARY};${PTSCOTCHERR_LIBRARY};${SCOTCH_METIS_LIBRARY}"
         )
 endif()
 

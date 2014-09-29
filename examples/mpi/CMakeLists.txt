@@ -23,6 +23,14 @@ if (MPI_CXX_FOUND)
         add_mpi_example(check_pastix check_pastix.cpp)
     endif()
 
+    if (EIGEN_INCLUDE AND SCOTCH_INCLUDES)
+        add_executable(partition partition.cpp)
+        target_link_Libraries(partition
+            ${Boost_LIBRARIES}
+            ${SCOTCH_LIBRARIES}
+            )
+    endif()
+
     add_mpi_example(runtime_sdd         runtime_sdd.cpp)
     add_mpi_example(solve_mm_mpi        solve_mm_mpi.cpp)
     add_mpi_example(call_mpi_lib        call_mpi_lib.cpp)

@@ -22,16 +22,14 @@ namespace amgcl {
     profiler<> prof;
 }
 
-//---------------------------------------------------------------------------
-inline size_t alignup(size_t n, size_t m) {
-    return ((n + m - 1) / m) * m;
-}
+using amgcl::precondition;
 
 //---------------------------------------------------------------------------
 std::vector<ptrdiff_t> read_problem(
         const amgcl::mpi::communicator &world,
         const std::string &A_file,
         const std::string &rhs_file,
+        const std::string &part_file,
         int block_size,
         std::vector<ptrdiff_t> &ptr,
         std::vector<ptrdiff_t> &col,
@@ -39,103 +37,150 @@ std::vector<ptrdiff_t> read_problem(
         std::vector<double>    &rhs
         )
 {
-    using amgcl::precondition;
-
-    std::ifstream A(A_file.c_str());
-    precondition(A, "Failed to open matrix file (" + A_file + ")");
-
+    // Read partition
+    std::vector<int> part;
+    std::vector<ptrdiff_t> domain(world.size + 1, 0);
+    ptrdiff_t n = 0;
     std::string line;
-    ptrdiff_t n = 0, nnz = 0;
-    while ( std::getline(A, line) ) {
-        if (line[0] == '%') continue;
-        std::istringstream is(line);
-        ptrdiff_t m;
-        precondition(is >> n >> m >> nnz, "Unsupported format in matrix file");
-        precondition(n == m, "Non-square matrix in matrix file");
-        break;
+
+    {
+        std::ifstream f(part_file.c_str());
+        precondition(f, "Failed to open part file (" + part_file + ")");
+
+        while (std::getline(f, line)) {
+            if (line[0] == '%') continue;
+            std::istringstream is(line);
+            ptrdiff_t cols;
+            precondition(is >> n >> cols, "Unsupported format in matrix file");
+            break;
+        }
+
+        precondition(n, "Zero sized partition vector");
+        precondition(n % block_size == 0, "Matrix size is not divisible by block_size");
+
+        part.reserve(n);
+
+        while (std::getline(f, line)) {
+            if (line[0] == '%') continue;
+            std::istringstream is(line);
+            int p;
+            precondition(is >> p, "Unsupported format in part file");
+            precondition(p < world.size, "MPI world does not correspond to partition");
+
+            part.push_back(p);
+            ++domain[p+1];
+        }
+
+        boost::partial_sum(domain, domain.begin());
     }
-
-    precondition(n, "Empty matrix file");
-    precondition(n % block_size == 0, "Matrix size is not divisible by block_size");
-
-    ptrdiff_t chunk = alignup((n + world.size - 1) / world.size, block_size);
-    std::vector<ptrdiff_t> domain(world.size + 1);
-    domain[0] = 0;
-    for(int i = 0; i < world.size; ++i)
-        domain[i+1] = std::min(domain[i] + chunk, n);
 
     ptrdiff_t chunk_beg = domain[world.rank];
     ptrdiff_t chunk_end = domain[world.rank + 1];
-    chunk = chunk_end - chunk_beg;
+    ptrdiff_t chunk     = chunk_end - chunk_beg;
 
+    // Reorder unknowns
+    std::vector<ptrdiff_t> order(n);
     {
-        std::vector<ptrdiff_t> I, J;
-        std::vector<double>    V;
+        for(ptrdiff_t i = 0; i < n; ++i) {
+            int p = part[i];
+            int j = domain[p]++;
 
-        ptr.clear();
-        ptr.resize(chunk + 1, 0);
+            order[i] = j;
+        }
 
-        while (std::getline(A, line)) {
+        boost::rotate(domain, domain.end() - 1);
+        domain[0] = 0;
+    }
+
+    // Read matrix chunk
+    {
+        std::ifstream A(A_file.c_str());
+        precondition(A, "Failed to open matrix file (" + A_file + ")");
+
+        ptrdiff_t nnz = 0;
+        while ( std::getline(A, line) ) {
             if (line[0] == '%') continue;
             std::istringstream is(line);
-            ptrdiff_t i, j;
+            ptrdiff_t rows, m;
+            precondition(is >> rows >> m >> nnz, "Unsupported format in matrix file");
+            precondition(rows == n, "Matrix and partition have incompatible sizes");
+            precondition(n == m, "Non-square matrix in matrix file");
+            break;
+        }
+
+        {
+            std::vector<ptrdiff_t> I, J;
+            std::vector<double>    V;
+
+            ptr.clear();
+            ptr.resize(chunk + 1, 0);
+
+            while (std::getline(A, line)) {
+                if (line[0] == '%') continue;
+                std::istringstream is(line);
+                ptrdiff_t i, j;
+                double v;
+                precondition(is >> i >> j >> v, "Unsupported format in matrix file");
+                --i;
+                --j;
+
+                if (part[i] != world.rank) continue;
+
+                ++ptr[order[i] + 1 - chunk_beg];
+
+                I.push_back(order[i] - chunk_beg);
+                J.push_back(order[j]);
+                V.push_back(v);
+            }
+
+            boost::partial_sum(ptr, ptr.begin());
+
+            ptrdiff_t loc_nnz = ptr.back();
+
+            col.clear(); col.resize(loc_nnz);
+            val.clear(); val.resize(loc_nnz);
+
+            for(ptrdiff_t i = 0; i < loc_nnz; ++i) {
+                ptrdiff_t row = I[i];
+                col[ptr[row]] = J[i];
+                val[ptr[row]] = V[i];
+                ++ptr[row];
+            }
+            boost::rotate(ptr, ptr.end() - 1);
+            ptr[0] = 0;
+        }
+    }
+
+    // Read RHS chunk.
+    {
+        std::ifstream f(rhs_file.c_str());
+        precondition(f, "Failed to open rhs file (" + rhs_file + ")");
+
+        while (std::getline(f, line)) {
+            if (line[0] == '%') continue;
+            std::istringstream is(line);
+            ptrdiff_t rows, cols;
+            precondition(is >> rows >> cols, "Unsupported format in matrix file");
+            precondition(rows == n, "RHS size should coincide with matrix size");
+            break;
+        }
+
+        rhs.clear();
+        rhs.reserve(chunk);
+
+        ptrdiff_t pos = 0;
+        while (std::getline(f, line)) {
+            if (line[0] == '%') continue;
+            std::istringstream is(line);
             double v;
-            precondition(is >> i >> j >> v, "Unsupported format in matrix file");
-            --i;
-            --j;
+            precondition(is >> v, "Unsupported format in RHS file");
 
-            if (i < chunk_beg || i >= chunk_end) continue;
+            if (part[pos++] != world.rank) continue;
 
-            ++ptr[i + 1 - chunk_beg];
-
-            I.push_back(i);
-            J.push_back(j);
-            V.push_back(v);
+            rhs.push_back(v);
         }
 
-        boost::partial_sum(ptr, ptr.begin());
-
-        ptrdiff_t loc_nnz = ptr.back();
-
-        col.clear(); col.resize(loc_nnz);
-        val.clear(); val.resize(loc_nnz);
-
-        for(ptrdiff_t i = 0; i < loc_nnz; ++i) {
-            ptrdiff_t row = I[i] - chunk_beg;
-            col[ptr[row]] = J[i];
-            val[ptr[row]] = V[i];
-            ++ptr[row];
-        }
-        std::rotate(ptr.begin(), ptr.end() - 1, ptr.end());
-        ptr[0] = 0;
-    }
-
-    std::ifstream f(rhs_file.c_str());
-    precondition(f, "Failed to open rhs file (" + rhs_file + ")");
-
-    while (std::getline(f, line)) {
-        if (line[0] == '%') continue;
-        std::istringstream is(line);
-        ptrdiff_t rows, cols;
-        precondition(is >> rows >> cols, "Unsupported format in matrix file");
-        precondition(rows == n, "RHS size should coincide with matrix size");
-        break;
-    }
-
-    rhs.clear();
-    rhs.reserve(chunk);
-
-    ptrdiff_t pos = 0;
-    while (std::getline(f, line)) {
-        if (line[0] == '%') continue;
-        std::istringstream is(line);
-        double v;
-        precondition(is >> v, "Unsupported format in RHS file");
-
-        if (pos++ < chunk_beg) continue;
-        if (pos >= chunk_end) break;
-
-        rhs.push_back(v);
+        assert(rhs.size() + 1 == ptr.size());
     }
 
     return domain;
@@ -159,8 +204,9 @@ int main(int argc, char *argv[]) {
     amgcl::runtime::solver::type        iterative_solver = amgcl::runtime::solver::bicgstabl;
     amgcl::runtime::direct_solver::type direct_solver    = amgcl::runtime::direct_solver::skyline_lu;
     std::string parameter_file;
-    std::string A_file   = "A.mm";
-    std::string rhs_file = "rhs.mm";
+    std::string A_file    = "A.mtx";
+    std::string rhs_file  = "b.mtx";
+    std::string part_file = "partition.mtx";
     std::string out_file;
 
     namespace po = boost::program_options;
@@ -207,6 +253,11 @@ int main(int argc, char *argv[]) {
          "The right-hand side in MatrixMarket format"
         )
         (
+         "part,s",
+         po::value<std::string>(&part_file)->default_value(part_file),
+         "Partitioning of the problem in MatrixMarket format"
+        )
+        (
          "output,o",
          po::value<std::string>(&out_file),
          "The output file (saved in MatrixMarket format)"
@@ -218,7 +269,8 @@ int main(int argc, char *argv[]) {
     po::notify(vm);
 
     if (vm.count("help")) {
-        std::cout << desc << std::endl;
+        if (world.rank == 0)
+            std::cout << desc << std::endl;
         return 0;
     }
 
@@ -236,7 +288,7 @@ int main(int argc, char *argv[]) {
     std::vector<double>    rhs;
 
     std::vector<ptrdiff_t> domain = read_problem(
-            world, A_file, rhs_file, block_size, ptr, col, val, rhs
+            world, A_file, rhs_file, part_file, block_size, ptr, col, val, rhs
             );
 
     ptrdiff_t chunk = domain[world.rank + 1] - domain[world.rank];
@@ -268,10 +320,12 @@ int main(int argc, char *argv[]) {
         prof.tic("save");
         for(int r = 0; r < world.size; ++r) {
             if (r == world.rank) {
-                std::ofstream f(out_file.c_str(), std::ios::app);
+                std::ofstream f(out_file.c_str(), r == 0 ? std::ios::trunc : std::ios::app);
 
-                if (world.rank == 0)
-                    f << domain.back() << " 1\n";
+                if (r == 0) {
+                    f << "%%MatrixMarket matrix array real general\n"
+                      << domain.back() << " 1\n";
+                }
 
                 std::ostream_iterator<double> oi(f, "\n");
                 boost::copy(x, oi);
