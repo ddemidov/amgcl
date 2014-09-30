@@ -31,7 +31,6 @@ int main(int argc, char *argv[]) {
     using amgcl::prof;
 
     // Read configuration from command line
-    int m = 32;
     amgcl::runtime::coarsening::type coarsening = amgcl::runtime::coarsening::smoothed_aggregation;
     amgcl::runtime::relaxation::type relaxation = amgcl::runtime::relaxation::spai0;
     amgcl::runtime::solver::type     solver     = amgcl::runtime::solver::bicgstab;
@@ -45,11 +44,6 @@ int main(int argc, char *argv[]) {
 
     desc.add_options()
         ("help,h", "show help")
-        (
-         "size,n",
-         po::value<int>(&m)->default_value(m),
-         "domain size"
-        )
         (
          "coarsening,c",
          po::value<amgcl::runtime::coarsening::type>(&coarsening)->default_value(coarsening),
