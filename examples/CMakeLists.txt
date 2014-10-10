@@ -15,6 +15,9 @@ configure_file(
 add_executable(solver solver.cpp)
 target_link_libraries(solver ${Boost_LIBRARIES})
 
+add_executable(ublas ublas.cpp)
+target_link_libraries(ublas ${Boost_LIBRARIES})
+
 add_executable(runtime runtime.cpp)
 target_link_libraries(runtime ${Boost_LIBRARIES})
 
