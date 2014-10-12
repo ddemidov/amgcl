@@ -40,8 +40,8 @@ int main(int argc, char *argv[]) {
         amgcl::solver::bicgstab
         > Solver;
 
-    Solver::AMG_params prm;
-    prm.backend.q = ctx;
+    Solver::params prm;
+    prm.amg.backend.q = ctx;
 
     prof.tic("build");
     Solver solve( boost::tie(n, ptr, col, val), prm );

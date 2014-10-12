@@ -365,18 +365,19 @@ class make_solver {
         typedef amgcl::amg<Backend, Coarsening, Relax> AMG;
         typedef IterativeSolver<Backend, solver::detail::default_inner_product> Solver;
 
-        typedef typename AMG::params    AMG_params;
-        typedef typename Solver::params Solver_params;
+        struct params {
+            typename AMG::params amg;
+            typename Solver::params solver;
+        };
 
         /// Constructs the AMG hierarchy and creates iterative solver.
         template <class Matrix>
         make_solver(
                 const Matrix &A,
-                const AMG_params &amg_params = AMG_params(),
-                const Solver_params &solver_params = Solver_params()
+                const params &prm = params()
                 )
-            : P(A, amg_params),
-              S(backend::rows(A), solver_params, amg_params.backend)
+            : P(A, prm.amg),
+              S(backend::rows(A), prm.solver, prm.amg.backend)
         {}
 
         /// Solves the linear system for the given system matrix.

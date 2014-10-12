@@ -45,7 +45,7 @@ class TestPyAMGCL(unittest.TestCase):
         (A, rhs) = make_problem(256)
 
         # Setup solver
-        solve = amg.make_solver(A, prm={"tol" : 1e-8})
+        solve = amg.make_solver(A, prm={"solver.tol" : 1e-8})
 
         # Solve
         x = solve(rhs)

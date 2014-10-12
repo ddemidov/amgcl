@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
     vex::Context ctx(vex::Filter::Env && vex::Filter::DoublePrecision);
     std::cout << ctx << std::endl;
 
-    prm.put("backend.q", &ctx.queue());
+    prm.put("amg.backend.q", &ctx.queue());
 
     // Assemble problem
     prof.tic("assemble");

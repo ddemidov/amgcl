@@ -603,8 +603,12 @@ struct solver_create {
 
     template <class Solver>
     void process() const {
-        handle = static_cast<void*>( new Solver(n, prm,
-                    prm.get_child("backend", amgcl::detail::empty_ptree()))
+        handle = static_cast<void*>(
+                new Solver(
+                    n,
+                    prm.get_child("solver", amgcl::detail::empty_ptree()),
+                    prm.get_child("amg.backend", amgcl::detail::empty_ptree())
+                    )
                 );
     }
 };
@@ -690,7 +694,11 @@ class make_solver : boost::noncopyable {
                 const Matrix &A,
                 const params &prm = params()
                 )
-            : P(coarsening, relaxation, A, prm), solver(solver), handle(0)
+            : P(coarsening, relaxation, A,
+                    prm.get_child("amg", amgcl::detail::empty_ptree())
+               ),
+              solver(solver),
+              handle(0)
         {
             runtime::detail::process_solver<Backend>(
                     solver,
