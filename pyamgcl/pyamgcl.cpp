@@ -147,6 +147,16 @@ struct make_preconditioner {
         amgcl::runtime::amg< amgcl::backend::builtin<double> > P;
 };
 
+#if PY_MAJOR_VERSION >= 3
+void*
+#else
+void
+#endif
+call_import_array() {
+    import_array();
+    return NUMPY_IMPORT_ARRAY_RETVAL;
+}
+
 //---------------------------------------------------------------------------
 BOOST_PYTHON_MODULE(pyamgcl_ext)
 {
@@ -175,7 +185,8 @@ BOOST_PYTHON_MODULE(pyamgcl_ext)
         .value("gmres",     amgcl::runtime::solver::gmres)
         ;
 
-    import_array();
+    call_import_array();
+
     numpy_boost_python_register_type<int,    1>();
     numpy_boost_python_register_type<double, 1>();
 
