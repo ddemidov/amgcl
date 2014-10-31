@@ -20,7 +20,7 @@ def call_git_describe(abbrev=4):
                   stdout=PIPE, stderr=PIPE)
         p.stderr.close()
         line = p.stdout.readlines()[0]
-        return line.strip()
+        return line.strip().decode('utf8')
 
     except:
         return None
