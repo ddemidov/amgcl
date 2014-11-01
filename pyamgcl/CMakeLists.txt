@@ -17,13 +17,17 @@ if (NUMPY_FOUND)
     set_target_properties(pyamgcl_ext PROPERTIES PREFIX "")
     target_link_Libraries(pyamgcl_ext ${Boost_LIBRARIES})
 
-    foreach(py __init__.py test_pyamgcl)
-        configure_file(
-            ${CMAKE_CURRENT_SOURCE_DIR}/${py}
-            ${CMAKE_CURRENT_BINARY_DIR}/${py}
-            COPYONLY
-            )
-    endforeach()
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py
+        ${CMAKE_CURRENT_BINARY_DIR}/__init__.py
+        COPYONLY
+        )
 
-    add_test(test_pyamgcl test_pyamgcl)
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_pyamgcl
+        ${CMAKE_CURRENT_BINARY_DIR}/../test_pyamgcl
+        COPYONLY
+        )
+
+    add_test(test_pyamgcl ${CMAKE_CURRENT_BINARY_DIR}/../test_pyamgcl)
 endif()
