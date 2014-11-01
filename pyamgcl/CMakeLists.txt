@@ -17,7 +17,7 @@ if (NUMPY_FOUND)
     set_target_properties(pyamgcl_ext PROPERTIES PREFIX "")
     target_link_Libraries(pyamgcl_ext ${Boost_LIBRARIES})
 
-    foreach(py __init__.py pyamgcl.py test_pyamgcl)
+    foreach(py __init__.py test_pyamgcl)
         configure_file(
             ${CMAKE_CURRENT_SOURCE_DIR}/${py}
             ${CMAKE_CURRENT_BINARY_DIR}/${py}
