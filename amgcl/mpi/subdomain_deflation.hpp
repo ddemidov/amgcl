@@ -716,6 +716,12 @@ class subdomain_deflation {
         void postprocess(const Vec1 &rhs, Vec2 &x) const {
             TIC("postprocess");
 
+            // Z^t * x
+            double ss = 0;
+            for(ptrdiff_t j = 0; j < ndv; ++j)
+                ss += fabs(backend::inner_product(x, *Z[j]));
+            std::cout << comm.rank << ": |Zt*y|: " << ss << std::endl;
+
             // q = Ax
             mul(1, x, 0, *q);
 
