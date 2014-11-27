@@ -90,12 +90,12 @@ struct vexcl {
         /// Command queues that identify compute devices to use with VexCL.
         std::vector< vex::backend::command_queue > q;
 
-        params() {}
+        params() : q(vex::current_context().queue()) {}
 
         params(const boost::property_tree::ptree &p) {
             std::vector<vex::backend::command_queue> *ptr = 0;
             ptr = p.get("q", ptr);
-            if (ptr) q = *ptr;
+            q = ptr ? *ptr : vex::current_context().queue();
         }
     };
 
