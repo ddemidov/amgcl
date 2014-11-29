@@ -160,7 +160,7 @@ class bicgstabl {
                         backend::spmv(1, A, *q, 0, *u[j+1]);
 
                         alpha = inner_product(*u[j+1], *r0);
-                        if (fabs(alpha) < amgcl::detail::eps<value_type>(1)) {
+                        if (alpha == 0) {
                             ++iter;
                             goto check_residual;
                         }
