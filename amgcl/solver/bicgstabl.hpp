@@ -159,12 +159,7 @@ class bicgstabl {
                         P.apply(*u[j], *q);
                         backend::spmv(1, A, *q, 0, *u[j+1]);
 
-                        alpha = inner_product(*u[j+1], *r0);
-                        if (fabs(alpha) < amgcl::detail::eps<value_type>(1)) {
-                            ++iter;
-                            goto check_residual;
-                        }
-                        alpha = rho0 / alpha;
+                        alpha = rho0 / inner_product(*u[j+1], *r0);
 
                         for(int i = 0; i <= j; ++i)
                             backend::axpby(-alpha, *u[i+1], 1, *r[i]);
@@ -211,7 +206,6 @@ class bicgstabl {
                     res_norm = norm(*r[0]);
                 }
 
-check_residual:
                 P.apply(x, *q);
                 backend::copy(*q, x);
                 backend::residual(rhs, A, x, *r0);
