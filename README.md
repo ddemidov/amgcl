@@ -499,7 +499,7 @@ Have a look at [amgcl/relaxation/damped_jacobi.hpp][] for an example.
    aggregation for second and fourth order elliptic problems. Computing,
    56(3):179–196, 1996.
 
-## <a name="references"></a>Projects using AMGCL
+## <a name="projects"></a>Projects using AMGCL
 
 - [Kratos Multi-Physics][Kratos] (an open source framework for the
   implementation of numerical methods for the solution of engineering
