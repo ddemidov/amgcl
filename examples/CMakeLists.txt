@@ -47,4 +47,9 @@ if (CUDA_FOUND)
     target_link_libraries(cuda ${CUDA_cusparse_LIBRARY} ${Boost_LIBRARIES})
 endif()
 
+if (VIENNACL_INCLUDE)
+    add_executable(runtime_viennacl runtime_viennacl.cpp)
+    target_link_libraries(runtime_viennacl ${Boost_LIBRARIES})
+endif()
+
 add_subdirectory(mpi)
