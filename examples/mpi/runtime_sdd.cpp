@@ -66,6 +66,7 @@ int main(int argc, char *argv[]) {
     amgcl::runtime::solver::type        iterative_solver = amgcl::runtime::solver::bicgstabl;
     amgcl::runtime::direct_solver::type direct_solver    = amgcl::runtime::direct_solver::skyline_lu;
 
+    bool        symm_dirichlet = true;
     std::string problem = "laplace2d";
     std::string parameter_file;
 
@@ -78,6 +79,11 @@ int main(int argc, char *argv[]) {
          "problem",
          po::value<std::string>(&problem)->default_value(problem),
          "laplace2d, recirc2d"
+        )
+        (
+         "symbc",
+         po::value<bool>(&symm_dirichlet)->default_value(symm_dirichlet),
+         "Use symmetric Dirichlet conditions in laplace2d"
         )
         (
          "size,n",
@@ -236,30 +242,36 @@ int main(int argc, char *argv[]) {
             for(ptrdiff_t i = 0; i < n; ++i, ++idx) {
                 if (renum[idx] < chunk_start || renum[idx] >= chunk_end) continue;
 
-                if (j > 0)  {
-                    col.push_back(renum[idx - n]);
-                    val.push_back(-h2i);
+                if (!symm_dirichlet && (i == 0 || j == 0 || i + 1 == n || j + 1 == n)) {
+                    col.push_back(renum[idx]);
+                    val.push_back(1);
+                    rhs.push_back(0);
+                } else {
+                    if (j > 0)  {
+                        col.push_back(renum[idx - n]);
+                        val.push_back(-h2i);
+                    }
+
+                    if (i > 0) {
+                        col.push_back(renum[idx - 1]);
+                        val.push_back(-h2i - hinv);
+                    }
+
+                    col.push_back(renum[idx]);
+                    val.push_back(4 * h2i + hinv);
+
+                    if (i + 1 < n) {
+                        col.push_back(renum[idx + 1]);
+                        val.push_back(-h2i);
+                    }
+
+                    if (j + 1 < n) {
+                        col.push_back(renum[idx + n]);
+                        val.push_back(-h2i);
+                    }
+
+                    rhs.push_back(1);
                 }
-
-                if (i > 0) {
-                    col.push_back(renum[idx - 1]);
-                    val.push_back(-h2i - hinv);
-                }
-
-                col.push_back(renum[idx]);
-                val.push_back(4 * h2i + hinv);
-
-                if (i + 1 < n) {
-                    col.push_back(renum[idx + 1]);
-                    val.push_back(-h2i);
-                }
-
-                if (j + 1 < n) {
-                    col.push_back(renum[idx + n]);
-                    val.push_back(-h2i);
-                }
-
-                rhs.push_back(1);
                 ptr.push_back( col.size() );
             }
         }
