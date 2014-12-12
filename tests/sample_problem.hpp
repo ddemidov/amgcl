@@ -28,41 +28,40 @@ int sample_problem(
     for(ptrdiff_t k = 0, idx = 0; k < n; ++k) {
         for(ptrdiff_t j = 0; j < n; ++j) {
             for (ptrdiff_t i = 0; i < n; ++i, ++idx) {
-                if (
-                        i == 0 || i == n - 1 ||
-                        j == 0 || j == n - 1 ||
-                        k == 0 || k == n - 1
-                   )
-                {
-                    col.push_back(idx);
-                    val.push_back(1);
-
-                    rhs.push_back(0);
-                } else {
+                if (k > 0) {
                     col.push_back(idx - n * n);
                     val.push_back(-h2i);
-
-                    col.push_back(idx - n);
-                    val.push_back(-h2i);
-
-                    col.push_back(idx - 1);
-                    val.push_back(-h2i);
-
-                    col.push_back(idx);
-                    val.push_back(6 * h2i);
-
-                    col.push_back(idx + 1);
-                    val.push_back(-h2i);
-
-                    col.push_back(idx + n);
-                    val.push_back(-h2i);
-
-                    col.push_back(idx + n * n);
-                    val.push_back(-h2i);
-
-                    rhs.push_back(1);
                 }
 
+                if (j > 0) {
+                    col.push_back(idx - n);
+                    val.push_back(-h2i);
+                }
+
+                if (i > 0) {
+                    col.push_back(idx - 1);
+                    val.push_back(-h2i);
+                }
+
+                col.push_back(idx);
+                val.push_back(6 * h2i);
+
+                if (i + 1 < n) {
+                    col.push_back(idx + 1);
+                    val.push_back(-h2i);
+                }
+
+                if (j + 1 < n) {
+                    col.push_back(idx + n);
+                    val.push_back(-h2i);
+                }
+
+                if (k + 1 < n) {
+                    col.push_back(idx + n * n);
+                    val.push_back(-h2i);
+                }
+
+                rhs.push_back(1);
                 ptr.push_back( static_cast<index>(col.size()) );
             }
         }
