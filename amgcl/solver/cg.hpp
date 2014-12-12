@@ -129,16 +129,18 @@ class cg {
                 ) const
         {
             backend::residual(rhs, A, x, *r);
-            value_type norm_r0 = norm(*r);
-            if (norm_r0 < amgcl::detail::eps<value_type>(n)) {
-                // The solution is exact
-                return boost::make_tuple(0, 0);
+            value_type norm_rhs = norm(rhs);
+            if (norm_rhs < amgcl::detail::eps<value_type>(n)) {
+                backend::clear(x);
+                return boost::make_tuple(0, norm_rhs);
             }
 
-            value_type eps  = prm.tol * norm_r0;
-            value_type rho1 = 2 * eps * eps, rho2 = 0, res_norm = 0;
-            size_t     iter = 0;
-            do {
+            value_type eps  = prm.tol * norm_rhs;
+            value_type rho1 = 2 * eps * eps, rho2 = 0;
+            value_type res_norm = norm(*r);
+
+            size_t iter = 0;
+            while(res_norm > eps && iter < prm.maxiter) {
                 for(; iter < prm.maxiter; ++iter) {
                     P.apply(*r, *s);
 
@@ -162,9 +164,9 @@ class cg {
 
                 backend::residual(rhs, A, x, *r);
                 res_norm = norm(*r);
-            } while (res_norm > eps && iter < prm.maxiter);
+            }
 
-            return boost::make_tuple(iter, res_norm / norm_r0);
+            return boost::make_tuple(iter, res_norm / norm_rhs);
         }
 
         /// Solves the linear system for the same matrix that was used for the AMG preconditioner construction.
