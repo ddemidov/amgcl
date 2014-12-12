@@ -19,11 +19,6 @@ typedef Eigen::Matrix<double, Eigen::Dynamic, 1>          EigenVector;
 
 namespace amgcl {
 profiler<> prof;
-
-namespace backend {
-template <> struct is_builtin_vector<EigenVector> : boost::true_type {};
-
-} // namespace backend
 } // namespace amgcl
 
 //---------------------------------------------------------------------------
@@ -122,16 +117,17 @@ int main(int argc, char *argv[]) {
     std::cout << solve.amg() << std::endl;
 
     // Solve the problem
-    EigenVector x = EigenVector::Zero(rhs.size());
+    std::vector<double> f(&rhs[0], &rhs[0] + rhs.size());
+    std::vector<double> x(rhs.size(), 0);
 
     prof.tic("solve");
     size_t iters;
     double resid;
-    boost::tie(iters, resid) = solve(rhs, x);
+    boost::tie(iters, resid) = solve(f, x);
     prof.toc("solve");
 
     prof.tic("write");
-    Eigen::saveMarketVector(x, out_file);
+    Eigen::saveMarketVector(Eigen::Map<EigenVector>(x.data(), x.size()), out_file);
     prof.toc("write");
 
     std::cout << "Iterations: " << iters << std::endl
