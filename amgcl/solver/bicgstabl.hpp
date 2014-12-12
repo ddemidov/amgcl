@@ -128,12 +128,17 @@ class bicgstabl {
 
             backend::residual(rhs, A, x, *r0);
 
-            value_type norm_r0 = norm(*r0);
-            if (norm_r0 < amgcl::detail::eps<value_type>(n))
-                return boost::make_tuple(0, 0);
+            value_type norm_rhs = norm(rhs);
+            if (norm_rhs < amgcl::detail::eps<value_type>(n)) {
+                backend::clear(x);
+                return boost::make_tuple(0, norm_rhs);
+            }
 
-            value_type res_norm = norm_r0;
-            value_type eps      = prm.tol * norm_r0;
+            value_type res_norm = norm(*r0);
+            value_type eps      = prm.tol * norm_rhs;
+
+            if(res_norm < eps)
+                return boost::make_tuple(0, res_norm / norm_rhs);
 
             size_t iter = 0;
 
@@ -142,7 +147,7 @@ class bicgstabl {
                 backend::clear( *u[0] );
                 value_type rho0 = 1, alpha = 0, omega = 1;
 
-                for(; res_norm > eps && iter < prm.maxiter; ++iter) {
+                for(; res_norm > eps && iter < prm.maxiter; iter += prm.L) {
                     rho0 = -omega * rho0;
 
                     // Bi-CG part
@@ -218,7 +223,7 @@ check_residual:
                 res_norm = norm(*r0);
             } while (res_norm > eps && iter < prm.maxiter);
 
-            return boost::make_tuple(iter, res_norm / norm_r0);
+            return boost::make_tuple(iter, res_norm / norm_rhs);
         }
 
         /// Solves the linear system for the same matrix that was used for the AMG preconditioner construction.
