@@ -128,11 +128,17 @@ class gmres {
         {
             size_t iter = 0;
 
-            value_type norm_r0 = restart(A, rhs, P, x);
-            if (norm_r0 < amgcl::detail::eps<value_type>(n))
-                return boost::make_tuple(0, 0);
+            value_type norm_rhs = norm(rhs);
+            if (norm_rhs < amgcl::detail::eps<value_type>(n)) {
+                backend::clear(x);
+                return boost::make_tuple(0, norm_rhs);
+            }
 
-            value_type eps = prm.tol * norm_r0, res_norm;
+            value_type eps = prm.tol * norm_rhs;
+
+            value_type res_norm = restart(A, rhs, P, x);
+            if (res_norm < eps)
+                return boost::make_tuple(0, res_norm / norm_rhs);
 
             do {
                 for(int i = 0; i < prm.M && iter < prm.maxiter; ++i, ++iter) {
@@ -140,7 +146,7 @@ class gmres {
 
                     if (res_norm < eps) {
                         update(x, i);
-                        return boost::make_tuple(iter + 1, res_norm / norm_r0);
+                        return boost::make_tuple(iter + 1, res_norm / norm_rhs);
                     };
                 }
 
@@ -148,7 +154,7 @@ class gmres {
                 res_norm = restart(A, rhs, P, x);
             } while (iter < prm.maxiter && res_norm > eps);
 
-            return boost::make_tuple(iter, res_norm / norm_r0);
+            return boost::make_tuple(iter, res_norm / norm_rhs);
         }
 
         /// Solves the linear system for the same matrix that was used for the AMG preconditioner construction.
