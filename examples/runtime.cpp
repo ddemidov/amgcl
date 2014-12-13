@@ -20,6 +20,7 @@ int main(int argc, char *argv[]) {
 
     // Read configuration from command line
     int m = 32;
+    double x0 = 0;
     amgcl::runtime::coarsening::type coarsening = amgcl::runtime::coarsening::smoothed_aggregation;
     amgcl::runtime::relaxation::type relaxation = amgcl::runtime::relaxation::spai0;
     amgcl::runtime::solver::type     solver     = amgcl::runtime::solver::bicgstab;
@@ -54,6 +55,11 @@ int main(int argc, char *argv[]) {
          "params,p",
          po::value<std::string>(&parameter_file),
          "parameter file in json format"
+        )
+        (
+         "x0",
+         po::value<double>(&x0),
+         "Initial approximation value"
         )
         ;
 
@@ -94,7 +100,7 @@ int main(int argc, char *argv[]) {
     std::cout << solve.amg() << std::endl;
 
     // Solve the problem
-    std::vector<double> x(n, 0);
+    std::vector<double> x(n, x0);
 
     size_t iters;
     double resid;
