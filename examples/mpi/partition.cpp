@@ -14,7 +14,6 @@
 #include <unsupported/Eigen/SparseExtra>
 
 extern "C" {
-#include <scotch.h>
 #include <metis.h>
 }
 
@@ -156,9 +155,6 @@ std::vector<int> pointwise_partition(
     if (npart == 1) {
         boost::fill(part, 0);
     } else {
-        int wgtflag = 0;
-        int numflag = 0;
-        int options = 0;
         int edgecut;
 
 #if defined(METIS_VER_MAJOR) && (METIS_VER_MAJOR >= 5)
@@ -179,6 +175,10 @@ std::vector<int> pointwise_partition(
                 part.data()
                 );
 #else
+        int wgtflag = 0;
+        int numflag = 0;
+        int options = 0;
+
         METIS_PartGraphKway(
                 &nrows,
                 const_cast<int*>(ptr.data()),

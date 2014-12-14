@@ -23,11 +23,11 @@ if (MPI_CXX_FOUND)
         add_mpi_example(check_pastix check_pastix.cpp)
     endif()
 
-    if (EIGEN_INCLUDE AND SCOTCH_INCLUDES)
+    if (EIGEN_INCLUDE AND METIS_INCLUDES)
         add_executable(partition partition.cpp)
         target_link_Libraries(partition
             ${Boost_LIBRARIES}
-            ${SCOTCH_LIBRARIES}
+            ${METIS_LIBRARY}
             )
     endif()
 

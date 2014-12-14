@@ -123,6 +123,7 @@ endif()
 #----------------------------------------------------------------------------
 find_package(Pastix QUIET)
 find_package(Scotch QUIET)
+find_package(Metis  QUIET)
 find_package(BLAS   QUIET)
 
 if (PASTIX_INCLUDES AND SCOTCH_INCLUDES AND BLAS_FOUND)
