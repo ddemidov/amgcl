@@ -121,10 +121,14 @@ endif()
 #----------------------------------------------------------------------------
 # Find Pastix
 #----------------------------------------------------------------------------
-find_package(Pastix QUIET)
-find_package(Scotch QUIET)
 find_package(Metis  QUIET)
+find_package(Scotch QUIET)
+find_package(Pastix QUIET)
 find_package(BLAS   QUIET)
+
+if (METIS_INCLUDES)
+    include_directories(${METIS_INCLUDES})
+endif()
 
 if (PASTIX_INCLUDES AND SCOTCH_INCLUDES AND BLAS_FOUND)
     set(HAVE_PASTIX ON)
