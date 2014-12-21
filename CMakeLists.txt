@@ -6,41 +6,9 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib)
 
 #----------------------------------------------------------------------------
-# Find Boost
-#----------------------------------------------------------------------------
-if (WIN32)
-    set(Boost_USE_STATIC_LIBS ON)
-else ()
-    option(
-        USE_STATIC_BOOST_LIBS
-        "Use static versions of Boost libraries"
-        OFF
-        )
-
-    if (USE_STATIC_BOOST_LIBS)
-        set(Boost_USE_STATIC_LIBS ON)
-    else()
-        set(Boost_USE_STATIC_LIBS OFF)
-        add_definitions(-DBOOST_TEST_DYN_LINK)
-    endif()
-endif ()
-
-set(BOOST_COMPONENTS
-    chrono
-    program_options
-    system
-    filesystem
-    unit_test_framework
-    )
-
-find_package(Boost COMPONENTS ${BOOST_COMPONENTS})
-include_directories( ${Boost_INCLUDE_DIRS} )
-
-#----------------------------------------------------------------------------
 # Find OpenMP
 #----------------------------------------------------------------------------
 find_package(OpenMP)
-
 if (OpenMP_CXX_FLAGS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif ()
@@ -62,6 +30,46 @@ if (BLAZE_INCLUDE)
     include_directories(${BLAZE_INCLUDE})
     add_definitions(-DAMGCL_HAVE_BLAZE)
 endif()
+
+#----------------------------------------------------------------------------
+# Find HPX
+#----------------------------------------------------------------------------
+option(HAVE_HPX "Build HPX examples" OFF)
+if (HAVE_HPX)
+    find_package(HPX)
+    set(BOOST_COMPONENTS serialization)
+endif()
+
+#----------------------------------------------------------------------------
+# Find Boost
+#----------------------------------------------------------------------------
+if (WIN32)
+    set(Boost_USE_STATIC_LIBS ON)
+else ()
+    option(
+        USE_STATIC_BOOST_LIBS
+        "Use static versions of Boost libraries"
+        OFF
+        )
+
+    if (USE_STATIC_BOOST_LIBS)
+        set(Boost_USE_STATIC_LIBS ON)
+    else()
+        set(Boost_USE_STATIC_LIBS OFF)
+        add_definitions(-DBOOST_TEST_DYN_LINK)
+    endif()
+endif ()
+
+set(BOOST_COMPONENTS ${BOOST_COMPONENTS}
+    chrono
+    program_options
+    system
+    filesystem
+    unit_test_framework
+    )
+
+find_package(Boost COMPONENTS ${BOOST_COMPONENTS})
+include_directories( ${Boost_INCLUDE_DIRS} )
 
 #----------------------------------------------------------------------------
 # Find VexCL
@@ -103,11 +111,19 @@ endif()
 #----------------------------------------------------------------------------
 # Find CUDA
 #----------------------------------------------------------------------------
-find_package(CUDA QUIET)
-if (CUDA_FOUND)
-    set(CUDA_COMPUTE_CAPABILITY "35" CACHE STRING "CUDA Compute Capability")
-    add_definitions(-DAMGCL_HAVE_CUDA)
-    add_definitions(-DBOOST_DISABLE_ASSERTS)
+option(HAVE_CUDA "Compile examples for CUDA backend" ON)
+if (HAVE_CUDA AND HAVE_HPX)
+    message(FATAL_ERROR
+        "HPX examples and CUDA examples can not be compiled simultaneously"
+        )
+endif()
+if (HAVE_CUDA)
+    find_package(CUDA QUIET)
+    if (CUDA_FOUND)
+        set(CUDA_COMPUTE_CAPABILITY "35" CACHE STRING "CUDA Compute Capability")
+        add_definitions(-DAMGCL_HAVE_CUDA)
+        add_definitions(-DBOOST_DISABLE_ASSERTS)
+    endif ()
 endif ()
 
 #----------------------------------------------------------------------------

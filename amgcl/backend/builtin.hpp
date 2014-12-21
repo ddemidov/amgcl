@@ -371,7 +371,7 @@ struct builtin {
 
     /// Copy vector to builtin backend.
     static boost::shared_ptr<vector>
-    copy_vector(const vector x, const params&)
+    copy_vector(const vector &x, const params&)
     {
         return boost::make_shared<vector>(x);
     }
@@ -415,7 +415,7 @@ template <class T>
 struct is_builtin_vector : boost::false_type {};
 
 template <class V>
-struct is_builtin_vector< std::vector<V> > : boost::true_type {};
+struct is_builtin_vector< std::vector<V> > : boost::is_arithmetic<V> {};
 
 template <class Iterator>
 struct is_builtin_vector< boost::iterator_range<Iterator> > : boost::true_type {};
