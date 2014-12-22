@@ -161,8 +161,13 @@ struct HPX {
             real *fptr = rhs.vec->data();
             real *xptr = x.vec->data();
 
-            hpx::shared_future<void> solve = hpx::when_all(rhs.fut).then(
-                    call_base{this, fptr, xptr});
+            using hpx::lcos::local::dataflow;
+
+            hpx::shared_future<void> solve = dataflow(
+                    hpx::launch::async,
+                    call_base{this, fptr, xptr},
+                    hpx::when_all(rhs.fut)
+                    );
 
             for(auto f = x.fut.begin(); f != x.fut.end(); ++f)
                 *f = solve;
@@ -292,20 +297,23 @@ struct spmv_impl<
 
         auto Abase = A.base.get();
 
+        using hpx::lcos::local::dataflow;
+
         if (beta) {
             // y = alpha * A * x + beta * y
             for(ptrdiff_t seg = 0; seg < y.nseg; ++seg) {
                 ptrdiff_t beg = seg * y.grain_size;
                 ptrdiff_t end = std::min<ptrdiff_t>(beg + y.grain_size, y.size());
 
-                y.fut[seg] = hpx::when_all(
-                        y.fut[seg],
+                y.fut[seg] = dataflow(hpx::launch::async,
+                        process_ab{alpha, Abase, xptr, beta, yptr, beg, end},
                         hpx::when_all(
-                            x.fut.begin() + std::get<0>(A.xrange[seg]),
-                            x.fut.begin() + std::get<1>(A.xrange[seg])
+                            y.fut[seg],
+                            hpx::when_all(
+                                x.fut.begin() + std::get<0>(A.xrange[seg]),
+                                x.fut.begin() + std::get<1>(A.xrange[seg])
+                                )
                             )
-                        ).then(
-                            process_ab{alpha, Abase, xptr, beta, yptr, beg, end}
                         );
             }
         } else {
@@ -314,11 +322,12 @@ struct spmv_impl<
                 ptrdiff_t beg = seg * y.grain_size;
                 ptrdiff_t end = std::min<ptrdiff_t>(beg + y.grain_size, y.size());
 
-                y.fut[seg] = hpx::when_all(
-                        x.fut.begin() + std::get<0>(A.xrange[seg]),
-                        x.fut.begin() + std::get<1>(A.xrange[seg])
-                        ).then(
-                            process_a{alpha, Abase, xptr, yptr, beg, end}
+                y.fut[seg] = dataflow(hpx::launch::async,
+                        process_a{alpha, Abase, xptr, yptr, beg, end},
+                        hpx::when_all(
+                            x.fut.begin() + std::get<0>(A.xrange[seg]),
+                            x.fut.begin() + std::get<1>(A.xrange[seg])
+                            )
                         );
             }
         }
@@ -365,19 +374,22 @@ struct residual_impl<
 
         auto Abase = A.base.get();
 
+        using hpx::lcos::local::dataflow;
+
         for(ptrdiff_t seg = 0; seg < f.nseg; ++seg) {
             ptrdiff_t beg = seg * f.grain_size;
             ptrdiff_t end = std::min<ptrdiff_t>(beg + f.grain_size, f.size());
 
-            r.fut[seg] = hpx::when_all(
-                    f.fut[seg],
+            r.fut[seg] = dataflow(hpx::launch::async,
+                    process{fptr, Abase, xptr, rptr, beg, end},
                     hpx::when_all(
-                        x.fut.begin() + std::get<0>(A.xrange[seg]),
-                        x.fut.begin() + std::get<1>(A.xrange[seg])
+                        f.fut[seg],
+                        hpx::when_all(
+                            x.fut.begin() + std::get<0>(A.xrange[seg]),
+                            x.fut.begin() + std::get<1>(A.xrange[seg])
+                            )
                         )
-                    ).then(
-                        process{fptr, Abase, xptr, rptr, beg, end}
-                        );
+                    );
         }
     }
 };
@@ -393,14 +405,18 @@ struct clear_impl<
     {
         real *xptr = x.vec->data();
 
+        using hpx::lcos::local::dataflow;
+
         for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) {
             ptrdiff_t beg = seg * x.grain_size;
             ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
 
-            x.fut[seg] = x.fut[seg].then(
+            x.fut[seg] = dataflow(hpx::launch::async,
                     [xptr, beg, end](const hpx::shared_future<void>&) {
                         for(ptrdiff_t i = beg; i < end; ++i) xptr[i] = 0;
-                    });
+                    },
+                    x.fut[seg]
+                    );
         }
     }
 };
@@ -418,15 +434,19 @@ struct copy_impl<
         real *xptr = x.vec->data();
         real *yptr = y.vec->data();
 
+        using hpx::lcos::local::dataflow;
+
         for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) {
             ptrdiff_t beg = seg * x.grain_size;
             ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
 
-            y.fut[seg] = x.fut[seg].then(
+            y.fut[seg] = dataflow(hpx::launch::async,
                     [xptr, yptr, beg, end](const hpx::shared_future<void>&) {
                         for(ptrdiff_t i = beg; i < end; ++i)
                             yptr[i] = xptr[i];
-                    });
+                    },
+                    x.fut[seg]
+                    );
         }
     }
 };
@@ -492,14 +512,20 @@ struct inner_product_impl<
         real *xptr = x.vec->data();
         real *yptr = y.vec->data();
 
+        using hpx::lcos::local::dataflow;
+
         for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) {
             ptrdiff_t beg = seg * x.grain_size;
             ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
 
-            x.fut[seg] = hpx::when_all(x.fut[seg], y.fut[seg]).then(
-                    process{tot, xptr, yptr, beg, end});
+            x.fut[seg] = dataflow(hpx::launch::async,
+                    process{tot, xptr, yptr, beg, end},
+                    hpx::when_all(x.fut[seg], y.fut[seg])
+                    );
         }
+
         hpx::wait_all(x.fut);
+
         return tot;
     }
 };
@@ -550,14 +576,18 @@ struct axpby_impl<
         real *xptr = x.vec->data();
         real *yptr = y.vec->data();
 
+        using hpx::lcos::local::dataflow;
+
         if (b) {
             // y = a * x + b * y;
             for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) {
                 ptrdiff_t beg = seg * x.grain_size;
                 ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
 
-                y.fut[seg] = hpx::when_all(x.fut[seg], y.fut[seg]).then(
-                        process_ab{a, xptr, b, yptr, beg, end} );
+                y.fut[seg] = dataflow(hpx::launch::async,
+                        process_ab{a, xptr, b, yptr, beg, end},
+                        hpx::when_all(x.fut[seg], y.fut[seg])
+                        );
             }
         } else {
             // y = a * x;
@@ -565,7 +595,10 @@ struct axpby_impl<
                 ptrdiff_t beg = seg * x.grain_size;
                 ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
 
-                y.fut[seg] = x.fut[seg].then(process_a{a, xptr, yptr, beg, end});
+                y.fut[seg] = dataflow(hpx::launch::async,
+                        process_a{a, xptr, yptr, beg, end},
+                        x.fut[seg]
+                        );
             }
         }
     }
@@ -625,14 +658,18 @@ struct axpbypcz_impl<
         real *yptr = y.vec->data();
         real *zptr = z.vec->data();
 
+        using hpx::lcos::local::dataflow;
+
         if (c) {
             //z = a * x + b * y + c * z;
             for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) {
                 ptrdiff_t beg = seg * x.grain_size;
                 ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
 
-                z.fut[seg] = hpx::when_all(x.fut[seg], y.fut[seg], z.fut[seg]).then(
-                        process_abc{a, xptr, b, yptr, c, zptr, beg, end});
+                z.fut[seg] = dataflow(hpx::launch::async,
+                        process_abc{a, xptr, b, yptr, c, zptr, beg, end},
+                        hpx::when_all(x.fut[seg], y.fut[seg], z.fut[seg])
+                        );
             }
         } else {
             //z = a * x + b * y;
@@ -640,8 +677,10 @@ struct axpbypcz_impl<
                 ptrdiff_t beg = seg * x.grain_size;
                 ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
 
-                z.fut[seg] = hpx::when_all(x.fut[seg], y.fut[seg]).then(
-                        process_ab{a, xptr, b, yptr, zptr, beg, end});
+                z.fut[seg] = dataflow(hpx::launch::async,
+                        process_ab{a, xptr, b, yptr, zptr, beg, end},
+                        hpx::when_all(x.fut[seg], y.fut[seg])
+                        );
             }
         }
     }
@@ -695,14 +734,18 @@ struct vmul_impl<
         real *yptr = y.vec->data();
         real *zptr = z.vec->data();
 
+        using hpx::lcos::local::dataflow;
+
         if (b) {
             //z = a * x * y + b * z;
             for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) {
                 ptrdiff_t beg = seg * x.grain_size;
                 ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
 
-                z.fut[seg] = hpx::when_all(x.fut[seg], y.fut[seg], z.fut[seg]).then(
-                        process_ab{a, xptr, yptr, b, zptr, beg, end});
+                z.fut[seg] = dataflow(hpx::launch::async,
+                        process_ab{a, xptr, yptr, b, zptr, beg, end},
+                        hpx::when_all(x.fut[seg], y.fut[seg], z.fut[seg])
+                        );
             }
         } else {
             //z = a * x * y;
@@ -710,8 +753,10 @@ struct vmul_impl<
                 ptrdiff_t beg = seg * x.grain_size;
                 ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
 
-                z.fut[seg] = hpx::when_all(x.fut[seg], y.fut[seg]).then(
-                        process_a{a, xptr, yptr, zptr, beg, end});
+                z.fut[seg] = dataflow(hpx::launch::async,
+                        process_a{a, xptr, yptr, zptr, beg, end},
+                        hpx::when_all(x.fut[seg], y.fut[seg])
+                        );
             }
         }
     }
