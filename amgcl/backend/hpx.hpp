@@ -279,8 +279,8 @@ struct spmv_impl<
         ptrdiff_t beg;
         ptrdiff_t end;
 
-        template <class T>
-        void operator()(T&&) const {
+        template <class... T>
+        void operator()(T&&...) const {
             for(ptrdiff_t i = beg; i < end; ++i) {
                 real sum = 0;
                 for(auto a = A->row_begin(i); a; ++a)
@@ -299,8 +299,8 @@ struct spmv_impl<
         ptrdiff_t beg;
         ptrdiff_t end;
 
-        template <class T>
-        void operator()(T&&) const {
+        template <class... T>
+        void operator()(T&&...) const {
             for(ptrdiff_t i = beg; i < end; ++i) {
                 real sum = 0;
                 for(auto a = A->row_begin(i); a; ++a)
@@ -310,7 +310,7 @@ struct spmv_impl<
         }
     };
 
-    struct ignore {
+    struct wait_for_it {
         template <class T>
         void operator()(T&&) const {}
     };
@@ -334,13 +334,11 @@ struct spmv_impl<
                 y.safe_to_read[seg] = dataflow(
                         hpx::launch::async,
                         process_ab{alpha, Abase, xptr, beta, yptr, beg, end},
+                        y.safe_to_read[seg],
+                        y.safe_to_write[seg],
                         hpx::when_all(
-                            y.safe_to_read[seg],
-                            y.safe_to_write[seg],
-                            hpx::when_all(
-                                x.safe_to_read.begin() + std::get<0>(A.xrange[seg]),
-                                x.safe_to_read.begin() + std::get<1>(A.xrange[seg])
-                                )
+                            x.safe_to_read.begin() + std::get<0>(A.xrange[seg]),
+                            x.safe_to_read.begin() + std::get<1>(A.xrange[seg])
                             )
                         );
             }
@@ -352,12 +350,10 @@ struct spmv_impl<
 
                 y.safe_to_read[seg] = dataflow(hpx::launch::async,
                         process_a{alpha, Abase, xptr, yptr, beg, end},
+                        y.safe_to_write[seg],
                         hpx::when_all(
-                            y.safe_to_write[seg],
-                            hpx::when_all(
-                                x.safe_to_read.begin() + std::get<0>(A.xrange[seg]),
-                                x.safe_to_read.begin() + std::get<1>(A.xrange[seg])
-                                )
+                            x.safe_to_read.begin() + std::get<0>(A.xrange[seg]),
+                            x.safe_to_read.begin() + std::get<1>(A.xrange[seg])
                             )
                         );
             }
@@ -366,7 +362,7 @@ struct spmv_impl<
         // Do not update x until y is ready.
         for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) {
             x.safe_to_write[seg] = dataflow(hpx::launch::async,
-                    ignore(),
+                    wait_for_it(),
                     hpx::when_all(
                         y.safe_to_read.begin() + std::get<0>(A.yrange[seg]),
                         y.safe_to_read.begin() + std::get<1>(A.yrange[seg])
@@ -396,8 +392,8 @@ struct residual_impl<
         ptrdiff_t beg;
         ptrdiff_t end;
 
-        template <class T>
-        void operator()(T&&) const {
+        template <class... T>
+        void operator()(T&&...) const {
             for(ptrdiff_t i = beg; i < end; ++i) {
                 real sum = fptr[i];
                 for(auto a = A->row_begin(i); a; ++a)
@@ -407,7 +403,7 @@ struct residual_impl<
         }
     };
 
-    struct ignore {
+    struct wait_for_it {
         template <class T>
         void operator()(T&&) const {}
     };
@@ -429,13 +425,11 @@ struct residual_impl<
 
             r.safe_to_read[seg] = dataflow(hpx::launch::async,
                     process{fptr, Abase, xptr, rptr, beg, end},
+                    f.safe_to_read[seg],
+                    r.safe_to_write[seg],
                     hpx::when_all(
-                        f.safe_to_read[seg],
-                        r.safe_to_write[seg],
-                        hpx::when_all(
-                            x.safe_to_read.begin() + std::get<0>(A.xrange[seg]),
-                            x.safe_to_read.begin() + std::get<1>(A.xrange[seg])
-                            )
+                        x.safe_to_read.begin() + std::get<0>(A.xrange[seg]),
+                        x.safe_to_read.begin() + std::get<1>(A.xrange[seg])
                         )
                     );
         }
@@ -443,7 +437,7 @@ struct residual_impl<
         // Do not update x until r is ready.
         for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) {
             x.safe_to_write[seg] = dataflow(hpx::launch::async,
-                    ignore(),
+                    wait_for_it(),
                     hpx::when_all(
                         r.safe_to_read.begin() + std::get<0>(A.yrange[seg]),
                         r.safe_to_read.begin() + std::get<1>(A.yrange[seg])
@@ -460,8 +454,20 @@ struct clear_impl<
 {
     typedef hpx_vector<real> vector;
 
-    static void apply(vector &x)
-    {
+    struct process {
+        real *xptr;
+
+        ptrdiff_t beg;
+        ptrdiff_t end;
+
+        template <class... T>
+        void operator()(T&&...) const {
+            for(ptrdiff_t i = beg; i < end; ++i)
+                xptr[i] = 0;
+        }
+    };
+
+    static void apply(vector &x) {
         real *xptr = x.vec->data();
 
         using hpx::lcos::local::dataflow;
@@ -471,9 +477,7 @@ struct clear_impl<
             ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
 
             x.safe_to_read[seg] = dataflow(hpx::launch::async,
-                    [xptr, beg, end](const hpx::shared_future<void>&) {
-                        for(ptrdiff_t i = beg; i < end; ++i) xptr[i] = 0;
-                    },
+                    process{xptr, beg, end},
                     x.safe_to_write[seg]
                     );
         }
@@ -495,8 +499,8 @@ struct copy_impl<
         ptrdiff_t beg;
         ptrdiff_t end;
 
-        template <class T>
-        void operator()(T&&) const {
+        template <class... T>
+        void operator()(T&&...) const {
             for(ptrdiff_t i = beg; i < end; ++i)
                 yptr[i] = xptr[i];
         }
@@ -515,10 +519,8 @@ struct copy_impl<
 
             y.safe_to_read[seg] = dataflow(hpx::launch::async,
                     process{xptr, yptr, beg, end},
-                    hpx::when_all(
-                        x.safe_to_read[seg],
-                        y.safe_to_write[seg]
-                        )
+                    x.safe_to_read[seg],
+                    y.safe_to_write[seg]
                     );
         }
     }
@@ -538,8 +540,8 @@ struct copy_to_backend_impl<
         ptrdiff_t beg;
         ptrdiff_t end;
 
-        template <class T>
-        void operator()(T&&) const {
+        template <class... T>
+        void operator()(T&&...) const {
             for(ptrdiff_t i = beg; i < end; ++i)
                 yptr[i] = xptr[i];
         }
@@ -581,8 +583,8 @@ struct inner_product_impl<
         ptrdiff_t beg;
         ptrdiff_t end;
 
-        template <class T>
-        void operator()(T&&) const {
+        template <class... T>
+        void operator()(T&&...) const {
             real sum = 0;
 
             for(ptrdiff_t i = beg; i < end; ++i)
@@ -613,10 +615,8 @@ struct inner_product_impl<
             // but its ok since we will wait on it later anyway.
             x.safe_to_write[seg] = dataflow(hpx::launch::async,
                     process{mx, tot, xptr, yptr, beg, end},
-                    hpx::when_all(
-                        x.safe_to_read[seg],
-                        y.safe_to_read[seg]
-                        )
+                    x.safe_to_read[seg],
+                    y.safe_to_read[seg]
                     );
         }
 
@@ -644,8 +644,8 @@ struct axpby_impl<
         ptrdiff_t beg;
         ptrdiff_t end;
 
-        template <class T>
-        void operator()(T&&) const {
+        template <class... T>
+        void operator()(T&&...) const {
             for(ptrdiff_t i = beg; i < end; ++i)
                 yptr[i] = a * xptr[i] + b * yptr[i];
         }
@@ -660,8 +660,8 @@ struct axpby_impl<
         ptrdiff_t beg;
         ptrdiff_t end;
 
-        template <class T>
-        void operator()(T&&) const {
+        template <class... T>
+        void operator()(T&&...) const {
             for(ptrdiff_t i = beg; i < end; ++i)
                 yptr[i] = a * xptr[i];
         }
@@ -682,11 +682,9 @@ struct axpby_impl<
 
                 y.safe_to_read[seg] = dataflow(hpx::launch::async,
                         process_ab{a, xptr, b, yptr, beg, end},
-                        hpx::when_all(
-                            x.safe_to_read[seg],
-                            y.safe_to_read[seg],
-                            y.safe_to_write[seg]
-                            )
+                        x.safe_to_read[seg],
+                        y.safe_to_read[seg],
+                        y.safe_to_write[seg]
                         );
             }
         } else {
@@ -697,10 +695,8 @@ struct axpby_impl<
 
                 y.safe_to_read[seg] = dataflow(hpx::launch::async,
                         process_a{a, xptr, yptr, beg, end},
-                        hpx::when_all(
-                            x.safe_to_read[seg],
-                            y.safe_to_write[seg]
-                            )
+                        x.safe_to_read[seg],
+                        y.safe_to_write[seg]
                         );
             }
         }
@@ -727,8 +723,8 @@ struct axpbypcz_impl<
         ptrdiff_t beg;
         ptrdiff_t end;
 
-        template <class T>
-        void operator()(T&&) const {
+        template <class... T>
+        void operator()(T&&...) const {
             for(ptrdiff_t i = beg; i < end; ++i)
                 zptr[i] = a * xptr[i] + b * yptr[i] + c * zptr[i];
         }
@@ -744,8 +740,8 @@ struct axpbypcz_impl<
         ptrdiff_t beg;
         ptrdiff_t end;
 
-        template <class T>
-        void operator()(T&&) const {
+        template <class... T>
+        void operator()(T&&...) const {
             for(ptrdiff_t i = beg; i < end; ++i)
                 zptr[i] = a * xptr[i] + b * yptr[i];
         }
@@ -771,12 +767,10 @@ struct axpbypcz_impl<
 
                 z.safe_to_read[seg] = dataflow(hpx::launch::async,
                         process_abc{a, xptr, b, yptr, c, zptr, beg, end},
-                        hpx::when_all(
-                            x.safe_to_read[seg],
-                            y.safe_to_read[seg],
-                            z.safe_to_read[seg],
-                            z.safe_to_write[seg]
-                            )
+                        x.safe_to_read[seg],
+                        y.safe_to_read[seg],
+                        z.safe_to_read[seg],
+                        z.safe_to_write[seg]
                         );
             }
         } else {
@@ -787,11 +781,9 @@ struct axpbypcz_impl<
 
                 z.safe_to_read[seg] = dataflow(hpx::launch::async,
                         process_ab{a, xptr, b, yptr, zptr, beg, end},
-                        hpx::when_all(
-                            x.safe_to_read[seg],
-                            y.safe_to_read[seg],
-                            z.safe_to_write[seg]
-                            )
+                        x.safe_to_read[seg],
+                        y.safe_to_read[seg],
+                        z.safe_to_write[seg]
                         );
             }
         }
@@ -817,8 +809,8 @@ struct vmul_impl<
         ptrdiff_t beg;
         ptrdiff_t end;
 
-        template <class T>
-        void operator()(T&&) const {
+        template <class... T>
+        void operator()(T&&...) const {
             for(ptrdiff_t i = beg; i < end; ++i)
                 zptr[i] = a * xptr[i] * yptr[i] + b * zptr[i];
         }
@@ -833,8 +825,8 @@ struct vmul_impl<
         ptrdiff_t beg;
         ptrdiff_t end;
 
-        template <class T>
-        void operator()(T&&) const {
+        template <class... T>
+        void operator()(T&&...) const {
             for(ptrdiff_t i = beg; i < end; ++i)
                 zptr[i] = a * xptr[i] * yptr[i];
         }
@@ -856,12 +848,10 @@ struct vmul_impl<
 
                 z.safe_to_read[seg] = dataflow(hpx::launch::async,
                         process_ab{a, xptr, yptr, b, zptr, beg, end},
-                        hpx::when_all(
-                            x.safe_to_read[seg],
-                            y.safe_to_read[seg],
-                            z.safe_to_read[seg],
-                            z.safe_to_write[seg]
-                            )
+                        x.safe_to_read[seg],
+                        y.safe_to_read[seg],
+                        z.safe_to_read[seg],
+                        z.safe_to_write[seg]
                         );
             }
         } else {
@@ -872,11 +862,9 @@ struct vmul_impl<
 
                 z.safe_to_read[seg] = dataflow(hpx::launch::async,
                         process_a{a, xptr, yptr, zptr, beg, end},
-                        hpx::when_all(
-                            x.safe_to_read[seg],
-                            y.safe_to_read[seg],
-                            z.safe_to_write[seg]
-                            )
+                        x.safe_to_read[seg],
+                        y.safe_to_read[seg],
+                        z.safe_to_write[seg]
                         );
             }
         }
