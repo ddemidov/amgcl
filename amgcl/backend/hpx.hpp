@@ -161,7 +161,7 @@ struct HPX {
             real *fptr = rhs.vec->data();
             real *xptr = x.vec->data();
 
-            hpx::shared_future<void> solve = hpx::when_all(x.fut).then(
+            hpx::shared_future<void> solve = hpx::when_all(rhs.fut).then(
                     call_base{this, fptr, xptr});
 
             for(auto f = x.fut.begin(); f != x.fut.end(); ++f)
