@@ -136,7 +136,39 @@ struct HPX {
 
     typedef hpx_matrix<value_type>         matrix;
     typedef hpx_vector<value_type>         vector;
-    typedef solver::skyline_lu<value_type> direct_solver;
+
+    struct direct_solver : public solver::skyline_lu<value_type> {
+        typedef solver::skyline_lu<value_type> Base;
+        typedef typename Base::params params;
+
+        template <class Matrix>
+        direct_solver(const Matrix &A, const params &prm = params())
+            : Base(A, prm)
+        {}
+
+        struct call_base {
+            const Base *base;
+            real *fptr;
+            real *xptr;
+
+            template <class T>
+            void operator()(T&&) const {
+                (*base)(fptr, xptr);
+            }
+        };
+
+        void operator()(const vector &rhs, vector &x) const {
+            real *fptr = rhs.vec->data();
+            real *xptr = x.vec->data();
+
+            hpx::shared_future<void> solve = hpx::when_all(x.fut).then(
+                    call_base{this, fptr, xptr});
+
+            for(auto f = x.fut.begin(); f != x.fut.end(); ++f)
+                *f = solve;
+
+        }
+    };
 
     static std::string name() { return "HPX"; }
 

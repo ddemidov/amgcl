@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
         )
         (
          "grain,g",
-         boost::program_options::value<int>()->default_value(1024),
+         boost::program_options::value<int>()->default_value(4096),
          "grain size"
         )
         ;
