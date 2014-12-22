@@ -289,6 +289,11 @@ struct spmv_impl<
         }
     };
 
+    struct ignore {
+        template <class T>
+        void operator()(T&&) const {}
+    };
+
     static void apply(real alpha, const matrix &A, const vector &x,
             real beta, vector &y)
     {
@@ -331,6 +336,11 @@ struct spmv_impl<
                         );
             }
         }
+
+        // Do not update x until y is ready.
+        hpx::shared_future<void> wait_for_it = dataflow(hpx::launch::async,
+                ignore(), hpx::when_all(y.fut));
+        for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) x.fut[seg] = wait_for_it;
     }
 };
 
@@ -365,6 +375,11 @@ struct residual_impl<
         }
     };
 
+    struct ignore {
+        template <class T>
+        void operator()(T&&) const {}
+    };
+
     static void apply(const vector &f, const matrix &A, const vector &x,
             vector &r)
     {
@@ -391,6 +406,11 @@ struct residual_impl<
                         )
                     );
         }
+
+        // Do not update x until r is ready.
+        hpx::shared_future<void> wait_for_it = dataflow(hpx::launch::async,
+                ignore(), hpx::when_all(r.fut));
+        for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) x.fut[seg] = wait_for_it;
     }
 };
 
