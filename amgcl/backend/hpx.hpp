@@ -573,7 +573,7 @@ struct inner_product_impl<
     typedef hpx_vector<real> vector;
 
     struct process {
-        std::mutex &mx;
+        hpx::lcos::local::spinlock &mx;
         real &tot;
         real *xptr;
         real *yptr;
@@ -589,7 +589,7 @@ struct inner_product_impl<
                 sum += xptr[i] * yptr[i];
 
             {
-                std::unique_lock<std::mutex> lock(mx);
+                std::unique_lock<hpx::lcos::local::spinlock> lock(mx);
                 tot += sum;
             }
         }
@@ -597,7 +597,7 @@ struct inner_product_impl<
 
     static real get(const vector &x, const vector &y)
     {
-        std::mutex mx;
+        hpx::lcos::local::spinlock mx;
         real tot = 0;
 
         real *xptr = x.vec->data();
