@@ -52,6 +52,7 @@ int hpx_main(boost::program_options::variables_map &vm) {
     int    iters;
     double error;
     prof.tic("solve");
+    hpx::reset_active_counters();
     boost::tie(iters, error) = solve(*f, *x);
     prof.toc("solve");
     std::cout
