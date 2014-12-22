@@ -2,7 +2,7 @@
 #define AMGCL_BACKEND_HPX_HPP
 
 #include <vector>
-#include <atomic>
+#include <mutex>
 
 #include <hpx/hpx.hpp>
 #include <hpx/include/lcos.hpp>
@@ -505,8 +505,8 @@ struct inner_product_impl<
     typedef hpx_vector<real> vector;
 
     struct process {
-        std::atomic<real> &tot;
-
+        std::mutex &mx;
+        real &tot;
         real *xptr;
         real *yptr;
 
@@ -520,14 +520,17 @@ struct inner_product_impl<
             for(ptrdiff_t i = beg; i < end; ++i)
                 sum += xptr[i] * yptr[i];
 
-            double cur = tot;
-            while (tot.compare_exchange_weak(cur, cur + sum));
+            {
+                std::unique_lock<std::mutex> lock(mx);
+                tot += sum;
+            }
         }
     };
 
     static real get(const vector &x, const vector &y)
     {
-        std::atomic<real> tot{0};
+        std::mutex mx;
+        real tot = 0;
 
         real *xptr = x.vec->data();
         real *yptr = y.vec->data();
@@ -539,7 +542,7 @@ struct inner_product_impl<
             ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
 
             x.fut[seg] = dataflow(hpx::launch::async,
-                    process{tot, xptr, yptr, beg, end},
+                    process{mx, tot, xptr, yptr, beg, end},
                     hpx::when_all(x.fut[seg], y.fut[seg])
                     );
         }
