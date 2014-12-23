@@ -2,12 +2,14 @@
 #define AMGCL_BACKEND_HPX_HPP
 
 #include <vector>
-#include <mutex>
 
 #include <hpx/hpx.hpp>
 #include <hpx/include/lcos.hpp>
+#include <hpx/include/parallel_for_each.hpp>
+#include <hpx/include/parallel_transform_reduce.hpp>
 
 #include <boost/algorithm/minmax.hpp>
+#include <boost/range/irange.hpp>
 
 #include <amgcl/util.hpp>
 #include <amgcl/backend/builtin.hpp>
@@ -325,50 +327,62 @@ struct spmv_impl<
 
         using hpx::lcos::local::dataflow;
 
+        auto range = boost::irange(0, y.nseg);
+
         if (beta) {
             // y = alpha * A * x + beta * y
-            for(ptrdiff_t seg = 0; seg < y.nseg; ++seg) {
-                ptrdiff_t beg = seg * y.grain_size;
-                ptrdiff_t end = std::min<ptrdiff_t>(beg + y.grain_size, y.size());
+            hpx::parallel::for_each(
+                    hpx::parallel::par,
+                    boost::begin(range), boost::end(range),
+                    [alpha, &A, &x, beta, &y, xptr, yptr, Abase](ptrdiff_t seg) {
+                        ptrdiff_t beg = seg * y.grain_size;
+                        ptrdiff_t end = std::min<ptrdiff_t>(beg + y.grain_size, y.size());
 
-                y.safe_to_read[seg] = dataflow(
-                        hpx::launch::async,
-                        process_ab{alpha, Abase, xptr, beta, yptr, beg, end},
-                        y.safe_to_read[seg],
-                        y.safe_to_write[seg],
-                        hpx::when_all(
-                            x.safe_to_read.begin() + std::get<0>(A.xrange[seg]),
-                            x.safe_to_read.begin() + std::get<1>(A.xrange[seg])
-                            )
-                        );
-            }
+                        y.safe_to_read[seg] = dataflow(
+                                hpx::launch::async,
+                                process_ab{alpha, Abase, xptr, beta, yptr, beg, end},
+                                y.safe_to_read[seg],
+                                y.safe_to_write[seg],
+                                hpx::when_all(
+                                    x.safe_to_read.begin() + std::get<0>(A.xrange[seg]),
+                                    x.safe_to_read.begin() + std::get<1>(A.xrange[seg])
+                                    )
+                                );
+                    });
         } else {
             // y = alpha * A * x
-            for(ptrdiff_t seg = 0; seg < y.nseg; ++seg) {
-                ptrdiff_t beg = seg * y.grain_size;
-                ptrdiff_t end = std::min<ptrdiff_t>(beg + y.grain_size, y.size());
+            hpx::parallel::for_each(
+                    hpx::parallel::par,
+                    boost::begin(range), boost::end(range),
+                    [alpha, &A, &x, &y, xptr, yptr, Abase](ptrdiff_t seg) {
+                        ptrdiff_t beg = seg * y.grain_size;
+                        ptrdiff_t end = std::min<ptrdiff_t>(beg + y.grain_size, y.size());
 
-                y.safe_to_read[seg] = dataflow(hpx::launch::async,
-                        process_a{alpha, Abase, xptr, yptr, beg, end},
-                        y.safe_to_write[seg],
-                        hpx::when_all(
-                            x.safe_to_read.begin() + std::get<0>(A.xrange[seg]),
-                            x.safe_to_read.begin() + std::get<1>(A.xrange[seg])
-                            )
-                        );
-            }
+                        y.safe_to_read[seg] = dataflow(hpx::launch::async,
+                                process_a{alpha, Abase, xptr, yptr, beg, end},
+                                y.safe_to_write[seg],
+                                hpx::when_all(
+                                    x.safe_to_read.begin() + std::get<0>(A.xrange[seg]),
+                                    x.safe_to_read.begin() + std::get<1>(A.xrange[seg])
+                                    )
+                                );
+                    });
         }
 
         // Do not update x until y is ready.
-        for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) {
-            x.safe_to_write[seg] = dataflow(hpx::launch::async,
-                    wait_for_it(),
-                    hpx::when_all(
-                        y.safe_to_read.begin() + std::get<0>(A.yrange[seg]),
-                        y.safe_to_read.begin() + std::get<1>(A.yrange[seg])
-                        )
-                    );
-        }
+        range = boost::irange(0, x.nseg);
+        hpx::parallel::for_each(
+                hpx::parallel::par,
+                boost::begin(range), boost::end(range),
+                [&A, &x, &y](ptrdiff_t seg) {
+                    x.safe_to_write[seg] = dataflow(hpx::launch::async,
+                            wait_for_it(),
+                            hpx::when_all(
+                                y.safe_to_read.begin() + std::get<0>(A.yrange[seg]),
+                                y.safe_to_read.begin() + std::get<1>(A.yrange[seg])
+                                )
+                            );
+                });
     }
 };
 
@@ -419,31 +433,39 @@ struct residual_impl<
 
         using hpx::lcos::local::dataflow;
 
-        for(ptrdiff_t seg = 0; seg < f.nseg; ++seg) {
-            ptrdiff_t beg = seg * f.grain_size;
-            ptrdiff_t end = std::min<ptrdiff_t>(beg + f.grain_size, f.size());
+        auto range = boost::irange(0, f.nseg);
+        hpx::parallel::for_each(
+                hpx::parallel::par,
+                boost::begin(range), boost::end(range),
+                [&f, &A, &x, &r, xptr, fptr, rptr, Abase](ptrdiff_t seg) {
+                    ptrdiff_t beg = seg * f.grain_size;
+                    ptrdiff_t end = std::min<ptrdiff_t>(beg + f.grain_size, f.size());
 
-            r.safe_to_read[seg] = dataflow(hpx::launch::async,
-                    process{fptr, Abase, xptr, rptr, beg, end},
-                    f.safe_to_read[seg],
-                    r.safe_to_write[seg],
-                    hpx::when_all(
-                        x.safe_to_read.begin() + std::get<0>(A.xrange[seg]),
-                        x.safe_to_read.begin() + std::get<1>(A.xrange[seg])
-                        )
-                    );
-        }
+                    r.safe_to_read[seg] = dataflow(hpx::launch::async,
+                            process{fptr, Abase, xptr, rptr, beg, end},
+                            f.safe_to_read[seg],
+                            r.safe_to_write[seg],
+                            hpx::when_all(
+                                x.safe_to_read.begin() + std::get<0>(A.xrange[seg]),
+                                x.safe_to_read.begin() + std::get<1>(A.xrange[seg])
+                                )
+                            );
+                });
 
         // Do not update x until r is ready.
-        for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) {
-            x.safe_to_write[seg] = dataflow(hpx::launch::async,
-                    wait_for_it(),
-                    hpx::when_all(
-                        r.safe_to_read.begin() + std::get<0>(A.yrange[seg]),
-                        r.safe_to_read.begin() + std::get<1>(A.yrange[seg])
-                        )
-                    );
-        }
+        range = boost::irange(0, x.nseg);
+        hpx::parallel::for_each(
+                hpx::parallel::par,
+                boost::begin(range), boost::end(range),
+                [&A, &x, &r](ptrdiff_t seg) {
+                    x.safe_to_write[seg] = dataflow(hpx::launch::async,
+                            wait_for_it(),
+                            hpx::when_all(
+                                r.safe_to_read.begin() + std::get<0>(A.yrange[seg]),
+                                r.safe_to_read.begin() + std::get<1>(A.yrange[seg])
+                                )
+                            );
+                });
     }
 };
 
@@ -472,15 +494,19 @@ struct clear_impl<
 
         using hpx::lcos::local::dataflow;
 
-        for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) {
-            ptrdiff_t beg = seg * x.grain_size;
-            ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
+        auto range = boost::irange(0, x.nseg);
+        hpx::parallel::for_each(
+                hpx::parallel::par,
+                boost::begin(range), boost::end(range),
+                [&x, xptr](ptrdiff_t seg) {
+                    ptrdiff_t beg = seg * x.grain_size;
+                    ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
 
-            x.safe_to_read[seg] = dataflow(hpx::launch::async,
-                    process{xptr, beg, end},
-                    x.safe_to_write[seg]
-                    );
-        }
+                    x.safe_to_read[seg] = dataflow(hpx::launch::async,
+                            process{xptr, beg, end},
+                            x.safe_to_write[seg]
+                            );
+                });
     }
 };
 
@@ -513,16 +539,20 @@ struct copy_impl<
 
         using hpx::lcos::local::dataflow;
 
-        for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) {
-            ptrdiff_t beg = seg * x.grain_size;
-            ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
+        auto range = boost::irange(0, x.nseg);
+        hpx::parallel::for_each(
+                hpx::parallel::par,
+                boost::begin(range), boost::end(range),
+                [&x, &y, xptr, yptr](ptrdiff_t seg) {
+                    ptrdiff_t beg = seg * x.grain_size;
+                    ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
 
-            y.safe_to_read[seg] = dataflow(hpx::launch::async,
-                    process{xptr, yptr, beg, end},
-                    x.safe_to_read[seg],
-                    y.safe_to_write[seg]
-                    );
-        }
+                    y.safe_to_read[seg] = dataflow(hpx::launch::async,
+                            process{xptr, yptr, beg, end},
+                            x.safe_to_read[seg],
+                            y.safe_to_write[seg]
+                            );
+                });
     }
 };
 
@@ -554,15 +584,19 @@ struct copy_to_backend_impl<
 
         using hpx::lcos::local::dataflow;
 
-        for(ptrdiff_t seg = 0; seg < y.nseg; ++seg) {
-            ptrdiff_t beg = seg * y.grain_size;
-            ptrdiff_t end = std::min<ptrdiff_t>(beg + y.grain_size, y.size());
+        auto range = boost::irange(0, y.nseg);
+        hpx::parallel::for_each(
+                hpx::parallel::par,
+                boost::begin(range), boost::end(range),
+                [&y, xptr, yptr](ptrdiff_t seg) {
+                    ptrdiff_t beg = seg * y.grain_size;
+                    ptrdiff_t end = std::min<ptrdiff_t>(beg + y.grain_size, y.size());
 
-            y.safe_to_read[seg] = dataflow(hpx::launch::async,
-                    process{xptr, yptr, beg, end},
-                    y.safe_to_write[seg]
-                    );
-        }
+                    y.safe_to_read[seg] = dataflow(hpx::launch::async,
+                            process{xptr, yptr, beg, end},
+                            y.safe_to_write[seg]
+                            );
+                });
     }
 };
 
@@ -575,8 +609,6 @@ struct inner_product_impl<
     typedef hpx_vector<real> vector;
 
     struct process {
-        hpx::lcos::local::spinlock &mx;
-        real &tot;
         real *xptr;
         real *yptr;
 
@@ -584,45 +616,38 @@ struct inner_product_impl<
         ptrdiff_t end;
 
         template <class... T>
-        void operator()(T&&...) const {
+        double operator()(T&&...) const {
             real sum = 0;
 
             for(ptrdiff_t i = beg; i < end; ++i)
                 sum += xptr[i] * yptr[i];
 
-            {
-                std::unique_lock<hpx::lcos::local::spinlock> lock(mx);
-                tot += sum;
-            }
+            return sum;
         }
     };
 
     static real get(const vector &x, const vector &y)
     {
-        hpx::lcos::local::spinlock mx;
-        real tot = 0;
-
         real *xptr = x.vec->data();
         real *yptr = y.vec->data();
 
         using hpx::lcos::local::dataflow;
 
-        for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) {
-            ptrdiff_t beg = seg * x.grain_size;
-            ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
+        auto range = boost::irange(0, x.nseg);
+        return hpx::parallel::transform_reduce(
+                hpx::parallel::par,
+                boost::begin(range), boost::end(range), static_cast<real>(0),
+                std::plus<real>(),
+                [&x, &y, xptr, yptr](ptrdiff_t seg) {
+                    ptrdiff_t beg = seg * x.grain_size;
+                    ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
 
-            // Abusing x.safe_to_write here,
-            // but its ok since we will wait on it later anyway.
-            x.safe_to_write[seg] = dataflow(hpx::launch::async,
-                    process{mx, tot, xptr, yptr, beg, end},
-                    x.safe_to_read[seg],
-                    y.safe_to_read[seg]
-                    );
-        }
-
-        hpx::wait_all(x.safe_to_write);
-
-        return tot;
+                    return dataflow(hpx::launch::async,
+                            process{xptr, yptr, beg, end},
+                            x.safe_to_read[seg],
+                            y.safe_to_read[seg]
+                            ).get();
+                });
     }
 };
 
@@ -674,31 +699,38 @@ struct axpby_impl<
 
         using hpx::lcos::local::dataflow;
 
+        auto range = boost::irange(0, x.nseg);
         if (b) {
             // y = a * x + b * y;
-            for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) {
-                ptrdiff_t beg = seg * x.grain_size;
-                ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
+            hpx::parallel::for_each(
+                    hpx::parallel::par,
+                    boost::begin(range), boost::end(range),
+                    [a, &x, b, &y, xptr, yptr](ptrdiff_t seg) {
+                        ptrdiff_t beg = seg * x.grain_size;
+                        ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
 
-                y.safe_to_read[seg] = dataflow(hpx::launch::async,
-                        process_ab{a, xptr, b, yptr, beg, end},
-                        x.safe_to_read[seg],
-                        y.safe_to_read[seg],
-                        y.safe_to_write[seg]
-                        );
-            }
+                        y.safe_to_read[seg] = dataflow(hpx::launch::async,
+                                process_ab{a, xptr, b, yptr, beg, end},
+                                x.safe_to_read[seg],
+                                y.safe_to_read[seg],
+                                y.safe_to_write[seg]
+                                );
+                    });
         } else {
             // y = a * x;
-            for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) {
-                ptrdiff_t beg = seg * x.grain_size;
-                ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
+            hpx::parallel::for_each(
+                    hpx::parallel::par,
+                    boost::begin(range), boost::end(range),
+                    [a, &x, &y, xptr, yptr](ptrdiff_t seg) {
+                        ptrdiff_t beg = seg * x.grain_size;
+                        ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
 
-                y.safe_to_read[seg] = dataflow(hpx::launch::async,
-                        process_a{a, xptr, yptr, beg, end},
-                        x.safe_to_read[seg],
-                        y.safe_to_write[seg]
-                        );
-            }
+                        y.safe_to_read[seg] = dataflow(hpx::launch::async,
+                                process_a{a, xptr, yptr, beg, end},
+                                x.safe_to_read[seg],
+                                y.safe_to_write[seg]
+                                );
+                    });
         }
     }
 };
@@ -759,33 +791,40 @@ struct axpbypcz_impl<
 
         using hpx::lcos::local::dataflow;
 
+        auto range = boost::irange(0, x.nseg);
         if (c) {
             //z = a * x + b * y + c * z;
-            for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) {
-                ptrdiff_t beg = seg * x.grain_size;
-                ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
+            hpx::parallel::for_each(
+                    hpx::parallel::par,
+                    boost::begin(range), boost::end(range),
+                    [a, &x, b, &y, c, &z, xptr, yptr, zptr](ptrdiff_t seg) {
+                        ptrdiff_t beg = seg * x.grain_size;
+                        ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
 
-                z.safe_to_read[seg] = dataflow(hpx::launch::async,
-                        process_abc{a, xptr, b, yptr, c, zptr, beg, end},
-                        x.safe_to_read[seg],
-                        y.safe_to_read[seg],
-                        z.safe_to_read[seg],
-                        z.safe_to_write[seg]
-                        );
-            }
+                        z.safe_to_read[seg] = dataflow(hpx::launch::async,
+                                process_abc{a, xptr, b, yptr, c, zptr, beg, end},
+                                x.safe_to_read[seg],
+                                y.safe_to_read[seg],
+                                z.safe_to_read[seg],
+                                z.safe_to_write[seg]
+                                );
+                    });
         } else {
             //z = a * x + b * y;
-            for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) {
-                ptrdiff_t beg = seg * x.grain_size;
-                ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
+            hpx::parallel::for_each(
+                    hpx::parallel::par,
+                    boost::begin(range), boost::end(range),
+                    [a, &x, b, &y, &z, xptr, yptr, zptr](ptrdiff_t seg) {
+                        ptrdiff_t beg = seg * x.grain_size;
+                        ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
 
-                z.safe_to_read[seg] = dataflow(hpx::launch::async,
-                        process_ab{a, xptr, b, yptr, zptr, beg, end},
-                        x.safe_to_read[seg],
-                        y.safe_to_read[seg],
-                        z.safe_to_write[seg]
-                        );
-            }
+                        z.safe_to_read[seg] = dataflow(hpx::launch::async,
+                                process_ab{a, xptr, b, yptr, zptr, beg, end},
+                                x.safe_to_read[seg],
+                                y.safe_to_read[seg],
+                                z.safe_to_write[seg]
+                                );
+                    });
         }
     }
 };
@@ -840,33 +879,40 @@ struct vmul_impl<
 
         using hpx::lcos::local::dataflow;
 
+        auto range = boost::irange(0, x.nseg);
         if (b) {
             //z = a * x * y + b * z;
-            for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) {
-                ptrdiff_t beg = seg * x.grain_size;
-                ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
+            hpx::parallel::for_each(
+                    hpx::parallel::par,
+                    boost::begin(range), boost::end(range),
+                    [a, &x, &y, b, &z, xptr, yptr, zptr](ptrdiff_t seg) {
+                        ptrdiff_t beg = seg * x.grain_size;
+                        ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
 
-                z.safe_to_read[seg] = dataflow(hpx::launch::async,
-                        process_ab{a, xptr, yptr, b, zptr, beg, end},
-                        x.safe_to_read[seg],
-                        y.safe_to_read[seg],
-                        z.safe_to_read[seg],
-                        z.safe_to_write[seg]
-                        );
-            }
+                        z.safe_to_read[seg] = dataflow(hpx::launch::async,
+                                process_ab{a, xptr, yptr, b, zptr, beg, end},
+                                x.safe_to_read[seg],
+                                y.safe_to_read[seg],
+                                z.safe_to_read[seg],
+                                z.safe_to_write[seg]
+                                );
+                    });
         } else {
             //z = a * x * y;
-            for(ptrdiff_t seg = 0; seg < x.nseg; ++seg) {
-                ptrdiff_t beg = seg * x.grain_size;
-                ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
+            hpx::parallel::for_each(
+                    hpx::parallel::par,
+                    boost::begin(range), boost::end(range),
+                    [a, &x, &y, &z, xptr, yptr, zptr](ptrdiff_t seg) {
+                        ptrdiff_t beg = seg * x.grain_size;
+                        ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
 
-                z.safe_to_read[seg] = dataflow(hpx::launch::async,
-                        process_a{a, xptr, yptr, zptr, beg, end},
-                        x.safe_to_read[seg],
-                        y.safe_to_read[seg],
-                        z.safe_to_write[seg]
-                        );
-            }
+                        z.safe_to_read[seg] = dataflow(hpx::launch::async,
+                                process_a{a, xptr, yptr, zptr, beg, end},
+                                x.safe_to_read[seg],
+                                y.safe_to_read[seg],
+                                z.safe_to_write[seg]
+                                );
+                    });
         }
     }
 };
