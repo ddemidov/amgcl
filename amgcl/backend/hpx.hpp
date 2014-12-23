@@ -76,27 +76,33 @@ class hpx_matrix {
             index_type nseg = (n + grain_size - 1) / grain_size;
             index_type mseg = (m + grain_size - 1) / grain_size;
 
-            xrange.reserve(nseg);
+            xrange.resize(nseg);
             yrange.resize(mseg, std::make_tuple(m, 0));
 
-            for(index_type seg = 0, i = 0; seg < nseg; ++seg, i += grain_size) {
-                index_type beg = A->ptr[i];
-                index_type end = A->ptr[std::min<index_type>(i + grain_size, n)];
+            auto range = boost::irange<index_type>(0, nseg);
 
-                auto mm = std::minmax_element(
-                        base->col.begin() + beg, A->col.begin() + end
-                        );
+            hpx::parallel::for_each(
+                    hpx::parallel::par,
+                    boost::begin(range), boost::end(range),
+                    [this, grain_size, n](index_type seg) {
+                        index_type i = seg * grain_size;
+                        index_type beg = base->ptr[i];
+                        index_type end = base->ptr[std::min<index_type>(i + grain_size, n)];
 
-                index_type xbeg = *std::get<0>(mm) / grain_size;
-                index_type xend = *std::get<1>(mm) / grain_size + 1;
+                        auto mm = std::minmax_element(
+                                base->col.begin() + beg, base->col.begin() + end
+                                );
 
-                xrange.push_back( std::make_tuple( xbeg, xend ) );
+                        index_type xbeg = *std::get<0>(mm) / grain_size;
+                        index_type xend = *std::get<1>(mm) / grain_size + 1;
 
-                for(index_type i = xbeg; i < xend; ++i) {
-                    std::get<0>(yrange[i]) = std::min(seg,   std::get<0>(yrange[i]));
-                    std::get<1>(yrange[i]) = std::max(seg+1, std::get<1>(yrange[i]));
-                }
-            }
+                        xrange[seg] = std::make_tuple(xbeg, xend);
+
+                        for(index_type i = xbeg; i < xend; ++i) {
+                            std::get<0>(yrange[i]) = std::min(seg,   std::get<0>(yrange[i]));
+                            std::get<1>(yrange[i]) = std::max(seg+1, std::get<1>(yrange[i]));
+                        }
+                    });
         }
 
         size_t rows()     const { return backend::rows(*base);     }
