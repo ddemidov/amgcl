@@ -32,6 +32,13 @@ if (EIGEN_INCLUDE)
     target_link_libraries(solve_mm ${Boost_LIBRARIES})
 endif()
 
+if (HPX_FOUND)
+    add_hpx_executable(hpx
+        ESSENTIAL
+        SOURCES hpx.cpp
+        )
+endif()
+
 if (VEXCL_ROOT)
     add_executable(vexcl vexcl.cpp)
     target_link_libraries(vexcl ${Boost_LIBRARIES} ${VEXCL_BACKEND_LIBRARIES})
