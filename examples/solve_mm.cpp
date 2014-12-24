@@ -126,12 +126,16 @@ int main(int argc, char *argv[]) {
     boost::tie(iters, resid) = solve(f, x);
     prof.toc("solve");
 
+    // Check the real error
+    double error = (rhs - A * Eigen::Map<EigenVector>(x.data(), x.size())).norm() / rhs.norm();
+
     prof.tic("write");
     Eigen::saveMarketVector(Eigen::Map<EigenVector>(x.data(), x.size()), out_file);
     prof.toc("write");
 
-    std::cout << "Iterations: " << iters << std::endl
-              << "Error:      " << resid << std::endl
-              << std::endl      << prof  << std::endl;
-
+    std::cout << "Iterations:     " << iters << std::endl
+              << "Reported Error: " << resid << std::endl
+              << "Real error:     " << error << std::endl
+              << prof                        << std::endl
+              ;
 }
