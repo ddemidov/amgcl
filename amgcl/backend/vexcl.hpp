@@ -42,27 +42,6 @@ THE SOFTWARE.
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/backend/detail/default_direct_solver.hpp>
 
-namespace std {
-
-// These two specifications are required to store vexcl context
-// inside boost::property_tree::ptree
-inline istream& operator>>(istream &is, vector<vex::backend::command_queue>* &ptr)
-{
-    size_t val;
-    is >> val;
-
-    ptr = reinterpret_cast<vector<vex::backend::command_queue>*>(val);
-
-    return is;
-}
-
-inline ostream& operator<<(ostream &os, const vector<vex::backend::command_queue> *ptr)
-{
-    return os << reinterpret_cast<size_t>(ptr);
-}
-
-} // namespace std
-
 namespace amgcl {
 namespace backend {
 

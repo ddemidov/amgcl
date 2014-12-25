@@ -33,6 +33,7 @@ THE SOFTWARE.
 
 #include <limits>
 #include <stdexcept>
+#include <boost/io/ios_state.hpp>
 #include <boost/property_tree/ptree.hpp>
 
 /* Performance measurement macros
@@ -91,6 +92,24 @@ void precondition(const Condition &condition, const Message &message) {
 }
 
 } // namespace amgcl
+
+namespace std {
+
+// Read pointers from input streams.
+// This allows to exchange pointers through boost::property_tree::ptree.
+template <class T>
+inline istream& operator>>(istream &is, T* &ptr) {
+    boost::io::ios_all_saver stream_state(is);
+
+    size_t val;
+    is >> std::hex >> val;
+
+    ptr = reinterpret_cast<T*>(val);
+
+    return is;
+}
+
+} // namespace std
 
 
 #endif
