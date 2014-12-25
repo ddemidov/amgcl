@@ -46,6 +46,156 @@ THE SOFTWARE.
 
 namespace amgcl {
 namespace coarsening {
+namespace detail {
+
+template <class Base>
+struct sa_emin_filtered_matrix {
+    typedef typename backend::value_type<Base>::type value_type;
+
+    typedef value_type val_type;
+    typedef ptrdiff_t  col_type;
+    typedef ptrdiff_t  ptr_type;
+
+    const Base &base;
+    const std::vector<char> &strong;
+    std::vector<val_type> dia;
+
+    class row_iterator {
+        public:
+            row_iterator(
+                    const col_type * col,
+                    const col_type * end,
+                    const val_type * val,
+                    const char     * str,
+                    col_type row,
+                    val_type dia
+                    )
+                : m_col(col), m_end(end), m_val(val), m_str(str),
+                  m_row(row), m_dia(dia)
+            {}
+
+            operator bool() const {
+                return m_col < m_end;
+            }
+
+            row_iterator& operator++() {
+                do {
+                    ++m_col;
+                    ++m_val;
+                    ++m_str;
+                } while(m_col < m_end && m_col[0] != m_row && !m_str[0]);
+
+                return *this;
+            }
+
+            col_type col() const {
+                return *m_col;
+            }
+
+            val_type value() const {
+                if (m_col[0] == m_row)
+                    return m_dia;
+                else
+                    return m_val[0];
+            }
+
+        private:
+            const col_type * m_col;
+            const col_type * m_end;
+            const val_type * m_val;
+            const char     * m_str;
+
+            col_type m_row;
+            val_type m_dia;
+    };
+
+    sa_emin_filtered_matrix(
+            const Base &base,
+            const std::vector<char> &strong
+            ) : base(base), strong(strong), dia( backend::rows(base) )
+    {
+        const size_t n = backend::rows(base);
+#pragma omp parallel for
+        for(ptrdiff_t i = 0; i < ptrdiff_t(n); ++i) {
+            value_type D = 0;
+            for(ptrdiff_t j = base.ptr[i], e = base.ptr[i + 1]; j < e; ++j) {
+                ptrdiff_t  c = base.col[j];
+                value_type v = base.val[j];
+
+                if (c == i)
+                    D += v;
+                else if (!strong[j])
+                    D -= v;
+            }
+
+            dia[i] = D;
+        }
+    }
+
+    size_t rows() const {
+        return backend::rows(base);
+    }
+
+    size_t cols() const {
+        return backend::cols(base);
+    }
+
+    row_iterator row_begin(size_t row) const {
+        ptr_type b = base.ptr[row];
+        ptr_type e = base.ptr[row + 1];
+
+        const col_type *col = &base.col[b];
+        const col_type *end = &base.col[e];
+        const val_type *val = &base.val[b];
+        const char     *str = &strong[b];
+
+        return row_iterator(col, end, val, str, row, dia[row]);
+    }
+};
+
+} // namespace detail
+} // namespace coarsening
+
+namespace backend {
+
+template <class Base>
+struct rows_impl< coarsening::detail::sa_emin_filtered_matrix<Base> > {
+    typedef coarsening::detail::sa_emin_filtered_matrix<Base> Matrix;
+
+    static size_t get(const Matrix &A) {
+        return A.rows();
+    }
+};
+
+template <class Base>
+struct cols_impl< coarsening::detail::sa_emin_filtered_matrix<Base> > {
+    typedef coarsening::detail::sa_emin_filtered_matrix<Base> Matrix;
+
+    static size_t get(const Matrix &A) {
+        return A.cols();
+    }
+};
+
+template <class Base>
+struct row_iterator< coarsening::detail::sa_emin_filtered_matrix<Base> > {
+    typedef
+        typename coarsening::detail::sa_emin_filtered_matrix<Base>::row_iterator
+        type;
+};
+
+template <class Base>
+struct row_begin_impl< coarsening::detail::sa_emin_filtered_matrix<Base> > {
+    typedef coarsening::detail::sa_emin_filtered_matrix<Base> Matrix;
+
+    static typename row_iterator<Matrix>::type
+    get(const Matrix &matrix, size_t row) {
+        return matrix.row_begin(row);
+    }
+};
+
+} // namespace backend
+
+namespace coarsening {
 
 /// Smoothed aggregation with energy minimization.
 /**
@@ -60,10 +210,14 @@ struct smoothed_aggr_emin {
         /// Aggregation parameters.
         typename Aggregates::params aggr;
 
+        /// Near nullspace parameters.
+        nullspace_params nullspace;
+
         params() {}
 
         params(const boost::property_tree::ptree &p)
-            : AMGCL_PARAMS_IMPORT_CHILD(p, aggr)
+            : AMGCL_PARAMS_IMPORT_CHILD(p, aggr),
+              AMGCL_PARAMS_IMPORT_CHILD(p, nullspace)
         {}
     };
 
@@ -76,7 +230,6 @@ struct smoothed_aggr_emin {
     transfer_operators(const Matrix &A, params &prm)
     {
         typedef typename backend::value_type<Matrix>::type Val;
-        const size_t n = rows(A);
 
         TIC("aggregates");
         Aggregates aggr(A, prm.aggr);
@@ -84,11 +237,15 @@ struct smoothed_aggr_emin {
         TOC("aggregates");
 
         TIC("interpolation");
-        std::vector<Val> D(n);
-        std::vector<Val> omega(n);
+        boost::shared_ptr<Matrix> P_tent = tentative_prolongation<Matrix>(
+                rows(A), aggr.count, aggr.id, prm.nullspace
+                );
 
-        boost::shared_ptr<Matrix> P = interpolation(A, aggr, D, omega);
-        boost::shared_ptr<Matrix> R = restriction  (A, aggr, D, omega);
+        std::vector<Val> omega;
+        detail::sa_emin_filtered_matrix<Matrix> Af(A, aggr.strong_connection);
+
+        boost::shared_ptr<Matrix> P = interpolation(Af, *P_tent, omega);
+        boost::shared_ptr<Matrix> R = restriction  (Af, *P_tent, omega);
         TOC("interpolation");
 
         return boost::make_tuple(P, R);
@@ -107,24 +264,27 @@ struct smoothed_aggr_emin {
     }
 
     private:
-        template <typename Val, typename Col, typename Ptr>
+        template <class AMatrix, typename Val, typename Col, typename Ptr>
         static boost::shared_ptr< backend::crs<Val, Col, Ptr> >
         interpolation(
-                const backend::crs<Val, Col, Ptr> &A, const Aggregates &aggr,
-                std::vector<Val> &D, std::vector<Val> &omega
+                const AMatrix &A,
+                const backend::crs<Val, Col, Ptr> &P_tent,
+                std::vector<Val> &omega
                 )
         {
-            typedef backend::crs<Val, Col, Ptr> matrix;
-            const size_t n  = rows(A);
-            const size_t nc = aggr.count;
+            typedef backend::crs<Val, Col, Ptr> PMatrix;
 
-            boost::shared_ptr<matrix> P = boost::make_shared<matrix>();
-            P->nrows = n;
-            P->ncols = nc;
-            P->ptr.resize(n + 1, 0);
+            typedef typename PMatrix::row_iterator Piterator;
+            typedef typename AMatrix::row_iterator Aiterator;
 
+            const size_t n  = rows(P_tent);
+            const size_t nc = cols(P_tent);
 
-            std::vector<Val> omega_p(nc, 0);
+            boost::shared_ptr<PMatrix> AP = boost::make_shared<PMatrix>();
+
+            *AP = product(A, P_tent, /*sort rows: */true);
+
+            omega.resize(nc, Val(0));
             std::vector<Val> denum(nc, 0);
 
 #pragma omp parallel
@@ -143,112 +303,31 @@ struct smoothed_aggr_emin {
 
                 std::vector<ptrdiff_t> marker(nc, -1);
 
-                // Compute A * P_tent product. P_tent is stored implicitly in aggr.
-
-                // 1. Compute structure of the product result.
-                // 2. Store diagonal of filtered matrix.
-                for(size_t i = chunk_start; i < chunk_end; ++i) {
-                    Val dia = 0;
-
-                    for(Ptr j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
-                        Col c = A.col[j];
-                        Val v = A.val[j];
-
-                        if (static_cast<size_t>(c) == i)
-                            dia += v;
-                        else if (!aggr.strong_connection[j])
-                            dia -= v;
-
-                        if (static_cast<size_t>(c) != i && !aggr.strong_connection[j])
-                            continue;
-
-                        ptrdiff_t g = aggr.id[c]; if (g < 0) continue;
-
-                        if (static_cast<size_t>(marker[g]) != i) {
-                            marker[g] = i;
-                            ++( P->ptr[i + 1] );
-                        }
-                    }
-
-                    D[i] = dia;
-                }
-
-                boost::fill(marker, -1);
-
-#pragma omp barrier
-#pragma omp single
-                {
-                    boost::partial_sum(P->ptr, P->ptr.begin());
-                    P->col.resize(P->ptr.back());
-                    P->val.resize(P->ptr.back());
-                }
-
-                // 2. Compute the product result.
-                for(size_t i = chunk_start; i < chunk_end; ++i) {
-                    Ptr row_beg = P->ptr[i];
-                    Ptr row_end = row_beg;
-
-                    for(Ptr j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
-                        Col c = A.col[j];
-
-                        if (static_cast<size_t>(c) != i && !aggr.strong_connection[j])
-                            continue;
-
-                        ptrdiff_t g = aggr.id[c]; if (g < 0) continue;
-
-                        Val v = (static_cast<size_t>(c) == i ? D[i] : A.val[j]);
-
-                        if (marker[g] < row_beg) {
-                            marker[g] = row_end;
-                            P->col[row_end] = g;
-                            P->val[row_end] = v;
-                            ++row_end;
-                        } else {
-                            P->val[marker[g]] += v;
-                        }
-                    }
-
-                    // Sort the new row by columns.
-                    amgcl::detail::sort_row(
-                            &P->col[row_beg],
-                            &P->val[row_beg],
-                            row_end - row_beg
-                            );
-                }
-
-                boost::fill(marker, -1);
+                // Compute A * Dinv * AP row by row and compute columnwise
+                // scalar products necessary for computation of omega. The
+                // actual results of matrix-matrix product are not stored.
                 std::vector<Col> adap_col(128);
                 std::vector<Val> adap_val(128);
 
-#pragma omp barrier
-
-                // Compute A * Dinv * AP row by row and compute columnwise scalar products
-                // necessary for computation of omega_p. The actual results of
-                // matrix-matrix product are not stored.
                 for(size_t ia = chunk_start; ia < chunk_end; ++ia) {
                     adap_col.clear();
                     adap_val.clear();
 
                     // Form current row of ADAP matrix.
-                    for(Ptr ja = A.ptr[ia], ea = A.ptr[ia + 1]; ja < ea; ++ja) {
-                        Col ca = A.col[ja];
+                    for(Aiterator a = A.row_begin(ia); a; ++a) {
+                        Col ca  = a.col();
+                        Val va  = a.value() / A.dia[ca];
 
-                        if (static_cast<size_t>(ca) != ia && !aggr.strong_connection[ja])
-                            continue;
+                        for(Piterator p = AP->row_begin(ca); p; ++p) {
+                            Col c = p.col();
+                            Val v = va * p.value();
 
-                        Val dia = D[ca];
-                        Val va  = (static_cast<size_t>(ca) == ia ? dia : A.val[ja]);
-
-                        for(Ptr jb = P->ptr[ca], eb = P->ptr[ca + 1]; jb < eb; ++jb) {
-                            Col cb = P->col[jb];
-                            Val vb = P->val[jb] / dia;
-
-                            if (marker[cb] < 0) {
-                                marker[cb] = adap_col.size();
-                                adap_col.push_back(cb);
-                                adap_val.push_back(va * vb);
+                            if (marker[c] < 0) {
+                                marker[c] = adap_col.size();
+                                adap_col.push_back(c);
+                                adap_val.push_back(v);
                             } else {
-                                adap_val[marker[cb]] += va * vb;
+                                adap_val[marker[c]] += v;
                             }
                         }
                     }
@@ -260,12 +339,12 @@ struct smoothed_aggr_emin {
                     // Update columnwise scalar products (AP,ADAP) and (ADAP,ADAP).
                     // 1. (AP, ADAP)
                     for(
-                            Ptr ja = P->ptr[ia], ea = P->ptr[ia + 1],
+                            Ptr ja = AP->ptr[ia], ea = AP->ptr[ia + 1],
                             jb = 0, eb = adap_col.size();
                             ja < ea && jb < eb;
                        )
                     {
-                        Col ca = P->col[ja];
+                        Col ca = AP->col[ja];
                         Col cb = adap_col[jb];
 
                         if (ca < cb)
@@ -274,7 +353,7 @@ struct smoothed_aggr_emin {
                             ++jb;
                         else /*ca == cb*/ {
 #pragma omp atomic
-                            omega_p[ca] += P->val[ja] * adap_val[jb];
+                            omega[ca] += AP->val[ja] * adap_val[jb];
                             ++ja;
                             ++jb;
                         }
@@ -291,148 +370,98 @@ struct smoothed_aggr_emin {
                 }
             }
 
-            boost::transform(omega_p, denum, omega_p.begin(), std::divides<Val>());
+            boost::transform(omega, denum, omega.begin(), std::divides<Val>());
 
-            // Convert omega from (4.13) to (4.14) \cite Sala2008:
+            // Update AP to obtain P: P = (P_tent - D^-1 A P Omega)
+            /*
+             * Here we use the fact that if P(i,j) != 0,
+             * then with necessity AP(i,j) != 0:
+             *
+             * AP(i,j) = sum_k(A_ik P_kj), and A_ii != 0.
+             */
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-                Val w = -1;
+                Val dia = 1 / A.dia[i];
 
-                for(Ptr j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
-                    Col c = A.col[j];
-                    if (c != i && !aggr.strong_connection[j])
-                        continue;
+                for(Ptr ja = AP->ptr[i],    ea = AP->ptr[i+1],
+                        jp = P_tent.ptr[i], ep = P_tent.ptr[i+1];
+                        ja < ea; ++ja
+                   )
+                {
+                    Col ca = AP->col[ja];
+                    Val va = -dia * AP->val[ja] * omega[ca];
 
-                    ptrdiff_t g = aggr.id[c]; if (g < 0) continue;
-                    if (omega_p[g] < w || w < 0) w = omega_p[g];
+                    for(; jp < ep; ++jp) {
+                        Col cp = P_tent.col[jp];
+                        if (cp > ca)
+                            break;
+
+                        if (cp == ca) {
+                            va += P_tent.val[jp];
+                            break;
+                        }
+                    }
+
+                    AP->val[ja] = va;
                 }
-
-                omega[i] = std::max(w, static_cast<Val>(0));
             }
 
-            // Update AP to obtain P.
-#pragma omp parallel for
-            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-                Val wd = omega[i] / D[i];
-
-                for(Ptr j = P->ptr[i], e = P->ptr[i + 1]; j < e; ++j)
-                    P->val[j] = (P->col[j] == aggr.id[i] ? 1 : 0) - wd * P->val[j];
-            }
-
-            return P;
+            return AP;
         }
 
-        template <typename Val, typename Col, typename Ptr>
+        template <typename AMatrix, typename Val, typename Col, typename Ptr>
         static boost::shared_ptr< backend::crs<Val, Col, Ptr> >
         restriction(
-                const backend::crs<Val, Col, Ptr> &A, const Aggregates &aggr,
-                const std::vector<Val> &D, const std::vector<Val> &omega
+                const AMatrix &A,
+                const backend::crs<Val, Col, Ptr> &P_tent,
+                const std::vector<Val> &omega
                 )
         {
-            typedef backend::crs<Val, Col, Ptr> matrix;
-            const size_t n  = rows(A);
-            const size_t nc = aggr.count;
+            typedef backend::crs<Val, Col, Ptr> PMatrix;
 
-            // Get structure of R_tent from aggr
-            std::vector<Ptr> R_tent_ptr(nc + 1, 0);
-            for(size_t i = 0; i < n; ++i) {
-                ptrdiff_t g = aggr.id[i]; if (g < 0) continue;
-                ++R_tent_ptr[g + 1];
-            }
+            const size_t nc = cols(P_tent);
 
-            boost::partial_sum(R_tent_ptr, R_tent_ptr.begin());
-            std::vector<Col> R_tent_col(R_tent_ptr.back());
+            PMatrix R_tent = transpose(P_tent);
+            sort_rows(R_tent);
 
-            for(size_t i = 0; i < n; ++i) {
-                ptrdiff_t g = aggr.id[i]; if (g < 0) continue;
-                R_tent_col[R_tent_ptr[g]++] = i;
-            }
+            boost::shared_ptr<PMatrix> RA = boost::make_shared<PMatrix>();
+            *RA = product(R_tent, A, /*sort rows: */true);
 
-            std::rotate(R_tent_ptr.begin(), R_tent_ptr.end() - 1, R_tent_ptr.end());
-            R_tent_ptr[0] = 0;
-
-            boost::shared_ptr<matrix> R = boost::make_shared<matrix>();
-            R->nrows = nc;
-            R->ncols = n;
-            R->ptr.resize(nc + 1, 0);
-
-            // Compute R_tent * A / D.
-#pragma omp parallel
-            {
-#ifdef _OPENMP
-                int nt  = omp_get_num_threads();
-                int tid = omp_get_thread_num();
-
-                size_t chunk_size  = (nc + nt - 1) / nt;
-                size_t chunk_start = tid * chunk_size;
-                size_t chunk_end   = std::min(nc, chunk_start + chunk_size);
-#else
-                size_t chunk_start = 0;
-                size_t chunk_end   = nc;
-#endif
-
-                std::vector<ptrdiff_t> marker(n, -1);
-
-                for(size_t ir = chunk_start; ir < chunk_end; ++ir) {
-                    for(Ptr jr = R_tent_ptr[ir], er = R_tent_ptr[ir + 1]; jr < er; ++jr) {
-                        Col cr = R_tent_col[jr];
-                        for(Ptr ja = A.ptr[cr], ea = A.ptr[cr + 1]; ja < ea; ++ja) {
-                            Col ca = A.col[ja];
-                            if (ca != cr && !aggr.strong_connection[ja]) continue;
-
-                            if (static_cast<size_t>(marker[ca]) != ir) {
-                                marker[ca] = ir;
-                                ++R->ptr[ir + 1];
-                            }
-                        }
-                    }
-                }
-
-                boost::fill(marker, -1);
-
-#pragma omp barrier
-#pragma omp single
-                {
-                    boost::partial_sum(R->ptr, R->ptr.begin());
-                    R->col.resize(R->ptr.back());
-                    R->val.resize(R->ptr.back());
-                }
-
-                for(size_t ir = chunk_start; ir < chunk_end; ++ir) {
-                    Ptr row_beg = R->ptr[ir];
-                    Ptr row_end = row_beg;
-
-                    for(Ptr jr = R_tent_ptr[ir], er = R_tent_ptr[ir + 1]; jr < er; ++jr) {
-                        Col cr = R_tent_col[jr];
-
-                        for(Ptr ja = A.ptr[cr], ea = A.ptr[cr + 1]; ja < ea; ++ja) {
-                            Col ca = A.col[ja];
-                            if (ca != cr && !aggr.strong_connection[ja]) continue;
-                            Val va = (ca == cr ? 1 : (A.val[ja] / D[ca]));
-
-                            if (marker[ca] < row_beg) {
-                                marker[ca] = row_end;
-                                R->col[row_end] = ca;
-                                R->val[row_end] = va;
-                                ++row_end;
-                            } else {
-                                R->val[marker[ca]] += va;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Update R.
+            // Compute R = R_tent - Omega R_tent A D^-1.
+            /*
+             * Here we use the fact that if R(i,j) != 0,
+             * then with necessity RA(i,j) != 0:
+             *
+             * RA(i,j) = sum_k(R_ik A_kj), and A_jj != 0.
+             */
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(nc); ++i) {
-                for(Ptr j = R->ptr[i], e = R->ptr[i + 1]; j < e; ++j) {
-                    Col c = R->col[j];
-                    R->val[j] = (aggr.id[c] == i ? 1 : 0) - omega[c] * R->val[j];
+                Val w = omega[i];
+
+                for(Ptr ja = RA->ptr[i],    ea = RA->ptr[i+1],
+                        jr = R_tent.ptr[i], er = R_tent.ptr[i+1];
+                        ja < ea; ++ja
+                   )
+                {
+                    Col ca = RA->col[ja];
+                    Val va = -w * RA->val[ja] / A.dia[ca];
+
+                    for(; jr < er; ++jr) {
+                        Col cr = R_tent.col[jr];
+                        if (cr > ca)
+                            break;
+
+                        if (cr == ca) {
+                            va += R_tent.val[jr];
+                            break;
+                        }
+                    }
+
+                    RA->val[ja] = va;
                 }
             }
 
-            return R;
+            return RA;
         }
 };
 

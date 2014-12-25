@@ -37,6 +37,7 @@ THE SOFTWARE.
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/coarsening/detail/scaled_galerkin.hpp>
+#include <amgcl/coarsening/tentative_prolongation.hpp>
 #include <amgcl/util.hpp>
 
 namespace amgcl {
@@ -74,6 +75,9 @@ struct aggregation {
         /// Aggregation parameters.
         typename Aggregates::params aggr;
 
+        /// Near nullspace parameters.
+        nullspace_params nullspace;
+
         /// Over-interpolation factor \f$\alpha\f$.
         /**
          * In case of aggregation coarsening, coarse-grid
@@ -93,8 +97,9 @@ struct aggregation {
 
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_CHILD(p, aggr),
+              AMGCL_PARAMS_IMPORT_CHILD(p, nullspace),
               AMGCL_PARAMS_IMPORT_VALUE(p, over_interp)
-        { }
+        {}
     };
 
     /// Creates transfer operators for the given system matrix.
@@ -108,8 +113,10 @@ struct aggregation {
         boost::shared_ptr<Matrix>,
         boost::shared_ptr<Matrix>
         >
-    transfer_operators(const Matrix &A, const params &prm)
+    transfer_operators(const Matrix &A, params &prm)
     {
+        typedef typename backend::value_type<Matrix>::type V;
+
         const size_t n = rows(A);
 
         TIC("aggregates");
@@ -117,18 +124,9 @@ struct aggregation {
         TOC("aggregates");
 
         TIC("interpolation");
-        boost::shared_ptr<Matrix> P = boost::make_shared<Matrix>();
-        P->nrows = n;
-        P->ncols = aggr.count;
-        P->ptr.reserve(n + 1);
-        P->col.reserve(n);
-
-        P->ptr.push_back(0);
-        for(size_t i = 0; i < n; ++i) {
-            if (aggr.id[i] >= 0) P->col.push_back(aggr.id[i]);
-            P->ptr.push_back( static_cast<ptrdiff_t>(P->col.size()) );
-        }
-        P->val.resize(n, 1);
+        boost::shared_ptr<Matrix> P = tentative_prolongation<Matrix>(
+                n, aggr.count, aggr.id, prm.nullspace
+                );
         TOC("interpolation");
 
         boost::shared_ptr<Matrix> R = boost::make_shared<Matrix>();

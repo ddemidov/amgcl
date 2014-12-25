@@ -194,9 +194,15 @@ crs<V, C, P> transpose(const crs<V, C, P> &A)
 }
 
 /// Matrix-matrix product.
-template < typename V, typename C, typename P >
-crs<V, C, P> product(const crs<V, C, P> &A, const crs<V, C, P> &B) {
-    typedef typename crs<V, C, P>::row_iterator row_iterator;
+template <class MatrixA, class MatrixB>
+crs< typename value_type<MatrixA>::type >
+product(const MatrixA &A, const MatrixB &B, bool sort = false) {
+    typedef typename value_type<MatrixA>::type  V;
+    typedef ptrdiff_t C;
+    typedef ptrdiff_t P;
+
+    typedef typename row_iterator<MatrixA>::type Aiterator;
+    typedef typename row_iterator<MatrixB>::type Biterator;
 
     const size_t n = rows(A);
     const size_t m = cols(B);
@@ -224,8 +230,8 @@ crs<V, C, P> product(const crs<V, C, P> &A, const crs<V, C, P> &B) {
 #endif
 
         for(size_t ia = chunk_start; ia < chunk_end; ++ia) {
-            for(row_iterator a = A.row_begin(ia); a; ++a) {
-                for(row_iterator b = B.row_begin(a.col()); b; ++b) {
+            for(Aiterator a = A.row_begin(ia); a; ++a) {
+                for(Biterator b = B.row_begin(a.col()); b; ++b) {
                     if (marker[b.col()] != static_cast<C>(ia)) {
                         marker[b.col()]  = static_cast<C>(ia);
                         ++( c.ptr[ia + 1] );
@@ -248,11 +254,11 @@ crs<V, C, P> product(const crs<V, C, P> &A, const crs<V, C, P> &B) {
             P row_beg = c.ptr[ia];
             P row_end = row_beg;
 
-            for(row_iterator a = A.row_begin(ia); a; ++a) {
+            for(Aiterator a = A.row_begin(ia); a; ++a) {
                 C ca = a.col();
                 V va = a.value();
 
-                for(row_iterator b = B.row_begin(ca); b; ++b) {
+                for(Biterator b = B.row_begin(ca); b; ++b) {
                     C cb = b.col();
                     V vb = b.value();
 
@@ -265,6 +271,12 @@ crs<V, C, P> product(const crs<V, C, P> &A, const crs<V, C, P> &B) {
                         c.val[marker[cb]] += va * vb;
                     }
                 }
+            }
+
+            if (sort) {
+                amgcl::detail::sort_row(
+                        &c.col[row_beg], &c.val[row_beg], row_end - row_beg
+                        );
             }
         }
     }

@@ -498,6 +498,9 @@ Have a look at [amgcl/relaxation/damped_jacobi.hpp][] for an example.
 10. P. Vanek, J. Mandel, and M. Brezina. Algebraic multigrid by smoothed
    aggregation for second and fourth order elliptic problems. Computing,
    56(3):179–196, 1996.
+11. P. Vanek, M. Brezina, J. Mandel, and others. Convergence of algebraic
+    multigrid based on smoothed aggregation. Numerische Mathematik,
+    88(3):559–579, 2001.
 
 ## <a name="projects"></a>Projects using AMGCL
 
