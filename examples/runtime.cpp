@@ -21,6 +21,7 @@ int main(int argc, char *argv[]) {
     // Read configuration from command line
     int m = 32;
     double x0 = 0;
+    bool null_space = false;
     amgcl::runtime::coarsening::type coarsening = amgcl::runtime::coarsening::smoothed_aggregation;
     amgcl::runtime::relaxation::type relaxation = amgcl::runtime::relaxation::spai0;
     amgcl::runtime::solver::type     solver     = amgcl::runtime::solver::bicgstab;
@@ -61,6 +62,11 @@ int main(int argc, char *argv[]) {
          po::value<double>(&x0),
          "Initial approximation value"
         )
+        (
+         "null",
+         po::value<bool>(&null_space),
+         "Use null-space vector"
+        )
         ;
 
     po::variables_map vm;
@@ -88,6 +94,14 @@ int main(int argc, char *argv[]) {
     typedef
         amgcl::runtime::make_solver< amgcl::backend::builtin<double> >
         Solver;
+
+    std::vector<double> B(n, 1);
+
+    if (null_space) {
+        prm.put("amg.coarsening.Bcols", 1);
+        prm.put("amg.coarsening.Brows", n);
+        prm.put("amg.coarsening.B",     B.data());
+    }
 
     // Setup solver
     prof.tic("setup");

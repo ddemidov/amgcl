@@ -34,10 +34,17 @@ THE SOFTWARE.
 #include <boost/tuple/tuple.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
+#include <boost/iterator/counting_iterator.hpp>
+#include <boost/range/algorithm.hpp>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/coarsening/detail/scaled_galerkin.hpp>
 #include <amgcl/util.hpp>
+
+#ifdef AMGCL_HAVE_EIGEN
+#  include <Eigen/Dense>
+#  include <Eigen/QR>
+#endif
 
 namespace amgcl {
 
@@ -89,12 +96,55 @@ struct aggregation {
          */
         float over_interp;
 
-        params() : over_interp(1.5f) { }
+#ifdef AMGCL_HAVE_EIGEN
+        /// Number of vectors in problem's null-space.
+        int Bcols;
+
+        /// The vectors in problem's null-space.
+        /**
+         * The 2D matrix B is stored row-wise in a continuous vector. Here row
+         * corresponds to a degree of freedom in the original problem, and
+         * column corresponds to a vector in the problem's null-space.
+         */
+        std::vector<double> B;
+#endif
+
+        params()
+            : over_interp(1.5f)
+#ifdef AMGCL_HAVE_EIGEN
+            , Bcols(0)
+#endif
+        { }
 
         params(const boost::property_tree::ptree &p)
-            : AMGCL_PARAMS_IMPORT_CHILD(p, aggr),
-              AMGCL_PARAMS_IMPORT_VALUE(p, over_interp)
-        { }
+            : AMGCL_PARAMS_IMPORT_CHILD(p, aggr)
+            , AMGCL_PARAMS_IMPORT_VALUE(p, over_interp)
+#ifdef AMGCL_HAVE_EIGEN
+            , AMGCL_PARAMS_IMPORT_VALUE(p, Bcols)
+#endif
+        {
+#ifdef AMGCL_HAVE_EIGEN
+            double *b = 0;
+            size_t Brows = 0;
+
+            b     = p.get("B",     b);
+            Brows = p.get("Brows", Brows);
+
+            if (b) {
+                precondition(Bcols > 0,
+                        "Error in aggregation parameters: "
+                        "B is set, but Bcols is not"
+                        );
+
+                precondition(Brows > 0,
+                        "Error in aggregation parameters: "
+                        "B is set, but Brows is not"
+                        );
+
+                B.assign(b, b + Brows * Bcols);
+            }
+#endif
+        }
     };
 
     /// Creates transfer operators for the given system matrix.
@@ -108,8 +158,10 @@ struct aggregation {
         boost::shared_ptr<Matrix>,
         boost::shared_ptr<Matrix>
         >
-    transfer_operators(const Matrix &A, const params &prm)
+    transfer_operators(const Matrix &A, params &prm)
     {
+        typedef typename backend::value_type<Matrix>::type V;
+
         const size_t n = rows(A);
 
         TIC("aggregates");
@@ -118,17 +170,98 @@ struct aggregation {
 
         TIC("interpolation");
         boost::shared_ptr<Matrix> P = boost::make_shared<Matrix>();
-        P->nrows = n;
-        P->ncols = aggr.count;
-        P->ptr.reserve(n + 1);
-        P->col.reserve(n);
 
-        P->ptr.push_back(0);
-        for(size_t i = 0; i < n; ++i) {
-            if (aggr.id[i] >= 0) P->col.push_back(aggr.id[i]);
-            P->ptr.push_back( static_cast<ptrdiff_t>(P->col.size()) );
+#ifdef AMGCL_HAVE_EIGEN
+        if (prm.Bcols > 0) {
+            precondition(!prm.B.empty(),
+                    "Error in aggregation parameters: "
+                    "Bcols > 0, but B is empty"
+                    );
+
+            // Improve tentative prolongation by using null-space
+            std::vector<ptrdiff_t> order(
+                    boost::counting_iterator<ptrdiff_t>(0),
+                    boost::counting_iterator<ptrdiff_t>(n)
+                    );
+
+            boost::sort(order, [&aggr](ptrdiff_t i, ptrdiff_t j){
+                    // Cast to unsigned type to keep negative values at the end
+                    return
+                        static_cast<size_t>(aggr.id[i]) <
+                        static_cast<size_t>(aggr.id[j]);
+                    });
+
+            P->nrows = n;
+            P->ncols = aggr.count * prm.Bcols;
+            P->ptr.reserve(n + 1);
+
+            P->ptr.push_back(0);
+            for(size_t i = 0; i < n; ++i) {
+                if (aggr.id[i] < 0)
+                    P->ptr.push_back(P->ptr.back());
+                else
+                    P->ptr.push_back(P->ptr.back() + prm.Bcols);
+            }
+
+            P->col.resize(P->ptr.back());
+            P->val.resize(P->ptr.back());
+
+            std::vector<double> Bnew;
+            Bnew.reserve(aggr.count * prm.Bcols * prm.Bcols);
+
+            typedef Eigen::Matrix<V, Eigen::Dynamic, Eigen::Dynamic> EMatrix;
+            typedef Eigen::Map<EMatrix> EMap;
+
+            size_t offset = 0;
+
+            std::vector<double> Bdata;
+            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(aggr.count); ++i) {
+                int d = 0;
+                Bdata.clear();
+                for(ptrdiff_t j = offset; aggr.id[order[j]] == i; ++j, ++d) {
+                    double *Brow = &prm.B[order[j] * prm.Bcols];
+                    for(int k = 0; k < prm.Bcols; ++k)
+                        Bdata.push_back(Brow[k]);
+                }
+                EMap Bpart(Bdata.data(), d, prm.Bcols);
+                Eigen::HouseholderQR<EMatrix> qr(Bpart);
+
+                EMatrix R = qr.matrixQR().template triangularView<Eigen::Upper>();
+                EMatrix Q = qr.householderQ();
+
+                double sign = R(0,0) > 0 ? 1 : -1;
+                for(int ii = 0; ii < prm.Bcols; ++ii)
+                    for(int jj = 0; jj < prm.Bcols; ++jj)
+                        Bnew.push_back( R(ii,jj) * sign );
+
+                for(int ii = 0; ii < d; ++ii, ++offset) {
+                    auto c = &P->col[P->ptr[order[offset]]];
+                    auto v = &P->val[P->ptr[order[offset]]];
+
+                    for(int jj = 0; jj < prm.Bcols; ++jj) {
+                        c[jj] = i * prm.Bcols + jj;
+                        v[jj] = Q(ii,jj) * sign;
+                    }
+                }
+            }
+
+            swap(prm.B, Bnew);
+        } else {
+#endif
+            P->nrows = n;
+            P->ncols = aggr.count;
+            P->ptr.reserve(n + 1);
+            P->col.reserve(n);
+
+            P->ptr.push_back(0);
+            for(size_t i = 0; i < n; ++i) {
+                if (aggr.id[i] >= 0) P->col.push_back(aggr.id[i]);
+                P->ptr.push_back( static_cast<ptrdiff_t>(P->col.size()) );
+            }
+            P->val.resize(n, 1);
+#ifdef AMGCL_HAVE_EIGEN
         }
-        P->val.resize(n, 1);
+#endif
         TOC("interpolation");
 
         boost::shared_ptr<Matrix> R = boost::make_shared<Matrix>();
