@@ -22,16 +22,57 @@ profiler<> prof;
 } // namespace amgcl
 
 //---------------------------------------------------------------------------
+template<typename Matrix>
+void mmread(Matrix &vec, const std::string &fname) {
+    typedef typename Matrix::Scalar Scalar;
+
+    using amgcl::precondition;
+
+    std::ifstream in(fname);
+    precondition(in, "Failed to open file \"" + fname + "\"");
+
+    std::string line;
+    int n = 0, col = 0;
+
+    // Skip comments
+    do {
+        precondition(
+                std::getline(in, line),
+                "Format error in " + fname
+                );
+    } while (line[0] == '%');
+
+    std::istringstream newline(line);
+    newline >> n >> col;
+    precondition(n > 0 && col > 0, "Wrong dimensions in Null-space file");
+    vec.resize(n, col);
+
+    for(int j = 0; j < col; ++j) {
+        for(int i = 0; i < n; ++i) {
+            Scalar v;
+            precondition(
+                    in >> v,
+                    "Format error in " + fname
+                    );
+
+            vec(i, j) = v;
+        }
+    }
+}
+
+//---------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
     using amgcl::prof;
+    using amgcl::precondition;
 
     // Read configuration from command line
     amgcl::runtime::coarsening::type coarsening = amgcl::runtime::coarsening::smoothed_aggregation;
     amgcl::runtime::relaxation::type relaxation = amgcl::runtime::relaxation::spai0;
     amgcl::runtime::solver::type     solver     = amgcl::runtime::solver::bicgstab;
     std::string parameter_file;
-    std::string A_file   = "A.mtx";
-    std::string rhs_file = "rhs.mtx";
+    std::string A_file;
+    std::string rhs_file;
+    std::string null_file;
     std::string out_file = "out.mtx";
 
     namespace po = boost::program_options;
@@ -61,17 +102,22 @@ int main(int argc, char *argv[]) {
         )
         (
          "matrix,A",
-         po::value<std::string>(&A_file)->default_value(A_file),
+         po::value<std::string>(&A_file)->required(),
          "The system matrix in MatrixMarket format"
         )
         (
          "rhs,b",
-         po::value<std::string>(&rhs_file)->default_value(rhs_file),
+         po::value<std::string>(&rhs_file),
          "The right-hand side in MatrixMarket format"
         )
         (
+         "null,Z",
+         po::value<std::string>(&null_file),
+         "Zero energy mode vectors in MatrixMarket format"
+        )
+        (
          "output,o",
-         po::value<std::string>(&out_file)->default_value(out_file),
+         po::value<std::string>(&out_file),
          "The output file (saved in MatrixMarket format)"
         )
         ;
@@ -91,18 +137,37 @@ int main(int argc, char *argv[]) {
     // Read the matrix and the right-hand side.
     prof.tic("read");
     EigenMatrix A;
-    amgcl::precondition(
+    precondition(
             Eigen::loadMarket(A, A_file),
             "Failed to load matrix file (" + A_file + ")"
             );
 
     EigenVector rhs;
-    amgcl::precondition(
-            Eigen::loadMarketVector(rhs, rhs_file),
-            "Failed to load RHS file (" + rhs_file + ")"
-            );
+    if (vm.count("rhs")) {
+        precondition(
+                Eigen::loadMarketVector(rhs, rhs_file),
+                "Failed to load RHS file (" + rhs_file + ")"
+                );
+    } else {
+        std::cout << "RHS was not provided; using default value of 1" << std::endl;
+        rhs = EigenVector::Constant(A.rows(), 1);
+    }
 
-    amgcl::precondition(A.rows() == rhs.size(), "Matrix and RHS sizes differ");
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Z;
+    if (vm.count("null")) {
+        mmread(Z, null_file);
+
+        precondition(
+                Z.rows() == A.rows(),
+                "Inconsistent dimensions in Null-space file"
+                );
+
+        prm.put("amg.coarsening.Bcols", Z.cols());
+        prm.put("amg.coarsening.Brows", Z.rows());
+        prm.put("amg.coarsening.B",     Z.data());
+    }
+
+    precondition(A.rows() == rhs.size(), "Matrix and RHS sizes differ");
     prof.toc("read");
 
     // Setup solver
@@ -129,9 +194,11 @@ int main(int argc, char *argv[]) {
     // Check the real error
     double error = (rhs - A * Eigen::Map<EigenVector>(x.data(), x.size())).norm() / rhs.norm();
 
-    prof.tic("write");
-    Eigen::saveMarketVector(Eigen::Map<EigenVector>(x.data(), x.size()), out_file);
-    prof.toc("write");
+    if (vm.count("out")) {
+        prof.tic("write");
+        Eigen::saveMarketVector(Eigen::Map<EigenVector>(x.data(), x.size()), out_file);
+        prof.toc("write");
+    }
 
     std::cout << "Iterations:     " << iters << std::endl
               << "Reported Error: " << resid << std::endl
