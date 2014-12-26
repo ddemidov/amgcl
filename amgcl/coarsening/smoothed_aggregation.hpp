@@ -39,9 +39,144 @@ THE SOFTWARE.
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/coarsening/detail/galerkin.hpp>
+#include <amgcl/coarsening/detail/tentative.hpp>
 #include <amgcl/util.hpp>
 
 namespace amgcl {
+namespace coarsening {
+
+namespace detail {
+
+template <class Base>
+struct filtered_matrix {
+    typedef typename backend::value_type<Base>::type value_type;
+
+    typedef value_type val_type;
+    typedef ptrdiff_t  col_type;
+    typedef ptrdiff_t  ptr_type;
+
+    const Base &base;
+    float omega;
+    const std::vector<char> &strong;
+
+    class row_iterator {
+        public:
+            row_iterator(
+                    const col_type * col,
+                    const col_type * end,
+                    const val_type * val,
+                    const char     * str,
+                    col_type row,
+                    float    omega,
+                    val_type dia
+                    )
+                : m_col(col), m_end(end), m_val(val), m_str(str),
+                  m_row(row), m_omega(omega), m_dia(dia)
+            {}
+
+            operator bool() const {
+                return m_col < m_end;
+            }
+
+            row_iterator& operator++() {
+                do {
+                    ++m_col;
+                    ++m_val;
+                    ++m_str;
+                } while(m_col < m_end && !(*m_str));
+
+                return *this;
+            }
+
+            col_type col() const {
+                return *m_col;
+            }
+
+            val_type value() const {
+                if (m_col[0] == m_dia)
+                    return 1 - m_omega;
+                else
+                    return -m_omega * m_dia * m_val[0];
+            }
+
+        private:
+            const col_type * m_col;
+            const col_type * m_end;
+            const val_type * m_val;
+            const char     * m_str;
+
+            col_type m_row;
+            float    m_omega;
+            val_type m_dia;
+    };
+
+    filtered_matrix(
+            const Base &base,
+            float omega,
+            const std::vector<char> &strong
+            ) : base(base), omega(omega), strong(strong)
+    {}
+
+    size_t rows() const {
+        return backend::rows(base);
+    }
+
+    row_iterator row_begin(size_t row) const {
+        ptr_type b = base.ptr[row];
+        ptr_type e = base.ptr[row + 1];
+
+        const col_type *col = &base.col[b], *c = col;
+        const col_type *end = &base.col[e];
+        const val_type *val = &base.val[b], *v = val;
+        const char     *str = &strong[b],   *s = str;
+
+        // Diagonal of the filtered matrix is the original matrix
+        // diagonal minus its weak connections.
+        val_type dia = 0;
+        for(; c < end; ++c, ++v, ++s) {
+            if (static_cast<size_t>(*c) == row)
+                dia += *v;
+            else if ( !(*s) )
+                dia -= *v;
+        }
+
+        return row_iterator(col, end, val, str, row, omega, 1 / dia);
+    }
+};
+
+} // namespace detail
+} // namespace coarsening
+
+namespace backend {
+
+template <class Base>
+struct rows_impl< coarsening::detail::filtered_matrix<Base> > {
+    typedef coarsening::detail::filtered_matrix<Base> Matrix;
+
+    static size_t get(const Matrix &A) {
+        return A.rows();
+    }
+};
+
+template <class Base>
+struct row_iterator< coarsening::detail::filtered_matrix<Base> > {
+    typedef
+        typename coarsening::detail::filtered_matrix<Base>::row_iterator
+        type;
+};
+
+template <class Base>
+struct row_begin_impl< coarsening::detail::filtered_matrix<Base> > {
+    typedef coarsening::detail::filtered_matrix<Base> Matrix;
+
+    static typename row_iterator<Matrix>::type
+    get(const Matrix &matrix, size_t row) {
+        return matrix.row_begin(row);
+    }
+};
+
+} // namespace backend
+
 namespace coarsening {
 
 /// Smoothed aggregation coarsening.
@@ -79,12 +214,55 @@ struct smoothed_aggregation {
          */
         float relax;
 
-        params() : relax(0.666f) { }
+#ifdef AMGCL_HAVE_EIGEN
+        /// Number of vectors in problem's null-space.
+        int Bcols;
+
+        /// The vectors in problem's null-space.
+        /**
+         * The 2D matrix B is stored row-wise in a continuous vector. Here row
+         * corresponds to a degree of freedom in the original problem, and
+         * column corresponds to a vector in the problem's null-space.
+         */
+        std::vector<double> B;
+#endif
+
+        params()
+            : relax(0.666f)
+#ifdef AMGCL_HAVE_EIGEN
+            , Bcols(0)
+#endif
+        { }
 
         params(const boost::property_tree::ptree &p)
-            : AMGCL_PARAMS_IMPORT_CHILD(p, aggr),
-              AMGCL_PARAMS_IMPORT_VALUE(p, relax)
-        { }
+            : AMGCL_PARAMS_IMPORT_CHILD(p, aggr)
+            , AMGCL_PARAMS_IMPORT_VALUE(p, relax)
+#ifdef AMGCL_HAVE_EIGEN
+            , AMGCL_PARAMS_IMPORT_VALUE(p, Bcols)
+#endif
+        {
+#ifdef AMGCL_HAVE_EIGEN
+            double *b = 0;
+            size_t Brows = 0;
+
+            b     = p.get("B",     b);
+            Brows = p.get("Brows", Brows);
+
+            if (b) {
+                precondition(Bcols > 0,
+                        "Error in aggregation parameters: "
+                        "B is set, but Bcols is not"
+                        );
+
+                precondition(Brows > 0,
+                        "Error in aggregation parameters: "
+                        "B is set, but Brows is not"
+                        );
+
+                B.assign(b, b + Brows * Bcols);
+            }
+#endif
+        }
     };
 
     /// \copydoc amgcl::coarsening::aggregation::transfer_operators
@@ -102,94 +280,30 @@ struct smoothed_aggregation {
         TOC("aggregates");
 
         TIC("interpolation");
-        boost::shared_ptr<Matrix> P = boost::make_shared<Matrix>();
-        P->nrows = n;
-        P->ncols = aggr.count;
-        P->ptr.resize(n + 1, 0);
+        boost::shared_ptr<Matrix> P_tent;
 
-#pragma omp parallel
-        {
-            std::vector<ptrdiff_t> marker(aggr.count, -1);
+#ifdef AMGCL_HAVE_EIGEN
+        if (prm.Bcols > 0) {
+            precondition(!prm.B.empty(),
+                    "Error in aggregation parameters: "
+                    "Bcols > 0, but B is empty"
+                    );
 
-#ifdef _OPENMP
-            int nt  = omp_get_num_threads();
-            int tid = omp_get_thread_num();
-
-            size_t chunk_size  = (n + nt - 1) / nt;
-            size_t chunk_start = tid * chunk_size;
-            size_t chunk_end   = std::min(n, chunk_start + chunk_size);
-#else
-            size_t chunk_start = 0;
-            size_t chunk_end   = n;
+            boost::tie(P_tent, prm.B) = detail::tentative_prolongation<Matrix>(
+                    n, aggr.count, aggr.id, prm.Bcols, prm.B
+                    );
+        } else {
+#endif
+            P_tent = detail::tentative_prolongation<Matrix>(n, aggr.count, aggr.id);
+#ifdef AMGCL_HAVE_EIGEN
+        }
 #endif
 
-            // Count number of entries in P.
-            for(size_t i = chunk_start; i < chunk_end; ++i) {
-                for(ptrdiff_t j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
-                    size_t c = static_cast<size_t>(A.col[j]);
-
-                    // Skip weak off-diagonal connections.
-                    if (c != i && !aggr.strong_connection[j])
-                        continue;
-
-                    ptrdiff_t g = aggr.id[c];
-
-                    if (g >= 0 && static_cast<size_t>(marker[g]) != i) {
-                        marker[g] = static_cast<ptrdiff_t>(i);
-                        ++( P->ptr[i + 1] );
-                    }
-                }
-            }
-
-            boost::fill(marker, -1);
-
-#pragma omp barrier
-#pragma omp single
-            {
-                boost::partial_sum(P->ptr, P->ptr.begin());
-                P->col.resize(P->ptr.back());
-                P->val.resize(P->ptr.back());
-            }
-
-            // Fill the interpolation matrix.
-            for(size_t i = chunk_start; i < chunk_end; ++i) {
-
-                // Diagonal of the filtered matrix is the original matrix
-                // diagonal minus its weak connections.
-                Val dia = 0;
-                for(ptrdiff_t j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
-                    if (static_cast<size_t>(A.col[j]) == i)
-                        dia += A.val[j];
-                    else if (!aggr.strong_connection[j])
-                        dia -= A.val[j];
-                }
-                dia = 1 / dia;
-
-                ptrdiff_t row_beg = P->ptr[i];
-                ptrdiff_t row_end = row_beg;
-                for(ptrdiff_t j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
-                    size_t c = static_cast<size_t>(A.col[j]);
-
-                    // Skip weak couplings, ...
-                    if (c != i && !aggr.strong_connection[j]) continue;
-
-                    // ... and the ones not in any aggregate.
-                    ptrdiff_t g = aggr.id[c];
-                    if (g < 0) continue;
-
-                    Val v = (c == i) ? 1 - prm.relax : -prm.relax * dia * A.val[j];
-
-                    if (marker[g] < row_beg) {
-                        marker[g] = row_end;
-                        P->col[row_end] = g;
-                        P->val[row_end] = v;
-                        ++row_end;
-                    } else {
-                        P->val[ marker[g] ] += v;
-                    }
-                }
-            }
-        }
+        boost::shared_ptr<Matrix> P = boost::make_shared<Matrix>();
+        *P = product(
+                detail::filtered_matrix<Matrix>(A, prm.relax, aggr.strong_connection),
+                *P_tent
+                );
         TOC("interpolation");
 
         boost::shared_ptr<Matrix> R = boost::make_shared<Matrix>();
