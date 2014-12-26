@@ -38,10 +38,8 @@ THE SOFTWARE.
 #include <boost/iterator/counting_iterator.hpp>
 #include <boost/range/algorithm.hpp>
 
-#ifdef AMGCL_HAVE_EIGEN
-#  include <Eigen/Dense>
-#  include <Eigen/QR>
-#endif
+#include <Eigen/Dense>
+#include <Eigen/QR>
 
 namespace amgcl {
 namespace coarsening {
@@ -140,7 +138,7 @@ tentative_prolongation(
     for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(naggr); ++i) {
         int d = 0;
         Bdata.clear();
-        for(ptrdiff_t j = offset; aggr[order[j]] == i; ++j, ++d)
+        for(ptrdiff_t j = offset; j < n && aggr[order[j]] == i; ++j, ++d)
             std::copy(
                     &B[Bcols * order[j]], &B[Bcols * (order[j] + 1)],
                     std::back_inserter(Bdata)
