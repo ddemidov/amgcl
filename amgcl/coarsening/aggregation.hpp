@@ -90,7 +90,6 @@ struct aggregation {
          */
         float over_interp;
 
-#ifdef AMGCL_HAVE_EIGEN
         /// Number of vectors in problem's null-space.
         int Bcols;
 
@@ -101,23 +100,14 @@ struct aggregation {
          * column corresponds to a vector in the problem's null-space.
          */
         std::vector<double> B;
-#endif
 
-        params()
-            : over_interp(1.5f)
-#ifdef AMGCL_HAVE_EIGEN
-            , Bcols(0)
-#endif
-        { }
+        params() : over_interp(1.5f), Bcols(0) { }
 
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_CHILD(p, aggr)
             , AMGCL_PARAMS_IMPORT_VALUE(p, over_interp)
-#ifdef AMGCL_HAVE_EIGEN
             , AMGCL_PARAMS_IMPORT_VALUE(p, Bcols)
-#endif
         {
-#ifdef AMGCL_HAVE_EIGEN
             double *b = 0;
             size_t Brows = 0;
 
@@ -137,7 +127,6 @@ struct aggregation {
 
                 B.assign(b, b + Brows * Bcols);
             }
-#endif
         }
     };
 
@@ -165,7 +154,6 @@ struct aggregation {
         TIC("interpolation");
         boost::shared_ptr<Matrix> P;
 
-#ifdef AMGCL_HAVE_EIGEN
         if (prm.Bcols > 0) {
             precondition(!prm.B.empty(),
                     "Error in aggregation parameters: "
@@ -176,11 +164,8 @@ struct aggregation {
                     n, aggr.count, aggr.id, prm.Bcols, prm.B
                     );
         } else {
-#endif
             P = detail::tentative_prolongation<Matrix>(n, aggr.count, aggr.id);
-#ifdef AMGCL_HAVE_EIGEN
         }
-#endif
         TOC("interpolation");
 
         boost::shared_ptr<Matrix> R = boost::make_shared<Matrix>();
