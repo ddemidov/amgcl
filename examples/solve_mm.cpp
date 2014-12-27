@@ -177,7 +177,20 @@ int main(int argc, char *argv[]) {
         Solver;
 
     Solver solve(coarsening, relaxation, solver, A, prm);
+
+    amgcl::solver::gmres< amgcl::backend::builtin<double> > outer_solve(rhs.size());
     prof.toc("setup");
+
+    struct inner_solver {
+        const Solver &S;
+
+        inner_solver(const Solver &S) : S(S) {}
+
+        void apply(const std::vector<double> &f, std::vector<double> &x) const {
+            amgcl::backend::clear(x);
+            S(f, x);
+        }
+    };
 
     std::cout << solve.amg() << std::endl;
 
@@ -188,7 +201,7 @@ int main(int argc, char *argv[]) {
     prof.tic("solve");
     size_t iters;
     double resid;
-    boost::tie(iters, resid) = solve(f, x);
+    boost::tie(iters, resid) = outer_solve(solve.amg().top_matrix(), inner_solver(solve), f, x);
     prof.toc("solve");
 
     // Check the real error
