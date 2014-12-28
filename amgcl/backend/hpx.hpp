@@ -41,6 +41,7 @@ THE SOFTWARE.
 #include <boost/algorithm/minmax.hpp>
 #include <boost/range/irange.hpp>
 #include <boost/range/algorithm.hpp>
+#include <boost/range/iterator_range.hpp>
 
 #include <amgcl/util.hpp>
 #include <amgcl/backend/builtin.hpp>
@@ -177,6 +178,17 @@ class hpx_vector {
 
         const_iterator cbegin() const { return buf->cbegin(); }
         const_iterator cend()   const { return buf->cend();   }
+
+        template <class IdxTuple>
+        boost::iterator_range<
+            typename std::vector< hpx::shared_future<void> >::iterator
+            >
+        safe_range(IdxTuple idx) const {
+            return boost::make_iterator_range(
+                    safe_to_read.begin() + std::get<0>(idx),
+                    safe_to_read.begin() + std::get<1>(idx)
+                    );
+        }
     private:
         // Segments stored in a continuous array.
         // The base vector is stored with shared_ptr for the same reason as with
@@ -234,8 +246,8 @@ struct HPX {
             const real *fptr;
             real       *xptr;
 
-            template <class T>
-            void operator()(T&&) const {
+            template <class... T>
+            void operator()(T&&...) const {
                 (*base)(fptr, xptr);
             }
         };
@@ -249,10 +261,8 @@ struct HPX {
             hpx::shared_future<void> solve = dataflow(
                     hpx::launch::async,
                     call_base{this, fptr, xptr},
-                    hpx::when_all(
-                        hpx::when_all(rhs.safe_to_read),
-                        hpx::when_all(x.safe_to_write)
-                    )
+                    rhs.safe_to_read,
+                    x.safe_to_write
                     );
 
             boost::fill(x.safe_to_read, solve);
@@ -402,10 +412,7 @@ struct spmv_impl<
                                 process_ab{alpha, A, xptr, beta, yptr, beg, end},
                                 y.safe_to_read[seg],
                                 y.safe_to_write[seg],
-                                hpx::when_all(
-                                    x.safe_to_read.begin() + std::get<0>(A.xrange[seg]),
-                                    x.safe_to_read.begin() + std::get<1>(A.xrange[seg])
-                                    )
+                                x.safe_range(A.xrange[seg])
                                 );
                     });
         } else {
@@ -420,10 +427,7 @@ struct spmv_impl<
                         y.safe_to_read[seg] = dataflow(hpx::launch::async,
                                 process_a{alpha, A, xptr, yptr, beg, end},
                                 y.safe_to_write[seg],
-                                hpx::when_all(
-                                    x.safe_to_read.begin() + std::get<0>(A.xrange[seg]),
-                                    x.safe_to_read.begin() + std::get<1>(A.xrange[seg])
-                                    )
+                                x.safe_range(A.xrange[seg])
                                 );
                     });
         }
@@ -436,10 +440,7 @@ struct spmv_impl<
                 [&A, &x, &y](ptrdiff_t seg) {
                     x.safe_to_write[seg] = dataflow(hpx::launch::async,
                             wait_for_it(),
-                            hpx::when_all(
-                                y.safe_to_read.begin() + std::get<0>(A.yrange[seg]),
-                                y.safe_to_read.begin() + std::get<1>(A.yrange[seg])
-                                )
+                            y.safe_range(A.yrange[seg])
                             );
                 });
     }
@@ -502,10 +503,7 @@ struct residual_impl<
                             process{fptr, A, xptr, rptr, beg, end},
                             f.safe_to_read[seg],
                             r.safe_to_write[seg],
-                            hpx::when_all(
-                                x.safe_to_read.begin() + std::get<0>(A.xrange[seg]),
-                                x.safe_to_read.begin() + std::get<1>(A.xrange[seg])
-                                )
+                            x.safe_range(A.xrange[seg])
                             );
                 });
 
@@ -517,10 +515,7 @@ struct residual_impl<
                 [&A, &x, &r](ptrdiff_t seg) {
                     x.safe_to_write[seg] = dataflow(hpx::launch::async,
                             wait_for_it(),
-                            hpx::when_all(
-                                r.safe_to_read.begin() + std::get<0>(A.yrange[seg]),
-                                r.safe_to_read.begin() + std::get<1>(A.yrange[seg])
-                                )
+                            r.safe_range(A.yrange[seg])
                             );
                 });
     }
