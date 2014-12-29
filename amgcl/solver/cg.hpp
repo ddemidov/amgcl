@@ -141,7 +141,7 @@ class cg {
 
             size_t iter = 0;
             while(res_norm > eps && iter < prm.maxiter) {
-                for(; iter < prm.maxiter; ++iter) {
+                while(iter < prm.maxiter) {
                     P.apply(*r, *s);
 
                     rho2 = rho1;
@@ -159,6 +159,7 @@ class cg {
                     backend::axpby( alpha, *p, 1,  x);
                     backend::axpby(-alpha, *q, 1, *r);
 
+                    ++iter;
                     if (rho1 < eps * eps) break;
                 }
 
