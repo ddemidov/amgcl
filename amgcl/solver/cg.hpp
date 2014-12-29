@@ -141,18 +141,16 @@ class cg {
 
             size_t iter = 0;
             while(res_norm > eps && iter < prm.maxiter) {
-                for(bool first = true; iter < prm.maxiter; ++iter) {
+                for(; iter < prm.maxiter; ++iter) {
                     P.apply(*r, *s);
 
                     rho2 = rho1;
                     rho1 = inner_product(*r, *s);
 
-                    if (first) {
-                        backend::copy(*s, *p);
-                        first = false;
-                    } else {
+                    if (iter)
                         backend::axpby(1, *s, rho1 / rho2, *p);
-                    }
+                    else
+                        backend::copy(*s, *p);
 
                     backend::spmv(1, A, *p, 0, *q);
 
