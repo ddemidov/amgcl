@@ -201,7 +201,7 @@ boost::shared_ptr<Matrix> tentative_prolongation(
         }
         P->val.resize(n, static_cast<value_type>(1));
     }
-    TIC("tentative");
+    TOC("tentative");
 
     return P;
 }
