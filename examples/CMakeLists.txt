@@ -50,7 +50,17 @@ if (VEXCL_ROOT)
 endif()
 
 if (CUDA_FOUND)
-    cuda_add_executable(cuda cuda.cu OPTIONS "-arch=sm_${CUDA_COMPUTE_CAPABILITY}")
+    set(CUDA_OPTIONS "-arch=sm_${CUDA_COMPUTE_CAPABILITY}")
+    if (NOT WIN32)
+        set(CUDA_OPTIONS "${CUDA_OPTIONS} -Xcompiler -std=c++03")
+    endif()
+    cuda_add_executable(cuda cuda.cu OPTIONS ${CUDA_OPTIONS})
+    if (NOT WIN32)
+        set_target_properties(cuda PROPERTIES
+            COMPILE_FLAGS -std=c++03
+            LINK_FLAGS -std=c++03
+            )
+    endif()
     target_link_libraries(cuda ${CUDA_cusparse_LIBRARY} ${Boost_LIBRARIES})
 endif()
 

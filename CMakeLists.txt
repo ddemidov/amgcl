@@ -111,19 +111,11 @@ endif()
 #----------------------------------------------------------------------------
 # Find CUDA
 #----------------------------------------------------------------------------
-option(HAVE_CUDA "Compile examples for CUDA backend" ON)
-if (HAVE_CUDA AND HAVE_HPX)
-    message(FATAL_ERROR
-        "HPX examples and CUDA examples can not be compiled simultaneously"
-        )
-endif()
-if (HAVE_CUDA)
-    find_package(CUDA QUIET)
-    if (CUDA_FOUND)
-        set(CUDA_COMPUTE_CAPABILITY "35" CACHE STRING "CUDA Compute Capability")
-        add_definitions(-DAMGCL_HAVE_CUDA)
-        add_definitions(-DBOOST_DISABLE_ASSERTS)
-    endif ()
+find_package(CUDA QUIET)
+if (CUDA_FOUND)
+    set(CUDA_COMPUTE_CAPABILITY "35" CACHE STRING "CUDA Compute Capability")
+    add_definitions(-DAMGCL_HAVE_CUDA)
+    add_definitions(-DBOOST_DISABLE_ASSERTS)
 endif ()
 
 #----------------------------------------------------------------------------
