@@ -44,139 +44,6 @@ THE SOFTWARE.
 
 namespace amgcl {
 namespace coarsening {
-namespace detail {
-
-template <class Base>
-struct sa_filtered_matrix {
-    typedef typename backend::value_type<Base>::type value_type;
-
-    typedef value_type val_type;
-    typedef ptrdiff_t  col_type;
-    typedef ptrdiff_t  ptr_type;
-
-    const Base &base;
-    float omega;
-    const std::vector<char> &strong;
-
-    class row_iterator {
-        public:
-            row_iterator(
-                    const col_type * col,
-                    const col_type * end,
-                    const val_type * val,
-                    const char     * str,
-                    col_type row,
-                    float    omega,
-                    val_type dia
-                    )
-                : m_col(col), m_end(end), m_val(val), m_str(str),
-                  m_row(row), m_omega(omega), m_dia(dia)
-            {}
-
-            operator bool() const {
-                return m_col < m_end;
-            }
-
-            row_iterator& operator++() {
-                do {
-                    ++m_col;
-                    ++m_val;
-                    ++m_str;
-                } while(m_col < m_end && m_col[0] != m_row && !m_str[0]);
-
-                return *this;
-            }
-
-            col_type col() const {
-                return *m_col;
-            }
-
-            val_type value() const {
-                if (m_col[0] == m_row)
-                    return 1 - m_omega;
-                else
-                    return -m_omega * m_dia * m_val[0];
-            }
-
-        private:
-            const col_type * m_col;
-            const col_type * m_end;
-            const val_type * m_val;
-            const char     * m_str;
-
-            col_type m_row;
-            float    m_omega;
-            val_type m_dia;
-    };
-
-    sa_filtered_matrix(
-            const Base &base,
-            float omega,
-            const std::vector<char> &strong
-            ) : base(base), omega(omega), strong(strong)
-    {}
-
-    size_t rows() const {
-        return backend::rows(base);
-    }
-
-    row_iterator row_begin(size_t row) const {
-        ptr_type b = base.ptr[row];
-        ptr_type e = base.ptr[row + 1];
-
-        const col_type *col = &base.col[b], *c = col;
-        const col_type *end = &base.col[e];
-        const val_type *val = &base.val[b], *v = val;
-        const char     *str = &strong[b],   *s = str;
-
-        // Diagonal of the filtered matrix is the original matrix
-        // diagonal minus its weak connections.
-        val_type dia = 0;
-        for(; c < end; ++c, ++v, ++s) {
-            if (static_cast<size_t>(*c) == row)
-                dia += *v;
-            else if ( !(*s) )
-                dia -= *v;
-        }
-
-        return row_iterator(col, end, val, str, row, omega, 1 / dia);
-    }
-};
-
-} // namespace detail
-} // namespace coarsening
-
-namespace backend {
-
-template <class Base>
-struct rows_impl< coarsening::detail::sa_filtered_matrix<Base> > {
-    typedef coarsening::detail::sa_filtered_matrix<Base> Matrix;
-
-    static size_t get(const Matrix &A) {
-        return A.rows();
-    }
-};
-
-template <class Base>
-struct row_iterator< coarsening::detail::sa_filtered_matrix<Base> > {
-    typedef
-        typename coarsening::detail::sa_filtered_matrix<Base>::row_iterator
-        type;
-};
-
-template <class Base>
-struct row_begin_impl< coarsening::detail::sa_filtered_matrix<Base> > {
-    typedef coarsening::detail::sa_filtered_matrix<Base> Matrix;
-
-    static typename row_iterator<Matrix>::type
-    get(const Matrix &matrix, size_t row) {
-        return matrix.row_begin(row);
-    }
-};
-
-} // namespace backend
-
-namespace coarsening {
 
 /// Smoothed aggregation coarsening.
 /**
@@ -245,10 +112,96 @@ struct smoothed_aggregation {
                 );
 
         boost::shared_ptr<Matrix> P = boost::make_shared<Matrix>();
-        *P = product(
-                detail::sa_filtered_matrix<Matrix>(A, prm.relax, aggr.strong_connection),
-                *P_tent
-                );
+        P->nrows = rows(*P_tent);
+        P->ncols = cols(*P_tent);
+
+        P->ptr.resize(n + 1, 0);
+
+#pragma omp parallel
+        {
+            std::vector<ptrdiff_t> marker(aggr.count, -1);
+
+#ifdef _OPENMP
+            int nt  = omp_get_num_threads();
+            int tid = omp_get_thread_num();
+
+            size_t chunk_size  = (n + nt - 1) / nt;
+            size_t chunk_start = tid * chunk_size;
+            size_t chunk_end   = std::min(n, chunk_start + chunk_size);
+#else
+            size_t chunk_start = 0;
+            size_t chunk_end   = n;
+#endif
+
+            // Count number of entries in P.
+            for(ptrdiff_t i = chunk_start; i < chunk_end; ++i) {
+                for(ptrdiff_t ja = A.ptr[i], ea = A.ptr[i+1]; ja < ea; ++ja) {
+                    ptrdiff_t ca = A.col[ja];
+
+                    // Skip weak off-diagonal connections.
+                    if (ca != i && !aggr.strong_connection[ja])
+                        continue;
+
+                    for(ptrdiff_t jp = P_tent->ptr[ca], ep = P_tent->ptr[ca+1]; jp < ep; ++jp) {
+                        ptrdiff_t cp = P_tent->col[jp];
+
+                        if (marker[cp] != i) {
+                            marker[cp] = i;
+                            ++( P->ptr[i + 1] );
+                        }
+                    }
+                }
+            }
+
+            boost::fill(marker, -1);
+
+#pragma omp barrier
+#pragma omp single
+            {
+                boost::partial_sum(P->ptr, P->ptr.begin());
+                P->col.resize(P->ptr.back());
+                P->val.resize(P->ptr.back());
+            }
+
+            // Fill the interpolation matrix.
+            for(ptrdiff_t i = chunk_start; i < chunk_end; ++i) {
+
+                // Diagonal of the filtered matrix is the original matrix
+                // diagonal minus its weak connections.
+                Val dia = 0;
+                for(ptrdiff_t j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
+                    if (static_cast<size_t>(A.col[j]) == i)
+                        dia += A.val[j];
+                    else if (!aggr.strong_connection[j])
+                        dia -= A.val[j];
+                }
+                dia = 1 / dia;
+
+                ptrdiff_t row_beg = P->ptr[i];
+                ptrdiff_t row_end = row_beg;
+                for(ptrdiff_t ja = A.ptr[i], ea = A.ptr[i + 1]; ja < ea; ++ja) {
+                    ptrdiff_t ca = A.col[ja];
+
+                    // Skip weak off-diagonal connections.
+                    if (ca != i && !aggr.strong_connection[ja]) continue;
+
+                    Val va = (ca == i) ? 1 - prm.relax : -prm.relax * dia * A.val[ja];
+
+                    for(ptrdiff_t jp = P_tent->ptr[ca], ep = P_tent->ptr[ca+1]; jp < ep; ++jp) {
+                        ptrdiff_t cp = P_tent->col[jp];
+
+                        if (marker[cp] < row_beg) {
+                            marker[cp] = row_end;
+                            P->col[row_end] = cp;
+                            P->val[row_end] = va;
+                            ++row_end;
+                        } else {
+                            P->val[ marker[cp] ] += va;
+                        }
+                    }
+                }
+            }
+        }
         TOC("interpolation");
 
         boost::shared_ptr<Matrix> R = boost::make_shared<Matrix>();
