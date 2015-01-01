@@ -688,8 +688,7 @@ struct inner_product_impl<
         auto range = boost::irange(0, x.nseg);
         return hpx::parallel::transform_reduce(
                 hpx::parallel::par,
-                boost::begin(range), boost::end(range), static_cast<real>(0),
-                std::plus<real>(),
+                boost::begin(range), boost::end(range),
                 [&x, &y, xptr, yptr](ptrdiff_t seg) {
                     ptrdiff_t beg = seg * x.grain_size;
                     ptrdiff_t end = std::min<ptrdiff_t>(beg + x.grain_size, x.size());
@@ -699,7 +698,9 @@ struct inner_product_impl<
                             x.safe_to_read[seg],
                             y.safe_to_read[seg]
                             ).get();
-                });
+                },
+                static_cast<real>(0), std::plus<real>()
+                );
     }
 };
 
