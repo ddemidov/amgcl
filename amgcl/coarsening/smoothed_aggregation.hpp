@@ -125,12 +125,12 @@ struct smoothed_aggregation {
             int nt  = omp_get_num_threads();
             int tid = omp_get_thread_num();
 
-            size_t chunk_size  = (n + nt - 1) / nt;
-            size_t chunk_start = tid * chunk_size;
-            size_t chunk_end   = std::min(n, chunk_start + chunk_size);
+            ptrdiff_t chunk_size  = (n + nt - 1) / nt;
+            ptrdiff_t chunk_start = tid * chunk_size;
+            ptrdiff_t chunk_end   = std::min<ptrdiff_t>(n, chunk_start + chunk_size);
 #else
-            size_t chunk_start = 0;
-            size_t chunk_end   = n;
+            ptrdiff_t chunk_start = 0;
+            ptrdiff_t chunk_end   = n;
 #endif
 
             // Count number of entries in P.
@@ -170,7 +170,7 @@ struct smoothed_aggregation {
                 // diagonal minus its weak connections.
                 Val dia = 0;
                 for(ptrdiff_t j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
-                    if (static_cast<size_t>(A.col[j]) == i)
+                    if (A.col[j] == i)
                         dia += A.val[j];
                     else if (!aggr.strong_connection[j])
                         dia -= A.val[j];
