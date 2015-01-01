@@ -27,6 +27,7 @@ ASSERT_EQUAL(amgclRelaxationGaussSeidel,         amgcl::runtime::relaxation::gau
 ASSERT_EQUAL(amgclRelaxationILU0,                amgcl::runtime::relaxation::ilu0);
 ASSERT_EQUAL(amgclRelaxationDampedJacobi,        amgcl::runtime::relaxation::damped_jacobi);
 ASSERT_EQUAL(amgclRelaxationSPAI0,               amgcl::runtime::relaxation::spai0);
+ASSERT_EQUAL(amgclRelaxationSPAI1,               amgcl::runtime::relaxation::spai1);
 ASSERT_EQUAL(amgclRelaxationChebyshev,           amgcl::runtime::relaxation::chebyshev);
 
 ASSERT_EQUAL(amgclSolverCG,                      amgcl::runtime::solver::cg);

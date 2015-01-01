@@ -1,5 +1,5 @@
-#ifndef AMGCL_RELAXATION_SPAI0_HPP
-#define AMGCL_RELAXATION_SPAI0_HPP
+#ifndef AMGCL_RELAXATION_SPAI1_HPP
+#define AMGCL_RELAXATION_SPAI1_HPP
 
 /*
 The MIT License
@@ -26,28 +26,34 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/relaxation/spai0.hpp
+ * \file   amgcl/relaxation/spai1.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
  * \brief  Sparse approximate inverse relaxation scheme.
  */
 
+#include <vector>
+#ifdef _OPENMP
+#  include <omp.h>
+#endif
+
 #include <boost/shared_ptr.hpp>
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/util.hpp>
+#include <amgcl/detail/qr.hpp>
 
 namespace amgcl {
 namespace relaxation {
 
 /// Sparse approximate interface smoother.
 /**
- * The inverse matrix is approximated with diagonal matrix.
+ * Sparsity pattern of the approximate inverse matrix coincides with that of A.
  *
  * \tparam Backend Backend for temporary structures allocation.
  * \ingroup relaxation
  * \sa \cite Broker2002
  */
 template <class Backend>
-struct spai0 {
+struct spai1 {
     typedef typename Backend::value_type value_type;
     typedef typename Backend::vector     vector;
 
@@ -59,29 +65,83 @@ struct spai0 {
 
     /// \copydoc amgcl::relaxation::damped_jacobi::damped_jacobi
     template <class Matrix>
-    spai0( const Matrix &A, const params &, const typename Backend::params &backend_prm)
+    spai1( const Matrix &A, const params &, const typename Backend::params &backend_prm)
     {
+        typedef typename backend::value_type<Matrix>::type   value_type;
         typedef typename backend::row_iterator<Matrix>::type row_iterator;
 
         const size_t n = rows(A);
+        const size_t m = cols(A);
 
-        std::vector<value_type> m(n);
+        boost::shared_ptr<Matrix> Ainv = boost::make_shared<Matrix>();
+        Ainv->nrows = n;
+        Ainv->ncols = m;
 
-#pragma omp parallel for
-        for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-            value_type num = 0;
-            value_type den = 0;
+        Ainv->ptr = A.ptr;
+        Ainv->col = A.col;
+        Ainv->val.assign(A.ptr.back(), 0);
 
-            for(row_iterator a = backend::row_begin(A, i); a; ++a) {
-                value_type v = a.value();
-                den += v * v;
-                if (a.col() == i) num += v;
+#pragma omp parallel
+        {
+#ifdef _OPENMP
+            int nt  = omp_get_num_threads();
+            int tid = omp_get_thread_num();
+
+            size_t chunk_size  = (n + nt - 1) / nt;
+            size_t chunk_start = tid * chunk_size;
+            size_t chunk_end   = std::min(n, chunk_start + chunk_size);
+#else
+            size_t chunk_start = 0;
+            size_t chunk_end   = n;
+#endif
+
+            std::vector<ptrdiff_t> marker(m, -1);
+            std::vector<ptrdiff_t> I, J;
+            std::vector<value_type> B, ek;
+            amgcl::detail::QR<value_type> qr;
+
+            for(size_t i = chunk_start; i < chunk_end; ++i) {
+                ptrdiff_t row_beg = A.ptr[i];
+                ptrdiff_t row_end = A.ptr[i + 1];
+
+                I.assign(A.col.begin() + row_beg, A.col.begin() + row_end);
+
+                J.clear();
+                for(ptrdiff_t j = row_beg; j < row_end; ++j) {
+                    ptrdiff_t c = A.col[j];
+
+                    for(ptrdiff_t jj = A.ptr[c], ee = A.ptr[c + 1]; jj < ee; ++jj) {
+                        ptrdiff_t cc = A.col[jj];
+                        if (marker[cc] < 0) {
+                            marker[cc] = 1;
+                            J.push_back(cc);
+                        }
+                    }
+                }
+                std::sort(J.begin(), J.end());
+                B.assign(I.size() * J.size(), 0);
+                ek.assign(J.size(), 0);
+                for(size_t j = 0; j < J.size(); ++j) {
+                    marker[J[j]] = j;
+                    if (J[j] == static_cast<ptrdiff_t>(i)) ek[j] = 1;
+                }
+
+                for(ptrdiff_t j = row_beg; j < row_end; ++j) {
+                    ptrdiff_t c = A.col[j];
+
+                    for(row_iterator a = row_begin(A, c); a; ++a)
+                        B[marker[a.col()] * I.size() + j - row_beg] = a.value();
+                }
+
+                qr.compute(J.size(), I.size(), B.data(), /*need Q: */false);
+                qr.solve(ek.data(), &Ainv->val[row_beg]);
+
+                for(size_t j = 0; j < J.size(); ++j)
+                    marker[J[j]] = -1;
             }
-
-            m[i] = num / den;
         }
 
-        M = Backend::copy_vector(m, backend_prm);
+        M = Backend::copy_matrix(Ainv, backend_prm);
     }
 
     /// \copydoc amgcl::relaxation::damped_jacobi::apply_pre
@@ -105,7 +165,7 @@ struct spai0 {
     }
 
     private:
-        boost::shared_ptr<vector> M;
+        boost::shared_ptr<typename Backend::matrix> M;
 
         template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
         void apply(
@@ -113,12 +173,13 @@ struct spai0 {
                 ) const
         {
             backend::residual(rhs, A, x, tmp);
-            backend::vmul(1, *M, tmp, 1, x);
+            backend::spmv(1, *M, tmp, 1, x);
         }
 
 };
 
 } // namespace relaxation
 } // namespace amgcl
+
 
 #endif

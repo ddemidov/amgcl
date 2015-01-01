@@ -104,20 +104,20 @@ class QR {
             return sign * q[i*n+j];
         }
 
-        void solve(value_type *x) const {
+        void solve(value_type *f, value_type *x) const {
             // x = Q' * x;
             for(size_t j = 0; j < n; ++j) {
                 value_type s = 0;
 
-                for(size_t k = j; k < m; ++k) s += r[k*n+j] * x[k];
-                for(size_t k = j; k < m; ++k) x[k] -= r[k*n+j] * s;
+                for(size_t k = j; k < m; ++k) s += r[k*n+j] * f[k];
+                for(size_t k = j; k < m; ++k) f[k] -= r[k*n+j] * s;
             }
 
             // x = R^-1 x
-            for (size_t i = m; i --> 0; ) {
-                value_type sum = x[i];
+            for (size_t i = n; i --> 0; ) {
+                value_type sum = x[i] = f[i];
                 for (size_t j = i + 1; j < n; j++) sum -= r[i*n+j] * x[j];
-                x[i]= sum / d[i];
+                x[i] = sum / d[i];
             }
         }
     private:

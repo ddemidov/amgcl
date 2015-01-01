@@ -51,6 +51,7 @@ THE SOFTWARE.
 #include <amgcl/relaxation/ilu0.hpp>
 #include <amgcl/relaxation/damped_jacobi.hpp>
 #include <amgcl/relaxation/spai0.hpp>
+#include <amgcl/relaxation/spai1.hpp>
 #include <amgcl/relaxation/chebyshev.hpp>
 
 #include <amgcl/solver/cg.hpp>
@@ -116,6 +117,7 @@ enum type {
     ilu0,
     damped_jacobi,
     spai0,
+    spai1,
     chebyshev
 };
 
@@ -130,6 +132,8 @@ inline std::ostream& operator<<(std::ostream &os, type r)
             return os << "damped_jacobi";
         case spai0:
             return os << "spai0";
+        case spai1:
+            return os << "spai1";
         case chebyshev:
             return os << "chebyshev";
         default:
@@ -150,6 +154,8 @@ inline std::istream& operator>>(std::istream &in, type &r)
         r = damped_jacobi;
     else if (val == "spai0")
         r = spai0;
+    else if (val == "spai1")
+        r = spai1;
     else if (val == "chebyshev")
         r = chebyshev;
     else
@@ -278,6 +284,13 @@ inline void process_amg(
                 Backend,
                 Coarsening,
                 amgcl::relaxation::spai0
+                >(func);
+            break;
+        case runtime::relaxation::spai1:
+            process_amg<
+                Backend,
+                Coarsening,
+                amgcl::relaxation::spai1
                 >(func);
             break;
         case runtime::relaxation::chebyshev:

@@ -245,6 +245,13 @@ inline void process_sdd(
                 amgcl::relaxation::spai0
                 >(iterative_solver, direct_solver, func);
             break;
+        case runtime::relaxation::spai1:
+            process_sdd<
+                Backend,
+                Coarsening,
+                amgcl::relaxation::spai1
+                >(iterative_solver, direct_solver, func);
+            break;
         case runtime::relaxation::chebyshev:
             process_sdd<
                 Backend,

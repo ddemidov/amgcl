@@ -55,6 +55,7 @@ typedef enum {
     amgclRelaxationILU0,
     amgclRelaxationDampedJacobi,
     amgclRelaxationSPAI0,
+    amgclRelaxationSPAI1,
     amgclRelaxationChebyshev
 } amgclRelaxation;
 
