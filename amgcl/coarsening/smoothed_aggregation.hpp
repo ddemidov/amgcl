@@ -119,7 +119,7 @@ struct smoothed_aggregation {
 
 #pragma omp parallel
         {
-            std::vector<ptrdiff_t> marker(aggr.count, -1);
+            std::vector<ptrdiff_t> marker(P->ncols, -1);
 
 #ifdef _OPENMP
             int nt  = omp_get_num_threads();
@@ -189,14 +189,15 @@ struct smoothed_aggregation {
 
                     for(ptrdiff_t jp = P_tent->ptr[ca], ep = P_tent->ptr[ca+1]; jp < ep; ++jp) {
                         ptrdiff_t cp = P_tent->col[jp];
+                        Val       vp = P_tent->val[jp];
 
                         if (marker[cp] < row_beg) {
                             marker[cp] = row_end;
                             P->col[row_end] = cp;
-                            P->val[row_end] = va;
+                            P->val[row_end] = va * vp;
                             ++row_end;
                         } else {
-                            P->val[ marker[cp] ] += va;
+                            P->val[ marker[cp] ] += va * vp;
                         }
                     }
                 }
