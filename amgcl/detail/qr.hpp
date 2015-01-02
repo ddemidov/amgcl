@@ -44,7 +44,11 @@ class QR {
     public:
         QR() : m(0), n(0) {}
 
-        void compute(size_t rows, size_t cols, value_type *A) {
+        void compute(
+                size_t rows, size_t cols, value_type *A,
+                bool needQ = true
+                )
+        {
             precondition(rows >= cols,
                     "QR decomposion of wide matrices is not supported"
                     );
@@ -54,49 +58,68 @@ class QR {
             r = A;
 
             resize(d, n);
-            resize(q, n * m);
 
             for(size_t j = 0; j < n; ++j) {
-                double s = 0;
+                value_type s = 0;
                 for(size_t i = j; i < m; ++i) s += r[i*n+j] * r[i*n+j];
                 s = sqrt(s);
                 d[j] = r[j*n+j] > 0 ? -s : s;
-                double fak = sqrt(s * (s + fabs(r[j*n+j])));
+                value_type fak = sqrt(s * (s + fabs(r[j*n+j])));
                 r[j*n+j] -= d[j];
                 for(size_t k = j; k < m; ++k) r[k*n+j] /= fak;
                 for(size_t i = j + 1; i < n; ++i) {
-                    double s = 0;
+                    value_type s = 0;
                     for(size_t k = j; k < m; ++k) s += r[k*n+j] * r[k*n+i];
                     for(size_t k = j; k < m; ++k) r[k*n+i] -= r[k*n+j] * s;
                 }
             }
 
-            for(size_t i = 0; i < n; ++i) {
-                for(size_t j = 0; j < m; ++j) q[j*n+i] = (j == i);
+            sign = r[0] < 0 ? -1 : 1;
 
-                for(size_t j = n; j-- > 0; ) {
-                    double s = 0;
+            if (needQ) {
+                resize(q, n * m);
+                for(size_t i = 0; i < n; ++i) {
+                    for(size_t j = 0; j < m; ++j) q[j*n+i] = (j == i);
 
-                    for(size_t k = j; k < m; ++k) s += r[k*n+j] * q[k*n+i];
-                    for(size_t k = j; k < m; ++k) q[k*n+i] -= r[k*n+j] * s;
+                    for(size_t j = n; j-- > 0; ) {
+                        value_type s = 0;
+
+                        for(size_t k = j; k < m; ++k) s += r[k*n+j] * q[k*n+i];
+                        for(size_t k = j; k < m; ++k) q[k*n+i] -= r[k*n+j] * s;
+                    }
                 }
             }
-
-            for(size_t i = 0; i < n; ++i) {
-                r[i*n+i] = d[i];
-            }
-
-            sign = r[0] < 0 ? -1 : 1;
         }
 
         value_type R(size_t i, size_t j) const {
-            return i > j ? value_type(0) : sign * r[i*n+j];
+            if (i > j)
+                return value_type(0);
+            if (i == j)
+                return sign * d[i];
+            else
+                return sign * r[i*n+j];
         }
 
         value_type Q(size_t i, size_t j) const {
             return sign * q[i*n+j];
         }
 
+        void solve(value_type *x) const {
+            // x = Q' * x;
+            for(size_t j = 0; j < n; ++j) {
+                value_type s = 0;
+
+                for(size_t k = j; k < m; ++k) s += r[k*n+j] * x[k];
+                for(size_t k = j; k < m; ++k) x[k] -= r[k*n+j] * s;
+            }
+
+            // x = R^-1 x
+            for (size_t i = m; i --> 0; ) {
+                value_type sum = x[i];
+                for (size_t j = i + 1; j < n; j++) sum -= r[i*n+j] * x[j];
+                x[i]= sum / d[i];
+            }
+        }
     private:
         size_t m, n;
         value_type sign;
