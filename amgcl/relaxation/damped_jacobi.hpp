@@ -76,13 +76,11 @@ struct damped_jacobi {
     template <class Matrix>
     damped_jacobi(
             const Matrix &A,
-            const params &prm,
+            const params&,
             const typename Backend::params &backend_prm
             )
         : dia( Backend::copy_vector( diagonal(A, true), backend_prm ) )
-    {
-        (void)&prm; // do not warn about unused parameter.
-    }
+    { }
 
     /// Apply pre-relaxation
     /**
