@@ -4,6 +4,8 @@
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
+#include <boost/random.hpp>
+#include <boost/foreach.hpp>
 
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
@@ -20,6 +22,40 @@ typedef Eigen::Matrix<double, Eigen::Dynamic, 1>          EigenVector;
 namespace amgcl {
 profiler<> prof;
 } // namespace amgcl
+
+template <class Solver, class C, class R, class S, class M, class P>
+boost::shared_ptr<Solver> make_adaptive(C c, R r, S s, const M &A, P &p) {
+    const size_t nvec = 3;
+    const size_t n = A.rows();
+
+    boost::random::mt19937 rng;
+    boost::random::uniform_real_distribution<double> rnd(0, 1);
+
+    std::vector<double> zero(n, 0);
+    std::vector<double> B(nvec * n);
+
+    boost::shared_ptr<Solver> slv;
+
+    slv = boost::make_shared<Solver>(c, r, s, A, p);
+
+    for(size_t i = 0; i < nvec; ++i) {
+        std::vector<double> x(n);
+        BOOST_FOREACH(double &v, x) v = rnd(rng);
+
+        for(int j = 0; j < 10; ++j)
+            slv->amg().cycle(zero, x);
+
+        std::copy(x.begin(), x.end(), &B[i * n]);
+
+        p.put("amg.coarsening.nullspace.cols", i + 1);
+        p.put("amg.coarsening.nullspace.rows", n);
+        p.put("amg.coarsening.nullspace.B",    B.data());
+
+        slv = boost::make_shared<Solver>(c, r, s, A, p);
+    }
+
+    return slv;
+}
 
 //---------------------------------------------------------------------------
 template<typename Matrix>
@@ -45,7 +81,7 @@ void mmread(Matrix &vec, const std::string &fname) {
     std::istringstream newline(line);
     newline >> n >> col;
     precondition(n > 0 && col > 0, "Wrong dimensions in Null-space file");
-    vec.resize(n, col);
+    vec.resize(col, n);
 
     for(int j = 0; j < col; ++j) {
         for(int i = 0; i < n; ++i) {
@@ -55,7 +91,7 @@ void mmread(Matrix &vec, const std::string &fname) {
                     "Format error in " + fname
                     );
 
-            vec(i, j) = v;
+            vec(j, i) = v;
         }
     }
 }
@@ -158,12 +194,12 @@ int main(int argc, char *argv[]) {
         mmread(Z, null_file);
 
         precondition(
-                Z.rows() == A.rows(),
+                Z.cols() == A.rows(),
                 "Inconsistent dimensions in Null-space file"
                 );
 
-        prm.put("amg.coarsening.nullspace.cols", Z.cols());
-        prm.put("amg.coarsening.nullspace.rows", Z.rows());
+        prm.put("amg.coarsening.nullspace.cols", Z.rows());
+        prm.put("amg.coarsening.nullspace.rows", Z.cols());
         prm.put("amg.coarsening.nullspace.B",    Z.data());
     }
 
@@ -176,10 +212,10 @@ int main(int argc, char *argv[]) {
         amgcl::runtime::make_solver< amgcl::backend::builtin<double> >
         Solver;
 
-    Solver solve(coarsening, relaxation, solver, A, prm);
+    boost::shared_ptr<Solver> solve = make_adaptive<Solver>(coarsening, relaxation, solver, A, prm);
     prof.toc("setup");
 
-    std::cout << solve.amg() << std::endl;
+    std::cout << solve->amg() << std::endl;
 
     // Solve the problem
     std::vector<double> f(&rhs[0], &rhs[0] + rhs.size());
@@ -188,7 +224,7 @@ int main(int argc, char *argv[]) {
     prof.tic("solve");
     size_t iters;
     double resid;
-    boost::tie(iters, resid) = solve(f, x);
+    boost::tie(iters, resid) = (*solve)(f, x);
     prof.toc("solve");
 
     // Check the real error

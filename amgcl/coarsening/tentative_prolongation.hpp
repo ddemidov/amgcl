@@ -153,8 +153,7 @@ boost::shared_ptr<Matrix> tentative_prolongation(
 
         // Compute the tentative prolongation operator and null-space vectors
         // for the coarser level.
-        std::vector<double> Bnew;
-        Bnew.reserve(naggr * nullspace.cols * nullspace.cols);
+        std::vector<double> Bnew(naggr * nullspace.cols * nullspace.cols);
 
         size_t offset = 0;
 
@@ -164,17 +163,14 @@ boost::shared_ptr<Matrix> tentative_prolongation(
             int d = 0;
             Bpart.clear();
             for(size_t j = offset; j < n && aggr[order[j]] == i; ++j, ++d)
-                std::copy(
-                        &nullspace.B[nullspace.cols * order[j]],
-                        &nullspace.B[nullspace.cols * order[j]] + nullspace.cols,
-                        std::back_inserter(Bpart)
-                        );
+                for(int k = 0; k < nullspace.cols; ++k)
+                    Bpart.push_back(nullspace.B[n * k + order[j]]);
 
             qr.compute(d, nullspace.cols, Bpart.data());
 
             for(int ii = 0; ii < nullspace.cols; ++ii)
                 for(int jj = 0; jj < nullspace.cols; ++jj)
-                    Bnew.push_back( qr.R(ii,jj) );
+                    Bnew[jj * nullspace.cols * naggr + i * nullspace.cols + ii] = qr.R(ii,jj);
 
             for(int ii = 0; ii < d; ++ii, ++offset) {
                 ptrdiff_t  *c = &P->col[P->ptr[order[offset]]];
