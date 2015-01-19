@@ -32,6 +32,7 @@ if (MPI_CXX_FOUND)
     endif()
 
     add_mpi_example(runtime_sdd         runtime_sdd.cpp)
+    add_mpi_example(runtime_sdd_3d      runtime_sdd_3d.cpp)
     add_mpi_example(solve_mm_mpi        solve_mm_mpi.cpp)
     add_mpi_example(call_mpi_lib        call_mpi_lib.cpp)
     target_link_libraries(call_mpi_lib amgcl amgcl_mpi)

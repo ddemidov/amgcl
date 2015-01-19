@@ -1,0 +1,285 @@
+#include <iostream>
+#include <iomanip>
+#include <fstream>
+#include <vector>
+#include <cmath>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
+#include <boost/scope_exit.hpp>
+#include <boost/range/algorithm.hpp>
+
+#include <boost/program_options.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+
+#include <amgcl/mpi/runtime.hpp>
+#include <amgcl/profiler.hpp>
+
+#include "domain_partition.hpp"
+
+namespace amgcl {
+    profiler<> prof;
+}
+
+struct deflation_vectors {
+    size_t nv;
+    std::vector<double> x;
+    std::vector<double> y;
+    std::vector<double> z;
+
+    deflation_vectors(ptrdiff_t n, size_t nv = 4) : nv(nv), x(n), y(n), z(n) {}
+
+    size_t dim() const { return nv; }
+
+    double operator()(ptrdiff_t i, int j) const {
+        switch(j) {
+            default:
+            case 0:
+                return 1;
+            case 1:
+                return x[i];
+            case 2:
+                return y[i];
+            case 3:
+                return z[i];
+        }
+    }
+};
+
+int main(int argc, char *argv[]) {
+    MPI_Init(&argc, &argv);
+    BOOST_SCOPE_EXIT(void) {
+        MPI_Finalize();
+    } BOOST_SCOPE_EXIT_END
+
+    amgcl::mpi::communicator world(MPI_COMM_WORLD);
+
+    if (world.rank == 0)
+        std::cout << "World size: " << world.size << std::endl;
+
+    // Read configuration from command line
+    ptrdiff_t n = 128;
+    bool constant_deflation = false;
+
+    amgcl::runtime::coarsening::type    coarsening       = amgcl::runtime::coarsening::smoothed_aggregation;
+    amgcl::runtime::relaxation::type    relaxation       = amgcl::runtime::relaxation::spai0;
+    amgcl::runtime::solver::type        iterative_solver = amgcl::runtime::solver::bicgstabl;
+    amgcl::runtime::direct_solver::type direct_solver    = amgcl::runtime::direct_solver::skyline_lu;
+
+    bool        symm_dirichlet = true;
+    std::string parameter_file;
+
+    namespace po = boost::program_options;
+    po::options_description desc("Options");
+
+    desc.add_options()
+        ("help,h", "show help")
+        (
+         "symbc",
+         po::value<bool>(&symm_dirichlet)->default_value(symm_dirichlet),
+         "Use symmetric Dirichlet conditions in laplace2d"
+        )
+        (
+         "size,n",
+         po::value<ptrdiff_t>(&n)->default_value(n),
+         "domain size"
+        )
+        (
+         "coarsening,c",
+         po::value<amgcl::runtime::coarsening::type>(&coarsening)->default_value(coarsening),
+         "ruge_stuben, aggregation, smoothed_aggregation, smoothed_aggr_emin"
+        )
+        (
+         "relaxation,r",
+         po::value<amgcl::runtime::relaxation::type>(&relaxation)->default_value(relaxation),
+         "gauss_seidel, ilu0, damped_jacobi, spai0, chebyshev"
+        )
+        (
+         "iter_solver,i",
+         po::value<amgcl::runtime::solver::type>(&iterative_solver)->default_value(iterative_solver),
+         "cg, bicgstab, bicgstabl, gmres"
+        )
+        (
+         "dir_solver,d",
+         po::value<amgcl::runtime::direct_solver::type>(&direct_solver)->default_value(direct_solver),
+         "skyline_lu"
+#ifdef AMGCL_HAVE_PASTIX
+         ", pastix"
+#endif
+        )
+        (
+         "cd",
+         po::bool_switch(&constant_deflation),
+         "Use constant deflation (linear deflation is used by default)"
+        )
+        (
+         "params,p",
+         po::value<std::string>(&parameter_file),
+         "parameter file in json format"
+        )
+        ;
+
+    po::variables_map vm;
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);
+
+    if (vm.count("help")) {
+        std::cout << desc << std::endl;
+        return 0;
+    }
+
+    boost::property_tree::ptree prm;
+    if (vm.count("params")) read_json(parameter_file, prm);
+
+    const ptrdiff_t n3 = n * n * n;
+
+    boost::array<ptrdiff_t, 3> lo = { {0,   0,   0  } };
+    boost::array<ptrdiff_t, 3> hi = { {n-1, n-1, n-1} };
+
+    using amgcl::prof;
+
+    prof.tic("partition");
+    domain_partition<3> part(lo, hi, world.size);
+    ptrdiff_t chunk = part.size( world.rank );
+
+    std::vector<ptrdiff_t> domain(world.size + 1);
+    MPI_Allgather(
+            &chunk, 1, amgcl::mpi::datatype<ptrdiff_t>::get(),
+            &domain[1], 1, amgcl::mpi::datatype<ptrdiff_t>::get(), world);
+    boost::partial_sum(domain, domain.begin());
+
+    ptrdiff_t chunk_start = domain[world.rank];
+    ptrdiff_t chunk_end   = domain[world.rank + 1];
+
+    deflation_vectors def(chunk, constant_deflation ? 1 : 4);
+    std::vector<ptrdiff_t> renum(n3);
+    for(ptrdiff_t k = 0, idx = 0; k < n; ++k) {
+        for(ptrdiff_t j = 0; j < n; ++j) {
+            for(ptrdiff_t i = 0; i < n; ++i, ++idx) {
+                boost::array<ptrdiff_t, 3> p = {{i, j, k}};
+                std::pair<int,ptrdiff_t> v = part.index(p);
+                renum[idx] = domain[v.first] + v.second;
+
+                boost::array<ptrdiff_t,3> lo = part.domain(v.first).min_corner();
+                boost::array<ptrdiff_t,3> hi = part.domain(v.first).max_corner();
+
+                if (v.first == world.rank) {
+                    def.x[v.second] = (i - (lo[0] + hi[0]) / 2);
+                    def.y[v.second] = (j - (lo[1] + hi[1]) / 2);
+                    def.z[v.second] = (k - (lo[2] + hi[2]) / 2);
+                }
+            }
+        }
+    }
+    prof.toc("partition");
+
+    prof.tic("assemble");
+    std::vector<ptrdiff_t> ptr;
+    std::vector<ptrdiff_t> col;
+    std::vector<double>    val;
+    std::vector<double>    rhs;
+
+    ptr.reserve(chunk + 1);
+    col.reserve(chunk * 7);
+    val.reserve(chunk * 7);
+    rhs.reserve(chunk);
+
+    ptr.push_back(0);
+
+    const double h2i  = (n - 1) * (n - 1);
+
+    for(ptrdiff_t k = 0, idx = 0; k < n; ++k) {
+        for(ptrdiff_t j = 0; j < n; ++j) {
+            for(ptrdiff_t i = 0; i < n; ++i, ++idx) {
+                if (renum[idx] < chunk_start || renum[idx] >= chunk_end) continue;
+
+                if (!symm_dirichlet && (i == 0 || j == 0 || k == 0 || i + 1 == n || j + 1 == n || k + 1 == n)) {
+                    col.push_back(renum[idx]);
+                    val.push_back(1);
+                    rhs.push_back(0);
+                } else {
+                    if (k > 0)  {
+                        col.push_back(renum[idx - n * n]);
+                        val.push_back(-h2i);
+                    }
+
+                    if (j > 0)  {
+                        col.push_back(renum[idx - n]);
+                        val.push_back(-h2i);
+                    }
+
+                    if (i > 0) {
+                        col.push_back(renum[idx - 1]);
+                        val.push_back(-h2i);
+                    }
+
+                    col.push_back(renum[idx]);
+                    val.push_back(6 * h2i);
+
+                    if (i + 1 < n) {
+                        col.push_back(renum[idx + 1]);
+                        val.push_back(-h2i);
+                    }
+
+                    if (j + 1 < n) {
+                        col.push_back(renum[idx + n]);
+                        val.push_back(-h2i);
+                    }
+
+                    if (k + 1 < n) {
+                        col.push_back(renum[idx + n * n]);
+                        val.push_back(-h2i);
+                    }
+
+                    rhs.push_back(1);
+                }
+                ptr.push_back( col.size() );
+            }
+        }
+    }
+    prof.toc("assemble");
+
+    prof.tic("setup");
+    typedef
+        amgcl::runtime::mpi::subdomain_deflation<
+            amgcl::backend::builtin<double>
+            >
+        SDD;
+
+    SDD solve(
+            coarsening, relaxation, iterative_solver, direct_solver,
+            world, boost::tie(chunk, ptr, col, val), def, prm
+            );
+    double tm_setup = prof.toc("setup");
+
+    std::vector<double> x(chunk, 0);
+
+    prof.tic("solve");
+    size_t iters;
+    double resid;
+    boost::tie(iters, resid) = solve(rhs, x);
+    double tm_solve = prof.toc("solve");
+
+    if (world.rank == 0) {
+        std::cout
+            << "Iterations: " << iters << std::endl
+            << "Error:      " << resid << std::endl
+            << std::endl
+            << prof << std::endl;
+
+#ifdef _OPENMP
+        int nt = omp_get_max_threads();
+#else
+        int nt = 1;
+#endif
+        std::ostringstream log_name;
+        log_name << "log3d_" << n3 << "_" << nt << "_" << world.size << ".txt";
+        std::ofstream log(log_name.str().c_str(), std::ios::app);
+        log << n3 << "\t" << nt << "\t" << world.size
+            << "\t" << tm_setup << "\t" << tm_solve
+            << "\t" << iters << "\t" << std::endl;
+    }
+
+}
