@@ -19,20 +19,18 @@
 
 #include "domain_partition.hpp"
 
-#define CONVECTION
-//#define RECIRCULATION
-
 namespace amgcl {
     profiler<> prof;
 }
 
-struct linear_deflation {
+struct deflation_vectors {
+    size_t nv;
     std::vector<double> x;
     std::vector<double> y;
 
-    linear_deflation(ptrdiff_t n) : x(n), y(n) {}
+    deflation_vectors(ptrdiff_t n, size_t nv = 3) : nv(nv), x(n), y(n) {}
 
-    size_t dim() const { return 3; }
+    size_t dim() const { return nv; }
 
     double operator()(ptrdiff_t i, int j) const {
         switch(j) {
@@ -60,6 +58,7 @@ int main(int argc, char *argv[]) {
 
     // Read configuration from command line
     ptrdiff_t n = 1024;
+    bool constant_deflation = false;
 
     amgcl::runtime::coarsening::type    coarsening       = amgcl::runtime::coarsening::smoothed_aggregation;
     amgcl::runtime::relaxation::type    relaxation       = amgcl::runtime::relaxation::spai0;
@@ -114,6 +113,11 @@ int main(int argc, char *argv[]) {
 #endif
         )
         (
+         "cd",
+         po::bool_switch(&constant_deflation),
+         "Use constant deflation (linear deflation is used by default)"
+        )
+        (
          "params,p",
          po::value<std::string>(&parameter_file),
          "parameter file in json format"
@@ -152,7 +156,7 @@ int main(int argc, char *argv[]) {
     ptrdiff_t chunk_start = domain[world.rank];
     ptrdiff_t chunk_end   = domain[world.rank + 1];
 
-    linear_deflation lindef(chunk);
+    deflation_vectors def(chunk, constant_deflation ? 1 : 3);
     std::vector<ptrdiff_t> renum(n2);
     for(ptrdiff_t j = 0, idx = 0; j < n; ++j) {
         for(ptrdiff_t i = 0; i < n; ++i, ++idx) {
@@ -164,8 +168,8 @@ int main(int argc, char *argv[]) {
             boost::array<ptrdiff_t,2> hi = part.domain(v.first).max_corner();
 
             if (v.first == world.rank) {
-                lindef.x[v.second] = (i - (lo[0] + hi[0]) / 2);
-                lindef.y[v.second] = (j - (lo[1] + hi[1]) / 2);
+                def.x[v.second] = (i - (lo[0] + hi[0]) / 2);
+                def.y[v.second] = (j - (lo[1] + hi[1]) / 2);
             }
         }
     }
@@ -287,7 +291,7 @@ int main(int argc, char *argv[]) {
 
     SDD solve(
             coarsening, relaxation, iterative_solver, direct_solver,
-            world, boost::tie(chunk, ptr, col, val), lindef, prm
+            world, boost::tie(chunk, ptr, col, val), def, prm
             );
     double tm_setup = prof.toc("setup");
 
