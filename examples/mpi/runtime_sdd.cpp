@@ -258,11 +258,11 @@ int main(int argc, char *argv[]) {
 
                     if (i > 0) {
                         col.push_back(renum[idx - 1]);
-                        val.push_back(-h2i - hinv);
+                        val.push_back(-h2i);
                     }
 
                     col.push_back(renum[idx]);
-                    val.push_back(4 * h2i + hinv);
+                    val.push_back(4 * h2i);
 
                     if (i + 1 < n) {
                         col.push_back(renum[idx + 1]);
