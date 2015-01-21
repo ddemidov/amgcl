@@ -12,6 +12,10 @@
 
 #include "sample_problem.hpp"
 
+namespace amgcl {
+    amgcl::profiler<> prof;
+}
+
 //---------------------------------------------------------------------------
 int hpx_main(boost::program_options::variables_map &vm) {
     std::vector<int>    ptr;
@@ -19,7 +23,8 @@ int hpx_main(boost::program_options::variables_map &vm) {
     std::vector<double> val;
     std::vector<double> rhs;
 
-    amgcl::profiler<> prof;
+    using amgcl::prof;
+
     prof.tic("assemble");
     int n = sample_problem(vm["size"].as<int>(), val, col, ptr, rhs);
     prof.toc("assemble");
