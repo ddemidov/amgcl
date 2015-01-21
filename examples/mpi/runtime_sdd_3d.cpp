@@ -48,6 +48,23 @@ struct deflation_vectors {
     }
 };
 
+struct renumbering {
+    const domain_partition<3> &part;
+    const std::vector<ptrdiff_t> &dom;
+
+    renumbering(
+            const domain_partition<3> &p,
+            const std::vector<ptrdiff_t> &d
+            ) : part(p), dom(d)
+    {}
+
+    ptrdiff_t operator()(ptrdiff_t i, ptrdiff_t j, ptrdiff_t k) const {
+        boost::array<ptrdiff_t, 3> p = {{i, j, k}};
+        std::pair<int,ptrdiff_t> v = part.index(p);
+        return dom[v.first] + v.second;
+    }
+};
+
 int main(int argc, char *argv[]) {
     MPI_Init(&argc, &argv);
     BOOST_SCOPE_EXIT(void) {
@@ -150,26 +167,21 @@ int main(int argc, char *argv[]) {
             &domain[1], 1, amgcl::mpi::datatype<ptrdiff_t>::get(), world);
     boost::partial_sum(domain, domain.begin());
 
-    ptrdiff_t chunk_start = domain[world.rank];
-    ptrdiff_t chunk_end   = domain[world.rank + 1];
+    lo = part.domain(world.rank).min_corner();
+    hi = part.domain(world.rank).max_corner();
+
+    renumbering renum(part, domain);
 
     deflation_vectors def(chunk, constant_deflation ? 1 : 4);
-    std::vector<ptrdiff_t> renum(n3);
-    for(ptrdiff_t k = 0, idx = 0; k < n; ++k) {
-        for(ptrdiff_t j = 0; j < n; ++j) {
-            for(ptrdiff_t i = 0; i < n; ++i, ++idx) {
+    for(ptrdiff_t k = lo[2]; k <= hi[2]; ++k) {
+        for(ptrdiff_t j = lo[1]; j <= hi[1]; ++j) {
+            for(ptrdiff_t i = lo[0]; i <= hi[0]; ++i) {
                 boost::array<ptrdiff_t, 3> p = {{i, j, k}};
                 std::pair<int,ptrdiff_t> v = part.index(p);
-                renum[idx] = domain[v.first] + v.second;
 
-                boost::array<ptrdiff_t,3> lo = part.domain(v.first).min_corner();
-                boost::array<ptrdiff_t,3> hi = part.domain(v.first).max_corner();
-
-                if (v.first == world.rank) {
-                    def.x[v.second] = (i - (lo[0] + hi[0]) / 2);
-                    def.y[v.second] = (j - (lo[1] + hi[1]) / 2);
-                    def.z[v.second] = (k - (lo[2] + hi[2]) / 2);
-                }
+                def.x[v.second] = (i - (lo[0] + hi[0]) / 2);
+                def.y[v.second] = (j - (lo[1] + hi[1]) / 2);
+                def.z[v.second] = (k - (lo[2] + hi[2]) / 2);
             }
         }
     }
@@ -190,46 +202,45 @@ int main(int argc, char *argv[]) {
 
     const double h2i  = (n - 1) * (n - 1);
 
-    for(ptrdiff_t k = 0, idx = 0; k < n; ++k) {
-        for(ptrdiff_t j = 0; j < n; ++j) {
-            for(ptrdiff_t i = 0; i < n; ++i, ++idx) {
-                if (renum[idx] < chunk_start || renum[idx] >= chunk_end) continue;
+    for(ptrdiff_t k = lo[2]; k <= hi[2]; ++k) {
+        for(ptrdiff_t j = lo[1]; j <= hi[1]; ++j) {
+            for(ptrdiff_t i = lo[0]; i <= hi[0]; ++i) {
 
                 if (!symm_dirichlet && (i == 0 || j == 0 || k == 0 || i + 1 == n || j + 1 == n || k + 1 == n)) {
-                    col.push_back(renum[idx]);
+                    col.push_back(renum(i,j,k));
                     val.push_back(1);
                     rhs.push_back(0);
                 } else {
                     if (k > 0)  {
-                        col.push_back(renum[idx - n * n]);
+                        col.push_back(renum(i,j,k-1));
                         val.push_back(-h2i);
                     }
 
                     if (j > 0)  {
-                        col.push_back(renum[idx - n]);
+                        col.push_back(renum(i,j-1,k));
                         val.push_back(-h2i);
                     }
 
                     if (i > 0) {
-                        col.push_back(renum[idx - 1]);
+                        col.push_back(renum(i-1,j,k));
                         val.push_back(-h2i);
                     }
 
-                    col.push_back(renum[idx]);
+                    col.push_back(renum(i,j,k));
                     val.push_back(6 * h2i);
 
                     if (i + 1 < n) {
-                        col.push_back(renum[idx + 1]);
+                        col.push_back(renum(i+1,j,k));
                         val.push_back(-h2i);
                     }
 
                     if (j + 1 < n) {
-                        col.push_back(renum[idx + n]);
+                        col.push_back(renum(i,j+1,k));
                         val.push_back(-h2i);
                     }
 
                     if (k + 1 < n) {
-                        col.push_back(renum[idx + n * n]);
+                        col.push_back(renum(i,j,k+1));
                         val.push_back(-h2i);
                     }
 

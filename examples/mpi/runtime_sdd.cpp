@@ -45,6 +45,23 @@ struct deflation_vectors {
     }
 };
 
+struct renumbering {
+    const domain_partition<2> &part;
+    const std::vector<ptrdiff_t> &dom;
+
+    renumbering(
+            const domain_partition<2> &p,
+            const std::vector<ptrdiff_t> &d
+            ) : part(p), dom(d)
+    {}
+
+    ptrdiff_t operator()(ptrdiff_t i, ptrdiff_t j) const {
+        boost::array<ptrdiff_t, 2> p = {{i, j}};
+        std::pair<int,ptrdiff_t> v = part.index(p);
+        return dom[v.first] + v.second;
+    }
+};
+
 int main(int argc, char *argv[]) {
     MPI_Init(&argc, &argv);
     BOOST_SCOPE_EXIT(void) {
@@ -153,24 +170,19 @@ int main(int argc, char *argv[]) {
             &domain[1], 1, amgcl::mpi::datatype<ptrdiff_t>::get(), world);
     boost::partial_sum(domain, domain.begin());
 
-    ptrdiff_t chunk_start = domain[world.rank];
-    ptrdiff_t chunk_end   = domain[world.rank + 1];
+    lo = part.domain(world.rank).min_corner();
+    hi = part.domain(world.rank).max_corner();
+
+    renumbering renum(part, domain);
 
     deflation_vectors def(chunk, constant_deflation ? 1 : 3);
-    std::vector<ptrdiff_t> renum(n2);
-    for(ptrdiff_t j = 0, idx = 0; j < n; ++j) {
-        for(ptrdiff_t i = 0; i < n; ++i, ++idx) {
+    for(ptrdiff_t j = lo[1]; j <= hi[1]; ++j) {
+        for(ptrdiff_t i = lo[0]; i <= hi[0]; ++i) {
             boost::array<ptrdiff_t, 2> p = {{i, j}};
             std::pair<int,ptrdiff_t> v = part.index(p);
-            renum[idx] = domain[v.first] + v.second;
 
-            boost::array<ptrdiff_t,2> lo = part.domain(v.first).min_corner();
-            boost::array<ptrdiff_t,2> hi = part.domain(v.first).max_corner();
-
-            if (v.first == world.rank) {
-                def.x[v.second] = (i - (lo[0] + hi[0]) / 2);
-                def.y[v.second] = (j - (lo[1] + hi[1]) / 2);
-            }
+            def.x[v.second] = (i - (lo[0] + hi[0]) / 2);
+            def.y[v.second] = (j - (lo[1] + hi[1]) / 2);
         }
     }
     prof.toc("partition");
@@ -195,15 +207,13 @@ int main(int argc, char *argv[]) {
         const double h    = 1 / hinv;
         const double eps  = 1e-5;
 
-        for(ptrdiff_t j = 0, idx = 0; j < n; ++j) {
+        for(ptrdiff_t j = lo[1]; j <= hi[1]; ++j) {
             double y = h * j;
-            for(ptrdiff_t i = 0; i < n; ++i, ++idx) {
+            for(ptrdiff_t i = lo[0]; i <= hi[0]; ++i) {
                 double x = h * i;
 
-                if (renum[idx] < chunk_start || renum[idx] >= chunk_end) continue;
-
                 if (i == 0 || j == 0 || i + 1 == n || j + 1 == n) {
-                    col.push_back(renum[idx]);
+                    col.push_back(renum(i,j));
                     val.push_back(1);
                     rhs.push_back(
                             sin(M_PI * x) + sin(M_PI * y) +
@@ -214,25 +224,25 @@ int main(int argc, char *argv[]) {
                     double b =  sin(M_PI * y) * cos(M_PI * x) * hinv;
 
                     if (j > 0) {
-                        col.push_back(renum[idx - n]);
+                        col.push_back(renum(i,j-1));
                         val.push_back(-eps * h2i - std::max(b, 0.0));
                     }
 
                     if (i > 0) {
-                        col.push_back(renum[idx - 1]);
+                        col.push_back(renum(i-1,j));
                         val.push_back(-eps * h2i - std::max(a, 0.0));
                     }
 
-                    col.push_back(renum[idx]);
+                    col.push_back(renum(i,j));
                     val.push_back(4 * eps * h2i + fabs(a) + fabs(b));
 
                     if (i + 1 < n) {
-                        col.push_back(renum[idx + 1]);
+                        col.push_back(renum(i+1,j));
                         val.push_back(-eps * h2i + std::min(a, 0.0));
                     }
 
                     if (j + 1 < n) {
-                        col.push_back(renum[idx + n]);
+                        col.push_back(renum(i,j+1));
                         val.push_back(-eps * h2i + std::min(b, 0.0));
                     }
 
@@ -242,35 +252,33 @@ int main(int argc, char *argv[]) {
             }
         }
     } else {
-        for(ptrdiff_t j = 0, idx = 0; j < n; ++j) {
-            for(ptrdiff_t i = 0; i < n; ++i, ++idx) {
-                if (renum[idx] < chunk_start || renum[idx] >= chunk_end) continue;
-
+        for(ptrdiff_t j = lo[1]; j <= hi[1]; ++j) {
+            for(ptrdiff_t i = lo[0]; i <= hi[0]; ++i) {
                 if (!symm_dirichlet && (i == 0 || j == 0 || i + 1 == n || j + 1 == n)) {
-                    col.push_back(renum[idx]);
+                    col.push_back(renum(i,j));
                     val.push_back(1);
                     rhs.push_back(0);
                 } else {
                     if (j > 0)  {
-                        col.push_back(renum[idx - n]);
+                        col.push_back(renum(i,j-1));
                         val.push_back(-h2i);
                     }
 
                     if (i > 0) {
-                        col.push_back(renum[idx - 1]);
+                        col.push_back(renum(i-1,j));
                         val.push_back(-h2i);
                     }
 
-                    col.push_back(renum[idx]);
+                    col.push_back(renum(i,j));
                     val.push_back(4 * h2i);
 
                     if (i + 1 < n) {
-                        col.push_back(renum[idx + 1]);
+                        col.push_back(renum(i+1,j));
                         val.push_back(-h2i);
                     }
 
                     if (j + 1 < n) {
-                        col.push_back(renum[idx + n]);
+                        col.push_back(renum(i,j+1));
                         val.push_back(-h2i);
                     }
 
@@ -302,26 +310,6 @@ int main(int argc, char *argv[]) {
     double resid;
     boost::tie(iters, resid) = solve(rhs, x);
     double tm_solve = prof.toc("solve");
-
-    if (n <= 4096) {
-        prof.tic("save");
-        if (world.rank == 0) {
-            std::vector<double> X(n2);
-            boost::copy(x, X.begin());
-
-            for(int i = 1; i < world.size; ++i)
-                MPI_Recv(&X[domain[i]], domain[i+1] - domain[i], MPI_DOUBLE, i, 42, world, MPI_STATUS_IGNORE);
-
-            std::ofstream f("out.dat", std::ios::binary);
-            int m = n2;
-            f.write((char*)&m, sizeof(int));
-            for(ptrdiff_t i = 0; i < n2; ++i)
-                f.write((char*)&X[renum[i]], sizeof(double));
-        } else {
-            MPI_Send(x.data(), chunk, MPI_DOUBLE, 0, 42, world);
-        }
-        prof.toc("save");
-    }
 
     if (world.rank == 0) {
         std::cout
