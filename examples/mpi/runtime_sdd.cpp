@@ -28,7 +28,26 @@ struct deflation_vectors {
     std::vector<double> x;
     std::vector<double> y;
 
-    deflation_vectors(ptrdiff_t n, size_t nv = 3) : nv(nv), x(n), y(n) {}
+    double s[3];
+
+    deflation_vectors(ptrdiff_t n, size_t nv = 3)
+        : nv(nv), x(n), y(n)
+    {
+        s[0] = 1.0 / sqrt(n);
+        s[1] = s[2] = 1.0;
+    }
+
+    void scale() {
+        s[1] = s[2] = 0;
+
+        for(size_t i = 0; i < x.size(); ++i) {
+            s[1] += x[i] * x[i];
+            s[2] += y[i] * y[i];
+        }
+
+        s[1] = 1 / sqrt(s[1]);
+        s[2] = 1 / sqrt(s[2]);
+    }
 
     size_t dim() const { return nv; }
 
@@ -36,11 +55,11 @@ struct deflation_vectors {
         switch(j) {
             default:
             case 0:
-                return 1;
+                return s[0];
             case 1:
-                return x[i];
+                return s[1] * x[i];
             case 2:
-                return y[i];
+                return s[2] * y[i];
         }
     }
 };
@@ -189,6 +208,7 @@ int main(int argc, char *argv[]) {
             def.y[v.second] = h * (j - (lo[1] + hi[1]) / 2);
         }
     }
+    def.scale();
     prof.toc("partition");
 
     prof.tic("assemble");
