@@ -154,6 +154,10 @@ int main(int argc, char *argv[]) {
     if (vm.count("params")) read_json(parameter_file, prm);
 
     const ptrdiff_t n2 = n * n;
+    const double hinv  = (n - 1);
+    const double h2i   = (n - 1) * (n - 1);
+    const double h     = 1 / hinv;
+
 
     boost::array<ptrdiff_t, 2> lo = { {0, 0} };
     boost::array<ptrdiff_t, 2> hi = { {n - 1, n - 1} };
@@ -181,8 +185,8 @@ int main(int argc, char *argv[]) {
             boost::array<ptrdiff_t, 2> p = {{i, j}};
             std::pair<int,ptrdiff_t> v = part.index(p);
 
-            def.x[v.second] = (i - (lo[0] + hi[0]) / 2);
-            def.y[v.second] = (j - (lo[1] + hi[1]) / 2);
+            def.x[v.second] = h * (i - (lo[0] + hi[0]) / 2);
+            def.y[v.second] = h * (j - (lo[1] + hi[1]) / 2);
         }
     }
     prof.toc("partition");
@@ -200,11 +204,7 @@ int main(int argc, char *argv[]) {
 
     ptr.push_back(0);
 
-    const double hinv = (n - 1);
-    const double h2i  = (n - 1) * (n - 1);
-
     if (problem == "recirc2d") {
-        const double h    = 1 / hinv;
         const double eps  = 1e-5;
 
         for(ptrdiff_t j = lo[1]; j <= hi[1]; ++j) {
