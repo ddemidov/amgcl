@@ -204,7 +204,7 @@ class skyline_lu {
         static size_t coarse_enough() { return 5000; }
 
         template <class Matrix>
-        skyline_lu(const Matrix &A, const params &prm = params())
+        skyline_lu(const Matrix &A, const params& = params())
             : n( backend::rows(A) ), perm(n), ptr(n + 1, 0), D(n, 0), y(n)
         {
             typedef typename backend::row_iterator<Matrix>::type row_iterator;
