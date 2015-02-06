@@ -47,7 +47,7 @@ class skyline_lu {
         typedef typename solver::skyline_lu<value_type>::params params;
 
         /// The number of processes optimal for the given problem size.
-        static int comm_size(int n_global_rows) {
+        static int comm_size(int /*n_global_rows*/) {
             return 1;
         }
 
@@ -66,7 +66,7 @@ class skyline_lu {
          */
         template <class PRng, class CRng, class VRng>
         skyline_lu(
-                MPI_Comm comm,
+                MPI_Comm,
                 int n_local_rows,
                 const PRng &ptr,
                 const CRng &col,

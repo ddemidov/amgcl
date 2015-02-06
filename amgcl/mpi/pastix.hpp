@@ -65,7 +65,7 @@ class PaStiX {
 
         struct params {
             params() {}
-            params(const boost::property_tree::ptree &p) {}
+            params(const boost::property_tree::ptree&) {}
         };
 
         /// The number of processes optimal for the given problem size.
@@ -94,7 +94,7 @@ class PaStiX {
                 const PRng &p_ptr,
                 const CRng &p_col,
                 const VRng &p_val,
-                const params &prm = params()
+                const params& = params()
                 )
             : comm(mpi_comm), nrows(n_local_rows), pastix_data(0),
               ptr(boost::begin(p_ptr), boost::end(p_ptr)),

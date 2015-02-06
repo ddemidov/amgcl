@@ -149,8 +149,8 @@ typename boost::disable_if<
     void
 >::type
 process_sdd(
-        runtime::direct_solver::type direct_solver,
-        const Func &func
+        runtime::direct_solver::type,
+        const Func&
         )
 {
     throw std::logic_error("The relaxation scheme is not supported by the backend");

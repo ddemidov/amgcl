@@ -52,7 +52,7 @@ class EigenSolver {
         };
 
         template <class Matrix>
-        EigenSolver(const Matrix &A, const params &prm = params())
+        EigenSolver(const Matrix &A, const params& = params())
             : n( backend::rows(A) )
         {
             S.compute(

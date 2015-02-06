@@ -242,7 +242,7 @@ typename boost::disable_if<
     typename backend::relaxation_is_supported<Backend, Relaxation>::type,
     void
 >::type
-process_amg(const Func &func) {
+process_amg(const Func&) {
     throw std::logic_error("The relaxation scheme is not supported by the backend");
 }
 
