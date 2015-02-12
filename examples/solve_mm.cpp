@@ -28,7 +28,7 @@ void mmread(Matrix &vec, const std::string &fname) {
 
     using amgcl::precondition;
 
-    std::ifstream in(fname);
+    std::ifstream in(fname.c_str());
     precondition(in, "Failed to open file \"" + fname + "\"");
 
     std::string line;
