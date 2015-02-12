@@ -130,52 +130,47 @@ class bicgstab {
             size_t     iter = 0;
             value_type res  = norm(*r);
 
-            do {
-                backend::copy(*r, *rh);
+            backend::copy(*r, *rh);
 
-                for(bool first = true; res > eps && iter < prm.maxiter; ++iter) {
+            for(bool first = true; res > eps && iter < prm.maxiter; ++iter) {
 
-                    rho2 = rho1;
-                    rho1 = inner_product(*r, *rh);
+                rho2 = rho1;
+                rho1 = inner_product(*r, *rh);
 
-                    if (first) {
-                        backend::copy(*r, *p);
-                        first = false;
-                    } else {
-                        precondition(rho2, "Zero rho in BiCGStab");
-                        value_type beta = (rho1 * alpha) / (rho2 * omega);
-                        backend::axpbypcz(1, *r, -beta * omega, *v, beta, *p);
-                    }
-
-                    P.apply(*p, *ph);
-
-                    backend::spmv(1, A, *ph, 0, *v);
-
-                    alpha = rho1 / inner_product(*rh, *v);
-
-                    backend::axpbypcz(1, *r, -alpha, *v, 0, *s);
-
-                    if ((res = norm(*s)) <= eps) {
-                        backend::axpby(alpha, *ph, 1, x);
-                    } else {
-                        P.apply(*s, *sh);
-
-                        backend::spmv(1, A, *sh, 0, *t);
-
-                        omega = inner_product(*t, *s) / inner_product(*t, *t);
-
-                        precondition(omega, "Zero omega in BiCGStab");
-
-                        backend::axpbypcz(alpha, *ph, omega, *sh, 1, x);
-                        backend::axpbypcz(1, *s, -omega, *t, 0, *r);
-
-                        res = norm(*r);
-                    }
+                if (first) {
+                    backend::copy(*r, *p);
+                    first = false;
+                } else {
+                    precondition(rho2, "Zero rho in BiCGStab");
+                    value_type beta = (rho1 * alpha) / (rho2 * omega);
+                    backend::axpbypcz(1, *r, -beta * omega, *v, beta, *p);
                 }
 
-                backend::residual(rhs, A, x, *r);
-                res = norm(*r);
-            } while(res > eps && iter < prm.maxiter);
+                P.apply(*p, *ph);
+
+                backend::spmv(1, A, *ph, 0, *v);
+
+                alpha = rho1 / inner_product(*rh, *v);
+
+                backend::axpbypcz(1, *r, -alpha, *v, 0, *s);
+
+                if ((res = norm(*s)) <= eps) {
+                    backend::axpby(alpha, *ph, 1, x);
+                } else {
+                    P.apply(*s, *sh);
+
+                    backend::spmv(1, A, *sh, 0, *t);
+
+                    omega = inner_product(*t, *s) / inner_product(*t, *t);
+
+                    precondition(omega, "Zero omega in BiCGStab");
+
+                    backend::axpbypcz(alpha, *ph, omega, *sh, 1, x);
+                    backend::axpbypcz(1, *s, -omega, *t, 0, *r);
+
+                    res = norm(*r);
+                }
+            }
 
             return boost::make_tuple(iter, res / norm_rhs);
         }

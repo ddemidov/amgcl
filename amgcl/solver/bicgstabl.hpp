@@ -140,88 +140,84 @@ class bicgstabl {
             if(res_norm < eps)
                 return boost::make_tuple(0, res_norm / norm_rhs);
 
+            backend::copy(*r0, *r[0]);
+            backend::clear( *u[0] );
+            value_type rho0 = 1, alpha = 0, omega = 1;
+
             size_t iter = 0;
 
-            do {
-                backend::copy(*r0, *r[0]);
-                backend::clear( *u[0] );
-                value_type rho0 = 1, alpha = 0, omega = 1;
+            for(; res_norm > eps && iter < prm.maxiter; iter += prm.L) {
+                rho0 = -omega * rho0;
 
-                for(; res_norm > eps && iter < prm.maxiter; iter += prm.L) {
-                    rho0 = -omega * rho0;
+                // Bi-CG part
+                for(int j = 0; j < L; ++j) {
+                    precondition(rho0, "Zero rho in BiCGStab(L)");
 
-                    // Bi-CG part
-                    for(int j = 0; j < L; ++j) {
-                        precondition(rho0, "Zero rho in BiCGStab(L)");
+                    double rho1 = inner_product(*r[j], *r0);
+                    double beta = alpha * rho1 / rho0;
+                    rho0 = rho1;
 
-                        double rho1 = inner_product(*r[j], *r0);
-                        double beta = alpha * rho1 / rho0;
-                        rho0 = rho1;
+                    for(int i = 0; i <= j; ++i)
+                        backend::axpby(1, *r[i], -beta, *u[i]);
 
-                        for(int i = 0; i <= j; ++i)
-                            backend::axpby(1, *r[i], -beta, *u[i]);
+                    P.apply(*u[j], *q);
+                    backend::spmv(1, A, *q, 0, *u[j+1]);
 
-                        P.apply(*u[j], *q);
-                        backend::spmv(1, A, *q, 0, *u[j+1]);
+                    alpha = inner_product(*u[j+1], *r0);
 
-                        alpha = inner_product(*u[j+1], *r0);
-                        if (alpha == 0) {
-                            ++iter;
-                            goto check_residual;
-                        }
-                        alpha = rho0 / alpha;
+                    if (alpha == 0) break;
 
-                        for(int i = 0; i <= j; ++i)
-                            backend::axpby(-alpha, *u[i+1], 1, *r[i]);
+                    alpha = rho0 / alpha;
 
-                        P.apply(*r[j], *q);
-                        backend::spmv(1, A, *q, 0, *r[j+1]);
-                        backend::axpby(alpha, *u[0], 1, x);
-                    }
+                    for(int i = 0; i <= j; ++i)
+                        backend::axpby(-alpha, *u[i+1], 1, *r[i]);
 
-                    // MR part
-                    for(int j = 0; j < L; ++j) {
-                        for(int i = 0; i < j; ++i) {
-                            tau[i][j] = inner_product(*r[j+1], *r[i+1]) / sigma[i];
-                            backend::axpby(-tau[i][j], *r[i+1], 1, *r[j+1]);
-                        }
-                        sigma[j] = inner_product(*r[j+1], *r[j+1]);
-                        gamma1[j] = inner_product(*r[0], *r[j+1]) / sigma[j];
-                    }
-
-                    omega = gamma[L-1] = gamma1[L-1];
-                    for(int j = L-2; j >= 0; --j) {
-                        gamma[j] = gamma1[j];
-                        for(int i = j+1; i < L; ++i)
-                            gamma[j] -= tau[j][i] * gamma[i];
-                    }
-
-                    for(int j = 0; j < L-1; ++j) {
-                        gamma2[j] = gamma[j+1];
-                        for(int i = j+1; i < L-1; ++i)
-                            gamma2[j] += tau[j][i] * gamma[i+1];
-                    }
-
-                    // Update
-                    backend::axpby(gamma[0], *r[0], 1, x);
-                    backend::axpby(-gamma1[L-1], *r[L], 1, *r[0]);
-                    backend::axpby(-gamma[L-1], *u[L], 1, *u[0]);
-
-                    for(int j = 1; j < L; ++j) {
-                        backend::axpby(-gamma[j-1], *u[j], 1, *u[0]);
-                        backend::axpby(gamma2[j-1], *r[j], 1, x);
-                        backend::axpby(-gamma1[j-1], *r[j], 1, *r[0]);
-                    }
-
-                    res_norm = norm(*r[0]);
+                    P.apply(*r[j], *q);
+                    backend::spmv(1, A, *q, 0, *r[j+1]);
+                    backend::axpby(alpha, *u[0], 1, x);
                 }
 
-check_residual:
-                P.apply(x, *q);
-                backend::copy(*q, x);
-                backend::residual(rhs, A, x, *r0);
-                res_norm = norm(*r0);
-            } while (res_norm > eps && iter < prm.maxiter);
+                // MR part
+                for(int j = 0; j < L; ++j) {
+                    for(int i = 0; i < j; ++i) {
+                        tau[i][j] = inner_product(*r[j+1], *r[i+1]) / sigma[i];
+                        backend::axpby(-tau[i][j], *r[i+1], 1, *r[j+1]);
+                    }
+                    sigma[j] = inner_product(*r[j+1], *r[j+1]);
+                    gamma1[j] = inner_product(*r[0], *r[j+1]) / sigma[j];
+                }
+
+                omega = gamma[L-1] = gamma1[L-1];
+                for(int j = L-2; j >= 0; --j) {
+                    gamma[j] = gamma1[j];
+                    for(int i = j+1; i < L; ++i)
+                        gamma[j] -= tau[j][i] * gamma[i];
+                }
+
+                for(int j = 0; j < L-1; ++j) {
+                    gamma2[j] = gamma[j+1];
+                    for(int i = j+1; i < L-1; ++i)
+                        gamma2[j] += tau[j][i] * gamma[i+1];
+                }
+
+                // Update
+                backend::axpby(gamma[0], *r[0], 1, x);
+                backend::axpby(-gamma1[L-1], *r[L], 1, *r[0]);
+                backend::axpby(-gamma[L-1], *u[L], 1, *u[0]);
+
+                for(int j = 1; j < L; ++j) {
+                    backend::axpby(-gamma[j-1], *u[j], 1, *u[0]);
+                    backend::axpby(gamma2[j-1], *r[j], 1, x);
+                    backend::axpby(-gamma1[j-1], *r[j], 1, *r[0]);
+                }
+
+                res_norm = norm(*r[0]);
+            }
+
+            P.apply(x, *q);
+            backend::copy(*q, x);
+            backend::residual(rhs, A, x, *r0);
+            res_norm = norm(*r0);
 
             return boost::make_tuple(iter, res_norm / norm_rhs);
         }

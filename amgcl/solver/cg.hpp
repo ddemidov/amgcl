@@ -136,36 +136,32 @@ class cg {
             }
 
             value_type eps  = prm.tol * norm_rhs;
-            value_type rho1 = 2 * eps * eps, rho2 = 0;
+            value_type eps2 = eps * eps;
+            value_type rho1 = 2 * eps2, rho2 = 0;
             value_type res_norm = norm(*r);
 
             size_t iter = 0;
-            while(res_norm > eps && iter < prm.maxiter) {
-                while(iter < prm.maxiter) {
-                    P.apply(*r, *s);
+            for(; iter < prm.maxiter && rho1 > eps2; ++iter) {
+                P.apply(*r, *s);
 
-                    rho2 = rho1;
-                    rho1 = inner_product(*r, *s);
+                rho2 = rho1;
+                rho1 = inner_product(*r, *s);
 
-                    if (iter)
-                        backend::axpby(1, *s, rho1 / rho2, *p);
-                    else
-                        backend::copy(*s, *p);
+                if (iter)
+                    backend::axpby(1, *s, rho1 / rho2, *p);
+                else
+                    backend::copy(*s, *p);
 
-                    backend::spmv(1, A, *p, 0, *q);
+                backend::spmv(1, A, *p, 0, *q);
 
-                    value_type alpha = rho1 / inner_product(*q, *p);
+                value_type alpha = rho1 / inner_product(*q, *p);
 
-                    backend::axpby( alpha, *p, 1,  x);
-                    backend::axpby(-alpha, *q, 1, *r);
-
-                    ++iter;
-                    if (rho1 < eps * eps) break;
-                }
-
-                backend::residual(rhs, A, x, *r);
-                res_norm = norm(*r);
+                backend::axpby( alpha, *p, 1,  x);
+                backend::axpby(-alpha, *q, 1, *r);
             }
+
+            backend::residual(rhs, A, x, *r);
+            res_norm = norm(*r);
 
             return boost::make_tuple(iter, res_norm / norm_rhs);
         }
