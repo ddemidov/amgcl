@@ -417,6 +417,17 @@ class make_solver {
             return S(P, rhs, x);
         }
 
+        /// Acts as a preconditioner.
+        /**
+         * \param rhs Right-hand side.
+         * \param x   Solution vector.
+         */
+        template <class Vec1, class Vec2>
+        void apply(const Vec1 &rhs, Vec2 &x) const {
+            backend::clear(x);
+            (*this)(rhs, x);
+        }
+
         /// Reference to the constructed AMG hierarchy.
         const AMG& amg() const {
             return P;
