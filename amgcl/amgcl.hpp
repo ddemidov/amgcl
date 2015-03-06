@@ -187,7 +187,15 @@ class amg {
          * \param x   Solution vector.
          */
         template <class Vec1, class Vec2>
-        void cycle(const Vec1 &rhs, Vec2 &x) const {
+        void cycle(
+                const Vec1 &rhs,
+#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
+                Vec2       &x
+#else
+                Vec2       &&x
+#endif
+                ) const
+        {
             cycle(levels.begin(), rhs, x);
         }
 
@@ -199,7 +207,15 @@ class amg {
          * \param x   Solution vector.
          */
         template <class Vec1, class Vec2>
-        void apply(const Vec1 &rhs, Vec2 &x) const {
+        void apply(
+                const Vec1 &rhs,
+#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
+                Vec2       &x
+#else
+                Vec2       &&x
+#endif
+                ) const
+        {
             backend::clear(x);
             for(unsigned i = 0; i < prm.pre_cycles; ++i)
                 cycle(levels.begin(), rhs, x);
@@ -397,7 +413,11 @@ class make_solver {
         boost::tuple<size_t, value_type> operator()(
                 Matrix  const &A,
                 Vec1    const &rhs,
+#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
                 Vec2          &x
+#else
+                Vec2          &&x
+#endif
                 ) const
         {
             return S(A, P, rhs, x);
@@ -411,7 +431,11 @@ class make_solver {
         template <class Vec1, class Vec2>
         boost::tuple<size_t, value_type> operator()(
                 Vec1    const &rhs,
+#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
                 Vec2          &x
+#else
+                Vec2          &&x
+#endif
                 ) const
         {
             return S(P, rhs, x);
@@ -423,7 +447,15 @@ class make_solver {
          * \param x   Solution vector.
          */
         template <class Vec1, class Vec2>
-        void apply(const Vec1 &rhs, Vec2 &x) const {
+        void apply(
+                const Vec1 &rhs,
+#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
+                Vec2       &x
+#else
+                Vec2       &&x
+#endif
+                ) const
+        {
             backend::clear(x);
             (*this)(rhs, x);
         }

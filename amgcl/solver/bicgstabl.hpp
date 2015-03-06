@@ -121,7 +121,11 @@ class bicgstabl {
                 Matrix  const &A,
                 Precond const &P,
                 Vec1    const &rhs,
+#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
                 Vec2          &x
+#else
+                Vec2          &&x
+#endif
                 ) const
         {
             const int L = prm.L;
@@ -232,7 +236,11 @@ class bicgstabl {
         boost::tuple<size_t, value_type> operator()(
                 Precond const &P,
                 Vec1    const &rhs,
+#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
                 Vec2          &x
+#else
+                Vec2          &&x
+#endif
                 ) const
         {
             return (*this)(P.top_matrix(), P, rhs, x);
