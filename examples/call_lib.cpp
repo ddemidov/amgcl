@@ -14,9 +14,10 @@ int main() {
     int n = sample_problem(128l, val, col, ptr, rhs);
 
     amgclHandle prm = amgcl_params_create();
-    amgcl_params_seti(prm, "coarse_enough", 1000);
-    amgcl_params_setf(prm, "coarsening.aggr.eps_strong", 1e-3);
-    amgcl_params_seti(prm, "L", 1);
+    amgcl_params_seti(prm, "amg.coarse_enough", 1000);
+    amgcl_params_setf(prm, "amg.coarsening.aggr.eps_strong", 1e-3);
+    amgcl_params_seti(prm, "solver.L", 1);
+    amgcl_params_seti(prm, "solver.maxiter", 100);
 
     amgclHandle solver = amgcl_solver_create(
             amgclCoarseningSmoothedAggregation,
