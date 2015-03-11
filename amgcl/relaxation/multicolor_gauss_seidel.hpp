@@ -1,0 +1,190 @@
+#ifndef AMGCL_RELAXATION_MULTICOLOR_GAUSS_SEIDEL_HPP
+#define AMGCL_RELAXATION_MULTICOLOR_GAUSS_SEIDEL_HPP
+
+/*
+The MIT License
+
+Copyright (c) 2012-2014 Denis Demidov <dennis.demidov@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+*/
+
+/**
+ * \file   amgcl/relaxation/multicolor_gauss_seidel.hpp
+ * \author Denis Demidov <dennis.demidov@gmail.com>
+ * \brief  Multicolor Gauss-Seidel relaxation scheme.
+ */
+
+#include <boost/graph/sequential_vertex_coloring.hpp>
+
+#include <amgcl/backend/interface.hpp>
+#include <amgcl/util.hpp>
+
+namespace amgcl {
+
+namespace detail {
+
+//---------------------------------------------------------------------------
+// Adapt backend::crs<> for use with Boost Graph Library.
+//---------------------------------------------------------------------------
+template <class Matrix>
+struct graph {
+    const Matrix &A;
+
+    typedef typename Matrix::col_type vertex_descriptor;
+    typedef typename Matrix::ptr_type edge_descriptor;
+    typedef boost::directed_tag directed_category;
+    typedef boost::allow_parallel_edge_tag edge_parallel_category;
+
+    class traversal_category:
+        public boost::incidence_graph_tag,
+        public boost::adjacency_graph_tag,
+        public boost::vertex_list_graph_tag,
+        public boost::edge_list_graph_tag
+    {};
+
+    typedef boost::counting_iterator<vertex_descriptor> vertex_iterator;
+    typedef vertex_descriptor vertices_size_type;
+
+    typedef typename std::vector<vertex_descriptor>::const_iterator adjacency_iterator;
+
+    static vertex_descriptor null_vertex() { return -1; }
+
+    graph(const Matrix &A) : A(A) {}
+};
+
+template <class Matrix>
+std::pair<
+    typename graph<Matrix>::vertex_iterator,
+    typename graph<Matrix>::vertex_iterator
+    >
+vertices(const graph<Matrix> &G) {
+    return std::make_pair(
+            boost::counting_iterator<typename graph<Matrix>::vertex_descriptor>(0),
+            boost::counting_iterator<typename graph<Matrix>::vertex_descriptor>(backend::rows(G.A))
+            );
+}
+
+template <class Matrix>
+std::pair<
+    typename graph<Matrix>::adjacency_iterator,
+    typename graph<Matrix>::adjacency_iterator
+    >
+adjacent_vertices(ptrdiff_t v, const graph<Matrix> &G) {
+    typename Matrix::ptr_type row_beg = G.A.ptr[v];
+    typename Matrix::ptr_type row_end = G.A.ptr[v + 1];
+
+    return std::make_pair(
+            G.A.col.begin() + row_beg,
+            G.A.col.begin() + row_end
+            );
+}
+
+template <class Matrix>
+typename graph<Matrix>::vertices_size_type
+num_vertices(const graph<Matrix> &G) {
+    return backend::rows(G.A);
+}
+
+template <class Matrix>
+graph<Matrix> as_graph(const Matrix &A) {
+    return graph<Matrix>(A);
+}
+
+} // namespace detail
+
+namespace relaxation {
+
+template <class Backend>
+struct multicolor_gauss_seidel {
+    struct params {
+        params() {}
+        params(const boost::property_tree::ptree&) {}
+    };
+
+    template <class Matrix>
+    multicolor_gauss_seidel(
+            const Matrix &A,
+            const params&,
+            const typename Backend::params&
+            )
+        : color(backend::rows(A))
+    {
+        num_colors = boost::sequential_vertex_coloring(detail::as_graph(A), color.data());
+    }
+
+    template <class Matrix, class VecRHS, class VecX, class VecTMP>
+    void apply_pre(const Matrix &A, const VecRHS &rhs, VecX &x, VecTMP&, const params&) const
+    {
+        for(int c = 0; c < num_colors; ++c) iterate(A, rhs, x, c);
+    }
+
+    template <class Matrix, class VecRHS, class VecX, class VecTMP>
+    void apply_post(const Matrix &A, const VecRHS &rhs, VecX &x, VecTMP&, const params&) const
+    {
+        for(int c = 0; c < num_colors; ++c) iterate(A, rhs, x, c);
+    }
+
+    private:
+        int num_colors;
+        std::vector<int> color;
+
+        template <class Matrix, class VectorRHS, class VectorX>
+        static void iterate(
+                const Matrix &A, const VectorRHS &rhs, VectorX &x, int c)
+        {
+            typedef typename backend::row_iterator<Matrix>::type row_iterator;
+            typedef typename backend::value_type<Matrix>::type val_type;
+
+            const size_t n = backend::rows(A);
+
+#pragma omp parallel for
+            for(size_t i = 0; i < n; ++i) {
+                val_type temp = rhs[i];
+                val_type diag = 1;
+                for (row_iterator a = backend::row_begin(A, i); a; ++a) {
+                    if (static_cast<size_t>(a.col()) == i)
+                        diag = a.value();
+                    else
+                        temp -= a.value() * x[a.col()];
+                }
+                x[i] = temp / diag;
+            }
+        }
+};
+
+} // namespace relaxation
+
+namespace backend {
+
+template <class Backend>
+struct relaxation_is_supported<
+    Backend,
+    relaxation::multicolor_gauss_seidel,
+    typename boost::disable_if<
+            typename Backend::provides_row_iterator
+        >::type
+    > : boost::false_type
+{};
+
+} // namespace backend
+} // namespace amgcl
+
+
+#endif
