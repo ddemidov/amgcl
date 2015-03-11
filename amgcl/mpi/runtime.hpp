@@ -224,6 +224,13 @@ inline void process_sdd(
                 amgcl::relaxation::gauss_seidel
                 >(iterative_solver, direct_solver, func);
             break;
+        case runtime::relaxation::multicolor_gauss_seidel:
+            process_sdd<
+                Backend,
+                Coarsening,
+                amgcl::relaxation::gauss_seidel
+                >(iterative_solver, direct_solver, func);
+            break;
         case runtime::relaxation::ilu0:
             process_sdd<
                 Backend,

@@ -52,6 +52,7 @@ typedef enum {
 // Relaxation
 typedef enum {
     amgclRelaxationGaussSeidel,
+    amgclRelaxationMCGaussSeidel,
     amgclRelaxationILU0,
     amgclRelaxationDampedJacobi,
     amgclRelaxationSPAI0,

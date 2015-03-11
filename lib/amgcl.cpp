@@ -24,6 +24,7 @@ ASSERT_EQUAL(amgclCoarseningSmoothedAggregation, amgcl::runtime::coarsening::smo
 ASSERT_EQUAL(amgclCoarseningSmoothedAggrEMin,    amgcl::runtime::coarsening::smoothed_aggr_emin);
 
 ASSERT_EQUAL(amgclRelaxationGaussSeidel,         amgcl::runtime::relaxation::gauss_seidel);
+ASSERT_EQUAL(amgclRelaxationMCGaussSeidel,       amgcl::runtime::relaxation::multicolor_gauss_seidel);
 ASSERT_EQUAL(amgclRelaxationILU0,                amgcl::runtime::relaxation::ilu0);
 ASSERT_EQUAL(amgclRelaxationDampedJacobi,        amgcl::runtime::relaxation::damped_jacobi);
 ASSERT_EQUAL(amgclRelaxationSPAI0,               amgcl::runtime::relaxation::spai0);

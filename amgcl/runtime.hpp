@@ -48,6 +48,7 @@ THE SOFTWARE.
 #include <amgcl/coarsening/smoothed_aggr_emin.hpp>
 
 #include <amgcl/relaxation/gauss_seidel.hpp>
+#include <amgcl/relaxation/multicolor_gauss_seidel.hpp>
 #include <amgcl/relaxation/ilu0.hpp>
 #include <amgcl/relaxation/damped_jacobi.hpp>
 #include <amgcl/relaxation/spai0.hpp>
@@ -114,6 +115,7 @@ inline std::istream& operator>>(std::istream &in, type &c)
 namespace relaxation {
 enum type {
     gauss_seidel,
+    multicolor_gauss_seidel,
     ilu0,
     damped_jacobi,
     spai0,
@@ -126,6 +128,8 @@ inline std::ostream& operator<<(std::ostream &os, type r)
     switch (r) {
         case gauss_seidel:
             return os << "gauss_seidel";
+        case multicolor_gauss_seidel:
+            return os << "multicolor_gauss_seidel";
         case ilu0:
             return os << "ilu0";
         case damped_jacobi:
@@ -146,7 +150,9 @@ inline std::istream& operator>>(std::istream &in, type &r)
     std::string val;
     in >> val;
 
-    if (val == "gauss_seidel")
+    if (val == "multicolor_gauss_seidel")
+        r = multicolor_gauss_seidel;
+    else if (val == "gauss_seidel")
         r = gauss_seidel;
     else if (val == "ilu0")
         r = ilu0;
@@ -263,6 +269,13 @@ inline void process_amg(
                 Backend,
                 Coarsening,
                 amgcl::relaxation::gauss_seidel
+                >(func);
+            break;
+        case runtime::relaxation::multicolor_gauss_seidel:
+            process_amg<
+                Backend,
+                Coarsening,
+                amgcl::relaxation::multicolor_gauss_seidel
                 >(func);
             break;
         case runtime::relaxation::ilu0:

@@ -171,11 +171,12 @@ BOOST_PYTHON_MODULE(pyamgcl_ext)
         ;
 
     enum_<amgcl::runtime::relaxation::type>("relaxation", "relaxation schemes")
-        .value("damped_jacobi", amgcl::runtime::relaxation::damped_jacobi)
-        .value("gauss_seidel",  amgcl::runtime::relaxation::gauss_seidel)
-        .value("chebyshev",     amgcl::runtime::relaxation::chebyshev)
-        .value("spai0",         amgcl::runtime::relaxation::spai0)
-        .value("ilu0",          amgcl::runtime::relaxation::ilu0)
+        .value("damped_jacobi",            amgcl::runtime::relaxation::damped_jacobi)
+        .value("gauss_seidel",             amgcl::runtime::relaxation::gauss_seidel)
+        .value("multicolor_gauss_seidel",  amgcl::runtime::relaxation::multicolor_gauss_seidel)
+        .value("chebyshev",                amgcl::runtime::relaxation::chebyshev)
+        .value("spai0",                    amgcl::runtime::relaxation::spai0)
+        .value("ilu0",                     amgcl::runtime::relaxation::ilu0)
         ;
 
     enum_<amgcl::runtime::solver::type>("solver_type", "iterative solvers")
