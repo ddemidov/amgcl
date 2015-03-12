@@ -138,7 +138,7 @@ struct multicolor_gauss_seidel {
     template <class Matrix, class VecRHS, class VecX, class VecTMP>
     void apply_post(const Matrix &A, const VecRHS &rhs, VecX &x, VecTMP&, const params&) const
     {
-        for(int c = 0; c < num_colors; ++c) iterate(A, rhs, x, c);
+        for(int c = num_colors; c --> 0; ) iterate(A, rhs, x, c);
     }
 
     private:
