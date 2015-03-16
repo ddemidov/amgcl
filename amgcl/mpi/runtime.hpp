@@ -351,6 +351,19 @@ struct sdd_destroy {
     }
 };
 
+struct sdd_get_params {
+    void * handle;
+    boost::property_tree::ptree &p;
+
+    sdd_get_params(void * handle, boost::property_tree::ptree &p)
+        : handle(handle), p(p) {}
+
+    template <class SDD>
+    void process() const {
+        static_cast<SDD*>(handle)->get_params(p);
+    }
+};
+
 template <class Backend, class Vec1, class Vec2>
 struct sdd_solve {
     typedef typename Backend::value_type value_type;
@@ -447,6 +460,17 @@ class subdomain_deflation : boost::noncopyable {
                     direct_solver,
                     runtime::mpi::detail::sdd_destroy(handle)
                     );
+        }
+
+        void get_params(boost::property_tree::ptree &p) const {
+            runtime::mpi::detail::process_sdd<Backend>(
+                    coarsening,
+                    relaxation,
+                    iterative_solver,
+                    direct_solver,
+                    runtime::mpi::detail::sdd_get_params(handle, p)
+                    );
+
         }
 
         template <class Vec1, class Vec2>

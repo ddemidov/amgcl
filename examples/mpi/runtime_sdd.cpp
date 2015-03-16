@@ -303,6 +303,12 @@ int main(int argc, char *argv[]) {
             );
     double tm_setup = prof.toc("setup");
 
+    if (world.rank == 0) {
+        boost::property_tree::ptree actual_params;
+        solve.get_params(actual_params);
+        write_json(std::cout, actual_params);
+    }
+
     std::vector<double> x(chunk, 0);
 
     prof.tic("solve");

@@ -76,6 +76,10 @@ struct vexcl {
             ptr = p.get("q", ptr);
             q = ptr ? *ptr : vex::current_context().queue();
         }
+
+        void get(boost::property_tree::ptree &p, const std::string &path) const {
+            p.put(path + "q", &q);
+        }
     };
 
     static std::string name() { return "vexcl"; }

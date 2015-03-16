@@ -66,6 +66,7 @@ class PaStiX {
         struct params {
             params() {}
             params(const boost::property_tree::ptree&) {}
+            void get(boost::property_tree::ptree&, const std::string&) const {}
         };
 
         /// The number of processes optimal for the given problem size.

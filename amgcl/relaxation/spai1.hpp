@@ -61,6 +61,7 @@ struct spai1 {
     struct params {
         params() {}
         params(const boost::property_tree::ptree&) {}
+        void get(boost::property_tree::ptree&, const std::string&) const {}
     };
 
     /// \copydoc amgcl::relaxation::damped_jacobi::damped_jacobi

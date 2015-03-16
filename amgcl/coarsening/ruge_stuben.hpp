@@ -83,6 +83,12 @@ struct ruge_stuben {
               AMGCL_PARAMS_IMPORT_VALUE(p, do_trunc),
               AMGCL_PARAMS_IMPORT_VALUE(p, eps_trunc)
         {}
+
+        void get(boost::property_tree::ptree &p, const std::string &path) const {
+            AMGCL_PARAMS_EXPORT_VALUE(p, path, eps_strong);
+            AMGCL_PARAMS_EXPORT_VALUE(p, path, do_trunc);
+            AMGCL_PARAMS_EXPORT_VALUE(p, path, eps_trunc);
+        }
     };
 
     /// \copydoc amgcl::coarsening::aggregation::transfer_operators

@@ -199,6 +199,7 @@ class skyline_lu {
         struct params {
             params() {}
             params(const boost::property_tree::ptree&) {}
+            void get(boost::property_tree::ptree&, const std::string&) const {}
         };
 
         static size_t coarse_enough() { return 5000; }

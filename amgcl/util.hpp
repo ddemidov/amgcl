@@ -68,6 +68,12 @@ namespace amgcl { extern profiler<> prof; }
 #define AMGCL_PARAMS_IMPORT_CHILD(p, name)                                     \
     name( p.get_child(#name, amgcl::detail::empty_ptree()) )
 
+#define AMGCL_PARAMS_EXPORT_VALUE(p, path, name)                               \
+    p.put(std::string(path) + #name, name)
+
+#define AMGCL_PARAMS_EXPORT_CHILD(p, path, name)                               \
+    name.get(p, std::string(path) + #name + ".")
+
 namespace amgcl {
 
 namespace detail {

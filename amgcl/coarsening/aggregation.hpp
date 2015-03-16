@@ -100,6 +100,12 @@ struct aggregation {
               AMGCL_PARAMS_IMPORT_CHILD(p, nullspace),
               AMGCL_PARAMS_IMPORT_VALUE(p, over_interp)
         {}
+
+        void get(boost::property_tree::ptree &p, const std::string &path) const {
+            AMGCL_PARAMS_EXPORT_CHILD(p, path, aggr);
+            AMGCL_PARAMS_EXPORT_CHILD(p, path, nullspace);
+            AMGCL_PARAMS_EXPORT_VALUE(p, path, over_interp);
+        }
     };
 
     /// Creates transfer operators for the given system matrix.

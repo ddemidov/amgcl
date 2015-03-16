@@ -132,6 +132,21 @@ class amg {
                   AMGCL_PARAMS_IMPORT_VALUE(p, ncycle),
                   AMGCL_PARAMS_IMPORT_VALUE(p, pre_cycles)
             {}
+
+            void get(
+                    boost::property_tree::ptree &p,
+                    const std::string &path = ""
+                    ) const
+            {
+                AMGCL_PARAMS_EXPORT_CHILD(p, path, backend);
+                AMGCL_PARAMS_EXPORT_CHILD(p, path, coarsening);
+                AMGCL_PARAMS_EXPORT_CHILD(p, path, relax);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, coarse_enough);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, npre);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, npost);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, ncycle);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, pre_cycles);
+            }
         } prm;
 
         /// Builds the AMG hierarchy for the system matrix.

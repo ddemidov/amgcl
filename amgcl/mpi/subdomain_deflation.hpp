@@ -122,11 +122,18 @@ class subdomain_deflation {
             typename DirectSolver::params direct_solver;
 
             params() {}
+
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, amg),
                   AMGCL_PARAMS_IMPORT_CHILD(p, solver),
                   AMGCL_PARAMS_IMPORT_CHILD(p, direct_solver)
             {}
+
+            void get(boost::property_tree::ptree &p, const std::string &path) const {
+                AMGCL_PARAMS_EXPORT_CHILD(p, path, amg);
+                AMGCL_PARAMS_EXPORT_CHILD(p, path, solver);
+                AMGCL_PARAMS_EXPORT_CHILD(p, path, direct_solver);
+            }
         };
 
         typedef typename Backend::value_type value_type;
@@ -592,6 +599,12 @@ class subdomain_deflation {
         ~subdomain_deflation() {
             E.reset();
             if (masters_comm != MPI_COMM_NULL) MPI_Comm_free(&masters_comm);
+        }
+
+        /// Fills the property tree with the actual parameters used.
+        void get_params(boost::property_tree::ptree &p) const {
+            P->prm.get(p, "amg.");
+            solve->prm.get(p, "solver.");
         }
 
         template <class Vec1, class Vec2>

@@ -69,6 +69,11 @@ class chebyshev {
                 : AMGCL_PARAMS_IMPORT_VALUE(p, degree),
                   AMGCL_PARAMS_IMPORT_VALUE(p, lower)
             {}
+
+            void get(boost::property_tree::ptree &p, const std::string &path) const {
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, degree);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, lower);
+            }
         };
 
         /// \copydoc amgcl::relaxation::damped_jacobi::damped_jacobi

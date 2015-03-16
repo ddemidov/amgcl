@@ -447,6 +447,19 @@ struct amg_print {
     }
 };
 
+struct amg_get_params {
+    void * handle;
+    boost::property_tree::ptree &p;
+
+    amg_get_params(void * handle, boost::property_tree::ptree &p)
+        : handle(handle), p(p) {}
+
+    template <class AMG>
+    void process() const {
+        static_cast<AMG*>(handle)->prm.get(p, "amg.");
+    }
+};
+
 } // namespace detail
 
 /// Runtime-configurable AMG preconditioner.
@@ -516,6 +529,14 @@ class amg : boost::noncopyable {
             runtime::detail::process_amg<Backend>(
                     coarsening, relaxation,
                     runtime::detail::amg_destroy(handle)
+                    );
+        }
+
+        /// Fills the property tree with the actual parameters used.
+        void get_params(boost::property_tree::ptree &p) const {
+            runtime::detail::process_amg<Backend>(
+                    coarsening, relaxation,
+                    runtime::detail::amg_get_params(handle, p)
                     );
         }
 
@@ -650,6 +671,19 @@ struct solver_destroy {
     }
 };
 
+struct solver_get_params {
+    void * handle;
+    boost::property_tree::ptree &p;
+
+    solver_get_params(void * handle, boost::property_tree::ptree &p)
+        : handle(handle), p(p) {}
+
+    template <class Solver>
+    void process() const {
+        static_cast<Solver*>(handle)->prm.get(p, "solver.");
+    }
+};
+
 template <
     class Backend,
     class Matrix,
@@ -739,6 +773,15 @@ class make_solver : boost::noncopyable {
             runtime::detail::process_solver<Backend>(
                     solver,
                     runtime::detail::solver_destroy(handle)
+                    );
+        }
+
+        /// Fills the property tree with the actual parameters used.
+        void get_params(boost::property_tree::ptree &p) const {
+            P.get_params(p);
+            runtime::detail::process_solver<Backend>(
+                    solver,
+                    runtime::detail::solver_get_params(handle, p)
                     );
         }
 

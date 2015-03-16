@@ -99,6 +99,10 @@ int main(int argc, char *argv[]) {
 
     std::cout << solve.amg() << std::endl;
 
+    boost::property_tree::ptree actual_params;
+    solve.get_params(actual_params);
+    write_json(std::cout, actual_params);
+
     // Solve the problem
     std::vector<double> x(n, x0);
 

@@ -219,6 +219,11 @@ struct smoothed_aggr_emin {
             : AMGCL_PARAMS_IMPORT_CHILD(p, aggr),
               AMGCL_PARAMS_IMPORT_CHILD(p, nullspace)
         {}
+
+        void get(boost::property_tree::ptree &p, const std::string &path) const {
+            AMGCL_PARAMS_EXPORT_CHILD(p, path, aggr);
+            AMGCL_PARAMS_EXPORT_CHILD(p, path, nullspace);
+        }
     };
 
     /// \copydoc amgcl::coarsening::aggregation::transfer_operators

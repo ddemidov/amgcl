@@ -71,6 +71,11 @@ class bicgstab {
                 : AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
                   AMGCL_PARAMS_IMPORT_VALUE(p, tol)
             {}
+
+            void get(boost::property_tree::ptree &p, const std::string &path) const {
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, maxiter);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, tol);
+            }
         };
 
         /// \copydoc amgcl::solver::cg::cg
@@ -200,8 +205,10 @@ class bicgstab {
         }
 
 
-    private:
+    public:
         params prm;
+
+    private:
         size_t n;
 
         boost::shared_ptr<vector> r;

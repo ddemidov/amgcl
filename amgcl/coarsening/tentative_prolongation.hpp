@@ -102,6 +102,8 @@ struct nullspace_params {
                     );
         }
     }
+
+    void get(boost::property_tree::ptree&, const std::string&) const {}
 };
 
 /// Tentative prolongation operator

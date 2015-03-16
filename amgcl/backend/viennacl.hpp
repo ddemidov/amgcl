@@ -72,6 +72,7 @@ struct viennacl {
     struct params {
         params() {}
         params(const boost::property_tree::ptree&) {}
+        void get(boost::property_tree::ptree&, const std::string&) const {}
     };
 
     static std::string name() { return "viennacl"; }

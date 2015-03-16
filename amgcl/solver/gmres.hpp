@@ -83,6 +83,12 @@ class gmres {
                   AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
                   AMGCL_PARAMS_IMPORT_VALUE(p, tol)
             {}
+
+            void get(boost::property_tree::ptree &p, const std::string &path) const {
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, M);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, maxiter);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, tol);
+            }
         };
 
         /// \copydoc amgcl::solver::cg::cg
@@ -172,8 +178,11 @@ class gmres {
         {
             return (*this)(P.top_matrix(), P, rhs, x);
         }
-    private:
+
+    public:
         params prm;
+
+    private:
         size_t n;
 
         mutable boost::multi_array<value_type, 2> H;
