@@ -779,6 +779,7 @@ class subdomain_deflation {
         void coarse_solve(std::vector<value_type> &f, std::vector<value_type> &x) const
         {
             TIC("coarse solve");
+            TIC("exchange rhs");
             if (comm.rank < nmasters) {
                 for(int p = slaves[comm.rank], offset = dv_start[p]; p < slaves[comm.rank + 1]; ++p) {
                     ptrdiff_t begin = dv_start[p] - offset;
@@ -788,14 +789,18 @@ class subdomain_deflation {
             }
 
             MPI_Send(f.data(), f.size(), dtype, master, tag_exc_dvec, comm);
+            TOC("exchange rhs");
 
             if (comm.rank < nmasters) {
+                TIC("exchange rhs");
                 MPI_Waitall(nslaves, &req[slaves[comm.rank]], MPI_STATUSES_IGNORE);
+                TOC("exchange rhs");
 
                 TIC("call solver");
                 (*E)(cf, cx);
                 TOC("call solver");
 
+                TIC("gather result");
                 if (comm.rank == 0) {
                     for(int p = 0; p < nmasters; ++p) {
                         int begin = dv_start[slaves[p]];
@@ -808,9 +813,12 @@ class subdomain_deflation {
 
                 if (comm.rank == 0)
                     MPI_Waitall(nmasters, req.data(), MPI_STATUSES_IGNORE);
+                TOC("gather result");
             }
 
+            TIC("broadcast result");
             MPI_Bcast(x.data(), x.size(), dtype, 0, comm);
+            TOC("broadcast result");
             TOC("coarse solve");
         }
 };
