@@ -49,7 +49,7 @@ if (VEXCL_ROOT)
     set_target_properties(runtime_vexcl PROPERTIES COMPILE_FLAGS ${CXX11_FLAG})
 endif()
 
-if (CUDA_FOUND)
+if (CUDA_FOUND AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     set(CUDA_OPTIONS "-arch=sm_${CUDA_COMPUTE_CAPABILITY}")
     if (NOT WIN32)
         set(CUDA_OPTIONS "${CUDA_OPTIONS} -Xcompiler -std=c++03")
