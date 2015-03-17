@@ -15,6 +15,7 @@ if (MPI_CXX_FOUND)
                 ${PASTIX_LIBRARIES}
                 ${SCOTCH_LIBRARIES}
                 ${BLAS_LIBRARIES}
+                pthread
                 )
         endif()
     endfunction()
