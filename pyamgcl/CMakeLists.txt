@@ -7,7 +7,6 @@ if (NUMPY_FOUND)
     include_directories(${NUMPY_INCLUDE_DIRS})
 
     find_package(Boost COMPONENTS
-        chrono
         system
         filesystem
         python

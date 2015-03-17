@@ -61,7 +61,6 @@ else ()
 endif ()
 
 set(BOOST_COMPONENTS ${BOOST_COMPONENTS}
-    chrono
     program_options
     system
     filesystem

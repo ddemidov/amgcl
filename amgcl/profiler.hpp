@@ -26,7 +26,7 @@ THE SOFTWARE.
 */
 
 /**
- * \file   profiler.hpp
+ * \file   amgcl/profiler.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
  * \brief  Profiler class.
  */
@@ -37,11 +37,23 @@ THE SOFTWARE.
 #include <string>
 #include <stack>
 
-#include <boost/chrono.hpp>
+#include <boost/type_traits.hpp>
 #include <boost/io/ios_state.hpp>
+#include <amgcl/clock.hpp>
 
 
 namespace amgcl {
+
+/// Returns difference (in seconds) between two time points.
+/** The time points should come either from boost::chrono or std::chrono */
+template <class TP>
+inline
+typename boost::enable_if<boost::is_class<typename TP::duration>, double>::type
+seconds(TP tic, TP toc) {
+    return static_cast<double>(TP::duration::period::num)
+        * typename TP::duration(toc - tic).count()
+        / TP::duration::period::den;
+}
 
 /// Profiler class.
 /**
@@ -50,10 +62,7 @@ namespace amgcl {
  *
  * Provides simple to use, hierarchical timers with nicely formatted output.
  */
-template <
-    class clock = boost::chrono::high_resolution_clock,
-    unsigned SHIFT_WIDTH = 2
-    >
+template <class clock = amgcl::clock, unsigned SHIFT_WIDTH = 2>
 class profiler {
     public:
         /// Initialization.
@@ -85,13 +94,6 @@ class profiler {
         }
 
     private:
-        static double seconds(typename clock::time_point begin, typename clock::time_point end) {
-            return static_cast<double>(clock::duration::period::num)
-                * typename clock::duration(end - begin).count()
-                / clock::duration::period::den;
-
-        }
-
         struct profile_unit {
             profile_unit() : length(0) {}
 
