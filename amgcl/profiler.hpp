@@ -35,7 +35,7 @@ THE SOFTWARE.
 #include <iomanip>
 #include <map>
 #include <string>
-#include <stack>
+#include <vector>
 
 #include <boost/type_traits.hpp>
 #include <boost/io/ios_state.hpp>
@@ -70,7 +70,8 @@ class profiler {
          * \param name Profile title to use with output.
          */
         profiler(const std::string &name = "Profile") : name(name) {
-            stack.push(&root);
+            stack.reserve(128);
+            stack.push_back(&root);
             root.start_time = clock::now();
         }
 
@@ -79,18 +80,27 @@ class profiler {
          * \param name Timer name.
          */
         void tic(const std::string &name) {
-            stack.top()->children[name].start_time = clock::now();
-            stack.push(&stack.top()->children[name]);
+            stack.back()->children[name].start_time = clock::now();
+            stack.push_back(&stack.back()->children[name]);
         }
 
         /// Stops named timer.
         double toc(const std::string& /*name*/) {
-            profile_unit *top = stack.top();
-            stack.pop();
+            profile_unit *top = stack.back();
+            stack.pop_back();
 
             double delta = seconds(top->start_time, clock::now());
             top->length += delta;
             return delta;
+        }
+
+        void reset() {
+            stack.clear();
+            root.length = 0;
+            root.children.clear();
+
+            stack.push_back(&root);
+            root.start_time = clock::now();
         }
 
     private:
@@ -155,10 +165,10 @@ class profiler {
 
         std::string name;
         profile_unit root;
-        std::stack<profile_unit*> stack;
+        std::vector<profile_unit*> stack;
 
         void print(std::ostream &out) {
-            if (stack.top() != &root)
+            if (stack.back() != &root)
                 out << "Warning! Profile is incomplete." << std::endl;
 
             root.length += seconds(root.start_time, clock::now());
