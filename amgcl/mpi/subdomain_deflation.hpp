@@ -161,8 +161,8 @@ class subdomain_deflation {
             typedef typename backend::row_iterator<build_matrix>::type row_iterator2;
 
             // Lets see how many deflation vectors are there.
-            std::vector<ptrdiff_t> dv_size(comm.size);
-            MPI_Allgather(&ndv, 1, mpi_ptrdiff_t, &dv_size[0], 1, mpi_ptrdiff_t, comm);
+            dv_size.resize(comm.size);
+            MPI_Allgather(&ndv, 1, MPI_INT, &dv_size[0], 1, MPI_INT, comm);
             boost::partial_sum(dv_size, dv_start.begin() + 1);
             nz = dv_start.back();
 
@@ -645,7 +645,8 @@ class subdomain_deflation {
         static const int tag_exc_lnnz = 5001;
 
         communicator comm;
-        ptrdiff_t nrows, ndv, nz;
+        ptrdiff_t nrows;
+        int ndv, nz;
 
         MPI_Datatype dtype;
 
@@ -655,7 +656,7 @@ class subdomain_deflation {
         boost::shared_ptr<Solver> solve;
 
         mutable std::vector<value_type> df, dx, cf, cx;
-        std::vector<ptrdiff_t> dv_start;
+        std::vector<int> dv_start, dv_size;
 
         std::vector< boost::shared_ptr<vector> > Z;
 
@@ -780,22 +781,30 @@ class subdomain_deflation {
         {
             TIC("coarse solve");
             TIC("exchange rhs");
-            if (comm.rank < nmasters) {
-                for(int p = slaves[comm.rank], offset = dv_start[p]; p < slaves[comm.rank + 1]; ++p) {
-                    ptrdiff_t begin = dv_start[p] - offset;
-                    ptrdiff_t size  = dv_start[p + 1] - dv_start[p];
-                    MPI_Irecv(&cf[begin], size, dtype, p, tag_exc_dvec, comm, &req[p]);
+            MPI_Gatherv(f.data(), f.size(), dtype, x.data(), dv_size.data(), dv_start.data(), dtype, 0, comm);
+
+            if (comm.rank == 0) {
+                for(int p = 0; p < nmasters; ++p) {
+                    MPI_Isend(
+                            &x[dv_start[slaves[p]]],
+                            dv_start[slaves[p + 1]] - dv_start[slaves[p]],
+                            dtype, p, tag_exc_dvec, comm, &req[p]
+                            );
                 }
             }
 
-            MPI_Send(f.data(), f.size(), dtype, master, tag_exc_dvec, comm);
+            if (comm.rank < nmasters) {
+                MPI_Recv(
+                        cf.data(),
+                        dv_start[slaves[comm.rank + 1]] - dv_start[slaves[comm.rank]],
+                        dtype, 0, tag_exc_dvec, comm, MPI_STATUS_IGNORE
+                        );
+            }
+
+            if (comm.rank == 0) MPI_Waitall(nslaves, req.data(), MPI_STATUSES_IGNORE);
             TOC("exchange rhs");
 
             if (comm.rank < nmasters) {
-                TIC("exchange rhs");
-                MPI_Waitall(nslaves, &req[slaves[comm.rank]], MPI_STATUSES_IGNORE);
-                TOC("exchange rhs");
-
                 TIC("call solver");
                 (*E)(cf, cx);
                 TOC("call solver");
