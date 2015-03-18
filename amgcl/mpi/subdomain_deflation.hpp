@@ -781,7 +781,9 @@ class subdomain_deflation {
         {
             TIC("coarse solve");
             TIC("exchange rhs");
-            MPI_Gatherv(f.data(), f.size(), dtype, x.data(), dv_size.data(), dv_start.data(), dtype, 0, comm);
+            MPI_Gatherv(f.data(), f.size(), dtype, x.data(),
+                    const_cast<int*>(dv_size.data()), const_cast<int*>(dv_start.data()),
+                    dtype, 0, comm);
 
             if (comm.rank == 0) {
                 for(int p = 0; p < nmasters; ++p) {
