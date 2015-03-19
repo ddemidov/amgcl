@@ -1,7 +1,7 @@
 # AMGCL
 
 [<img src="https://travis-ci.org/ddemidov/amgcl.svg?branch=master" alt="Build Status" />](https://travis-ci.org/ddemidov/amgcl)
-[<img src="https://coveralls.io/repos/ddemidov/amgcl/badge.png?branch=master" alt="Coverage Status" />](https://coveralls.io/r/ddemidov/amgcl)
+[<img src="https://coveralls.io/repos/ddemidov/amgcl/badge.svg?branch=master" alt="Coverage Status" />](https://coveralls.io/r/ddemidov/amgcl)
 
 
 AMGCL is a C++ header only library for constructing an algebraic [multigrid][]
