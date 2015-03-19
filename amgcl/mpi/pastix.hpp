@@ -33,6 +33,10 @@ THE SOFTWARE.
 See http://pastix.gforge.inria.fr
 */
 
+#ifdef _OPENMP
+#  include <omp.h>
+#endif
+
 #include <boost/static_assert.hpp>
 #include <boost/type_traits.hpp>
 #include <boost/range/algorithm.hpp>
@@ -127,6 +131,9 @@ class PaStiX {
             iparm[IPARM_SYM            ] = API_SYM_NO;
             iparm[IPARM_FACTORIZATION  ] = API_FACT_LU;
             iparm[IPARM_TRANSPOSE_SOLVE] = API_YES;
+#ifdef _OPENMP
+            iparm[IPARM_THREAD_NBR]      = omp_get_max_threads();
+#endif
             call_pastix(API_TASK_ORDERING, API_TASK_NUMFACT);
         }
 
