@@ -104,6 +104,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_backends, Backend, backend_list)
         amgcl::runtime::relaxation::ilu0,
         amgcl::runtime::relaxation::damped_jacobi,
         amgcl::runtime::relaxation::spai0,
+        amgcl::runtime::relaxation::spai1,
         amgcl::runtime::relaxation::chebyshev
     };
 
