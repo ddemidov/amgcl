@@ -79,6 +79,35 @@ struct communicator {
     }
 };
 
+/// Communicator-wise condition checking.
+/**
+ * Checks conditions at each process in the communicator;
+ *
+ * If the condition is false on any of the participating processes, outputs the
+ * provided message together with the ranks of the offending process.
+ * After that each process in the communicator throws.
+ */
+template <class Condition, class Message>
+void precondition(communicator comm, const Condition &cond, const Message &message)
+{
+    int gc, lc = static_cast<int>(cond);
+    MPI_Allreduce(&lc, &gc, 1, MPI_INT, MPI_PROD, comm);
+
+    if (!gc) {
+        std::vector<int> c(comm.size);
+        MPI_Gather(&lc, 1, MPI_INT, c.data(), comm.size, MPI_INT, 0, comm);
+        if (comm.rank == 0) {
+            std::cerr << "Failed assumption: " << message << std::endl;
+            std::cerr << "Offending processes:";
+            for (int i = 0; i < comm.size; ++i)
+                if (!c[i]) std::cerr << " " << i;
+            std::cerr << std::endl;
+        }
+        MPI_Barrier(comm);
+        throw std::runtime_error(message);
+    }
+}
+
 } // namespace mpi
 } // namespace amgcl
 
