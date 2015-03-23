@@ -213,6 +213,14 @@ class subdomain_deflation {
                 for(row_iterator1 a = backend::row_begin(Astrip, i); a; ++a) {
                     ptrdiff_t c = a.col();
 
+#ifdef AMGCL_SANITY_CHECK
+                    mpi::precondition(
+                            comm,
+                            c >= 0 && c < domain.back(),
+                            "Column number is out of bounds"
+                            );
+#endif
+
                     // Domain the column belongs to
                     ptrdiff_t d = boost::upper_bound(domain, c) - domain.begin() - 1;
 
