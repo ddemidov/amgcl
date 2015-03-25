@@ -32,6 +32,8 @@ THE SOFTWARE.
  */
 
 #include <boost/graph/sequential_vertex_coloring.hpp>
+#include <boost/range/algorithm.hpp>
+#include <boost/range/numeric.hpp>
 
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/util.hpp>
@@ -124,10 +126,22 @@ struct multicolor_gauss_seidel {
             const Matrix &A,
             const params&,
             const typename Backend::params&
-            )
-        : color(backend::rows(A))
+            ) : order( backend::rows(A) )
     {
+        const size_t n = backend::rows(A);
+
+        std::vector<int> color(n);
         num_colors = boost::sequential_vertex_coloring(detail::as_graph(A), color.data());
+
+        ptr.resize(num_colors + 1, 0);
+
+        for(size_t i = 0; i < n; ++i) {
+            ++ptr[ color[i] + 1];
+            order[i] = i;
+        }
+
+        boost::stable_sort(order, order_by(color));
+        boost::partial_sum(ptr, ptr.begin());
     }
 
     template <class Matrix, class VecRHS, class VecX, class VecTMP>
@@ -143,28 +157,40 @@ struct multicolor_gauss_seidel {
     }
 
     private:
+        struct order_by {
+            const std::vector<int> &ref;
+
+            order_by(const std::vector<int> &ref) : ref(ref) {}
+
+            bool operator()(ptrdiff_t i, ptrdiff_t j) const {
+                return ref[i] < ref[j];
+            }
+        };
+
         int num_colors;
-        std::vector<int> color;
+        std::vector<ptrdiff_t> order, ptr;
 
         template <class Matrix, class VectorRHS, class VectorX>
-        static void iterate(
-                const Matrix &A, const VectorRHS &rhs, VectorX &x, int c)
+        void iterate(
+                const Matrix &A, const VectorRHS &rhs, VectorX &x, int c
+                ) const
         {
             typedef typename backend::row_iterator<Matrix>::type row_iterator;
             typedef typename backend::value_type<Matrix>::type val_type;
 
-            const size_t n = backend::rows(A);
-
 #pragma omp parallel for
-            for(size_t i = 0; i < n; ++i) {
+            for(ptrdiff_t j = ptr[c]; j < ptr[c+1]; ++j) {
+                ptrdiff_t i = order[j];
+
                 val_type temp = rhs[i];
                 val_type diag = 1;
                 for (row_iterator a = backend::row_begin(A, i); a; ++a) {
-                    if (static_cast<size_t>(a.col()) == i)
+                    if (a.col() == i)
                         diag = a.value();
                     else
                         temp -= a.value() * x[a.col()];
                 }
+
                 x[i] = temp / diag;
             }
         }
