@@ -2,7 +2,6 @@
 
 #include <amgcl/amgcl.hpp>
 
-#include <amgcl/coarsening/plain_aggregates.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
 #include <amgcl/relaxation/spai0.hpp>
 #include <amgcl/solver/bicgstab.hpp>
@@ -22,9 +21,7 @@ int main() {
 
     typedef amgcl::amg<
         amgcl::backend::cuda<double>,
-        amgcl::coarsening::smoothed_aggregation<
-            amgcl::coarsening::plain_aggregates
-            >,
+        amgcl::coarsening::smoothed_aggregation,
         amgcl::relaxation::spai0
         > AMG;
 

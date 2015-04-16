@@ -9,7 +9,6 @@
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/adapter/ublas.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
-#include <amgcl/coarsening/plain_aggregates.hpp>
 #include <amgcl/relaxation/spai0.hpp>
 #include <amgcl/solver/bicgstabl.hpp>
 #include <amgcl/profiler.hpp>
@@ -50,9 +49,7 @@ int main(int argc, char *argv[]) {
     prof.tic("build");
     amgcl::make_solver<
         amgcl::backend::builtin<double>,
-        amgcl::coarsening::smoothed_aggregation<
-            amgcl::coarsening::plain_aggregates
-            >,
+        amgcl::coarsening::smoothed_aggregation,
         amgcl::relaxation::spai0,
         amgcl::solver::bicgstabl
         > solve( amgcl::backend::map(A) );

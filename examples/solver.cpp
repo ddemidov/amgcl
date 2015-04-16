@@ -3,7 +3,6 @@
 #include <amgcl/amgcl.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/adapter/crs_builder.hpp>
-#include <amgcl/coarsening/plain_aggregates.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
 #include <amgcl/relaxation/multicolor_gauss_seidel.hpp>
 #include <amgcl/solver/cg.hpp>
@@ -82,9 +81,7 @@ int main(int argc, char *argv[]) {
     prof.tic("build");
     amgcl::make_solver<
         amgcl::backend::builtin<double>,
-        amgcl::coarsening::smoothed_aggregation<
-            amgcl::coarsening::plain_aggregates
-            >,
+        amgcl::coarsening::smoothed_aggregation,
         amgcl::relaxation::multicolor_gauss_seidel,
         amgcl::solver::cg
         > solve( amgcl::adapter::make_matrix( poisson_2d(m) ) );

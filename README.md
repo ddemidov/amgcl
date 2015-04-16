@@ -296,22 +296,14 @@ library.
   [amgcl/coarsening/ruge_stuben.hpp]). Ruge-Stuben coarsening usually results
   in a more efficient multigrid cycles at the price of increased construction
   time and higher memory requirements.
-- Aggregation based coarsening strategies. Aggregation based coarseners are
-  implemented as class templates with a single template parameter. The
-  parameter controls how fine-level variables are subdivided into aggregates.
-  Possible choices are `amgcl::coarsening::plain_aggregates`
-  ([amgcl/coarsening/plain_aggregates.hpp][]) and
-  `amgcl::coarsening::pointwise_aggregates`
-  ([amgcl/coarsening/pointwise_aggregates.hpp][]). The latter may be used when
-  a system of coupled PDEs is solved. In this case the aggregation
-  acts on grid points instead of individual variables.
-  - Non-smoothed aggregation: `amgcl::coarsening::aggregation<Aggregates>`
+- Aggregation based coarsening strategies.
+  - Non-smoothed aggregation: `amgcl::coarsening::aggregation`
     ([amgcl/coarsening/aggregation.hpp][]).
   - Smoothed aggregation:
-    `amgcl::coarsening::smoothed_aggregation<Aggregates>`
+    `amgcl::coarsening::smoothed_aggregation`
     ([amgcl/coarsening/smoothed_aggregation.hpp][]).
   - Smoothed aggregation with energy minimization (see [6]):
-    `amgcl::coarsening::smoothed_aggr_emin<Aggregates>`
+    `amgcl::coarsening::smoothed_aggr_emin`
     ([amgcl/coarsening/smoothed_aggr_emin.hpp][]).
 
 In many cases the best choice is the smoothed aggregation coarsening. It
@@ -539,8 +531,6 @@ partially supported by RFBR grants No 12-07-0007 and 12-01-00033._
 [amgcl/coarsening/aggregation.hpp]:          amgcl/coarsening/aggregation.hpp
 [amgcl/coarsening/smoothed_aggregation.hpp]: amgcl/coarsening/smoothed_aggregation.hpp
 [amgcl/coarsening/smoothed_aggr_emin.hpp]:   amgcl/coarsening/smoothed_aggr_emin.hpp
-[amgcl/coarsening/plain_aggregates.hpp]:     amgcl/coarsening/plain_aggregates.hpp
-[amgcl/coarsening/pointwise_aggregates.hpp]: amgcl/coarsening/pointwise_aggregates.hpp
 
 [amgcl/relaxation/damped_jacobi.hpp]: amgcl/relaxation/damped_jacobi.hpp
 [amgcl/relaxation/spai0.hpp]:         amgcl/relaxation/spai0.hpp
