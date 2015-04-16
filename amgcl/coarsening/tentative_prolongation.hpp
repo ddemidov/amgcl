@@ -133,7 +133,7 @@ boost::shared_ptr<Matrix> tentative_prolongation(
                 boost::counting_iterator<ptrdiff_t>(0),
                 boost::counting_iterator<ptrdiff_t>(n)
                 );
-        boost::sort(order, detail::skip_negative(aggr));
+        boost::stable_sort(order, detail::skip_negative(aggr));
 
         // Precompute the shape of the prolongation operator.
         // Each row contains exactly nullspace.cols non-zero entries.
