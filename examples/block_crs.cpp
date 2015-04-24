@@ -6,7 +6,6 @@
 #include <amgcl/amgcl.hpp>
 
 #include <amgcl/backend/block_crs.hpp>
-#include <amgcl/coarsening/pointwise_aggregates.hpp>
 #include <amgcl/coarsening/aggregation.hpp>
 #include <amgcl/relaxation/spai0.hpp>
 #include <amgcl/solver/bicgstab.hpp>
@@ -21,9 +20,7 @@ int main() {
 
     typedef amgcl::amg<
         amgcl::backend::block_crs<double>,
-        amgcl::coarsening::aggregation<
-            amgcl::coarsening::pointwise_aggregates
-            >,
+        amgcl::coarsening::aggregation,
         amgcl::relaxation::spai0
         > AMG;
 

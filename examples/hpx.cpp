@@ -5,7 +5,6 @@
 #include <amgcl/backend/hpx.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
-#include <amgcl/coarsening/plain_aggregates.hpp>
 #include <amgcl/relaxation/spai0.hpp>
 #include <amgcl/solver/bicgstab.hpp>
 #include <amgcl/profiler.hpp>
@@ -34,9 +33,7 @@ int hpx_main(boost::program_options::variables_map &vm) {
 
     typedef amgcl::make_solver<
         Backend,
-        amgcl::coarsening::smoothed_aggregation<
-            amgcl::coarsening::plain_aggregates
-            >,
+        amgcl::coarsening::smoothed_aggregation,
         amgcl::relaxation::spai0,
         amgcl::solver::bicgstab
         > Solver;

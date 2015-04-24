@@ -291,25 +291,19 @@ inline void process_sdd(
         case runtime::coarsening::aggregation:
             process_sdd<
                 Backend,
-                amgcl::coarsening::aggregation<
-                    amgcl::coarsening::pointwise_aggregates
-                    >
+                amgcl::coarsening::aggregation
                 >(relaxation, iterative_solver, direct_solver, func);
             break;
         case runtime::coarsening::smoothed_aggregation:
             process_sdd<
                 Backend,
-                amgcl::coarsening::smoothed_aggregation<
-                    amgcl::coarsening::pointwise_aggregates
-                    >
+                amgcl::coarsening::smoothed_aggregation
                 >(relaxation, iterative_solver, direct_solver, func);
             break;
         case runtime::coarsening::smoothed_aggr_emin:
             process_sdd<
                 Backend,
-                amgcl::coarsening::smoothed_aggr_emin<
-                    amgcl::coarsening::pointwise_aggregates
-                    >
+                amgcl::coarsening::smoothed_aggr_emin
                 >(relaxation, iterative_solver, direct_solver, func);
             break;
     }
