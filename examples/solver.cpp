@@ -75,16 +75,36 @@ int main(int argc, char *argv[]) {
     int m = argc > 1 ? atoi(argv[1]) : 1024;
     int n = m * m;
 
+    double h = 1.0 / (m - 1);
+
+    std::vector<double> B(n * 3);
+    for(int j = 0, idx = 0; j < m; ++j) {
+        double y = j * h;
+        for(int i = 0; i < m; ++i, ++idx) {
+            double x = i * h;
+
+            B[idx * 3 + 0] = 1;
+            B[idx * 3 + 1] = x;
+            B[idx * 3 + 2] = y;
+        }
+    }
+
     // Create iterative solver preconditioned by AMG.
     // The use of make_matrix() from crs_builder.hpp allows to construct the
     // system matrix on demand row by row.
     prof.tic("build");
-    amgcl::make_solver<
+    typedef amgcl::make_solver<
         amgcl::backend::builtin<double>,
         amgcl::coarsening::smoothed_aggregation,
         amgcl::relaxation::multicolor_gauss_seidel,
         amgcl::solver::cg
-        > solve( amgcl::adapter::make_matrix( poisson_2d(m) ) );
+        > Solver;
+
+    Solver::params prm;
+    prm.amg.coarsening.nullspace.B    = B;
+    prm.amg.coarsening.nullspace.cols = 3;
+
+    Solver solve( amgcl::adapter::make_matrix( poisson_2d(m) ), prm );
     prof.toc("build");
 
     std::cout << solve.amg() << std::endl;
