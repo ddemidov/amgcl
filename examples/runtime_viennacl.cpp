@@ -25,12 +25,22 @@ int main(int argc, char *argv[]) {
     amgcl::runtime::relaxation::type relaxation = amgcl::runtime::relaxation::spai0;
     amgcl::runtime::solver::type     solver     = amgcl::runtime::solver::bicgstab;
     std::string parameter_file;
+#ifdef VIENNACL_WITH_OPENCL
+    int pid = 0;
+#endif
 
     namespace po = boost::program_options;
     po::options_description desc("Options");
 
     desc.add_options()
         ("help,h", "show help")
+#ifdef VIENNACL_WITH_OPENCL
+        (
+         "platform",
+         po::value<int>(&pid)->default_value(pid),
+         "Index of OpenCL platform to use"
+        )
+#endif
         (
          "size,n",
          po::value<int>(&m)->default_value(m),
@@ -70,6 +80,10 @@ int main(int argc, char *argv[]) {
     boost::property_tree::ptree prm;
     if (vm.count("params")) read_json(parameter_file, prm);
 
+#ifdef VIENNACL_WITH_OPENCL
+    viennacl::ocl::set_context_platform_index(0, pid);
+    std::cout << "Device: " << viennacl::ocl::current_context().current_device().name() << std::endl;
+#endif
 
     // Assemble problem
     prof.tic("assemble");

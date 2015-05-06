@@ -65,8 +65,11 @@ if (CUDA_FOUND AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 endif()
 
 if (VIENNACL_INCLUDE)
+    add_definitions(-DVIENNACL_WITH_OPENCL)
+    find_package(OpenCL REQUIRED)
+    include_directories( ${OPENCL_INCLUDE_DIRS} )
     add_executable(runtime_viennacl runtime_viennacl.cpp)
-    target_link_libraries(runtime_viennacl ${Boost_LIBRARIES})
+    target_link_libraries(runtime_viennacl ${Boost_LIBRARIES} ${OPENCL_LIBRARIES})
 endif()
 
 add_subdirectory(mpi)
