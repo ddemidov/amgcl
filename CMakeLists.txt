@@ -188,3 +188,5 @@ add_subdirectory(lib)
 add_subdirectory(pyamgcl)
 add_subdirectory(examples)
 add_subdirectory(doc)
+
+install(DIRECTORY amgcl DESTINATION include)
