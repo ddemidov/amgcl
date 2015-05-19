@@ -3,7 +3,7 @@
 #----------------------------------------------------------------------------
 option(TEST_COVERAGE "Analyze test coverage with gcov/lcov" OFF)
 
-if(${TEST_COVERAGE})
+if(TEST_COVERAGE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage")
 
     # Resets coverage statistics
