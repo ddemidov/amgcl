@@ -64,6 +64,7 @@ set(BOOST_COMPONENTS ${BOOST_COMPONENTS}
     program_options
     system
     filesystem
+    serialization
     unit_test_framework
     )
 

@@ -1,0 +1,13 @@
+environment:
+  BOOST_ROOT: c:\Libraries\boost
+  BOOST_LIBS: c:\Libraries\boost\stage\lib
+clone_folder: C:\amgcl
+platform:
+    - x86
+    - x64
+configuration:
+    - Release
+build_script:
+    - mkdir build && cd build
+    - cmake ..
+    - cmake --build .
