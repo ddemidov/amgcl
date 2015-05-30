@@ -3,6 +3,7 @@
 [<img src="https://travis-ci.org/ddemidov/amgcl.svg?branch=master" alt="g++ Build Status" />](https://travis-ci.org/ddemidov/amgcl)
 [<img src="https://ci.appveyor.com/api/projects/status/r0s4lbln4qf9r8aq/branch/master?svg=true" alt="Visual Studio Build Status"/>](https://ci.appveyor.com/project/ddemidov/amgcl/branch/master)
 [<img src="http://codecov.io/github/ddemidov/amgcl/coverage.svg?branch=master" alt="Coverage Status" />](http://codecov.io/github/ddemidov/amgcl?branch=master)
+[<img src="https://scan.coverity.com/projects/5301/badge.svg" alt="Coverity Scan Build Status"/>](https://scan.coverity.com/projects/5301)
 
 
 AMGCL is a C++ header only library for constructing an algebraic [multigrid][]
