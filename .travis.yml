@@ -26,7 +26,8 @@ before_install:
 script:
 - mkdir -p build && cd build
 - cmake -DTEST_COVERAGE=ON -DCMAKE_BUILD_TYPE=Release ..
-- make && ctest --output-on-failure
+- make
+- ctest --output-on-failure
 - for n in 1 4 16; do echo --- $n ---; mpirun -np $n ./examples/mpi/runtime_sdd; done
 after_success:
 - lcov --directory tests --base-directory ../amgcl --capture --output-file coverage.info
