@@ -150,7 +150,8 @@ class subdomain_deflation {
         : comm(mpi_comm),
           nrows(backend::rows(Astrip)), ndv(def_vec.dim()),
           dtype( datatype<value_type>::get() ), dv_start(comm.size + 1, 0),
-          Z( ndv ), q( Backend::create_vector(nrows, prm.amg.backend) )
+          Z( ndv ), master_rank(0),
+          q( Backend::create_vector(nrows, prm.amg.backend) )
         {
             MPI_Datatype mpi_ptrdiff_t = mpi::datatype<ptrdiff_t>::get();
 
