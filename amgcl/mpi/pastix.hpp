@@ -128,8 +128,8 @@ class PaStiX {
             // Factorize the matrix.
             iparm[IPARM_VERBOSE        ] = API_VERBOSE_NOT;
             iparm[IPARM_RHS_MAKING     ] = API_RHS_B;
-            iparm[IPARM_SYM            ] = API_SYM_NO;
-            iparm[IPARM_FACTORIZATION  ] = API_FACT_LU;
+            iparm[IPARM_SYM            ] = API_SYM_YES;
+            iparm[IPARM_FACTORIZATION  ] = API_FACT_LDLT;
             iparm[IPARM_TRANSPOSE_SOLVE] = API_YES;
 #ifdef _OPENMP
             iparm[IPARM_THREAD_NBR]      = omp_get_max_threads();
