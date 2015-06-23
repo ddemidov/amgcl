@@ -189,7 +189,7 @@ std::vector<ptrdiff_t> read_problem(
 //---------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
     int provided;
-    MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
     BOOST_SCOPE_EXIT(void) {
         MPI_Finalize();
     } BOOST_SCOPE_EXIT_END
