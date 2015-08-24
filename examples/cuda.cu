@@ -1,4 +1,5 @@
 #include <iostream>
+#include <thrust/device_vector.h>
 
 #include <amgcl/amgcl.hpp>
 
@@ -6,57 +7,64 @@
 #include <amgcl/relaxation/spai0.hpp>
 #include <amgcl/solver/bicgstab.hpp>
 #include <amgcl/backend/cuda.hpp>
-
+#include <amgcl/adapter/crs_tuple.hpp>
 
 #include <amgcl/profiler.hpp>
 
 #include "sample_problem.hpp"
 
 namespace amgcl {
-    profiler<> prof("v2");
+    profiler<> prof("cuda");
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+    const int m = argc > 1 ? atoi(argv[1]) : 64;
+
+    std::vector<int>    ptr, col;
+    std::vector<double> val, rhs;
+
     using amgcl::prof;
 
-    typedef amgcl::amg<
-        amgcl::backend::cuda<double>,
-        amgcl::coarsening::smoothed_aggregation,
-        amgcl::relaxation::spai0
-        > AMG;
-
-    amgcl::backend::crs<double, int> A;
-    std::vector<double> rhs;
-
+    // 3d poisson in m*m*m cube:
     prof.tic("assemble");
-    int n = A.nrows = A.ncols = sample_problem(128, A.val, A.col, A.ptr, rhs);
+    int n = sample_problem(m, val, col, ptr, rhs);
     prof.toc("assemble");
 
-    AMG::params prm;
-    AMGCL_CALL_CUDA( cusparseCreate(&prm.backend.cusparse_handle) );
+    // Setup solver:
+    typedef amgcl::make_solver<
+        amgcl::backend::cuda<double>,
+        amgcl::coarsening::smoothed_aggregation,
+        amgcl::relaxation::spai0,
+        amgcl::solver::bicgstab
+        > Solver;
 
-    prof.tic("build");
-    AMG amg(A, prm);
-    prof.toc("build");
+    // Init CUSPARSE (once per program lifespan):
+    Solver::params prm;
+    cusparseCreate(&prm.amg.backend.cusparse_handle);
 
-    std::cout << amg << std::endl;
+    prof.tic("setup");
+    Solver solve( boost::tie(n, ptr, col, val), prm );
+    prof.toc("setup");
 
-    boost::shared_ptr<AMG::vector> f = AMG::backend_type::copy_vector(rhs, amg.prm.backend);
-    boost::shared_ptr<AMG::vector> x = AMG::backend_type::create_vector(n, amg.prm.backend);
+    std::cout << solve.amg() << std::endl;
 
-    amgcl::backend::clear(*x);
+    // Solve the problem. The rhs and the solution vectors are in GPU memory.
+    thrust::device_vector<double> f = rhs;
+    thrust::device_vector<double> x(n);
+    thrust::fill(x.begin(), x.end(), 0.0); // Initial approximation.
 
-    amgcl::solver::bicgstab<AMG::backend_type> solve(n);
+    int    iters;
+    double error;
 
     prof.tic("solve");
-    size_t iters;
-    double resid;
-    boost::tie(iters, resid) = solve(amg, *f, *x);
+    boost::tie(iters, error) = solve(f, x);
     prof.toc("solve");
 
-    std::cout << "Iterations: " << iters << std::endl
-              << "Error:      " << resid << std::endl
-              << std::endl;
+    std::cout
+        << "Iterations: " << iters << std::endl
+        << "Error:      " << error << std::endl
+        ;
 
-    std::cout << amgcl::prof << std::endl;
+    std::cout << prof << std::endl;
 }
+
