@@ -231,9 +231,13 @@ class amg {
 #endif
                 ) const
         {
-            backend::clear(x);
-            for(unsigned i = 0; i < prm.pre_cycles; ++i)
-                cycle(levels.begin(), rhs, x);
+            if (prm.pre_cycles) {
+                backend::clear(x);
+                for(unsigned i = 0; i < prm.pre_cycles; ++i)
+                    cycle(levels.begin(), rhs, x);
+            } else {
+                backend::copy(rhs, x);
+            }
         }
 
         /// Returns the system matrix from the finest level.
