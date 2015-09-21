@@ -132,7 +132,7 @@ class make_preconditioner(LinearOperator):
                 Acsr.data.astype(numpy.float64)
                 )
 
-        LinearOperator.__init__(self, A.shape, self.P)
+        LinearOperator.__init__(self, dtype=numpy.float64, shape=A.shape)
 
     def __repr__(self):
         """
@@ -145,4 +145,10 @@ class make_preconditioner(LinearOperator):
         Preconditions the given vector.
         """
         return self.P(x.astype(numpy.float64))
+
+    def _matvec(self, x):
+        """
+        Preconditions the given vector.
+        """
+        return self.__call__(x)
 
