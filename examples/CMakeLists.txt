@@ -33,6 +33,10 @@ target_link_libraries(call_lib ${Boost_LIBRARIES} amgcl)
 if (EIGEN_INCLUDE)
     add_executable(solve_mm solve_mm.cpp)
     target_link_libraries(solve_mm ${Boost_LIBRARIES})
+
+    add_executable(cpr_mm cpr_mm.cpp)
+    target_link_libraries(cpr_mm ${Boost_LIBRARIES})
+
 endif()
 
 if (HPX_FOUND)

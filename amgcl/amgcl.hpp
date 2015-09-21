@@ -403,6 +403,13 @@ class make_solver {
         struct params {
             typename AMG::params amg;
             typename Solver::params solver;
+
+            params() {}
+
+            params(const boost::property_tree::ptree &p)
+                : AMGCL_PARAMS_IMPORT_CHILD(p, amg),
+                  AMGCL_PARAMS_IMPORT_CHILD(p, solver)
+            {}
         };
 
         /// Constructs the AMG hierarchy and creates iterative solver.
