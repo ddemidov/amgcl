@@ -3,3 +3,4 @@ build*
 RELEASE-VERSION
 dist
 pyamgcl.egg-info
+__pycache__
