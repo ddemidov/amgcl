@@ -8,7 +8,7 @@
  */
 
 #include <boost/shared_ptr.hpp>
-#include <amgcl/backend/interface.hpp>
+#include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
 
 namespace amgcl {
