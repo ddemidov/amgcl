@@ -1,4 +1,5 @@
 import numpy
+import scipy
 import pyamgcl_ext
 from pyamgcl_ext import coarsening, relaxation, solver_type
 from scipy.sparse.linalg import LinearOperator
@@ -132,7 +133,10 @@ class make_preconditioner(LinearOperator):
                 Acsr.data.astype(numpy.float64)
                 )
 
-        LinearOperator.__init__(self, dtype=numpy.float64, shape=A.shape)
+        if [int(v) for v in scipy.__version__.split('.')] < [0, 16, 0]:
+            LinearOperator.__init__(self, A.shape, self.P)
+        else:
+            LinearOperator.__init__(self, dtype=numpy.float64, shape=A.shape)
 
     def __repr__(self):
         """
