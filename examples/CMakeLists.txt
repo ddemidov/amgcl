@@ -21,6 +21,9 @@ target_link_libraries(ublas ${Boost_LIBRARIES})
 add_executable(runtime runtime.cpp)
 target_link_libraries(runtime ${Boost_LIBRARIES})
 
+add_executable(relax_as_precond relax_as_precond.cpp)
+target_link_libraries(relax_as_precond ${Boost_LIBRARIES})
+
 add_executable(block_crs block_crs.cpp)
 target_link_libraries(block_crs ${Boost_LIBRARIES})
 
