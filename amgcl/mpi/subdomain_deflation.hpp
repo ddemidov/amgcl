@@ -183,10 +183,10 @@ class subdomain_deflation {
             // Fill deflation vectors.
             TIC("copy deflation vectors");
             {
-                std::vector<value_type> z(nrows);
+                boost::shared_ptr< std::vector<value_type> > z = boost::make_shared< std::vector<value_type> >(nrows);
                 for(int j = 0; j < ndv; ++j) {
                     for(ptrdiff_t i = 0; i < nrows; ++i)
-                        z[i] = def_vec(i, j);
+                        (*z)[i] = def_vec(i, j);
                     Z[j] = Backend::copy_vector(z, prm.amg.backend);
                 }
             }
