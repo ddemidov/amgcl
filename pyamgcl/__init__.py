@@ -196,3 +196,43 @@ class make_cpr(LinearOperator):
         """
         return self.__call__(x)
 
+class make_simple(LinearOperator):
+    """
+    SIMPLE preconditioner.
+    """
+    def __init__(self, A, pmask, prm={}):
+        """
+        Class constructor.
+
+        Parameters
+        ----------
+        A : the system matrix in scipy.sparse format
+        prm : dictionary with amgcl parameters
+        """
+        Acsr = A.tocsr()
+
+        self.P = pyamgcl_ext.make_simple(
+                prm,
+                Acsr.indptr.astype(numpy.int32),
+                Acsr.indices.astype(numpy.int32),
+                Acsr.data.astype(numpy.float64),
+                pmask.astype(numpy.int32)
+                )
+
+        if [int(v) for v in scipy.__version__.split('.')] < [0, 16, 0]:
+            LinearOperator.__init__(self, A.shape, self.P)
+        else:
+            LinearOperator.__init__(self, dtype=numpy.float64, shape=A.shape)
+
+    def __call__(self, x):
+        """
+        Preconditions the given vector.
+        """
+        return self.P(x.astype(numpy.float64))
+
+    def _matvec(self, x):
+        """
+        Preconditions the given vector.
+        """
+        return self.__call__(x)
+

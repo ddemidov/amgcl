@@ -10,6 +10,7 @@
 #include <unsupported/Eigen/SparseExtra>
 
 #include <amgcl/preconditioner/cpr.hpp>
+#include <amgcl/preconditioner/simple.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
 #include <amgcl/relaxation/spai0.hpp>
 #include <amgcl/solver/bicgstab.hpp>
@@ -129,6 +130,13 @@ int main(int argc, char *argv[]) {
             amgcl::relaxation::spai0
             >
         CPR;
+    typedef
+        amgcl::preconditioner::cpr<
+            amgcl::backend::builtin<double>,
+            amgcl::coarsening::smoothed_aggregation,
+            amgcl::relaxation::spai0
+            >
+        SIMPLE;
     typedef amgcl::solver::bicgstab< amgcl::backend::builtin<double> > Solver;
 
     prof.tic("amg");
@@ -144,8 +152,13 @@ int main(int argc, char *argv[]) {
 
     prof.tic("cpr");
     CPR cpr( A, pmask(pm.data()), prm );
-    Solver solve(A.rows(), prm );
     prof.toc("cpr");
+
+    prof.tic("simple");
+    SIMPLE simple( A, pmask(pm.data()), prm );
+    prof.toc("simple");
+
+    Solver solve(A.rows(), prm );
     prof.toc("setup");
 
     // Solve the problem
@@ -155,9 +168,10 @@ int main(int argc, char *argv[]) {
     size_t iters;
     double resid;
 
-    prof.tic("solve (amg)");
+    prof.tic("solve");
+    prof.tic("amg");
     boost::tie(iters, resid) = amg_solve(f, x);
-    prof.toc("solve (amg)");
+    prof.toc("amg");
 
     std::cout << "AMG:" << std::endl
               << "  Iterations:     " << iters << std::endl
@@ -166,14 +180,26 @@ int main(int argc, char *argv[]) {
 
     boost::fill(x, 0);
 
-    prof.tic("solve (cpr)");
+    prof.tic("cpr");
     boost::tie(iters, resid) = solve(cpr.system_matrix(), cpr, f, x);
-    prof.toc("solve (cpr)");
+    prof.toc("cpr");
 
     std::cout << "CPR:" << std::endl
               << "  Iterations:     " << iters << std::endl
               << "  Reported Error: " << resid << std::endl
               << std::endl;
+
+    boost::fill(x, 0);
+
+    prof.tic("simple");
+    boost::tie(iters, resid) = solve(simple.system_matrix(), simple, f, x);
+    prof.toc("simple");
+
+    std::cout << "SIMPLE:" << std::endl
+              << "  Iterations:     " << iters << std::endl
+              << "  Reported Error: " << resid << std::endl
+              << std::endl;
+    prof.toc("solve");
 
     std::cout << prof << std::endl;
 }

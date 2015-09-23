@@ -19,6 +19,7 @@
 
 #include <amgcl/runtime.hpp>
 #include <amgcl/preconditioner/cpr.hpp>
+#include <amgcl/preconditioner/simple.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 
 namespace amgcl {
@@ -190,6 +191,48 @@ struct make_cpr {
             > P;
 };
 
+//---------------------------------------------------------------------------
+struct make_simple {
+    make_simple(
+            const boost::python::dict    &prm,
+            const numpy_boost<int,    1> &ptr,
+            const numpy_boost<int,    1> &col,
+            const numpy_boost<double, 1> &val,
+            const numpy_boost<int,    1> &pm
+          )
+        : n(ptr.num_elements() - 1),
+          P(boost::tie(n, ptr, col, val), pmask(n, pm.data()), make_ptree(prm))
+    { }
+
+    PyObject* apply(const numpy_boost<double, 1> &rhs) const {
+        numpy_boost<double, 1> x(&n);
+        P.apply(rhs, x);
+
+        PyObject *result = x.py_ptr();
+        Py_INCREF(result);
+        return result;
+    }
+
+    private:
+        struct pmask {
+            std::vector<int> pm;
+
+            pmask(int n, const int *pm) : pm(pm, pm + n) {}
+
+            bool operator()(size_t i) const {
+                return pm[i];
+            }
+        };
+
+        int n;
+
+        amgcl::preconditioner::simple<
+            amgcl::backend::builtin<double>,
+            amgcl::coarsening::smoothed_aggregation,
+            amgcl::relaxation::spai0
+            > P;
+};
+
 #if PY_MAJOR_VERSION >= 3
 void*
 #else
@@ -328,6 +371,30 @@ BOOST_PYTHON_MODULE(pyamgcl_ext)
              )
             )
         .def("__call__",   &make_cpr::apply,
+                "Apply preconditioner to the given vector")
+        ;
+
+    class_<make_simple, boost::noncopyable>(
+            "make_simple",
+            "Creates SIMPLE preconditioner",
+            init<
+                const dict&,
+                const numpy_boost<int,    1>&,
+                const numpy_boost<int,    1>&,
+                const numpy_boost<double, 1>&,
+                const numpy_boost<int,    1>&
+            >(
+                args(
+                    "params",
+                    "indptr",
+                    "indices",
+                    "values",
+                    "pmask"
+                    ),
+                "Creates SIMPLE preconditioner"
+             )
+            )
+        .def("__call__",   &make_simple::apply,
                 "Apply preconditioner to the given vector")
         ;
 }
