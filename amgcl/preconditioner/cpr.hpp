@@ -217,7 +217,7 @@ class cpr {
                 value_type apsp = 0;
                 for(row_iterator a = backend::row_begin(Aps, i); a; ++a)
                     for(row_iterator b = backend::row_begin(Asp, a.col()); b; ++b)
-                        if (b.col() == i) apsp += b.value();
+                        if (b.col() == i) apsp += a.value() * b.value();
 
                 App.val[pp_dia] -= apsp;
             }
