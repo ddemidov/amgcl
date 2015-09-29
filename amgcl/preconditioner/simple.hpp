@@ -112,23 +112,28 @@ class simple {
                 } else {
                     idx[i] = is++;
                 }
+            }
+
+#pragma omp parallel for
+            for(size_t i = 0; i < n; ++i) {
+                size_t ii = idx[i], in = ii + 1;
 
                 for(row_iterator a = backend::row_begin(M, i); a; ++a) {
                     size_t j = a.col();
 
                     if (pmask(i)) {
                         if (pmask(j)) {
-                            ++App->ptr[ip];
+                            ++App->ptr[in];
                         } else {
-                            ++Aps->ptr[ip];
+                            ++Aps->ptr[in];
                         }
                     } else {
                         if (pmask(j)) {
-                            ++Asp->ptr[is];
+                            ++Asp->ptr[in];
                         } else {
-                            ++Ass->ptr[is];
+                            ++Ass->ptr[in];
                             if (j == i) {
-                                Dss[idx[i]] = a.value();
+                                Dss[ii] = a.value();
                             }
                         }
                     }
@@ -151,6 +156,7 @@ class simple {
             Ass->col.resize(Ass->ptr.back());
             Ass->val.resize(Ass->ptr.back());
 
+#pragma omp parallel for
             for(size_t i = 0; i < n; ++i) {
                 size_t ii = idx[i];
 
@@ -200,6 +206,7 @@ class simple {
             // but we use the simplified form of
             //   Ap = App - Dia(Aps * Dss*-1 * Asp)
             // This allows us to modify App in place.
+#pragma omp parallel for
             for(size_t i = 0; i < np; ++i) {
                 typedef typename backend::row_iterator<build_matrix>::type row_iterator;
 
@@ -249,6 +256,7 @@ class simple {
             typedef typename backend::row_iterator<matrix>::type row_iterator;
 
             // Split RHS into p and s parts:
+#pragma omp parallel for
             for(size_t i = 0; i < n; ++i) {
                 if (pmask(i))
                     (*bp)[idx[i]] = rhs[i];
@@ -271,6 +279,7 @@ class simple {
 
             // Expand partial vectors onto complete solution:
             // TODO: this only works for host-addressable backends now.
+#pragma omp parallel for
             for(size_t i = 0; i < n; ++i) {
                 if (pmask(i))
                     x[i] = (*xp)[idx[i]];
