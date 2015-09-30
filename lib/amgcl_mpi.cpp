@@ -12,8 +12,11 @@
 
 //---------------------------------------------------------------------------
 typedef amgcl::backend::builtin<double>                   Backend;
-typedef amgcl::runtime::mpi::subdomain_deflation<Backend> Solver;
 typedef boost::property_tree::ptree                       Params;
+
+typedef amgcl::runtime::mpi::subdomain_deflation<
+    amgcl::runtime::amg<Backend>
+    > Solver;
 
 //---------------------------------------------------------------------------
 struct deflation_vectors {

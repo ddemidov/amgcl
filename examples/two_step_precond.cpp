@@ -9,13 +9,17 @@
 #include <Eigen/Sparse>
 #include <unsupported/Eigen/SparseExtra>
 
+#include <amgcl/amgcl.hpp>
 #include <amgcl/preconditioner/cpr.hpp>
 #include <amgcl/preconditioner/simple.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
+#include <amgcl/relaxation/as_preconditioner.hpp>
+#include <amgcl/relaxation/ilu0.hpp>
 #include <amgcl/relaxation/spai0.hpp>
 #include <amgcl/solver/bicgstab.hpp>
 #include <amgcl/backend/eigen.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
+#include <amgcl/make_solver.hpp>
 #include <amgcl/profiler.hpp>
 
 typedef Eigen::SparseMatrix<double, Eigen::RowMajor, int> EigenMatrix;
@@ -90,9 +94,6 @@ int main(int argc, char *argv[]) {
 
     po::notify(vm);
 
-    boost::property_tree::ptree prm;
-    if (vm.count("params")) read_json(parameter_file, prm);
-
     // Read the matrix and the right-hand side.
     prof.tic("read");
     EigenMatrix A;
@@ -101,11 +102,15 @@ int main(int argc, char *argv[]) {
             "Failed to load matrix file (" + A_file + ")"
             );
 
-    IntVector pm;
-    precondition(
-            Eigen::loadMarketVector(pm, pm_file),
-            "Failed to load pmask file (" + pm_file + ")"
-            );
+    std::vector<char> pm;
+    {
+        IntVector ipm;
+        precondition(
+                Eigen::loadMarketVector(ipm, pm_file),
+                "Failed to load pmask file (" + pm_file + ")"
+                );
+        pm.assign(&ipm[0], &ipm[0] + ipm.size());
+    }
 
     EigenVector rhs;
     if (vm.count("rhs")) {
@@ -119,43 +124,66 @@ int main(int argc, char *argv[]) {
     }
 
     precondition(A.rows() == rhs.size(), "Matrix and RHS sizes differ");
+
+    boost::property_tree::ptree prm;
+    if (vm.count("params")) read_json(parameter_file, prm);
+
+    prm.put("pmask", static_cast<void*>(&pm[0]));
+    prm.put("pmask_size", pm.size());
+
     prof.toc("read");
 
     // Setup CPR preconditioner
     prof.tic("setup");
     typedef
         amgcl::preconditioner::cpr<
-            amgcl::backend::builtin<double>,
-            amgcl::coarsening::smoothed_aggregation,
-            amgcl::relaxation::spai0
+            amgcl::amg<
+                amgcl::backend::builtin<double>,
+                amgcl::coarsening::smoothed_aggregation,
+                amgcl::relaxation::spai0
+                >,
+            amgcl::relaxation::as_preconditioner<
+                amgcl::backend::builtin<double>,
+                amgcl::relaxation::ilu0
+                >
             >
         CPR;
     typedef
-        amgcl::preconditioner::cpr<
-            amgcl::backend::builtin<double>,
-            amgcl::coarsening::smoothed_aggregation,
-            amgcl::relaxation::spai0
+        amgcl::preconditioner::simple<
+            amgcl::amg<
+                amgcl::backend::builtin<double>,
+                amgcl::coarsening::smoothed_aggregation,
+                amgcl::relaxation::spai0
+                >,
+            amgcl::relaxation::as_preconditioner<
+                amgcl::backend::builtin<double>,
+                amgcl::relaxation::ilu0
+                >
             >
         SIMPLE;
     typedef amgcl::solver::bicgstab< amgcl::backend::builtin<double> > Solver;
 
     prof.tic("amg");
     amgcl::make_solver<
+        amgcl::amg<
             amgcl::backend::builtin<double>,
             amgcl::coarsening::smoothed_aggregation,
-            amgcl::relaxation::ilu0,
-            amgcl::solver::bicgstab
+            amgcl::relaxation::ilu0
+            >,
+        amgcl::solver::bicgstab<
+            amgcl::backend::builtin<double>
+            >
         > amg_solve( A, prm );
     prof.toc("amg");
 
-    std::cout << amg_solve.amg() << std::endl;
+    std::cout << amg_solve.precond() << std::endl;
 
     prof.tic("cpr");
-    CPR cpr( A, pmask(pm.data()), prm );
+    CPR cpr( A, prm );
     prof.toc("cpr");
 
     prof.tic("simple");
-    SIMPLE simple( A, pmask(pm.data()), prm );
+    SIMPLE simple( A, prm );
     prof.toc("simple");
 
     Solver solve(A.rows(), prm );

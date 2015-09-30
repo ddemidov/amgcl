@@ -15,12 +15,12 @@ int main() {
 
     amgclHandle prm = amgcl_params_create();
 
-    amgcl_params_seti(prm, "amg.coarse_enough", 1000);
+    amgcl_params_seti(prm, "precond.coarse_enough", 1000);
 
-    amgcl_params_sets(prm, "amg.coarsening.type", "smoothed_aggregation");
-    amgcl_params_setf(prm, "amg.coarsening.aggr.eps_strong", 1e-3);
+    amgcl_params_sets(prm, "precond.coarsening.type", "smoothed_aggregation");
+    amgcl_params_setf(prm, "precond.coarsening.aggr.eps_strong", 1e-3);
 
-    amgcl_params_sets(prm, "amg.relaxation.type", "spai0");
+    amgcl_params_sets(prm, "precond.relaxation.type", "spai0");
 
     amgcl_params_sets(prm, "solver.type", "bicgstabl");
     amgcl_params_seti(prm, "solver.L", 1);

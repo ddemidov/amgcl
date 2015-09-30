@@ -51,6 +51,8 @@ template <
     >
 class bicgstab {
     public:
+        typedef Backend backend_type;
+
         typedef typename Backend::vector     vector;
         typedef typename Backend::value_type value_type;
         typedef typename Backend::params     backend_params;

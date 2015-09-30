@@ -58,6 +58,7 @@ THE SOFTWARE.
 #include <amgcl/solver/bicgstab.hpp>
 #include <amgcl/solver/bicgstabl.hpp>
 #include <amgcl/solver/gmres.hpp>
+#include <amgcl/solver/detail/default_inner_product.hpp>
 
 
 namespace amgcl {
@@ -170,52 +171,6 @@ inline std::istream& operator>>(std::istream &in, type &r)
 }
 
 } // namespace relaxation
-
-/// Iterative solvers.
-namespace solver {
-enum type {
-    cg,
-    bicgstab,
-    bicgstabl,
-    gmres
-};
-
-inline std::ostream& operator<<(std::ostream &os, type s)
-{
-    switch (s) {
-        case cg:
-            return os << "cg";
-        case bicgstab:
-            return os << "bicgstab";
-        case bicgstabl:
-            return os << "bicgstabl";
-        case gmres:
-            return os << "gmres";
-        default:
-            return os << "???";
-    }
-}
-
-inline std::istream& operator>>(std::istream &in, type &s)
-{
-    std::string val;
-    in >> val;
-
-    if (val == "cg")
-        s = cg;
-    else if (val == "bicgstab")
-        s = bicgstab;
-    else if (val == "bicgstabl")
-        s = bicgstabl;
-    else if (val == "gmres")
-        s = gmres;
-    else
-        throw std::invalid_argument("Invalid solver value");
-
-    return in;
-}
-
-} // namespace solver
 
 namespace detail {
 
@@ -354,21 +309,23 @@ inline void process_amg(
     }
 }
 
-template <class Matrix>
+template <class Backend, class Matrix>
 struct amg_create {
     typedef boost::property_tree::ptree params;
+    typedef typename Backend::params backend_params;
 
     void* &handle;
 
     const Matrix &A;
     const params &p;
+    const backend_params &bp;
 
-    amg_create(void* &handle, const Matrix &A, const params &p)
-        : handle(handle), A(A), p(p) {}
+    amg_create(void* &handle, const Matrix &A, const params &p, const backend_params &bp)
+        : handle(handle), A(A), p(p), bp(bp) {}
 
     template <class AMG>
     void process() const {
-        handle = static_cast<void*>( new AMG(A, p) );
+        handle = static_cast<void*>( new AMG(A, p, bp) );
     }
 };
 
@@ -449,7 +406,7 @@ struct amg_get_params {
 
     template <class AMG>
     void process() const {
-        static_cast<AMG*>(handle)->prm.get(p, "amg.");
+        static_cast<AMG*>(handle)->prm.get(p, "precond.");
     }
 };
 
@@ -464,6 +421,7 @@ class amg : boost::noncopyable {
         typedef typename Backend::value_type value_type;
         typedef typename Backend::matrix     matrix;
         typedef typename Backend::vector     vector;
+        typedef typename Backend::params     backend_params;
 
         typedef boost::property_tree::ptree params;
 
@@ -488,14 +446,18 @@ class amg : boost::noncopyable {
          * silently ignored.
          */
         template <class Matrix>
-        amg(const Matrix &A, const params &prm = params())
+        amg(
+                const Matrix &A,
+                const params &prm = params(),
+                const backend_params &backend_prm = backend_params()
+           )
           : coarsening(prm.get("coarsening.type", runtime::coarsening::smoothed_aggregation)),
             relaxation(prm.get("relaxation.type", runtime::relaxation::spai0)),
             handle(0)
         {
             runtime::detail::process_amg<Backend>(
                     coarsening, relaxation,
-                    runtime::detail::amg_create<Matrix>(handle, A, prm)
+                    runtime::detail::amg_create<Backend, Matrix>(handle, A, prm, backend_prm)
                     );
         }
 
@@ -574,10 +536,57 @@ class amg : boost::noncopyable {
         void *handle;
 };
 
+/// Iterative solvers.
+namespace solver {
+enum type {
+    cg,
+    bicgstab,
+    bicgstabl,
+    gmres
+};
+
+inline std::ostream& operator<<(std::ostream &os, type s)
+{
+    switch (s) {
+        case cg:
+            return os << "cg";
+        case bicgstab:
+            return os << "bicgstab";
+        case bicgstabl:
+            return os << "bicgstabl";
+        case gmres:
+            return os << "gmres";
+        default:
+            return os << "???";
+    }
+}
+
+inline std::istream& operator>>(std::istream &in, type &s)
+{
+    std::string val;
+    in >> val;
+
+    if (val == "cg")
+        s = cg;
+    else if (val == "bicgstab")
+        s = bicgstab;
+    else if (val == "bicgstabl")
+        s = bicgstabl;
+    else if (val == "gmres")
+        s = gmres;
+    else
+        throw std::invalid_argument("Invalid solver value");
+
+    return in;
+}
+
+} // namespace solver
+
 namespace detail {
 
 template <
     class Backend,
+    class InnerProduct,
     class Func
     >
 inline void process_solver(
@@ -588,25 +597,25 @@ inline void process_solver(
     switch (solver) {
         case runtime::solver::cg:
             {
-                typedef amgcl::solver::cg<Backend> Solver;
+                typedef amgcl::solver::cg<Backend, InnerProduct> Solver;
                 func.template process<Solver>();
             }
             break;
         case runtime::solver::bicgstab:
             {
-                typedef amgcl::solver::bicgstab<Backend> Solver;
+                typedef amgcl::solver::bicgstab<Backend, InnerProduct> Solver;
                 func.template process<Solver>();
             }
             break;
         case runtime::solver::bicgstabl:
             {
-                typedef amgcl::solver::bicgstabl<Backend> Solver;
+                typedef amgcl::solver::bicgstabl<Backend, InnerProduct> Solver;
                 func.template process<Solver>();
             }
             break;
         case runtime::solver::gmres:
             {
-                typedef amgcl::solver::gmres<Backend> Solver;
+                typedef amgcl::solver::gmres<Backend, InnerProduct> Solver;
                 func.template process<Solver>();
             }
             break;
@@ -617,21 +626,16 @@ struct solver_create {
     typedef boost::property_tree::ptree params;
 
     void * &handle;
-    const params &prm;
     size_t n;
+    const params &sprm;
+    const params &bprm;
 
-    solver_create(void * &handle, const params &prm, size_t n)
-        : handle(handle), prm(prm), n(n) {}
+    solver_create(void * &handle, size_t n, const params &sprm, const params &bprm)
+        : handle(handle), n(n), sprm(sprm), bprm(bprm) {}
 
     template <class Solver>
     void process() const {
-        handle = static_cast<void*>(
-                new Solver(
-                    n,
-                    prm.get_child("solver", amgcl::detail::empty_ptree()),
-                    prm.get_child("amg.backend", amgcl::detail::empty_ptree())
-                    )
-                );
+        handle = static_cast<void*>(new Solver(n, sprm, bprm));
     }
 };
 
@@ -655,35 +659,33 @@ struct solver_get_params {
 
     template <class Solver>
     void process() const {
-        static_cast<Solver*>(handle)->prm.get(p, "solver.");
+        static_cast<Solver*>(handle)->prm.get(p, "");
     }
 };
 
 template <
-    class Backend,
     class Matrix,
+    class Precond,
     class Vec1,
     class Vec2
     >
 struct solver_solve {
-    typedef typename Backend::value_type value_type;
+    typedef typename Precond::backend_type::value_type value_type;
 
     void * handle;
 
-    runtime::amg<Backend> const &P;
-
-    Matrix const &A;
-    Vec1   const &rhs;
-    Vec2         &x;
+    Matrix  const &A;
+    Precond const &P;
+    Vec1    const &rhs;
+    Vec2          &x;
 
     size_t     &iters;
     value_type &resid;
 
-    solver_solve(void * handle, const runtime::amg<Backend> &P,
-            const Matrix &A, const Vec1 &rhs, Vec2 &x, size_t &iters,
-            value_type &resid
+    solver_solve(void * handle, const Matrix &A, const Precond &P,
+            const Vec1 &rhs, Vec2 &x, size_t &iters, value_type &resid
             )
-        : handle(handle), P(P), A(A), rhs(rhs), x(x),
+        : handle(handle), A(A), P(P), rhs(rhs), x(x),
           iters(iters), resid(resid)
     {}
 
@@ -696,67 +698,58 @@ struct solver_solve {
 
 } // namespace detail
 
-/// Runtime-configurable class that creates a pair of AMG preconditioner and iterative solver
-template <class Backend>
-class make_solver : boost::noncopyable {
+template <
+    class Backend,
+    class InnerProduct = amgcl::solver::detail::default_inner_product
+    >
+class iterative_solver {
     public:
-        typedef typename Backend::value_type value_type;
-        typedef boost::property_tree::ptree params;
+        typedef Backend backend_type;
+        typedef boost::property_tree::ptree   params;
 
-        /// Constructs the AMG hierarchy and creates iterative solver.
+        typedef typename Backend::value_type value_type;
+        typedef typename Backend::vector     vector;
+
+        /// Constructs the iterative solver.
         /**
-         * \param A          The system matrix.
-         * \param prm        Parameters.
+         * \param n           System size.
+         * \param solver_prm  Solver parameters.
+         * \param backend_prm Backend parameters.
          *
-         * \note The prm argument is an instance of boost::property_tree::ptree
-         * class. The property tree should have subtrees named "amg" for
-         * AMG::params and "solver" for Solver::params structs. E.g., one could
-         \code
-         prm.put("amg.coarsening.aggr.eps_strong", 1e-2);
-         prm.put("solver.tol", 1e-6);
-         \endcode
+         * The solver_prm property tree may contain "type" entry that would be
+         * used for determination of iterative solver type. When left
+         * unspecified, runtime::solver::bicgstab would be used by default.
          *
-         * "solver" subtree may contain "type" child that would be used for
-         * selection of iterative solver type. When left unspecified,
-         * runtime::solver::bicgstab would be used by default.
-         *
-         * Any parameters that are not relevant to the current AMG or Solver
-         * classes, are silently ignored.
+         * Any parameters that are not relevant to the current solver classes
+         * are silently ignored.
          */
-        template <class Matrix>
-        make_solver(const Matrix &A, const params &prm = params())
-            : P(A, prm.get_child("amg", amgcl::detail::empty_ptree())),
-              solver(prm.get("solver.type", runtime::solver::bicgstab)),
-              handle(0)
+        iterative_solver(
+                size_t n,
+                const params &solver_prm = params(),
+                const params &backend_prm = params()
+                )
+            : solver(solver_prm.get("type", runtime::solver::bicgstab))
         {
-            runtime::detail::process_solver<Backend>(
+            runtime::detail::process_solver<Backend, InnerProduct>(
                     solver,
                     runtime::detail::solver_create(
-                        handle, prm, amgcl::backend::rows(A)
+                        handle, n, solver_prm, backend_prm
                         )
                     );
         }
 
         /// Destructor.
-        ~make_solver() {
-            runtime::detail::process_solver<Backend>(
+        ~iterative_solver() {
+            runtime::detail::process_solver<Backend, InnerProduct>(
                     solver,
                     runtime::detail::solver_destroy(handle)
-                    );
-        }
-
-        /// Fills the property tree with the actual parameters used.
-        void get_params(boost::property_tree::ptree &p) const {
-            P.get_params(p);
-            runtime::detail::process_solver<Backend>(
-                    solver,
-                    runtime::detail::solver_get_params(handle, p)
                     );
         }
 
         /// Solves the linear system for the given system matrix.
         /**
          * \param A   System matrix.
+         * \param P   Preconditioner.
          * \param rhs Right-hand side.
          * \param x   Solution vector.
          *
@@ -767,61 +760,51 @@ class make_solver : boost::noncopyable {
          * reasonably good preconditioner for several subsequent time steps
          * \cite Demidov2012.
          */
-        template <class Matrix, class Vec1, class Vec2>
+        template <class Matrix, class Precond, class Vec1, class Vec2>
         boost::tuple<size_t, value_type> operator()(
                 Matrix  const &A,
+                Precond const &P,
                 Vec1    const &rhs,
+#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
                 Vec2          &x
+#else
+                Vec2          &&x
+#endif
                 ) const
         {
             size_t     iters = 0;
             value_type resid = 0;
 
-            runtime::detail::process_solver<Backend>(
+            runtime::detail::process_solver<Backend, InnerProduct>(
                     solver,
-                    runtime::detail::solver_solve<Backend, Matrix, Vec1, Vec2>(
-                        handle, P, A, rhs, x, iters, resid)
+                    runtime::detail::solver_solve<Matrix, Precond, Vec1, Vec2>(
+                        handle, A, P, rhs, x, iters, resid)
                     );
 
             return boost::make_tuple(iters, resid);
         }
 
-        /// Solves the linear system for the given right-hand side.
+        /// Solves the linear system for the same matrix that was used for the preconditioner construction.
         /**
+         * \param P   Preconditioner.
          * \param rhs Right-hand side.
          * \param x   Solution vector.
          */
-        template <class Vec1, class Vec2>
+        template <class Precond, class Vec1, class Vec2>
         boost::tuple<size_t, value_type> operator()(
+                Precond const &P,
                 Vec1    const &rhs,
+#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
                 Vec2          &x
+#else
+                Vec2          &&x
+#endif
                 ) const
         {
-            return (*this)(P.system_matrix(), rhs, x);
+            return (*this)(P.system_matrix(), P, rhs, x);
         }
 
-        /// Acts as a preconditioner.
-        /**
-         * \param rhs Right-hand side.
-         * \param x   Solution vector.
-         */
-        template <class Vec1, class Vec2>
-        void apply(const Vec1 &rhs, Vec2 &x) const {
-            backend::clear(x);
-            (*this)(rhs, x);
-        }
-
-        /// Reference to the constructed AMG hierarchy.
-        const runtime::amg<Backend>& amg() const {
-            return P;
-        }
-
-        /// Returns problem size at the finest level.
-        size_t size() const {
-            return P.size();
-        }
     private:
-        runtime::amg<Backend>        P;
         const runtime::solver::type  solver;
         void                        *handle;
 };

@@ -109,8 +109,8 @@ int main(int argc, char *argv[]) {
     // Setup
     amgclHandle prm    = amgcl_params_create();
 
-    amgcl_params_sets(prm, "amg.coarsening.type", "smoothed_aggregation");
-    amgcl_params_sets(prm, "amg.relaxation.type", "spai0");
+    amgcl_params_sets(prm, "precond.coarsening.type", "smoothed_aggregation");
+    amgcl_params_sets(prm, "precond.relaxation.type", "spai0");
     amgcl_params_sets(prm, "solver.type", "bicgstabl");
 #ifdef AMGCL_HAVE_PASTIX
     amgcl_params_sets(prm, "direct_solver.type", "pastix");

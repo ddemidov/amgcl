@@ -7,6 +7,7 @@
 
 #include <amgcl/backend/vexcl.hpp>
 #include <amgcl/runtime.hpp>
+#include <amgcl/make_solver.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/profiler.hpp>
 
@@ -74,9 +75,9 @@ int main(int argc, char *argv[]) {
     vex::Context ctx(vex::Filter::Env && vex::Filter::DoublePrecision);
     std::cout << ctx << std::endl;
 
-    prm.put("amg.coarsening.type", coarsening);
-    prm.put("amg.relaxation.type", relaxation);
-    prm.put("amg.backend.q",       &ctx.queue());
+    prm.put("precond.coarsening.type", coarsening);
+    prm.put("precond.relaxation.type", relaxation);
+    prm.put("precond.backend.q",       &ctx.queue());
     prm.put("solver.type",         solver);
 
     // Assemble problem
@@ -90,7 +91,14 @@ int main(int argc, char *argv[]) {
     prof.toc("assemble");
 
     typedef
-        amgcl::runtime::make_solver< amgcl::backend::vexcl<double> >
+        amgcl::make_solver<
+            amgcl::runtime::amg<
+                amgcl::backend::vexcl<double>
+                >,
+            amgcl::runtime::iterative_solver<
+                amgcl::backend::vexcl<double>
+                >
+            >
         Solver;
 
     // Setup solver
@@ -98,7 +106,7 @@ int main(int argc, char *argv[]) {
     Solver solve(boost::tie(n, ptr, col, val), prm);
     prof.toc("setup");
 
-    std::cout << solve.amg() << std::endl;
+    std::cout << solve.precond() << std::endl;
 
     // Solve the problem
     vex::vector<double> f(ctx, rhs);

@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include <amgcl/amgcl.hpp>
+#include <amgcl/make_solver.hpp>
 #include <amgcl/backend/vexcl.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
@@ -30,21 +31,25 @@ int main(int argc, char *argv[]) {
     int n = sample_problem(m, val, col, ptr, rhs);
     prof.toc("assemble");
 
+    typedef amgcl::backend::vexcl<double> Backend;
     typedef amgcl::make_solver<
-        amgcl::backend::vexcl<double>,
-        amgcl::coarsening::smoothed_aggregation,
-        amgcl::relaxation::spai0,
-        amgcl::solver::bicgstab
+        amgcl::amg<
+            Backend,
+            amgcl::coarsening::smoothed_aggregation,
+            amgcl::relaxation::spai0
+            >,
+        amgcl::solver::bicgstab< Backend >
         > Solver;
 
-    Solver::params prm;
-    prm.amg.backend.q = ctx;
+    Solver::params sprm;
+    Backend::params bprm;
+    bprm.q = ctx;
 
     prof.tic("build");
-    Solver solve( boost::tie(n, ptr, col, val), prm );
+    Solver solve( boost::tie(n, ptr, col, val), sprm, bprm );
     prof.toc("build");
 
-    std::cout << solve.amg() << std::endl;
+    std::cout << solve.precond() << std::endl;
 
     vex::vector<double> f(ctx, rhs);
     vex::vector<double> x(ctx, n);

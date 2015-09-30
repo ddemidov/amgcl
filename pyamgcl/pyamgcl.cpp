@@ -18,6 +18,8 @@
 #include "numpy_boost_python.hpp"
 
 #include <amgcl/runtime.hpp>
+#include <amgcl/make_solver.hpp>
+#include <amgcl/relaxation/as_preconditioner.hpp>
 #include <amgcl/preconditioner/cpr.hpp>
 #include <amgcl/preconditioner/simple.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
@@ -109,12 +111,19 @@ struct make_solver {
 
     std::string repr() const {
         std::ostringstream buf;
-        buf << "pyamgcl solver\n" << S->amg();
+        buf << "pyamgcl solver\n" << S->precond();
         return buf.str();
     }
 
     private:
-        typedef amgcl::runtime::make_solver< amgcl::backend::builtin<double> > Solver;
+        typedef amgcl::make_solver<
+            amgcl::runtime::amg<
+                amgcl::backend::builtin<double>
+                >,
+            amgcl::runtime::iterative_solver<
+                amgcl::backend::builtin<double>
+                >
+            > Solver;
         int n;
         boost::shared_ptr< Solver > S;
 
@@ -171,13 +180,18 @@ struct make_cpr {
             const numpy_boost<double, 1> &val,
             const numpy_boost<int,    1> &pm
           )
-        : n(ptr.num_elements() - 1),
-          P(boost::tie(n, ptr, col, val), pmask(n, pm.data()), make_ptree(prm))
-    { }
+        : n(ptr.num_elements() - 1)
+    {
+        boost::property_tree::ptree pt(make_ptree(prm));
+        pt.put("pmask", static_cast<const void*>(pm.data()));
+        pt.put("pmask_size", n);
+
+        P = boost::make_shared<CPR>(boost::tie(n, ptr, col, val), pt);
+    }
 
     PyObject* apply(const numpy_boost<double, 1> &rhs) const {
         numpy_boost<double, 1> x(&n);
-        P.apply(rhs, x);
+        P->apply(rhs, x);
 
         PyObject *result = x.py_ptr();
         Py_INCREF(result);
@@ -185,23 +199,21 @@ struct make_cpr {
     }
 
     private:
-        struct pmask {
-            std::vector<int> pm;
-
-            pmask(int n, const int *pm) : pm(pm, pm + n) {}
-
-            bool operator()(size_t i) const {
-                return pm[i];
-            }
-        };
-
         int n;
 
-        amgcl::preconditioner::cpr<
-            amgcl::backend::builtin<double>,
-            amgcl::coarsening::smoothed_aggregation,
-            amgcl::relaxation::spai0
-            > P;
+        typedef amgcl::preconditioner::cpr<
+            amgcl::amg<
+                amgcl::backend::builtin<double>,
+                amgcl::coarsening::smoothed_aggregation,
+                amgcl::relaxation::spai0
+                >,
+            amgcl::relaxation::as_preconditioner<
+                amgcl::backend::builtin<double>,
+                amgcl::relaxation::ilu0
+                >
+            > CPR;
+
+        boost::shared_ptr<CPR> P;
 };
 
 //---------------------------------------------------------------------------
@@ -213,13 +225,18 @@ struct make_simple {
             const numpy_boost<double, 1> &val,
             const numpy_boost<int,    1> &pm
           )
-        : n(ptr.num_elements() - 1),
-          P(boost::tie(n, ptr, col, val), pmask(n, pm.data()), make_ptree(prm))
-    { }
+        : n(ptr.num_elements() - 1)
+    {
+        boost::property_tree::ptree pt(make_ptree(prm));
+        pt.put("pmask", static_cast<const void*>(pm.data()));
+        pt.put("pmask_size", n);
+
+        P = boost::make_shared<SIMPLE>(boost::tie(n, ptr, col, val), pt);
+    }
 
     PyObject* apply(const numpy_boost<double, 1> &rhs) const {
         numpy_boost<double, 1> x(&n);
-        P.apply(rhs, x);
+        P->apply(rhs, x);
 
         PyObject *result = x.py_ptr();
         Py_INCREF(result);
@@ -227,23 +244,22 @@ struct make_simple {
     }
 
     private:
-        struct pmask {
-            std::vector<int> pm;
-
-            pmask(int n, const int *pm) : pm(pm, pm + n) {}
-
-            bool operator()(size_t i) const {
-                return pm[i];
-            }
-        };
-
         int n;
 
-        amgcl::preconditioner::simple<
-            amgcl::backend::builtin<double>,
-            amgcl::coarsening::smoothed_aggregation,
-            amgcl::relaxation::spai0
-            > P;
+        typedef
+            amgcl::preconditioner::simple<
+                amgcl::amg<
+                    amgcl::backend::builtin<double>,
+                    amgcl::coarsening::smoothed_aggregation,
+                    amgcl::relaxation::spai0
+                    >,
+                amgcl::relaxation::as_preconditioner<
+                    amgcl::backend::builtin<double>,
+                    amgcl::relaxation::ilu0
+                    >
+                > SIMPLE;
+
+        boost::shared_ptr<SIMPLE> P;
 };
 
 #if PY_MAJOR_VERSION >= 3

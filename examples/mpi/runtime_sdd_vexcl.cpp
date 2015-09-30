@@ -127,8 +127,8 @@ int main(int argc, char *argv[]) {
     boost::property_tree::ptree prm;
     if (vm.count("params")) read_json(parameter_file, prm);
  
-    prm.put("amg.coarsening.type", coarsening);
-    prm.put("amg.relaxation.type", relaxation);
+    prm.put("precond.coarsening.type", coarsening);
+    prm.put("precond.relaxation.type", relaxation);
     prm.put("solver.type",         iterative_solver);
     prm.put("direct_solver.type",  direct_solver);
 
@@ -279,12 +279,12 @@ int main(int argc, char *argv[]) {
             vex::Filter::DoublePrecision &&
             vex::Filter::Count(1)
             );
-    prm.put("amg.backend.q", &ctx.queue());
+    prm.put("precond.backend.q", &ctx.queue());
 
     prof.tic("setup");
     typedef
         amgcl::runtime::mpi::subdomain_deflation<
-            amgcl::backend::vexcl<double>
+            amgcl::runtime::amg< amgcl::backend::vexcl<double> >
             >
         SDD;
 

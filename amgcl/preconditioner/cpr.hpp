@@ -42,46 +42,100 @@ THE SOFTWARE.
 #include <boost/function.hpp>
 #include <boost/range/irange.hpp>
 #include <boost/range/algorithm.hpp>
-#include <amgcl/amgcl.hpp>
-#include <amgcl/relaxation/ilu0.hpp>
+
 #include <amgcl/util.hpp>
 
 namespace amgcl {
 namespace preconditioner {
 
 template <
-    class Backend,
-    class Coarsening,
-    template <class> class Relax
+    class PressurePrecond,
+    class GlobalPrecond
     >
 class cpr {
     public:
-        typedef amg<Backend, Coarsening, Relax> AMG;
+        BOOST_STATIC_ASSERT_MSG(
+                (
+                 boost::is_same<
+                     typename PressurePrecond::backend_type,
+                     typename GlobalPrecond::backend_type
+                     >::value
+                ),
+                "Backends for pressure and global preconditioners should coinside!"
+                );
 
-        typedef typename Backend::value_type value_type;
-        typedef typename Backend::matrix     matrix;
-        typedef typename Backend::vector     vector;
+        typedef typename PressurePrecond::backend_type backend_type;
 
-        typedef typename AMG::params amg_params;
+        typedef typename backend_type::value_type value_type;
+        typedef typename backend_type::matrix     matrix;
+        typedef typename backend_type::vector     vector;
+        typedef typename backend_type::params     backend_params;
+
+        struct params {
+            typedef typename PressurePrecond::params pressure_params;
+            typedef typename GlobalPrecond::params   global_params;
+
+            pressure_params pressure;
+            global_params   global;
+
+            std::vector<char> pmask;
+
+            params() {}
+
+            params(const boost::property_tree::ptree &p)
+                : AMGCL_PARAMS_IMPORT_CHILD(p, pressure),
+                  AMGCL_PARAMS_IMPORT_CHILD(p, global)
+            {
+                void *pm = 0;
+                size_t n = 0;
+
+                pm = p.get("pmask",     pm);
+                n  = p.get("pmask_size", n);
+
+                precondition(
+                        pm,
+                        "Error in CPR parameters: pmask is not set"
+                        );
+
+                precondition(
+                        n > 0,
+                        "Error in CPR parameters: "
+                        "pmask is set, but pmask_size is not"
+                        );
+
+                pmask.assign(static_cast<char*>(pm), static_cast<char*>(pm) + n);
+            }
+
+            void get(
+                    boost::property_tree::ptree &p,
+                    const std::string &path = ""
+                    ) const
+            {
+                AMGCL_PARAMS_EXPORT_CHILD(p, path, pressure);
+                AMGCL_PARAMS_EXPORT_CHILD(p, path, global);
+            }
+        } prm;
 
         template <class Matrix>
         cpr(
                 const Matrix &M,
-                boost::function<bool(size_t)> pmask,
-                const amg_params &prm = amg_params()
-           ) : aprm(prm)
+                const params &prm = params(),
+                const backend_params &bprm = backend_params()
+           ) : prm(prm)
         {
             typedef typename backend::row_iterator<Matrix>::type row_iterator;
 
             const size_t n = backend::rows(M);
+
+            precondition(n == prm.pmask.size(), "Incorrect pmask size in CPR");
 
             // Extract system matrix subblocks:
             //   - App,
             //   - Asp,
             //   - Dss = Dia(Ass),
             //   - Aps * Dss^-1
-            np = boost::count_if(boost::irange<size_t>(0, n), pmask);
-            size_t ns = n - np;
+            size_t ns = boost::count(prm.pmask, false);
+            np = n - ns;
 
             build_matrix App, Aps, Asp;
             boost::shared_ptr<build_matrix> B = boost::make_shared<build_matrix>();
@@ -107,7 +161,7 @@ class cpr {
             pix.resize(np);
 
             for(size_t i = 0, ip = 0, is = 0; i < n; ++i) {
-                if (pmask(i)) {
+                if (prm.pmask[i]) {
                     pix[ip] = i;
                     idx[i] = ip++;
                 } else {
@@ -116,14 +170,14 @@ class cpr {
             }
 
 #pragma omp parallel for
-            for(size_t i = 0; i < n; ++i) {
+            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
                 size_t ii = idx[i], in = ii + 1;
 
                 for(row_iterator a = backend::row_begin(M, i); a; ++a) {
-                    size_t j = a.col();
+                    ptrdiff_t j = a.col();
 
-                    if (pmask(i)) {
-                        if (pmask(j)) {
+                    if (prm.pmask[i]) {
+                        if (prm.pmask[j]) {
                             ++App.ptr[in];
                         } else {
                             ++Aps.ptr[in];
@@ -132,7 +186,7 @@ class cpr {
                     } else {
                         if (j == i) {
                             Dss[ii] = a.value();
-                        } else if (pmask(j)) {
+                        } else if (prm.pmask[j]) {
                             ++Asp.ptr[in];
                         }
                     }
@@ -156,10 +210,10 @@ class cpr {
             B->val.resize(B->ptr.back());
 
 #pragma omp parallel for
-            for(size_t i = 0; i < n; ++i) {
+            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
                 size_t ii = idx[i];
 
-                if (pmask(i)) {
+                if (prm.pmask[i]) {
                     size_t p_head = App.ptr[ii];
                     size_t s_head = Aps.ptr[ii];
                     size_t b_head = B->ptr[ii];
@@ -172,7 +226,7 @@ class cpr {
                         size_t j  = a.col();
                         size_t jj = idx[j];
 
-                        if (pmask(j)) {
+                        if (prm.pmask[j]) {
                             App.col[p_head] = jj;
                             App.val[p_head] = a.value();
                             ++p_head;
@@ -194,7 +248,7 @@ class cpr {
                     for(row_iterator a = backend::row_begin(M, i); a; ++a) {
                         size_t j  = a.col();
 
-                        if (pmask(j)) {
+                        if (prm.pmask[j]) {
                             Asp.col[p_head] = idx[j];
                             Asp.val[p_head] = a.value();
                             ++p_head;
@@ -211,11 +265,11 @@ class cpr {
             //   Ap = App - Dia(Aps * Dss*-1 * Asp)
             // This allows us to modify App in place.
 #pragma omp parallel for
-            for(size_t i = 0; i < np; ++i) {
+            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(np); ++i) {
                 typedef typename backend::row_iterator<build_matrix>::type row_iterator;
 
                 // Find the diagonal of App (we need to update it):
-                size_t pp_dia = App.ptr[i];
+                ptrdiff_t pp_dia = App.ptr[i];
                 for(; pp_dia < App.ptr[i+1]; ++pp_dia)
                     if (App.col[pp_dia] == i) break;
                 assert(App.col[pp_dia] == i && "No diagonal in App?");
@@ -231,19 +285,14 @@ class cpr {
 
             // We are ready to create AMG and ILU preconditioners, and also
             // transfer the Br matrix to the backend.
-            boost::shared_ptr<build_matrix> m = boost::make_shared<build_matrix>(M);
+            Br  = backend_type::copy_matrix(B, bprm);
+            bp  = backend_type::create_vector(np, bprm);
+            xp  = backend_type::create_vector(np, bprm);
+            bu  = backend_type::create_vector(n, bprm);
+            xu  = backend_type::create_vector(n, bprm);
 
-            A   = Backend::copy_matrix(m, aprm.backend);
-            Br  = Backend::copy_matrix(B, aprm.backend);
-            tmp = Backend::create_vector(n, aprm.backend);
-            bp  = Backend::create_vector(np, aprm.backend);
-            xp  = Backend::create_vector(np, aprm.backend);
-
-            P = boost::make_shared<AMG>(App, aprm);
-
-            iprm.damping = 1;
-
-            I = boost::make_shared<ILU>(*m, iprm, aprm.backend);
+            P = boost::make_shared<PressurePrecond>(App, prm.pressure, bprm);
+            I = boost::make_shared<GlobalPrecond>(M, prm.global, bprm);
         }
 
         template <class Vec1, class Vec2>
@@ -269,29 +318,28 @@ class cpr {
             // Expand pressure vector onto complete solution:
             // TODO: this only works for host-addressable backends now.
 #pragma omp parallel for
-            for(size_t i = 0; i < np; ++i)
+            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(np); ++i)
                 x[pix[i]] = (*xp)[i];
 
+
             // Postprocess the complete solution with an ILU sweep:
-            I->apply_post(*A, rhs, x, *tmp, iprm);
+            backend::residual(rhs, system_matrix(), x, *bu);
+            I->apply(*bu, *xu);
+            backend::axpby(1, *xu, 1, x);
         }
 
         const matrix& system_matrix() const {
-            return *A;
+            return I->system_matrix();
         }
     private:
         typedef typename backend::builtin<value_type>::matrix build_matrix;
-        typedef relaxation::ilu0<Backend> ILU;
-        typedef typename ILU::params ilu_params;
 
-        amg_params aprm;
-        ilu_params iprm;
         size_t np;
         std::vector<size_t> pix;
-        boost::shared_ptr<matrix> A, Br;
-        boost::shared_ptr<vector> xp, bp, tmp;
-        boost::shared_ptr<AMG>    P;
-        boost::shared_ptr<ILU>    I;
+        boost::shared_ptr<matrix> Br;
+        boost::shared_ptr<vector> xp, bp, xu, bu;
+        boost::shared_ptr<PressurePrecond> P;
+        boost::shared_ptr<GlobalPrecond>   I;
 };
 
 } // namespace preconditioner

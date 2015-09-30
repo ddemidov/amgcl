@@ -18,8 +18,9 @@ namespace amgcl {
 int main() {
     using amgcl::prof;
 
+    typedef amgcl::backend::block_crs<double> Backend;
     typedef amgcl::amg<
-        amgcl::backend::block_crs<double>,
+        Backend,
         amgcl::coarsening::aggregation,
         amgcl::relaxation::spai0
         > AMG;
@@ -61,10 +62,12 @@ int main() {
     AMG::params prm;
     prm.coarsening.aggr.eps_strong = 0;
     prm.coarsening.aggr.block_size = 4;
-    prm.backend.block_size         = 4;
     prm.npre = prm.npost = 2;
 
-    AMG amg(A, prm);
+    Backend::params bprm;
+    bprm.block_size = 4;
+
+    AMG amg(A, prm, bprm);
     prof.toc("build");
 
     std::cout << amg << std::endl;

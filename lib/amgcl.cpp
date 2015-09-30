@@ -4,6 +4,7 @@
 #include <boost/static_assert.hpp>
 
 #include <amgcl/runtime.hpp>
+#include <amgcl/make_solver.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 
@@ -17,10 +18,11 @@ namespace amgcl {
 #endif
 
 //---------------------------------------------------------------------------
-typedef amgcl::backend::builtin<double>      Backend;
-typedef amgcl::runtime::amg<Backend>         AMG;
-typedef amgcl::runtime::make_solver<Backend> Solver;
-typedef boost::property_tree::ptree          Params;
+typedef amgcl::backend::builtin<double>           Backend;
+typedef amgcl::runtime::amg<Backend>              AMG;
+typedef amgcl::runtime::iterative_solver<Backend> ISolver;
+typedef amgcl::make_solver<AMG, ISolver>      Solver;
+typedef boost::property_tree::ptree               Params;
 
 //---------------------------------------------------------------------------
 amgclHandle STDCALL amgcl_params_create() {

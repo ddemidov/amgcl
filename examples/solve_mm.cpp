@@ -10,6 +10,7 @@
 #include <unsupported/Eigen/SparseExtra>
 
 #include <amgcl/runtime.hpp>
+#include <amgcl/make_solver.hpp>
 #include <amgcl/backend/eigen.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/profiler.hpp>
@@ -163,28 +164,35 @@ int main(int argc, char *argv[]) {
                 "Inconsistent dimensions in Null-space file"
                 );
 
-        prm.put("amg.coarsening.nullspace.cols", Z.cols());
-        prm.put("amg.coarsening.nullspace.rows", Z.rows());
-        prm.put("amg.coarsening.nullspace.B",    Z.data());
+        prm.put("precond.coarsening.nullspace.cols", Z.cols());
+        prm.put("precond.coarsening.nullspace.rows", Z.rows());
+        prm.put("precond.coarsening.nullspace.B",    Z.data());
     }
 
     precondition(A.rows() == rhs.size(), "Matrix and RHS sizes differ");
     prof.toc("read");
 
-    prm.put("amg.coarsening.type", coarsening);
-    prm.put("amg.relaxation.type", relaxation);
+    prm.put("precond.coarsening.type", coarsening);
+    prm.put("precond.relaxation.type", relaxation);
     prm.put("solver.type",         solver);
 
     // Setup solver
     prof.tic("setup");
     typedef
-        amgcl::runtime::make_solver< amgcl::backend::builtin<double> >
+        amgcl::make_solver<
+            amgcl::runtime::amg<
+                amgcl::backend::builtin<double>
+                >,
+            amgcl::runtime::iterative_solver<
+                amgcl::backend::builtin<double>
+                >
+            >
         Solver;
 
     Solver solve(A, prm);
     prof.toc("setup");
 
-    std::cout << solve.amg() << std::endl;
+    std::cout << solve.precond() << std::endl;
 
     // Solve the problem
     std::vector<double> f(&rhs[0], &rhs[0] + rhs.size());

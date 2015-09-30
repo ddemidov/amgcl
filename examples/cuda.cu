@@ -2,6 +2,7 @@
 #include <thrust/device_vector.h>
 
 #include <amgcl/amgcl.hpp>
+#include <amgcl/make_solver.hpp>
 
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
 #include <amgcl/relaxation/spai0.hpp>
@@ -31,22 +32,26 @@ int main(int argc, char *argv[]) {
     prof.toc("assemble");
 
     // Setup solver:
+    typedef amgcl::backend::cuda<double> Backend;
     typedef amgcl::make_solver<
-        amgcl::backend::cuda<double>,
-        amgcl::coarsening::smoothed_aggregation,
-        amgcl::relaxation::spai0,
-        amgcl::solver::bicgstab
+        amgcl::amg<
+            Backend,
+            amgcl::coarsening::smoothed_aggregation,
+            amgcl::relaxation::spai0
+            >,
+        amgcl::solver::bicgstab< Backend >
         > Solver;
 
     // Init CUSPARSE (once per program lifespan):
-    Solver::params prm;
-    cusparseCreate(&prm.amg.backend.cusparse_handle);
+    Solver::params  sprm;
+    Backend::params bprm;
+    cusparseCreate(&bprm.cusparse_handle);
 
     prof.tic("setup");
-    Solver solve( boost::tie(n, ptr, col, val), prm );
+    Solver solve( boost::tie(n, ptr, col, val), sprm, bprm );
     prof.toc("setup");
 
-    std::cout << solve.amg() << std::endl;
+    std::cout << solve.precond() << std::endl;
 
     // Solve the problem. The rhs and the solution vectors are in GPU memory.
     thrust::device_vector<double> f = rhs;
