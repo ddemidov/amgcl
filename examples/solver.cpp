@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
     boost::fill(x, 0);
 
     prof.tic("nested solver");
-    boost::tie(iters, resid) = S(solve.amg().top_matrix(), solve, f, x);
+    boost::tie(iters, resid) = S(solve.amg().system_matrix(), solve, f, x);
     prof.toc("nested solver");
 
     std::cout << "Nested solver:" << std::endl

@@ -659,7 +659,7 @@ class subdomain_deflation {
         void residual(const Vec1 &f, const Vec2 &x, Vec3 &r) const {
             TIC("top/residual");
             start_exchange(x);
-            backend::residual(f, P->top_matrix(), x, r);
+            backend::residual(f, P->system_matrix(), x, r);
 
             finish_exchange();
 
@@ -726,7 +726,7 @@ class subdomain_deflation {
             TIC("top/spmv");
 
             start_exchange(x);
-            backend::spmv(alpha, P->top_matrix(), x, beta, y);
+            backend::spmv(alpha, P->system_matrix(), x, beta, y);
 
             finish_exchange();
 

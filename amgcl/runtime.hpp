@@ -416,15 +416,15 @@ struct amg_apply {
 };
 
 template <class Matrix>
-struct amg_top_matrix {
+struct amg_system_matrix {
     void * handle;
     mutable const Matrix * matrix;
 
-    amg_top_matrix(void * handle) : handle(handle), matrix(0) {}
+    amg_system_matrix(void * handle) : handle(handle), matrix(0) {}
 
     template <class AMG>
     void process() const {
-        matrix = &(static_cast<AMG*>(handle)->top_matrix());
+        matrix = &(static_cast<AMG*>(handle)->system_matrix());
     }
 };
 
@@ -544,8 +544,8 @@ class amg : boost::noncopyable {
         }
 
         /// Returns the system matrix from the finest level.
-        const matrix& top_matrix() const {
-            runtime::detail::amg_top_matrix<matrix> top(handle);
+        const matrix& system_matrix() const {
+            runtime::detail::amg_system_matrix<matrix> top(handle);
             runtime::detail::process_amg<Backend>(
                     coarsening, relaxation, top
                     );
@@ -554,7 +554,7 @@ class amg : boost::noncopyable {
 
         /// Returns problem size at the finest level.
         size_t size() const {
-            return backend::rows( top_matrix() );
+            return backend::rows( system_matrix() );
         }
 
         /// Sends information about the AMG hierarchy to output stream.
@@ -797,7 +797,7 @@ class make_solver : boost::noncopyable {
                 Vec2          &x
                 ) const
         {
-            return (*this)(P.top_matrix(), rhs, x);
+            return (*this)(P.system_matrix(), rhs, x);
         }
 
         /// Acts as a preconditioner.

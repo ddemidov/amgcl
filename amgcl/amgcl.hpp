@@ -241,7 +241,7 @@ class amg {
         }
 
         /// Returns the system matrix from the finest level.
-        const matrix& top_matrix() const {
+        const matrix& system_matrix() const {
             return *levels.front().A;
         }
     private:
@@ -494,6 +494,10 @@ class make_solver {
         /// Reference to the iterative solver.
         const Solver& solver() const {
             return S;
+        }
+
+        typename AMG::matrix const& system_matrix() const {
+            return P.system_matrix();
         }
 
     private:

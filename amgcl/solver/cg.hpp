@@ -192,7 +192,7 @@ class cg {
 #endif
                 ) const
         {
-            return (*this)(P.top_matrix(), P, rhs, x);
+            return (*this)(P.system_matrix(), P, rhs, x);
         }
 
     public:
