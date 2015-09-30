@@ -154,6 +154,11 @@ int main(int argc, char *argv[]) {
     boost::property_tree::ptree prm;
     if (vm.count("params")) read_json(parameter_file, prm);
 
+    prm.put("amg.coarsening.type", coarsening);
+    prm.put("amg.relaxation.type", relaxation);
+    prm.put("solver.type",         iterative_solver);
+    prm.put("direct_solver.type",  direct_solver);
+
     const ptrdiff_t n2 = n * n;
     const double hinv  = (n - 1);
     const double h2i   = (n - 1) * (n - 1);
@@ -298,10 +303,7 @@ int main(int argc, char *argv[]) {
             >
         SDD;
 
-    SDD solve(
-            coarsening, relaxation, iterative_solver, direct_solver,
-            world, boost::tie(chunk, ptr, col, val), def, prm
-            );
+    SDD solve(world, boost::tie(chunk, ptr, col, val), def, prm);
     double tm_setup = prof.toc("setup");
 
     if (world.rank == 0) {

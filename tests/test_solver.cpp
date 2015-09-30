@@ -52,7 +52,6 @@ void test_solver(
     typedef typename Backend::value_type value_type;
     typedef typename Backend::vector     vector;
 
-    boost::property_tree::ptree prm;
 
     std::vector<int>        ptr;
     std::vector<int>        col;
@@ -63,15 +62,17 @@ void test_solver(
 
     typedef amgcl::runtime::make_solver<Backend> Solver;
 
-    Solver solve(
-            coarsening, relaxation, solver,
-            boost::tie(n, ptr, col, val)
-            );
+    boost::property_tree::ptree prm;
+    prm.put("amg.coarsening.type", coarsening);
+    prm.put("amg.relaxation.type", relaxation);
+    prm.put("solver.type",         solver);
+
+    Solver solve(boost::tie(n, ptr, col, val), prm);
 
     std::cout << solve.amg() << std::endl;
 
-    boost::shared_ptr<vector> y = Backend::copy_vector(rhs, prm);
-    boost::shared_ptr<vector> x = Backend::create_vector(n, prm);
+    boost::shared_ptr<vector> y = Backend::copy_vector(rhs, boost::property_tree::ptree());
+    boost::shared_ptr<vector> x = Backend::create_vector(n, boost::property_tree::ptree());
 
     amgcl::backend::clear(*x);
 

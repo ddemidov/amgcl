@@ -74,7 +74,10 @@ int main(int argc, char *argv[]) {
     vex::Context ctx(vex::Filter::Env && vex::Filter::DoublePrecision);
     std::cout << ctx << std::endl;
 
-    prm.put("amg.backend.q", &ctx.queue());
+    prm.put("amg.coarsening.type", coarsening);
+    prm.put("amg.relaxation.type", relaxation);
+    prm.put("amg.backend.q",       &ctx.queue());
+    prm.put("solver.type",         solver);
 
     // Assemble problem
     prof.tic("assemble");
@@ -92,10 +95,7 @@ int main(int argc, char *argv[]) {
 
     // Setup solver
     prof.tic("setup");
-    Solver solve(
-            coarsening, relaxation, solver,
-            boost::tie(n, ptr, col, val), prm
-            );
+    Solver solve(boost::tie(n, ptr, col, val), prm);
     prof.toc("setup");
 
     std::cout << solve.amg() << std::endl;

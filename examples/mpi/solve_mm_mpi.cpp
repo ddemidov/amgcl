@@ -278,6 +278,11 @@ int main(int argc, char *argv[]) {
     boost::property_tree::ptree prm;
     if (vm.count("params")) read_json(parameter_file, prm);
 
+    prm.put("amg.coarsening.type", coarsening);
+    prm.put("amg.relaxation.type", relaxation);
+    prm.put("solver.type",         iterative_solver);
+    prm.put("direct_solver.type",  direct_solver);
+
     using amgcl::prof;
 
     int block_size = prm.get("amg.coarsening.aggr.block_size", 1);
@@ -303,7 +308,6 @@ int main(int argc, char *argv[]) {
         SDD;
 
     SDD solve(
-            coarsening, relaxation, iterative_solver, direct_solver,
             world, boost::tie(chunk, ptr, col, val),
             amgcl::mpi::constant_deflation(block_size), prm
             );

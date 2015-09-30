@@ -394,45 +394,11 @@ class subdomain_deflation : boost::noncopyable {
         typedef boost::property_tree::ptree params;
 
         template <class Matrix, class DefVec>
-        subdomain_deflation(
-                runtime::coarsening::type    coarsening,
-                runtime::relaxation::type    relaxation,
-                runtime::solver::type        iterative_solver,
-                runtime::direct_solver::type direct_solver,
-                MPI_Comm comm,
-                const Matrix &A,
-                const DefVec &def_vec,
-                const params &prm
-                )
-            : coarsening(coarsening),
-              relaxation(relaxation),
-              iterative_solver(iterative_solver),
-              direct_solver(direct_solver),
-              n( backend::rows(A) ),
-              handle(0)
-        {
-            runtime::mpi::detail::process_sdd<Backend>(
-                    coarsening,
-                    relaxation,
-                    iterative_solver,
-                    direct_solver,
-                    runtime::mpi::detail::sdd_create<Matrix, DefVec>(
-                        handle, comm, A, def_vec, prm
-                        )
-                    );
-        }
-
-        template <class Matrix, class DefVec>
-        subdomain_deflation(
-                MPI_Comm comm,
-                const Matrix &A,
-                const DefVec &def_vec,
-                const params &prm
-                )
-            : coarsening(amgcl::runtime::coarsening::smoothed_aggregation),
-              relaxation(amgcl::runtime::relaxation::spai0),
-              iterative_solver(amgcl::runtime::solver::bicgstabl),
-              direct_solver(amgcl::runtime::direct_solver::skyline_lu),
+        subdomain_deflation(MPI_Comm comm, const Matrix &A, const DefVec &def_vec, const params &prm)
+            : coarsening(prm.get("amg.coarsening.type", amgcl::runtime::coarsening::smoothed_aggregation)),
+              relaxation(prm.get("amg.relaxation.type", amgcl::runtime::relaxation::spai0)),
+              iterative_solver(prm.get("solver.type", amgcl::runtime::solver::bicgstabl)),
+              direct_solver(prm.get("direct_solver.type", amgcl::runtime::direct_solver::skyline_lu)),
               n( backend::rows(A) ), handle(0)
         {
             runtime::mpi::detail::process_sdd<Backend>(

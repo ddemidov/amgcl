@@ -171,13 +171,17 @@ int main(int argc, char *argv[]) {
     precondition(A.rows() == rhs.size(), "Matrix and RHS sizes differ");
     prof.toc("read");
 
+    prm.put("amg.coarsening.type", coarsening);
+    prm.put("amg.relaxation.type", relaxation);
+    prm.put("solver.type",         solver);
+
     // Setup solver
     prof.tic("setup");
     typedef
         amgcl::runtime::make_solver< amgcl::backend::builtin<double> >
         Solver;
 
-    Solver solve(coarsening, relaxation, solver, A, prm);
+    Solver solve(A, prm);
     prof.toc("setup");
 
     std::cout << solve.amg() << std::endl;

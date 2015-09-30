@@ -469,8 +469,6 @@ class amg : boost::noncopyable {
 
         /// Constructs the AMG hierarchy.
         /**
-         * \param coarsening Coarsening kind.
-         * \param relaxation Relaxation scheme.
          * \param A          The system matrix.
          * \param prm        Parameters.
          *
@@ -480,36 +478,20 @@ class amg : boost::noncopyable {
          \code
          prm.put("coarsening.aggr.eps_strong", 1e-2);
          \endcode
+         *
+         * Additionally, the property tree may contain parameters
+         * "coarsening.type" and "relaxation.type". If those are missing,
+         * default values of runtime::coarsening::smoothed_aggregation and
+         * runtime::relaxation::spai0 will be selected.
+         *
          * Any parameters that are not relevant to the current AMG class, are
          * silently ignored.
          */
         template <class Matrix>
-        amg(
-                runtime::coarsening::type coarsening,
-                runtime::relaxation::type relaxation,
-                const Matrix &A,
-                const params &prm = params()
-           ) : coarsening(coarsening), relaxation(relaxation), handle(0)
-        {
-            runtime::detail::process_amg<Backend>(
-                    coarsening, relaxation,
-                    runtime::detail::amg_create<Matrix>(handle, A, prm)
-                    );
-        }
-
-        /// Constructs the AMG hierarchy with default coarsening and relaxation.
-        /**
-         * \param A          The system matrix.
-         * \param prm        Parameters.
-         *
-         * \note The default values for coarsening and relaxation are
-         * smoothed_aggregation and spai0 correspondingly.
-         */
-        template <class Matrix>
         amg(const Matrix &A, const params &prm = params())
-            : coarsening(runtime::coarsening::smoothed_aggregation),
-              relaxation(runtime::relaxation::spai0),
-              handle(0)
+          : coarsening(prm.get("coarsening.type", runtime::coarsening::smoothed_aggregation)),
+            relaxation(prm.get("relaxation.type", runtime::relaxation::spai0)),
+            handle(0)
         {
             runtime::detail::process_amg<Backend>(
                     coarsening, relaxation,
@@ -723,34 +705,28 @@ class make_solver : boost::noncopyable {
 
         /// Constructs the AMG hierarchy and creates iterative solver.
         /**
-         * \param coarsening Coarsening kind.
-         * \param relaxation Relaxation scheme.
-         * \param solver     Iterative solver.
          * \param A          The system matrix.
          * \param prm        Parameters.
          *
          * \note The prm argument is an instance of boost::property_tree::ptree
-         * class. The structure of the property tree is a union of AMG::params
-         * and Solver::params struct. E.g., one could
+         * class. The property tree should have subtrees named "amg" for
+         * AMG::params and "solver" for Solver::params structs. E.g., one could
          \code
-         prm.put("coarsening.aggr.eps_strong", 1e-2);
-         prm.put("tol", 1e-6);
+         prm.put("amg.coarsening.aggr.eps_strong", 1e-2);
+         prm.put("solver.tol", 1e-6);
          \endcode
+         *
+         * "solver" subtree may contain "type" child that would be used for
+         * selection of iterative solver type. When left unspecified,
+         * runtime::solver::bicgstab would be used by default.
+         *
          * Any parameters that are not relevant to the current AMG or Solver
          * classes, are silently ignored.
          */
         template <class Matrix>
-        make_solver(
-                runtime::coarsening::type coarsening,
-                runtime::relaxation::type relaxation,
-                runtime::solver::type     solver,
-                const Matrix &A,
-                const params &prm = params()
-                )
-            : P(coarsening, relaxation, A,
-                    prm.get_child("amg", amgcl::detail::empty_ptree())
-               ),
-              solver(solver),
+        make_solver(const Matrix &A, const params &prm = params())
+            : P(A, prm.get_child("amg", amgcl::detail::empty_ptree())),
+              solver(prm.get("solver.type", runtime::solver::bicgstab)),
               handle(0)
         {
             runtime::detail::process_solver<Backend>(

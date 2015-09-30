@@ -61,15 +61,21 @@ struct make_solver {
             const numpy_boost<int,    1> &col,
             const numpy_boost<double, 1> &val
           )
-        : n(ptr.num_elements() - 1),
-          S(coarsening, relaxation, solver, boost::tie(n, ptr, col, val), make_ptree(prm))
-    { }
+        : n(ptr.num_elements() - 1)
+    {
+        boost::property_tree::ptree pt = make_ptree(prm);
+        pt.put("amg.coarsening.type", coarsening);
+        pt.put("amg.relaxation.type", relaxation);
+        pt.put("solver.type",         solver);
+
+        S = boost::make_shared<Solver>(boost::tie(n, ptr, col, val), pt);
+    }
 
     PyObject* solve(const numpy_boost<double, 1> &rhs) const {
         numpy_boost<double, 1> x(&n);
         BOOST_FOREACH(double &v, x) v = 0;
 
-        cnv = S(rhs, x);
+        cnv = (*S)(rhs, x);
 
         PyObject *result = x.py_ptr();
         Py_INCREF(result);
@@ -86,7 +92,7 @@ struct make_solver {
         numpy_boost<double, 1> x(&n);
         BOOST_FOREACH(double &v, x) v = 0;
 
-        cnv = S(boost::tie(n, ptr, col, val), rhs, x);
+        cnv = (*S)(boost::tie(n, ptr, col, val), rhs, x);
 
         PyObject *result = x.py_ptr();
         Py_INCREF(result);
@@ -103,13 +109,14 @@ struct make_solver {
 
     std::string repr() const {
         std::ostringstream buf;
-        buf << "pyamgcl solver\n" << S.amg();
+        buf << "pyamgcl solver\n" << S->amg();
         return buf.str();
     }
 
     private:
+        typedef amgcl::runtime::make_solver< amgcl::backend::builtin<double> > Solver;
         int n;
-        amgcl::runtime::make_solver< amgcl::backend::builtin<double> > S;
+        boost::shared_ptr< Solver > S;
 
         mutable boost::tuple<int, double> cnv;
 
@@ -125,13 +132,18 @@ struct make_preconditioner {
             const numpy_boost<int,    1> &col,
             const numpy_boost<double, 1> &val
           )
-        : n(ptr.num_elements() - 1),
-          P(coarsening, relaxation, boost::tie(n, ptr, col, val), make_ptree(prm))
-    { }
+        : n(ptr.num_elements() - 1)
+    {
+        boost::property_tree::ptree pt = make_ptree(prm);
+        pt.put("coarsening.type", coarsening);
+        pt.put("relaxation.type", relaxation);
+
+        P = boost::make_shared<Preconditioner>(boost::tie(n, ptr, col, val), pt);
+    }
 
     PyObject* apply(const numpy_boost<double, 1> &rhs) const {
         numpy_boost<double, 1> x(&n);
-        P.apply(rhs, x);
+        P->apply(rhs, x);
 
         PyObject *result = x.py_ptr();
         Py_INCREF(result);
@@ -140,13 +152,14 @@ struct make_preconditioner {
 
     std::string repr() const {
         std::ostringstream buf;
-        buf << "pyamgcl preconditioner\n" << P;
+        buf << "pyamgcl preconditioner\n" << (*P);
         return buf.str();
     }
 
     private:
         int n;
-        amgcl::runtime::amg< amgcl::backend::builtin<double> > P;
+        typedef amgcl::runtime::amg< amgcl::backend::builtin<double> > Preconditioner;
+        boost::shared_ptr<Preconditioner> P;
 };
 
 //---------------------------------------------------------------------------
