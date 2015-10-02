@@ -108,18 +108,20 @@ int main(int argc, char *argv[]) {
 
     // Setup
     amgclHandle prm    = amgcl_params_create();
-    amgclHandle solver = amgcl_mpi_create(
-            amgclCoarseningSmoothedAggregation,
-            amgclRelaxationSPAI0,
-            amgclSolverBiCGStabL,
+
+    amgcl_params_sets(prm, "precond.coarsening.type", "smoothed_aggregation");
+    amgcl_params_sets(prm, "precond.relaxation.type", "spai0");
+    amgcl_params_sets(prm, "solver.type", "bicgstabl");
 #ifdef AMGCL_HAVE_PASTIX
-            amgclDirectSolverPastix,
+    amgcl_params_sets(prm, "direct_solver.type", "pastix");
 #else
-            amgclDirectSolverSkylineLU,
+    amgcl_params_sets(prm, "direct_solver.type", "skyline_lu");
 #endif
-            prm, MPI_COMM_WORLD,
+
+    amgclHandle solver = amgcl_mpi_create(
+            MPI_COMM_WORLD,
             chunk, ptr.data(), col.data(), val.data(),
-            1, constant_deflation, NULL
+            1, constant_deflation, NULL, prm
             );
 
     // Solve

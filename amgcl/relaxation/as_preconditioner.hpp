@@ -42,12 +42,14 @@ namespace relaxation {
 template <class Backend, template <class> class Relax>
 class as_preconditioner {
     public:
+        typedef Backend backend_type;
+
         typedef Relax<Backend>            smoother;
 
         typedef typename Backend::matrix  matrix;
         typedef typename Backend::vector  vector;
-        typedef typename smoother::params sparams;
-        typedef typename Backend::params  bparams;
+        typedef typename smoother::params params;
+        typedef typename Backend::params  backend_params;
 
         typedef typename Backend::value_type value_type;
         typedef typename backend::builtin<value_type>::matrix build_matrix;
@@ -55,14 +57,14 @@ class as_preconditioner {
         template <class Matrix>
         as_preconditioner(
                 const Matrix &M,
-                const sparams &sprm,
-                const bparams &bprm
+                const params &prm,
+                const backend_params &bprm
                 )
-            : prm(sprm)
+            : prm(prm)
         {
             boost::shared_ptr<build_matrix> m = boost::make_shared<build_matrix>(M);
             A = Backend::copy_matrix(m, bprm);
-            S = boost::make_shared<smoother>(*m, sprm, bprm);
+            S = boost::make_shared<smoother>(*m, prm, bprm);
             tmp = Backend::create_vector(backend::rows(*m), bprm);
         }
 
@@ -85,7 +87,7 @@ class as_preconditioner {
             return *A;
         }
     private:
-        sparams prm;
+        params prm;
 
         boost::shared_ptr<matrix>   A;
         boost::shared_ptr<smoother> S;

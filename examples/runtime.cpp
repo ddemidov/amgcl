@@ -6,6 +6,7 @@
 #include <boost/property_tree/json_parser.hpp>
 
 #include <amgcl/runtime.hpp>
+#include <amgcl/make_solver.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/profiler.hpp>
 
@@ -75,6 +76,13 @@ int main(int argc, char *argv[]) {
     boost::property_tree::ptree prm;
     if (vm.count("params")) read_json(parameter_file, prm);
 
+    prm.put("precond.coarsening.type", coarsening);
+    prm.put("precond.relaxation.type", relaxation);
+    prm.put("solver.type",         solver);
+
+    write_json(std::cout, prm);
+
+
     // Assemble problem
     prof.tic("assemble");
     std::vector<int>    ptr;
@@ -86,22 +94,24 @@ int main(int argc, char *argv[]) {
     prof.toc("assemble");
 
     typedef
-        amgcl::runtime::make_solver< amgcl::backend::builtin<double> >
+        amgcl::make_solver<
+            amgcl::runtime::amg<
+                amgcl::backend::builtin<double>
+                >,
+            amgcl::runtime::iterative_solver<
+                amgcl::backend::builtin<double>
+                >
+            >
         Solver;
 
     // Setup solver
     prof.tic("setup");
-    Solver solve(
-            coarsening, relaxation, solver,
-            boost::tie(n, ptr, col, val), prm
-            );
+    Solver solve(boost::tie(n, ptr, col, val), prm);
     prof.toc("setup");
 
-    std::cout << solve.amg() << std::endl;
+    std::cout << solve.precond() << std::endl;
 
     boost::property_tree::ptree actual_params;
-    solve.get_params(actual_params);
-    write_json(std::cout, actual_params);
 
     // Solve the problem
     std::vector<double> x(n, x0);

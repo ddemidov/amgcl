@@ -6,6 +6,7 @@
 #include <boost/numeric/ublas/matrix_sparse.hpp>
 
 #include <amgcl/amgcl.hpp>
+#include <amgcl/make_solver.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/adapter/ublas.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
@@ -48,14 +49,18 @@ int main(int argc, char *argv[]) {
 
     prof.tic("build");
     amgcl::make_solver<
-        amgcl::backend::builtin<double>,
-        amgcl::coarsening::smoothed_aggregation,
-        amgcl::relaxation::spai0,
-        amgcl::solver::bicgstabl
+        amgcl::amg<
+            amgcl::backend::builtin<double>,
+            amgcl::coarsening::smoothed_aggregation,
+            amgcl::relaxation::spai0
+            >,
+        amgcl::solver::bicgstabl<
+            amgcl::backend::builtin<double>
+            >
         > solve( amgcl::backend::map(A) );
     prof.toc("build");
 
-    std::cout << solve.amg() << std::endl;
+    std::cout << solve.precond() << std::endl;
 
     ublas_vector x(n, 0);
 

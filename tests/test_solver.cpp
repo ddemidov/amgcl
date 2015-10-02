@@ -4,6 +4,7 @@
 #include <boost/mpl/for_each.hpp>
 
 #include <amgcl/runtime.hpp>
+#include <amgcl/make_solver.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/profiler.hpp>
 
@@ -49,10 +50,11 @@ void test_solver(
         amgcl::runtime::solver::type     solver
         )
 {
+    using boost::property_tree::ptree;
+
     typedef typename Backend::value_type value_type;
     typedef typename Backend::vector     vector;
 
-    boost::property_tree::ptree prm;
 
     std::vector<int>        ptr;
     std::vector<int>        col;
@@ -61,17 +63,22 @@ void test_solver(
 
     size_t n = sample_problem(25, val, col, ptr, rhs);
 
-    typedef amgcl::runtime::make_solver<Backend> Solver;
+    typedef amgcl::make_solver<
+        amgcl::runtime::amg<Backend>,
+        amgcl::runtime::iterative_solver<Backend>
+        > Solver;
 
-    Solver solve(
-            coarsening, relaxation, solver,
-            boost::tie(n, ptr, col, val)
-            );
+    ptree prm;
+    prm.put("precond.coarsening.type", coarsening);
+    prm.put("precond.relaxation.type", relaxation);
+    prm.put("solver.type",             solver);
 
-    std::cout << solve.amg() << std::endl;
+    Solver solve(boost::tie(n, ptr, col, val), prm);
 
-    boost::shared_ptr<vector> y = Backend::copy_vector(rhs, prm);
-    boost::shared_ptr<vector> x = Backend::create_vector(n, prm);
+    std::cout << solve.precond() << std::endl;
+
+    boost::shared_ptr<vector> y = Backend::copy_vector(rhs, ptree());
+    boost::shared_ptr<vector> x = Backend::create_vector(n, ptree());
 
     amgcl::backend::clear(*x);
 

@@ -41,33 +41,6 @@ THE SOFTWARE.
 extern "C" {
 #endif
 
-// Coarsening
-typedef enum {
-    amgclCoarseningRugeStuben,
-    amgclCoarseningAggregation,
-    amgclCoarseningSmoothedAggregation,
-    amgclCoarseningSmoothedAggrEMin
-} amgclCoarsening;
-
-// Relaxation
-typedef enum {
-    amgclRelaxationGaussSeidel,
-    amgclRelaxationMCGaussSeidel,
-    amgclRelaxationILU0,
-    amgclRelaxationDampedJacobi,
-    amgclRelaxationSPAI0,
-    amgclRelaxationSPAI1,
-    amgclRelaxationChebyshev
-} amgclRelaxation;
-
-// Solver
-typedef enum {
-    amgclSolverCG,
-    amgclSolverBiCGStab,
-    amgclSolverBiCGStabL,
-    amgclSolverGMRES
-} amgclSolver;
-
 typedef void* amgclHandle;
 
 // Create parameter list.
@@ -79,18 +52,19 @@ void STDCALL amgcl_params_seti(amgclHandle prm, const char *name, int   value);
 // Set floating point parameter in a parameter list.
 void STDCALL amgcl_params_setf(amgclHandle prm, const char *name, float value);
 
+// Set floating point parameter in a parameter list.
+void STDCALL amgcl_params_sets(amgclHandle prm, const char *name, const char *value);
+
 // Destroy parameter list.
 void STDCALL amgcl_params_destroy(amgclHandle prm);
 
 // Create AMG preconditioner.
 amgclHandle STDCALL amgcl_precond_create(
-        amgclCoarsening coarsening,
-        amgclRelaxation relaxation,
-        amgclHandle     parameters,
-        int n,
+        int           n,
         const int    *ptr,
         const int    *col,
-        const double *val
+        const double *val,
+        amgclHandle   parameters
         );
 
 // Apply AMG preconditioner (x = M^(-1) * rhs).
@@ -101,14 +75,11 @@ void STDCALL amgcl_precond_destroy(amgclHandle amg);
 
 // Create iterative solver preconditioned by AMG.
 amgclHandle STDCALL amgcl_solver_create(
-        amgclCoarsening coarsening,
-        amgclRelaxation relaxation,
-        amgclSolver     solver,
-        amgclHandle     parameters,
-        int n,
+        int           n,
         const int    *ptr,
         const int    *col,
-        const double *val
+        const double *val,
+        amgclHandle   parameters
         );
 
 // Convergence info

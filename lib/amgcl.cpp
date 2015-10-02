@@ -4,6 +4,7 @@
 #include <boost/static_assert.hpp>
 
 #include <amgcl/runtime.hpp>
+#include <amgcl/make_solver.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 
@@ -16,31 +17,12 @@ namespace amgcl {
 }
 #endif
 
-#define ASSERT_EQUAL(e1, e2) BOOST_STATIC_ASSERT((int)(e1) == (int)(e2))
-
-ASSERT_EQUAL(amgclCoarseningRugeStuben,          amgcl::runtime::coarsening::ruge_stuben);
-ASSERT_EQUAL(amgclCoarseningAggregation,         amgcl::runtime::coarsening::aggregation);
-ASSERT_EQUAL(amgclCoarseningSmoothedAggregation, amgcl::runtime::coarsening::smoothed_aggregation);
-ASSERT_EQUAL(amgclCoarseningSmoothedAggrEMin,    amgcl::runtime::coarsening::smoothed_aggr_emin);
-
-ASSERT_EQUAL(amgclRelaxationGaussSeidel,         amgcl::runtime::relaxation::gauss_seidel);
-ASSERT_EQUAL(amgclRelaxationMCGaussSeidel,       amgcl::runtime::relaxation::multicolor_gauss_seidel);
-ASSERT_EQUAL(amgclRelaxationILU0,                amgcl::runtime::relaxation::ilu0);
-ASSERT_EQUAL(amgclRelaxationDampedJacobi,        amgcl::runtime::relaxation::damped_jacobi);
-ASSERT_EQUAL(amgclRelaxationSPAI0,               amgcl::runtime::relaxation::spai0);
-ASSERT_EQUAL(amgclRelaxationSPAI1,               amgcl::runtime::relaxation::spai1);
-ASSERT_EQUAL(amgclRelaxationChebyshev,           amgcl::runtime::relaxation::chebyshev);
-
-ASSERT_EQUAL(amgclSolverCG,                      amgcl::runtime::solver::cg);
-ASSERT_EQUAL(amgclSolverBiCGStab,                amgcl::runtime::solver::bicgstab);
-ASSERT_EQUAL(amgclSolverBiCGStabL,               amgcl::runtime::solver::bicgstabl);
-ASSERT_EQUAL(amgclSolverGMRES,                   amgcl::runtime::solver::gmres);
-
 //---------------------------------------------------------------------------
-typedef amgcl::backend::builtin<double>      Backend;
-typedef amgcl::runtime::amg<Backend>         AMG;
-typedef amgcl::runtime::make_solver<Backend> Solver;
-typedef boost::property_tree::ptree          Params;
+typedef amgcl::backend::builtin<double>           Backend;
+typedef amgcl::runtime::amg<Backend>              AMG;
+typedef amgcl::runtime::iterative_solver<Backend> ISolver;
+typedef amgcl::make_solver<AMG, ISolver>      Solver;
+typedef boost::property_tree::ptree               Params;
 
 //---------------------------------------------------------------------------
 amgclHandle STDCALL amgcl_params_create() {
@@ -58,25 +40,26 @@ void STDCALL amgcl_params_setf(amgclHandle prm, const char *name, float value) {
 }
 
 //---------------------------------------------------------------------------
+void STDCALL amgcl_params_sets(amgclHandle prm, const char *name, const char *value) {
+    static_cast<Params*>(prm)->put(name, value);
+}
+
+//---------------------------------------------------------------------------
 void STDCALL amgcl_params_destroy(amgclHandle prm) {
     delete static_cast<Params*>(prm);
 }
 
 //---------------------------------------------------------------------------
 amgclHandle STDCALL amgcl_precond_create(
-        amgclCoarsening coarsening,
-        amgclRelaxation relaxation,
-        amgclHandle     prm,
-        int n,
+        int           n,
         const int    *ptr,
         const int    *col,
-        const double *val
+        const double *val,
+        amgclHandle   prm
         )
 {
     return static_cast<amgclHandle>(
             new AMG(
-                static_cast<amgcl::runtime::coarsening::type>(coarsening),
-                static_cast<amgcl::runtime::relaxation::type>(relaxation),
                 boost::make_tuple(
                     n,
                     boost::make_iterator_range(ptr, ptr + n + 1),
@@ -108,21 +91,15 @@ void STDCALL amgcl_precond_destroy(amgclHandle handle) {
 
 //---------------------------------------------------------------------------
 amgclHandle STDCALL amgcl_solver_create(
-        amgclCoarsening coarsening,
-        amgclRelaxation relaxation,
-        amgclSolver     solver,
-        amgclHandle     prm,
-        int n,
+        int           n,
         const int    *ptr,
         const int    *col,
-        const double *val
+        const double *val,
+        amgclHandle   prm
         )
 {
     return static_cast<amgclHandle>(
             new Solver(
-                static_cast<amgcl::runtime::coarsening::type>(coarsening),
-                static_cast<amgcl::runtime::relaxation::type>(relaxation),
-                static_cast<amgcl::runtime::solver::type>(solver),
                 boost::make_tuple(
                     n,
                     boost::make_iterator_range(ptr, ptr + n + 1),

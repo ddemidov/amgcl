@@ -41,6 +41,7 @@ THE SOFTWARE.
 #include <boost/make_shared.hpp>
 #include <boost/foreach.hpp>
 #include <boost/tuple/tuple.hpp>
+#include <boost/static_assert.hpp>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/solver/detail/default_inner_product.hpp>
@@ -80,17 +81,18 @@ class amg {
         typedef typename Backend::vector     vector;
         typedef Relax<Backend>               relax_type;
 
+        /// Backend parameters.
+        typedef typename Backend::params     backend_params;
+
         /// Parameters of the method.
         /**
          * The amgcl::amg::params struct includes parameters for each
          * component of the method as well as some universal parameters.
          */
         struct params {
-            typedef typename Backend::params    backend_params;
             typedef typename Coarsening::params coarsening_params;
             typedef typename relax_type::params relax_params;
 
-            backend_params    backend;      ///< Backend parameters.
             coarsening_params coarsening;   ///< Coarsening parameters.
             relax_params      relax;        ///< Relaxation parameters.
 
@@ -123,8 +125,7 @@ class amg {
             {}
 
             params(const boost::property_tree::ptree &p)
-                : AMGCL_PARAMS_IMPORT_CHILD(p, backend),
-                  AMGCL_PARAMS_IMPORT_CHILD(p, coarsening),
+                : AMGCL_PARAMS_IMPORT_CHILD(p, coarsening),
                   AMGCL_PARAMS_IMPORT_CHILD(p, relax),
                   AMGCL_PARAMS_IMPORT_VALUE(p, coarse_enough),
                   AMGCL_PARAMS_IMPORT_VALUE(p, npre),
@@ -138,7 +139,6 @@ class amg {
                     const std::string &path = ""
                     ) const
             {
-                AMGCL_PARAMS_EXPORT_CHILD(p, path, backend);
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, coarsening);
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, relax);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, coarse_enough);
@@ -160,7 +160,11 @@ class amg {
          * \sa amgcl/adapter/crs_tuple.hpp
          */
         template <class Matrix>
-        amg(const Matrix &M, const params &p = params()) : prm(p)
+        amg(
+                const Matrix &M,
+                const params &p = params(),
+                const backend_params &bprm = backend_params()
+           ) : prm(p)
         {
             precondition(
                     backend::rows(M) == backend::cols(M),
@@ -182,7 +186,7 @@ class amg {
                 TOC("transfer operators");
 
                 TIC("move to backend")
-                levels.push_back( level(A, P, R, prm) );
+                levels.push_back( level(A, P, R, prm, bprm) );
                 TOC("move to backend")
 
                 TIC("coarse operator");
@@ -192,7 +196,7 @@ class amg {
             }
 
             TIC("coarsest level");
-            levels.push_back( level(A, prm, levels.empty()) );
+            levels.push_back( level(A, bprm, levels.empty()) );
             TOC("coarsest level");
         }
 
@@ -241,9 +245,10 @@ class amg {
         }
 
         /// Returns the system matrix from the finest level.
-        const matrix& top_matrix() const {
+        const matrix& system_matrix() const {
             return *levels.front().A;
         }
+
     private:
         typedef typename backend::builtin<value_type>::matrix build_matrix;
 
@@ -266,32 +271,33 @@ class amg {
                     boost::shared_ptr<build_matrix> a,
                     boost::shared_ptr<build_matrix> p,
                     boost::shared_ptr<build_matrix> r,
-                    const params &prm
+                    const params &prm,
+                    const backend_params &bprm
                  ) :
-                A( Backend::copy_matrix(a, prm.backend) ),
-                P( Backend::copy_matrix(p, prm.backend) ),
-                R( Backend::copy_matrix(r, prm.backend) ),
-                f( Backend::create_vector(backend::rows(*a), prm.backend) ),
-                u( Backend::create_vector(backend::rows(*a), prm.backend) ),
-                t( Backend::create_vector(backend::rows(*a), prm.backend) ),
-                relax( new relax_type(*a, prm.relax, prm.backend) ),
+                A( Backend::copy_matrix(a, bprm) ),
+                P( Backend::copy_matrix(p, bprm) ),
+                R( Backend::copy_matrix(r, bprm) ),
+                f( Backend::create_vector(backend::rows(*a), bprm) ),
+                u( Backend::create_vector(backend::rows(*a), bprm) ),
+                t( Backend::create_vector(backend::rows(*a), bprm) ),
+                relax( new relax_type(*a, prm.relax, bprm) ),
                 m_rows( backend::rows(*A) ),
                 m_nonzeros( backend::nonzeros(*A) )
             { }
 
             level(
                     boost::shared_ptr<build_matrix> a,
-                    const params &prm,
+                    const backend_params &bprm,
                     bool no_finer_levels
                  ) :
-                f( Backend::create_vector(backend::rows(*a), prm.backend) ),
-                u( Backend::create_vector(backend::rows(*a), prm.backend) ),
-                solve( Backend::create_solver(a, prm.backend) ),
+                f( Backend::create_vector(backend::rows(*a), bprm) ),
+                u( Backend::create_vector(backend::rows(*a), bprm) ),
+                solve( Backend::create_solver(a, bprm) ),
                 m_rows( backend::rows(*a) ),
                 m_nonzeros( backend::nonzeros(*a) )
             {
                 if (no_finer_levels)
-                    A = Backend::copy_matrix(a, prm.backend);
+                    A = Backend::copy_matrix(a, bprm);
             }
 
             size_t rows() const {
@@ -385,121 +391,6 @@ std::ostream& operator<<(std::ostream &os, const amg<B, C, R> &a)
 
     return os;
 }
-
-/// Convenience class that creates a pair of AMG preconditioner and iterative solver
-template <
-    class Backend,
-    class Coarsening,
-    template <class> class Relax,
-    template <class, class> class IterativeSolver
-    >
-class make_solver {
-    public:
-        typedef typename Backend::value_type value_type;
-
-        typedef amgcl::amg<Backend, Coarsening, Relax> AMG;
-        typedef IterativeSolver<Backend, solver::detail::default_inner_product> Solver;
-
-        struct params {
-            typename AMG::params amg;
-            typename Solver::params solver;
-
-            params() {}
-
-            params(const boost::property_tree::ptree &p)
-                : AMGCL_PARAMS_IMPORT_CHILD(p, amg),
-                  AMGCL_PARAMS_IMPORT_CHILD(p, solver)
-            {}
-        };
-
-        /// Constructs the AMG hierarchy and creates iterative solver.
-        template <class Matrix>
-        make_solver(
-                const Matrix &A,
-                const params &prm = params()
-                )
-            : P(A, prm.amg),
-              S(backend::rows(A), prm.solver, prm.amg.backend)
-        {}
-
-        /// Solves the linear system for the given system matrix.
-        /**
-         * \param A   System matrix.
-         * \param rhs Right-hand side.
-         * \param x   Solution vector.
-         *
-         * The system matrix may differ from the matrix used for the AMG
-         * preconditioner construction. This may be used for the solution of
-         * non-stationary problems with slowly changing coefficients. There is
-         * a strong chance that AMG built for one time step will act as a
-         * reasonably good preconditioner for several subsequent time steps
-         * \cite Demidov2012.
-         */
-        template <class Matrix, class Vec1, class Vec2>
-        boost::tuple<size_t, value_type> operator()(
-                Matrix  const &A,
-                Vec1    const &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-                Vec2          &x
-#else
-                Vec2          &&x
-#endif
-                ) const
-        {
-            return S(A, P, rhs, x);
-        }
-
-        /// Solves the linear system for the given right-hand side.
-        /**
-         * \param rhs Right-hand side.
-         * \param x   Solution vector.
-         */
-        template <class Vec1, class Vec2>
-        boost::tuple<size_t, value_type> operator()(
-                Vec1    const &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-                Vec2          &x
-#else
-                Vec2          &&x
-#endif
-                ) const
-        {
-            return S(P, rhs, x);
-        }
-
-        /// Acts as a preconditioner.
-        /**
-         * \param rhs Right-hand side.
-         * \param x   Solution vector.
-         */
-        template <class Vec1, class Vec2>
-        void apply(
-                const Vec1 &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-                Vec2       &x
-#else
-                Vec2       &&x
-#endif
-                ) const
-        {
-            backend::clear(x);
-            (*this)(rhs, x);
-        }
-
-        /// Reference to the constructed AMG hierarchy.
-        const AMG& amg() const {
-            return P;
-        }
-
-        /// Reference to the iterative solver.
-        const Solver& solver() const {
-            return S;
-        }
-
-    private:
-        AMG    P;
-        Solver S;
-};
 
 } // namespace amgcl
 

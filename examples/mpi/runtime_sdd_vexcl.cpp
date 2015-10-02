@@ -126,6 +126,11 @@ int main(int argc, char *argv[]) {
 
     boost::property_tree::ptree prm;
     if (vm.count("params")) read_json(parameter_file, prm);
+ 
+    prm.put("precond.coarsening.type", coarsening);
+    prm.put("precond.relaxation.type", relaxation);
+    prm.put("solver.type",         iterative_solver);
+    prm.put("direct_solver.type",  direct_solver);
 
     const ptrdiff_t n2 = n * n;
 
@@ -274,19 +279,16 @@ int main(int argc, char *argv[]) {
             vex::Filter::DoublePrecision &&
             vex::Filter::Count(1)
             );
-    prm.put("amg.backend.q", &ctx.queue());
+    prm.put("precond.backend.q", &ctx.queue());
 
     prof.tic("setup");
     typedef
         amgcl::runtime::mpi::subdomain_deflation<
-            amgcl::backend::vexcl<double>
+            amgcl::runtime::amg< amgcl::backend::vexcl<double> >
             >
         SDD;
 
-    SDD solve(
-            coarsening, relaxation, iterative_solver, direct_solver,
-            world, boost::tie(chunk, ptr, col, val), lindef, prm
-            );
+    SDD solve(world, boost::tie(chunk, ptr, col, val), lindef, prm);
     double tm_setup = prof.toc("setup");
 
     vex::vector<double> f(ctx, rhs);

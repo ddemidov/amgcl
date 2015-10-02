@@ -10,17 +10,13 @@
 
 #include "amgcl_mpi.h"
 
-#define ASSERT_EQUAL(e1, e2) BOOST_STATIC_ASSERT((int)(e1) == (int)(e2))
-
-ASSERT_EQUAL(amgclDirectSolverSkylineLU, amgcl::runtime::direct_solver::skyline_lu);
-#ifdef AMGCL_HAVE_PASTIX
-ASSERT_EQUAL(amgclDirectSolverPastix,    amgcl::runtime::direct_solver::pastix);
-#endif
-
 //---------------------------------------------------------------------------
 typedef amgcl::backend::builtin<double>                   Backend;
-typedef amgcl::runtime::mpi::subdomain_deflation<Backend> Solver;
 typedef boost::property_tree::ptree                       Params;
+
+typedef amgcl::runtime::mpi::subdomain_deflation<
+    amgcl::runtime::amg<Backend>
+    > Solver;
 
 //---------------------------------------------------------------------------
 struct deflation_vectors {
@@ -41,11 +37,6 @@ struct deflation_vectors {
 
 //---------------------------------------------------------------------------
 amgclHandle STDCALL amgcl_mpi_create(
-        amgclCoarsening      coarsening,
-        amgclRelaxation      relaxation,
-        amgclSolver          iterative_solver,
-        amgclDirectSolver    direct_solver,
-        amgclHandle          params,
         MPI_Comm             comm,
         ptrdiff_t            n,
         const ptrdiff_t     *ptr,
@@ -53,15 +44,12 @@ amgclHandle STDCALL amgcl_mpi_create(
         const double        *val,
         int                  n_def_vec,
         amgclDefVecFunction  def_vec_func,
-        void                *def_vec_data
+        void                *def_vec_data,
+        amgclHandle          params
         )
 {
     return static_cast<amgclHandle>(
             new Solver(
-                static_cast<amgcl::runtime::coarsening::type>(coarsening),
-                static_cast<amgcl::runtime::relaxation::type>(relaxation),
-                static_cast<amgcl::runtime::solver::type>(iterative_solver),
-                static_cast<amgcl::runtime::direct_solver::type>(direct_solver),
                 comm,
                 boost::make_tuple(
                     n,

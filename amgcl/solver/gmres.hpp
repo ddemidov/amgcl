@@ -57,6 +57,8 @@ template <
     >
 class gmres {
     public:
+        typedef Backend backend_type;
+
         typedef typename Backend::vector     vector;
         typedef typename Backend::value_type value_type;
         typedef typename Backend::params     backend_params;
@@ -176,7 +178,7 @@ class gmres {
                 Vec2          &x
                 ) const
         {
-            return (*this)(P.top_matrix(), P, rhs, x);
+            return (*this)(P.system_matrix(), P, rhs, x);
         }
 
     public:

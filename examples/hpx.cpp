@@ -2,6 +2,7 @@
 #include <hpx/hpx_init.hpp>
 
 #include <amgcl/amgcl.hpp>
+#include <amgcl/make_solver.hpp>
 #include <amgcl/backend/hpx.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
@@ -32,22 +33,24 @@ int hpx_main(boost::program_options::variables_map &vm) {
     typedef amgcl::backend::HPX<double> Backend;
 
     typedef amgcl::make_solver<
-        Backend,
-        amgcl::coarsening::smoothed_aggregation,
-        amgcl::relaxation::spai0,
-        amgcl::solver::bicgstab
+        amgcl::amg<
+            Backend,
+            amgcl::coarsening::smoothed_aggregation,
+            amgcl::relaxation::spai0
+            >,
+        amgcl::solver::bicgstab< Backend >
         > Solver;
 
     Solver::params prm;
-    prm.amg.backend.grain_size = vm["grain"].as<int>();
+    prm.precond.backend.grain_size = vm["grain"].as<int>();
 
     Solver solve( boost::tie(n, ptr, col, val), prm );
     prof.toc("setup");
 
-    std::cout << solve.amg() << std::endl;
+    std::cout << solve.precond() << std::endl;
 
-    auto f = Backend::copy_vector(rhs, prm.amg.backend);
-    auto x = Backend::create_vector(n, prm.amg.backend);
+    auto f = Backend::copy_vector(rhs, prm.precond.backend);
+    auto x = Backend::create_vector(n, prm.precond.backend);
 
     amgcl::backend::clear(*x);
 

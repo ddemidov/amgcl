@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include <amgcl/amgcl.hpp>
+#include <amgcl/make_solver.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/adapter/crs_builder.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
@@ -79,15 +80,20 @@ int main(int argc, char *argv[]) {
     // The use of make_matrix() from crs_builder.hpp allows to construct the
     // system matrix on demand row by row.
     prof.tic("build");
-    amgcl::make_solver<
-        amgcl::backend::builtin<double>,
-        amgcl::coarsening::smoothed_aggregation,
-        amgcl::relaxation::multicolor_gauss_seidel,
-        amgcl::solver::cg
-        > solve( amgcl::adapter::make_matrix( poisson_2d(m) ) );
+    typedef amgcl::make_solver<
+        amgcl::amg<
+            amgcl::backend::builtin<double>,
+            amgcl::coarsening::smoothed_aggregation,
+            amgcl::relaxation::multicolor_gauss_seidel
+            >,
+        amgcl::solver::cg<
+            amgcl::backend::builtin<double>
+            >
+        > Solver;
+    Solver solve( amgcl::adapter::make_matrix( poisson_2d(m) ) );
     prof.toc("build");
 
-    std::cout << solve.amg() << std::endl;
+    std::cout << solve.precond() << std::endl;
 
     std::vector<double> f(n, 1);
     std::vector<double> x(n, 0);
@@ -116,7 +122,7 @@ int main(int argc, char *argv[]) {
     boost::fill(x, 0);
 
     prof.tic("nested solver");
-    boost::tie(iters, resid) = S(solve.amg().top_matrix(), solve, f, x);
+    boost::tie(iters, resid) = S(solve.system_matrix(), solve, f, x);
     prof.toc("nested solver");
 
     std::cout << "Nested solver:" << std::endl

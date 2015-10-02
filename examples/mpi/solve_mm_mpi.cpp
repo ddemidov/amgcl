@@ -278,9 +278,14 @@ int main(int argc, char *argv[]) {
     boost::property_tree::ptree prm;
     if (vm.count("params")) read_json(parameter_file, prm);
 
+    prm.put("precond.coarsening.type", coarsening);
+    prm.put("precond.relaxation.type", relaxation);
+    prm.put("solver.type",         iterative_solver);
+    prm.put("direct_solver.type",  direct_solver);
+
     using amgcl::prof;
 
-    int block_size = prm.get("amg.coarsening.aggr.block_size", 1);
+    int block_size = prm.get("precond.coarsening.aggr.block_size", 1);
 
     prof.tic("read problem");
     std::vector<ptrdiff_t> ptr;
@@ -298,12 +303,11 @@ int main(int argc, char *argv[]) {
     prof.tic("setup");
     typedef
         amgcl::runtime::mpi::subdomain_deflation<
-            amgcl::backend::builtin<double>
+            amgcl::runtime::amg< amgcl::backend::builtin<double> >
             >
         SDD;
 
     SDD solve(
-            coarsening, relaxation, iterative_solver, direct_solver,
             world, boost::tie(chunk, ptr, col, val),
             amgcl::mpi::constant_deflation(block_size), prm
             );
