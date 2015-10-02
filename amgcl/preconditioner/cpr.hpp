@@ -48,6 +48,8 @@ THE SOFTWARE.
 namespace amgcl {
 namespace preconditioner {
 
+/// CPR (constrained pressure residual) preconditioner.
+/** \cite stueben2007algebraic */
 template <
     class PressurePrecond,
     class GlobalPrecond

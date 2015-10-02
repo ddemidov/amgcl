@@ -36,7 +36,7 @@ THE SOFTWARE.
 
 namespace amgcl {
 
-/// Convenience class that creates a pair of AMG preconditioner and iterative solver
+/// Convenience class that wraps a preconditioner and an iterative solver
 template <
     class Precond,
     class IterativeSolver
@@ -74,7 +74,7 @@ class make_solver {
             }
         } prm;
 
-        /// Constructs the AMG hierarchy and creates iterative solver.
+        /// Constructs the preconditioner and creates iterative solver.
         template <class Matrix>
         make_solver(
                 const Matrix &A,
@@ -86,7 +86,7 @@ class make_solver {
               S(backend::rows(A), prm.solver, bprm)
         {}
 
-        /// Constructs the AMG hierarchy and creates iterative solver.
+        /// Constructs the preconditioner and creates iterative solver.
         template <class Matrix>
         make_solver(
                 const Matrix &A,
@@ -172,6 +172,7 @@ class make_solver {
             return S;
         }
 
+        /// The system matrix in the backend format.
         typename Precond::matrix const& system_matrix() const {
             return P.system_matrix();
         }
@@ -181,6 +182,7 @@ class make_solver {
             prm.get(p);
         }
 
+        /// Size of the system matrix.
         size_t size() const {
             return n;
         }

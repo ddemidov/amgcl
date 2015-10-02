@@ -29,7 +29,7 @@ THE SOFTWARE.
 /**
  * \file   amgcl/preconditioner/cpr.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
- * \brief  CPR (constrained pressure residual) preconditioner implementation.
+ * \brief  SIMPLE preconditioner (Semi-Implicit Method for Pressure-Linked Equations).
  */
 
 #include <vector>
@@ -49,6 +49,9 @@ THE SOFTWARE.
 namespace amgcl {
 namespace preconditioner {
 
+
+/// SIMPLE preconditioner (Semi-Implicit Method for Pressure-Linked Equations).
+/** \cite caretto1973two */
 template <
     class PressurePrecond,
     class FlowPrecond

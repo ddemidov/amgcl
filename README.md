@@ -9,7 +9,7 @@
 AMGCL is a C++ header only library for constructing an algebraic [multigrid][]
 (AMG) hierarchy.  AMG is one the most effective methods for solution of large
 sparse unstructured systems of equations, arising, for example, from
-discretization of PDEs on unstructured grids [5,6]. The method can be used as a
+discretization of PDEs on unstructured grids [9,11]. The method can be used as a
 black-box solver for various computational problems, since it does not require
 any information about the underlying geometry. AMG is often used not as a
 standalone solver but as a preconditioner within an iterative solver (e.g.
@@ -133,10 +133,14 @@ example could be made a bit shorter:
 ~~~{.cpp}
 // Construct the AMG hierarchy and create the iterative solver.
 amgcl::make_solver<
-    amgcl::backend::builtin<double>,
-    amgcl::coarsening::ruge_stuben,
-    amgcl::relaxation::damped_jacobi,
-    amgcl::solver::bicgstab
+    amgcl::amg<
+        amgcl::backend::builtin<double>,
+        amgcl::coarsening::ruge_stuben,
+        amgcl::relaxation::damped_jacobi
+        >,
+    amgcl::solver::bicgstab<
+        amgcl::backend::builtin<double>
+        >
     > solve( boost::tie(n, ptr, col, val) );
 
 // ...
@@ -273,7 +277,7 @@ struct poisson_2d {
 };
 
 amgcl::adapter::make_solver<
-    Backend, Coarsening, Relaxation, IterativeSolver
+    amgcl::amg<Backend, Coarsening, Relaxation>, IterativeSolver
     > solve( amgcl::backend::make_matrix( poisson_2d(m) ) );
 ~~~
 
@@ -304,7 +308,7 @@ library.
   - Smoothed aggregation:
     `amgcl::coarsening::smoothed_aggregation`
     ([amgcl/coarsening/smoothed_aggregation.hpp][]).
-  - Smoothed aggregation with energy minimization (see [6]):
+  - Smoothed aggregation with energy minimization (see [7]):
     `amgcl::coarsening::smoothed_aggr_emin`
     ([amgcl/coarsening/smoothed_aggr_emin.hpp][]).
 
@@ -354,7 +358,7 @@ construction of AMG hierarchy.
 The other version also takes a system matrix as first parameter. This version
 may be used for the solution of non-stationary problems with slowly changing
 coefficients. There is a strong chance that AMG built for one time step will
-act as a reasonably good preconditioner for several subsequent time steps [3].
+act as a reasonably good preconditioner for several subsequent time steps [4].
 
 Both versions return a tuple of number of iterations made and a residual error
 achieved.
@@ -464,35 +468,40 @@ Have a look at [amgcl/relaxation/damped_jacobi.hpp][] for an example.
 
 ## <a name="references"></a>References
 
-1. R. Barrett, M. Berry, T. F. Chan, J. Demmel, J. Donato, J. Dongarra, V.
-   Eijkhout, R. Pozo, C. Romine, and H. Van der Vorst. Templates for the
-   Solution of Linear Systems: Building Blocks for Iterative Methods, 2nd
-   Edition. SIAM, Philadelphia, PA, 1994.
+1. R. Barrett, et al. Templates for the Solution of Linear Systems: Building
+   Blocks for Iterative Methods, 2nd Edition. SIAM, Philadelphia, PA, 1994.
 2. O. Bröker and M. J. Grote. Sparse approximate inverse smoothers for
    geometric and algebraic multigrid. Applied numerical mathematics,
    41(1):61–80, 2002.
-3. D. E. Demidov and D. V. Shevchenko. Modification of algebraic multigrid for
+3. L. S. Caretto, et al. "Two calculation procedures for steady,
+   three-dimensional flows with recirculation." Proceedings of the third
+   international conference on numerical methods in fluid mechanics. Springer
+   Berlin Heidelberg, 1973.
+4. D. E. Demidov and D. V. Shevchenko. Modification of algebraic multigrid for
    effective gpgpu-based solution of nonstationary hydrodynamics problems.
    Journal of Computational Science, 3(6):460–462, 2012.
-4. J. Frank and C. Vuik. On the construction of deflation-based
+5. J. Frank and C. Vuik. On the construction of deflation-based
    preconditioners. SIAM Journal on Scientific Computing, 23(2):442–462, 2001.
-5. Pascal Hénon, Pierre Ramet, and Jean Roman. Pastix: a high-performance
+6. Pascal Hénon, Pierre Ramet, and Jean Roman. Pastix: a high-performance
    parallel direct solver for sparse symmetric positive definite systems.
    Parallel Computing, 28(2):301–321, 2002.
-6. M. Sala and R. S. Tuminaro. A new petrov-galerkin smoothed aggregation
+7. M. Sala and R. S. Tuminaro. A new petrov-galerkin smoothed aggregation
    preconditioner for nonsymmetric linear systems. SIAM Journal on Scientific
    Computing, 31(1):143–166, 2008.
-7. G. L. G. Sleijpen and D. R. Fokkema. Bicgstab (l) for linear equations
+8. G. L. G. Sleijpen and D. R. Fokkema. Bicgstab (l) for linear equations
    involving unsymmetric matrices with complex spectrum. Electronic
    Transactions on Numerical Analysis, 1(11):2000, 1993.
-8. K. Stuben. Algebraic multigrid (AMG): an introduction with applications. GMD
+9. K. Stuben. Algebraic multigrid (AMG): an introduction with applications. GMD
    Report 70, GMD, Sankt Augustin, Germany, 1999.
-9. U. Trottenberg, C. Oosterlee, and A. Schüller. Multigrid. Academic Press,
+10. K. Stueben, et al. "Algebraic multigrid methods (AMG) for the efficient
+   solution of fully implicit formulations in reservoir simulation." SPE
+   Reservoir Simulation Symposium. Society of Petroleum Engineers, 2007.
+11. U. Trottenberg, C. Oosterlee, and A. Schüller. Multigrid. Academic Press,
    London, 2001. 631 p.
-10. P. Vanek, J. Mandel, and M. Brezina. Algebraic multigrid by smoothed
+12. P. Vanek, J. Mandel, and M. Brezina. Algebraic multigrid by smoothed
    aggregation for second and fourth order elliptic problems. Computing,
    56(3):179–196, 1996.
-11. P. Vanek, M. Brezina, J. Mandel, and others. Convergence of algebraic
+13. P. Vanek, M. Brezina, J. Mandel, and others. Convergence of algebraic
     multigrid based on smoothed aggregation. Numerische Mathematik,
     88(3):559–579, 2001.
 
