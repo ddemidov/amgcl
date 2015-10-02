@@ -163,7 +163,7 @@ class bicgstabl {
 
                 // Bi-CG part
                 for(int j = 0; j < L; ++j) {
-                    precondition(rho0, "Zero rho in BiCGStab(L)");
+                    precondition(rho0 != 0, "Zero rho in BiCGStab(L)");
 
                     double rho1 = inner_product(*r[j], *r0);
                     double beta = alpha * rho1 / rho0;

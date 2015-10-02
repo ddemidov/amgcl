@@ -152,7 +152,7 @@ class bicgstab {
                     backend::copy(*r, *p);
                     first = false;
                 } else {
-                    precondition(rho2, "Zero rho in BiCGStab");
+                    precondition(rho2 != 0, "Zero rho in BiCGStab");
                     value_type beta = (rho1 * alpha) / (rho2 * omega);
                     backend::axpbypcz(1, *r, -beta * omega, *v, beta, *p);
                 }
@@ -174,7 +174,7 @@ class bicgstab {
 
                     omega = inner_product(*t, *s) / inner_product(*t, *t);
 
-                    precondition(omega, "Zero omega in BiCGStab");
+                    precondition(omega != 0, "Zero omega in BiCGStab");
 
                     backend::axpbypcz(alpha, *ph, omega, *sh, 1, x);
                     backend::axpbypcz(1, *s, -omega, *t, 0, *r);
