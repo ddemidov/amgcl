@@ -11,6 +11,7 @@
 
 #include <amgcl/runtime.hpp>
 #include <amgcl/make_solver.hpp>
+#include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/backend/eigen.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/profiler.hpp>
@@ -67,6 +68,7 @@ int main(int argc, char *argv[]) {
     using amgcl::precondition;
 
     // Read configuration from command line
+    bool just_relax = false;
     amgcl::runtime::coarsening::type coarsening = amgcl::runtime::coarsening::smoothed_aggregation;
     amgcl::runtime::relaxation::type relaxation = amgcl::runtime::relaxation::spai0;
     amgcl::runtime::solver::type     solver     = amgcl::runtime::solver::bicgstab;
@@ -95,6 +97,11 @@ int main(int argc, char *argv[]) {
          "solver,s",
          po::value<amgcl::runtime::solver::type>(&solver)->default_value(solver),
          "cg, bicgstab, bicgstabl, gmres"
+        )
+        (
+         "just-relax,0",
+         po::bool_switch(&just_relax),
+         "Do not create AMG hierarchy, use relaxation as preconditioner"
         )
         (
          "params,p",
@@ -172,37 +179,54 @@ int main(int argc, char *argv[]) {
     precondition(A.rows() == rhs.size(), "Matrix and RHS sizes differ");
     prof.toc("read");
 
-    prm.put("precond.coarsening.type", coarsening);
-    prm.put("precond.relaxation.type", relaxation);
-    prm.put("solver.type",         solver);
-
-    // Setup solver
-    prof.tic("setup");
-    typedef
-        amgcl::make_solver<
-            amgcl::runtime::amg<
-                amgcl::backend::builtin<double>
-                >,
-            amgcl::runtime::iterative_solver<
-                amgcl::backend::builtin<double>
-                >
-            >
-        Solver;
-
-    Solver solve(A, prm);
-    prof.toc("setup");
-
-    std::cout << solve.precond() << std::endl;
-
-    // Solve the problem
     std::vector<double> f(&rhs[0], &rhs[0] + rhs.size());
     std::vector<double> x(rhs.size(), 0);
 
-    prof.tic("solve");
     size_t iters;
     double resid;
-    boost::tie(iters, resid) = solve(f, x);
-    prof.toc("solve");
+
+    prm.put("solver.type", solver);
+
+    if (just_relax) {
+        std::cout << "Using relaxation as preconditioner" << std::endl;
+
+        prm.put("precond.type", relaxation);
+
+        prof.tic("setup");
+        amgcl::make_solver<
+            amgcl::runtime::relaxation::as_preconditioner<
+                amgcl::backend::builtin<double>
+            >,
+            amgcl::runtime::iterative_solver<
+                amgcl::backend::builtin<double>
+            >
+        > solve(A, prm);
+        prof.toc("setup");
+
+        prof.tic("solve");
+        boost::tie(iters, resid) = solve(f, x);
+        prof.toc("solve");
+    } else {
+        prm.put("precond.coarsening.type", coarsening);
+        prm.put("precond.relaxation.type", relaxation);
+
+        prof.tic("setup");
+        amgcl::make_solver<
+            amgcl::runtime::amg<
+                amgcl::backend::builtin<double>
+            >,
+            amgcl::runtime::iterative_solver<
+                amgcl::backend::builtin<double>
+            >
+        > solve(A, prm);
+        prof.toc("setup");
+
+        std::cout << solve.precond() << std::endl;
+
+        prof.tic("solve");
+        boost::tie(iters, resid) = solve(f, x);
+        prof.toc("solve");
+    }
 
     // Check the real error
     double error = (rhs - A * Eigen::Map<EigenVector>(x.data(), x.size())).norm() / rhs.norm();

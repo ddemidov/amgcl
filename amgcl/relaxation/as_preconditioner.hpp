@@ -57,8 +57,8 @@ class as_preconditioner {
         template <class Matrix>
         as_preconditioner(
                 const Matrix &M,
-                const params &prm,
-                const backend_params &bprm
+                const params &prm = params(),
+                const backend_params &bprm = backend_params()
                 )
             : prm(prm)
         {

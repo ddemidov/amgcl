@@ -7,6 +7,7 @@
 
 #include <amgcl/runtime.hpp>
 #include <amgcl/make_solver.hpp>
+#include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/profiler.hpp>
 
@@ -22,6 +23,7 @@ int main(int argc, char *argv[]) {
     // Read configuration from command line
     int m = 32;
     double x0 = 0;
+    bool just_relax = false;
     amgcl::runtime::coarsening::type coarsening = amgcl::runtime::coarsening::smoothed_aggregation;
     amgcl::runtime::relaxation::type relaxation = amgcl::runtime::relaxation::spai0;
     amgcl::runtime::solver::type     solver     = amgcl::runtime::solver::bicgstab;
@@ -46,6 +48,11 @@ int main(int argc, char *argv[]) {
          "relaxation,r",
          po::value<amgcl::runtime::relaxation::type>(&relaxation)->default_value(relaxation),
          "gauss_seidel, multicolor_gauss_seidel, ilu0, damped_jacobi, spai0, chebyshev"
+        )
+        (
+         "just-relax,0",
+         po::bool_switch(&just_relax),
+         "Do not create AMG hierarchy, use relaxation as preconditioner"
         )
         (
          "solver,s",
@@ -76,13 +83,6 @@ int main(int argc, char *argv[]) {
     boost::property_tree::ptree prm;
     if (vm.count("params")) read_json(parameter_file, prm);
 
-    prm.put("precond.coarsening.type", coarsening);
-    prm.put("precond.relaxation.type", relaxation);
-    prm.put("solver.type",         solver);
-
-    write_json(std::cout, prm);
-
-
     // Assemble problem
     prof.tic("assemble");
     std::vector<int>    ptr;
@@ -93,7 +93,37 @@ int main(int argc, char *argv[]) {
     int n = sample_problem(m, val, col, ptr, rhs);
     prof.toc("assemble");
 
-    typedef
+    std::vector<double> x(n, x0);
+
+    size_t iters;
+    double resid;
+
+    prm.put("solver.type", solver);
+
+    if (just_relax) {
+        prm.put("precond.type", relaxation);
+
+        prof.tic("setup");
+        amgcl::make_solver<
+            amgcl::runtime::relaxation::as_preconditioner<
+                amgcl::backend::builtin<double>
+                >,
+            amgcl::runtime::iterative_solver<
+                amgcl::backend::builtin<double>
+                >
+            > solve(boost::tie(n, ptr, col, val), prm);
+        prof.toc("setup");
+
+        std::cout << "Using relaxation as preconditioner" << std::endl;
+
+        prof.tic("solve");
+        boost::tie(iters, resid) = solve(rhs, x);
+        prof.toc("solve");
+    } else {
+        prm.put("precond.coarsening.type", coarsening);
+        prm.put("precond.relaxation.type", relaxation);
+
+        prof.tic("setup");
         amgcl::make_solver<
             amgcl::runtime::amg<
                 amgcl::backend::builtin<double>
@@ -101,26 +131,15 @@ int main(int argc, char *argv[]) {
             amgcl::runtime::iterative_solver<
                 amgcl::backend::builtin<double>
                 >
-            >
-        Solver;
+            > solve(boost::tie(n, ptr, col, val), prm);
+        prof.toc("setup");
 
-    // Setup solver
-    prof.tic("setup");
-    Solver solve(boost::tie(n, ptr, col, val), prm);
-    prof.toc("setup");
+        std::cout << solve.precond() << std::endl;
 
-    std::cout << solve.precond() << std::endl;
-
-    boost::property_tree::ptree actual_params;
-
-    // Solve the problem
-    std::vector<double> x(n, x0);
-
-    size_t iters;
-    double resid;
-    prof.tic("solve");
-    boost::tie(iters, resid) = solve(rhs, x);
-    prof.toc("solve");
+        prof.tic("solve");
+        boost::tie(iters, resid) = solve(rhs, x);
+        prof.toc("solve");
+    }
 
     std::cout << "Iterations: " << iters << std::endl
               << "Error:      " << resid << std::endl
