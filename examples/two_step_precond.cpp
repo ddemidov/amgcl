@@ -131,7 +131,7 @@ int main(int argc, char *argv[]) {
             >
         CPR;
     typedef
-        amgcl::preconditioner::cpr<
+        amgcl::preconditioner::simple<
             amgcl::backend::builtin<double>,
             amgcl::coarsening::smoothed_aggregation,
             amgcl::relaxation::spai0
