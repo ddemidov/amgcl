@@ -9,17 +9,13 @@
 #include <Eigen/Sparse>
 #include <unsupported/Eigen/SparseExtra>
 
-#include <amgcl/amgcl.hpp>
+#include <amgcl/make_solver.hpp>
+#include <amgcl/runtime.hpp>
+#include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/preconditioner/cpr.hpp>
 #include <amgcl/preconditioner/simple.hpp>
-#include <amgcl/coarsening/smoothed_aggregation.hpp>
-#include <amgcl/relaxation/as_preconditioner.hpp>
-#include <amgcl/relaxation/ilu0.hpp>
-#include <amgcl/relaxation/spai0.hpp>
-#include <amgcl/solver/bicgstab.hpp>
 #include <amgcl/backend/eigen.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
-#include <amgcl/make_solver.hpp>
 #include <amgcl/profiler.hpp>
 
 typedef Eigen::SparseMatrix<double, Eigen::RowMajor, int> EigenMatrix;
@@ -29,16 +25,6 @@ typedef Eigen::Matrix<int, Eigen::Dynamic, 1>             IntVector;
 namespace amgcl {
     profiler<> prof;
 } // namespace amgcl
-
-struct pmask {
-    const int *pm;
-
-    pmask(const int *pm) : pm(pm) {}
-
-    bool operator()(size_t i) const {
-        return pm[i];
-    }
-};
 
 //---------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
@@ -51,6 +37,10 @@ int main(int argc, char *argv[]) {
     std::string pm_file;
     std::string rhs_file;
     std::string out_file = "out.mtx";
+    amgcl::runtime::coarsening::type coarsening = amgcl::runtime::coarsening::smoothed_aggregation;
+    amgcl::runtime::relaxation::type prelax     = amgcl::runtime::relaxation::spai0;
+    amgcl::runtime::relaxation::type frelax     = amgcl::runtime::relaxation::ilu0;
+    amgcl::runtime::solver::type     solver     = amgcl::runtime::solver::bicgstab;
 
     namespace po = boost::program_options;
     po::options_description desc("Options");
@@ -76,6 +66,26 @@ int main(int argc, char *argv[]) {
          "rhs,b",
          po::value<std::string>(&rhs_file),
          "The right-hand side in MatrixMarket format"
+        )
+        (
+         "coarsening,c",
+         po::value<amgcl::runtime::coarsening::type>(&coarsening)->default_value(coarsening),
+         "ruge_stuben, aggregation, smoothed_aggregation, smoothed_aggr_emin"
+        )
+        (
+         "pressure_relaxation,r",
+         po::value<amgcl::runtime::relaxation::type>(&prelax)->default_value(prelax),
+         "gauss_seidel, multicolor_gauss_seidel, ilu0, damped_jacobi, spai0, chebyshev"
+        )
+        (
+         "flow_relaxation,f",
+         po::value<amgcl::runtime::relaxation::type>(&frelax)->default_value(frelax),
+         "gauss_seidel, multicolor_gauss_seidel, ilu0, damped_jacobi, spai0, chebyshev"
+        )
+        (
+         "solver,s",
+         po::value<amgcl::runtime::solver::type>(&solver)->default_value(solver),
+         "cg, bicgstab, bicgstabl, gmres"
         )
         (
          "output,o",
@@ -128,88 +138,62 @@ int main(int argc, char *argv[]) {
     boost::property_tree::ptree prm;
     if (vm.count("params")) read_json(parameter_file, prm);
 
-    prm.put("pmask", static_cast<void*>(&pm[0]));
-    prm.put("pmask_size", pm.size());
+    prm.put("precond.pressure.coarsening.type", coarsening);
+    prm.put("precond.pressure.relaxation.type", prelax);
+    prm.put("precond.flow.type", frelax);
+    prm.put("precond.pmask", static_cast<void*>(&pm[0]));
+    prm.put("precond.pmask_size", pm.size());
+    prm.put("solver.type", solver);
 
     prof.toc("read");
 
     // Setup CPR preconditioner
     prof.tic("setup");
-    typedef
-        amgcl::preconditioner::cpr<
-            amgcl::amg<
-                amgcl::backend::builtin<double>,
-                amgcl::coarsening::smoothed_aggregation,
-                amgcl::relaxation::spai0
-                >,
-            amgcl::relaxation::as_preconditioner<
-                amgcl::backend::builtin<double>,
-                amgcl::relaxation::ilu0
-                >
-            >
-        CPR;
-    typedef
-        amgcl::preconditioner::simple<
-            amgcl::amg<
-                amgcl::backend::builtin<double>,
-                amgcl::coarsening::smoothed_aggregation,
-                amgcl::relaxation::spai0
-                >,
-            amgcl::relaxation::as_preconditioner<
-                amgcl::backend::builtin<double>,
-                amgcl::relaxation::ilu0
-                >
-            >
-        SIMPLE;
-    typedef amgcl::solver::bicgstab< amgcl::backend::builtin<double> > Solver;
-
-    prof.tic("amg");
+    prof.tic("cpr");
     amgcl::make_solver<
-        amgcl::amg<
-            amgcl::backend::builtin<double>,
-            amgcl::coarsening::smoothed_aggregation,
-            amgcl::relaxation::ilu0
+        amgcl::preconditioner::cpr<
+            amgcl::runtime::amg<
+                amgcl::backend::builtin<double>
+                >,
+            amgcl::runtime::relaxation::as_preconditioner<
+                amgcl::backend::builtin<double>
+                >
             >,
-        amgcl::solver::bicgstab<
+        amgcl::runtime::iterative_solver<
             amgcl::backend::builtin<double>
             >
-        > amg_solve( A, prm );
-    prof.toc("amg");
-
-    std::cout << amg_solve.precond() << std::endl;
-
-    prof.tic("cpr");
-    CPR cpr( A, prm );
+        > cpr( A, prm );
     prof.toc("cpr");
 
     prof.tic("simple");
-    SIMPLE simple( A, prm );
+    amgcl::make_solver<
+        amgcl::preconditioner::simple<
+            amgcl::runtime::amg<
+                amgcl::backend::builtin<double>
+                >,
+            amgcl::runtime::relaxation::as_preconditioner<
+                amgcl::backend::builtin<double>
+                >
+            >,
+        amgcl::runtime::iterative_solver<
+            amgcl::backend::builtin<double>
+            >
+        > simple( A, prm );
     prof.toc("simple");
-
-    Solver solve(A.rows(), prm );
     prof.toc("setup");
 
     // Solve the problem
     std::vector<double> f(&rhs[0], &rhs[0] + rhs.size());
-    std::vector<double> x(rhs.size(), 0);
+    std::vector<double> x(rhs.size());
 
     size_t iters;
     double resid;
 
     prof.tic("solve");
-    prof.tic("amg");
-    boost::tie(iters, resid) = amg_solve(f, x);
-    prof.toc("amg");
-
-    std::cout << "AMG:" << std::endl
-              << "  Iterations:     " << iters << std::endl
-              << "  Reported Error: " << resid << std::endl
-              << std::endl;
-
     boost::fill(x, 0);
 
     prof.tic("cpr");
-    boost::tie(iters, resid) = solve(cpr.system_matrix(), cpr, f, x);
+    boost::tie(iters, resid) = cpr(f, x);
     prof.toc("cpr");
 
     std::cout << "CPR:" << std::endl
@@ -220,7 +204,7 @@ int main(int argc, char *argv[]) {
     boost::fill(x, 0);
 
     prof.tic("simple");
-    boost::tie(iters, resid) = solve(simple.system_matrix(), simple, f, x);
+    boost::tie(iters, resid) = simple(f, x);
     prof.toc("simple");
 
     std::cout << "SIMPLE:" << std::endl

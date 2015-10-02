@@ -52,7 +52,7 @@ namespace preconditioner {
 /** \cite stueben2007algebraic */
 template <
     class PressurePrecond,
-    class GlobalPrecond
+    class FlowPrecond
     >
 class cpr {
     public:
@@ -60,10 +60,10 @@ class cpr {
                 (
                  boost::is_same<
                      typename PressurePrecond::backend_type,
-                     typename GlobalPrecond::backend_type
+                     typename FlowPrecond::backend_type
                      >::value
                 ),
-                "Backends for pressure and global preconditioners should coinside!"
+                "Backends for pressure and flow preconditioners should coinside!"
                 );
 
         typedef typename PressurePrecond::backend_type backend_type;
@@ -75,10 +75,10 @@ class cpr {
 
         struct params {
             typedef typename PressurePrecond::params pressure_params;
-            typedef typename GlobalPrecond::params   global_params;
+            typedef typename FlowPrecond::params     flow_params;
 
             pressure_params pressure;
-            global_params   global;
+            flow_params     flow;
 
             std::vector<char> pmask;
 
@@ -86,7 +86,7 @@ class cpr {
 
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, pressure),
-                  AMGCL_PARAMS_IMPORT_CHILD(p, global)
+                  AMGCL_PARAMS_IMPORT_CHILD(p, flow)
             {
                 void *pm = 0;
                 size_t n = 0;
@@ -114,7 +114,7 @@ class cpr {
                     ) const
             {
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, pressure);
-                AMGCL_PARAMS_EXPORT_CHILD(p, path, global);
+                AMGCL_PARAMS_EXPORT_CHILD(p, path, flow);
             }
         } prm;
 
@@ -294,7 +294,7 @@ class cpr {
             xu  = backend_type::create_vector(n, bprm);
 
             P = boost::make_shared<PressurePrecond>(App, prm.pressure, bprm);
-            I = boost::make_shared<GlobalPrecond>(M, prm.global, bprm);
+            I = boost::make_shared<FlowPrecond>(M, prm.flow, bprm);
         }
 
         template <class Vec1, class Vec2>
@@ -341,7 +341,7 @@ class cpr {
         boost::shared_ptr<matrix> Br;
         boost::shared_ptr<vector> xp, bp, xu, bu;
         boost::shared_ptr<PressurePrecond> P;
-        boost::shared_ptr<GlobalPrecond>   I;
+        boost::shared_ptr<FlowPrecond>     I;
 };
 
 } // namespace preconditioner

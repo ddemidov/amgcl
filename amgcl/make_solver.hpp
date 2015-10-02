@@ -32,6 +32,7 @@ THE SOFTWARE.
  */
 
 #include <boost/type_traits.hpp>
+#include <amgcl/backend/interface.hpp>
 #include <amgcl/util.hpp>
 
 namespace amgcl {
@@ -80,10 +81,10 @@ class make_solver {
                 const Matrix &A,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
-                )
-            : prm(prm),
-              P(A, prm.precond, bprm),
-              S(backend::rows(A), prm.solver, bprm)
+                ) :
+            prm(prm), n(backend::rows(A)),
+            P(A, prm.precond, bprm),
+            S(backend::rows(A), prm.solver, bprm)
         {}
 
         /// Constructs the preconditioner and creates iterative solver.

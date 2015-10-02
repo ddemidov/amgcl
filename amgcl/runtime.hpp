@@ -728,7 +728,8 @@ class iterative_solver {
                 const params &solver_prm = params(),
                 const params &backend_prm = params()
                 )
-            : solver(solver_prm.get("type", runtime::solver::bicgstab))
+            : solver(solver_prm.get("type", runtime::solver::bicgstab)),
+              handle(0)
         {
             runtime::detail::process_solver<Backend, InnerProduct>(
                     solver,
