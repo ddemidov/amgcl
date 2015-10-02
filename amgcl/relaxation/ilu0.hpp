@@ -33,7 +33,7 @@ struct ilu0 {
         /// Damping factor.
         float damping;
 
-        params(float damping = 0.72) : damping(damping) {}
+        params(float damping = 1) : damping(damping) {}
 
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, damping)
