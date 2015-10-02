@@ -18,7 +18,7 @@ int main() {
     amgcl_params_seti(prm, "precond.coarse_enough", 1000);
 
     amgcl_params_sets(prm, "precond.coarsening.type", "smoothed_aggregation");
-    amgcl_params_setf(prm, "precond.coarsening.aggr.eps_strong", 1e-3);
+    amgcl_params_setf(prm, "precond.coarsening.aggr.eps_strong", 1e-3f);
 
     amgcl_params_sets(prm, "precond.relaxation.type", "spai0");
 
