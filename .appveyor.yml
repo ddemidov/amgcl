@@ -1,10 +1,11 @@
+os:
+    - Visual Studio 2015
 environment:
-  BOOST_ROOT: c:\Libraries\boost
-  BOOST_LIBS: c:\Libraries\boost\stage\lib
+  BOOST_ROOT: C:\Libraries\boost_1_59_0
+  BOOST_LIBRARYDIR: c:\Libraries\boost_1_59_0\lib32-msvc-14.0
 clone_folder: C:\amgcl
 platform:
     - x86
-    - x64
 configuration:
     - Release
 build_script:
