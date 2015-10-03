@@ -87,18 +87,6 @@ class make_solver {
             S(backend::rows(A), prm.solver, bprm)
         {}
 
-        /// Constructs the preconditioner and creates iterative solver.
-        template <class Matrix>
-        make_solver(
-                const Matrix &A,
-                const boost::property_tree::ptree &prm,
-                const boost::property_tree::ptree &bprm = boost::property_tree::ptree()
-                ) :
-            prm(prm), n(backend::rows(A)),
-            P(A, prm.get_child("precond", boost::property_tree::ptree()), bprm),
-            S(n, prm.get_child("solver",  boost::property_tree::ptree()), bprm)
-        {}
-
         /// Solves the linear system for the given system matrix.
         /**
          * \param A   System matrix.

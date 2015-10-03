@@ -622,15 +622,17 @@ inline void process_solver(
     }
 }
 
+template <class Backend>
 struct solver_create {
     typedef boost::property_tree::ptree params;
+    typedef typename Backend::params backend_params;
 
     void * &handle;
     size_t n;
     const params &sprm;
-    const params &bprm;
+    const backend_params &bprm;
 
-    solver_create(void * &handle, size_t n, const params &sprm, const params &bprm)
+    solver_create(void * &handle, size_t n, const params &sprm, const backend_params &bprm)
         : handle(handle), n(n), sprm(sprm), bprm(bprm) {}
 
     template <class Solver>
@@ -706,6 +708,7 @@ class iterative_solver {
     public:
         typedef Backend backend_type;
         typedef boost::property_tree::ptree   params;
+        typedef typename Backend::params backend_params;
 
         typedef typename Backend::value_type value_type;
         typedef typename Backend::vector     vector;
@@ -726,14 +729,14 @@ class iterative_solver {
         iterative_solver(
                 size_t n,
                 const params &solver_prm = params(),
-                const params &backend_prm = params()
+                const backend_params &backend_prm = backend_params()
                 )
             : solver(solver_prm.get("type", runtime::solver::bicgstab)),
               handle(0)
         {
             runtime::detail::process_solver<Backend, InnerProduct>(
                     solver,
-                    runtime::detail::solver_create(
+                    runtime::detail::solver_create<Backend>(
                         handle, n, solver_prm, backend_prm
                         )
                     );
