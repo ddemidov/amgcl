@@ -9,7 +9,7 @@ platform:
 configuration:
     - Release
 build_script:
-    - mkdir build && cd build
-    - cmake ..
-    - cmake --build .
-test: off
+    - cmake .
+    - cmake --build . --config Release
+test_script:
+    - tests\Release\test_solver.exe
