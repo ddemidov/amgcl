@@ -40,64 +40,58 @@ namespace relaxation {
 
 namespace detail {
 
+template <
+    class Backend,
+    template <class> class Relaxation,
+    class Func
+    >
+inline
+typename boost::enable_if<
+    typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+    void
+>::type
+process_rap(const Func &func) {
+    typedef amgcl::relaxation::as_preconditioner<Backend, Relaxation> RAP;
+    func.template process<RAP>();
+}
+
+template <
+    class Backend,
+    template <class> class Relaxation,
+    class Func
+    >
+inline
+typename boost::disable_if<
+    typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+    void
+>::type
+process_rap(const Func &func) {
+    throw std::logic_error("The relaxation scheme is not supported by the backend");
+}
+
 template <class Backend, class Func>
 void process_rap(runtime::relaxation::type relaxation, const Func &func) {
     switch (relaxation) {
         case runtime::relaxation::gauss_seidel:
-            {
-                typedef amgcl::relaxation::as_preconditioner<
-                    Backend, amgcl::relaxation::gauss_seidel
-                    > RAP;
-                func.template process<RAP>();
-            }
+            process_rap<Backend, amgcl::relaxation::gauss_seidel>(func);
             break;
         case runtime::relaxation::multicolor_gauss_seidel:
-            {
-                typedef amgcl::relaxation::as_preconditioner<
-                    Backend, amgcl::relaxation::multicolor_gauss_seidel
-                    > RAP;
-                func.template process<RAP>();
-            }
+            process_rap<Backend, amgcl::relaxation::multicolor_gauss_seidel>(func);
             break;
         case runtime::relaxation::ilu0:
-            {
-                typedef amgcl::relaxation::as_preconditioner<
-                    Backend, amgcl::relaxation::ilu0
-                    > RAP;
-                func.template process<RAP>();
-            }
+            process_rap<Backend, amgcl::relaxation::ilu0>(func);
             break;
         case runtime::relaxation::damped_jacobi:
-            {
-                typedef amgcl::relaxation::as_preconditioner<
-                    Backend, amgcl::relaxation::damped_jacobi
-                    > RAP;
-                func.template process<RAP>();
-            }
+            process_rap<Backend, amgcl::relaxation::damped_jacobi>(func);
             break;
         case runtime::relaxation::spai0:
-            {
-                typedef amgcl::relaxation::as_preconditioner<
-                    Backend, amgcl::relaxation::spai0
-                    > RAP;
-                func.template process<RAP>();
-            }
+            process_rap<Backend, amgcl::relaxation::spai0>(func);
             break;
         case runtime::relaxation::spai1:
-            {
-                typedef amgcl::relaxation::as_preconditioner<
-                    Backend, amgcl::relaxation::spai1
-                    > RAP;
-                func.template process<RAP>();
-            }
+            process_rap<Backend, amgcl::relaxation::spai1>(func);
             break;
         case runtime::relaxation::chebyshev:
-            {
-                typedef amgcl::relaxation::as_preconditioner<
-                    Backend, amgcl::relaxation::chebyshev
-                    > RAP;
-                func.template process<RAP>();
-            }
+            process_rap<Backend, amgcl::relaxation::chebyshev>(func);
             break;
     }
 }

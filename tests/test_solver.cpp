@@ -4,6 +4,7 @@
 #include <boost/mpl/for_each.hpp>
 
 #include <amgcl/runtime.hpp>
+#include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/make_solver.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/profiler.hpp>
@@ -43,48 +44,69 @@ typedef boost::mpl::list<
     > backend_list;
 
 //---------------------------------------------------------------------------
-template <class Backend>
+template <class Backend, class Matrix>
 void test_solver(
-        amgcl::runtime::coarsening::type coarsening,
+        const Matrix &A,
+        boost::shared_ptr<typename Backend::vector> const &f,
+        boost::shared_ptr<typename Backend::vector>       &x,
+        amgcl::runtime::solver::type     solver,
         amgcl::runtime::relaxation::type relaxation,
-        amgcl::runtime::solver::type     solver
+        amgcl::runtime::coarsening::type coarsening
         )
 {
-    using boost::property_tree::ptree;
-
-    typedef typename Backend::value_type value_type;
-    typedef typename Backend::vector     vector;
-
-
-    std::vector<int>        ptr;
-    std::vector<int>        col;
-    std::vector<value_type> val;
-    std::vector<value_type> rhs;
-
-    size_t n = sample_problem(25, val, col, ptr, rhs);
-
-    typedef amgcl::make_solver<
-        amgcl::runtime::amg<Backend>,
-        amgcl::runtime::iterative_solver<Backend>
-        > Solver;
-
-    ptree prm;
+    boost::property_tree::ptree prm;
     prm.put("precond.coarsening.type", coarsening);
     prm.put("precond.relaxation.type", relaxation);
     prm.put("solver.type",             solver);
 
-    Solver solve(boost::tie(n, ptr, col, val), prm);
+    amgcl::make_solver<
+        amgcl::runtime::amg<Backend>,
+        amgcl::runtime::iterative_solver<Backend>
+        > solve(A, prm);
 
     std::cout << solve.precond() << std::endl;
 
-    boost::shared_ptr<vector> y = Backend::copy_vector(rhs, ptree());
-    boost::shared_ptr<vector> x = Backend::create_vector(n, ptree());
+    size_t iters;
+    double resid;
 
     amgcl::backend::clear(*x);
 
+    boost::tie(iters, resid) = solve(*f, *x);
+
+    std::cout << "Iterations: " << iters << std::endl
+              << "Error:      " << resid << std::endl
+              << std::endl;
+
+    BOOST_CHECK_SMALL(resid, 1e-4);
+}
+
+//---------------------------------------------------------------------------
+template <class Backend, class Matrix>
+void test_rap(
+        const Matrix &A,
+        boost::shared_ptr<typename Backend::vector> const &f,
+        boost::shared_ptr<typename Backend::vector>       &x,
+        amgcl::runtime::solver::type     solver,
+        amgcl::runtime::relaxation::type relaxation
+        )
+{
+    boost::property_tree::ptree prm;
+    prm.put("precond.type", relaxation);
+    prm.put("solver.type",  solver);
+
+    amgcl::make_solver<
+        amgcl::runtime::relaxation::as_preconditioner<Backend>,
+        amgcl::runtime::iterative_solver<Backend>
+        > solve(A, prm);
+
+    std::cout << "Using " << relaxation << " as preconditioner" << std::endl;
+
     size_t iters;
     double resid;
-    boost::tie(iters, resid) = solve(*y, *x);
+
+    amgcl::backend::clear(*x);
+
+    boost::tie(iters, resid) = solve(*f, *x);
 
     std::cout << "Iterations: " << iters << std::endl
               << "Error:      " << resid << std::endl
@@ -122,15 +144,36 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_backends, Backend, backend_list)
         amgcl::runtime::solver::gmres
     };
 
-    BOOST_FOREACH(amgcl::runtime::coarsening::type c, coarsening) {
+    typedef typename Backend::value_type value_type;
+    typedef typename Backend::vector     vector;
+
+    std::vector<int>        ptr;
+    std::vector<int>        col;
+    std::vector<value_type> val;
+    std::vector<value_type> rhs;
+
+    size_t n = sample_problem(25, val, col, ptr, rhs);
+
+    typename Backend::params prm;
+
+    boost::shared_ptr<vector> y = Backend::copy_vector(rhs, prm);
+    boost::shared_ptr<vector> x = Backend::create_vector(n, prm);
+
+    BOOST_FOREACH(amgcl::runtime::solver::type s, solver) {
         BOOST_FOREACH(amgcl::runtime::relaxation::type r, relaxation) {
-            BOOST_FOREACH(amgcl::runtime::solver::type s, solver) {
+            std::cout << Backend::name() << " " << s << " " << r << std::endl;
+
+            try {
+                test_rap<Backend>(boost::tie(n, ptr, col, val), y, x, s, r);
+            } catch(const std::logic_error&) {}
+
+            BOOST_FOREACH(amgcl::runtime::coarsening::type c, coarsening) {
                 std::cout
                     << Backend::name() << " "
-                    << c << " " << r << " " << s << std::endl;
+                    << s << " " << r << " " << c << std::endl;
 
                 try {
-                    test_solver<Backend>(c, r, s);
+                    test_solver<Backend>(boost::tie(n, ptr, col, val), y, x, s, r, c);
                 } catch(const std::logic_error&) {}
             }
         }
