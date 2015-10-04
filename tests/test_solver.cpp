@@ -29,7 +29,8 @@ namespace amgcl {
 
 //---------------------------------------------------------------------------
 typedef boost::mpl::list<
-      amgcl::backend::block_crs<double>
+      amgcl::backend::builtin<double>
+    , amgcl::backend::block_crs<double>
 #ifdef AMGCL_HAVE_EIGEN
     , amgcl::backend::eigen<double>
 #endif
