@@ -153,13 +153,7 @@ struct ilu0 {
         {
             const size_t n = backend::rows(A);
 
-#pragma omp parallel for
-            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-                value_type buf = rhs[i];
-                for(ptrdiff_t j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j)
-                    buf -= A.val[j] * x[A.col[j]];
-                tmp[i] = buf;
-            }
+            backend::residual(rhs, A, x, tmp);
 
             for(size_t i = 0; i < n; i++) {
                 for(ptrdiff_t j = A.ptr[i], e = dia[i]; j < e; ++j)
@@ -172,9 +166,7 @@ struct ilu0 {
                 tmp[i] *= luval[dia[i]];
             }
 
-#pragma omp parallel for
-            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i)
-                x[i] += prm.damping * tmp[i];
+            backend::axpby(prm.damping, tmp, 1, x);
         }
 
 };
