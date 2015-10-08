@@ -1,5 +1,5 @@
-#ifndef AMGCL_RELAXATION_ILU0_HPP
-#define AMGCL_RELAXATION_ILU0_HPP
+#ifndef AMGCL_RELAXATION_ILUT_HPP
+#define AMGCL_RELAXATION_ILUT_HPP
 
 /*
 The MIT License
@@ -26,10 +26,12 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/relaxation/ilu0.hpp
+ * \file   amgcl/relaxation/ilut.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
- * \brief  Incomplete LU with zero fill-in relaxation scheme.
+ * \brief  Incomplete LU with thresholding relaxation scheme.
  */
+
+#include <boost/foreach.hpp>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
@@ -37,9 +39,44 @@ THE SOFTWARE.
 namespace amgcl {
 namespace relaxation {
 
-/// ILU(0) smoother.
+namespace detail {
+
+template <typename T>
+class sparse_vector {
+    public:
+        sparse_vector(size_t n) : idx(n, -1) {
+            val.reserve(16);
+        }
+
+        T operator[](ptrdiff_t i) const {
+            if (idx[i] >= 0) return val[idx[i]].first;
+            return T();
+        }
+
+        T& operator[](ptrdiff_t i) {
+            if (idx[i] == -1) {
+                idx[i] = val.size();
+                val.push_back(std::make_pair(T(), i));
+            }
+            return val[idx[i]].first;
+        }
+
+        void clear() {
+            BOOST_FOREACH(const nonzero &e, val) idx[e.second] = -1;
+            val.clear();
+        }
+    private:
+        typedef std::pair<T, ptrdiff_t> nonzero;
+
+        std::vector<nonzero>   val;
+        std::vector<ptrdiff_t> idx;
+};
+
+} // namespace detail
+
+/// ILUT(p, tau) smoother.
 /**
- * \note ILU(0) is a serial algorithm and is only applicable to backends that
+ * \note ILUT is a serial algorithm and is only applicable to backends that
  * support matrix row iteration (e.g. amgcl::backend::builtin or
  * amgcl::backend::eigen).
  *
@@ -47,7 +84,7 @@ namespace relaxation {
  * \ingroup relaxation
  */
 template <class Backend>
-struct ilu0 {
+struct ilut {
     typedef typename Backend::value_type value_type;
     typedef typename Backend::vector     vector;
 
@@ -56,69 +93,34 @@ struct ilu0 {
         /// Damping factor.
         float damping;
 
-        params(float damping = 1) : damping(damping) {}
+        /// Maximum fill-in.
+        int p;
+
+        /// Minimum magnitude of non-zero elements relative to the current row norm.
+        float tau;
+
+        params(int p = 2, float tau = 1e-2f, float damping = 1)
+            : p(p), tau(tau), damping(damping) {}
 
         params(const boost::property_tree::ptree &p)
-            : AMGCL_PARAMS_IMPORT_VALUE(p, damping)
+            : AMGCL_PARAMS_IMPORT_VALUE(p, p)
+            , AMGCL_PARAMS_IMPORT_VALUE(p, tau)
+            , AMGCL_PARAMS_IMPORT_VALUE(p, damping)
         {}
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {
+            AMGCL_PARAMS_EXPORT_VALUE(p, path, p);
+            AMGCL_PARAMS_EXPORT_VALUE(p, path, tau);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, damping);
         }
     };
 
     /// \copydoc amgcl::relaxation::damped_jacobi::damped_jacobi
     template <class Matrix>
-    ilu0( const Matrix &A, const params &, const typename Backend::params&)
-        : luval( A.val ),
-          dia  ( backend::rows(A) )
+    ilut( const Matrix &A, const params &prm, const typename Backend::params&)
+          : dia( backend::rows(A) )
     {
-        const size_t n = backend::rows(A);
-        const value_type eps = amgcl::detail::eps<value_type>(1);
-
-        std::vector<ptrdiff_t> work(n, -1);
-
-        for(size_t i = 0; i < n; ++i) {
-            ptrdiff_t row_beg = A.ptr[i];
-            ptrdiff_t row_end = A.ptr[i + 1];
-
-            for(ptrdiff_t j = row_beg; j < row_end; ++j)
-                work[ A.col[j] ] = j;
-
-            for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                ptrdiff_t c = A.col[j];
-
-                // Exit if diagonal is reached
-                if (static_cast<size_t>(c) >= i) {
-                    precondition(
-                            static_cast<size_t>(c) == i,
-                            "No diagonal value in system matrix"
-                            );
-                    precondition(
-                            fabs(luval[j]) > eps,
-                            "Zero pivot in ILU"
-                            );
-
-                    dia[i]   = j;
-                    luval[j] = 1 / luval[j];
-                    break;
-                }
-
-                // Compute the multiplier for jrow
-                value_type tl = luval[j] * luval[dia[c]];
-                luval[j] = tl;
-
-                // Perform linear combination
-                for(ptrdiff_t k = dia[c] + 1; k < A.ptr[c + 1]; ++k) {
-                    ptrdiff_t w = work[A.col[k]];
-                    if (w >= 0) luval[w] -= tl * luval[k];
-                }
-            }
-
-            // Refresh work
-            for(ptrdiff_t j = row_beg; j < row_end; ++j)
-                work[A.col[j]] = -1;
-        }
+        LU.reserve(2 * prm.p * backend::rows(A) + backend::nonzeros(A));
     }
 
     /// \copydoc amgcl::relaxation::damped_jacobi::apply_pre
@@ -128,7 +130,6 @@ struct ilu0 {
             const params &prm
             ) const
     {
-        apply(A, rhs, x, tmp, prm);
     }
 
     /// \copydoc amgcl::relaxation::damped_jacobi::apply_post
@@ -138,11 +139,10 @@ struct ilu0 {
             const params &prm
             ) const
     {
-        apply(A, rhs, x, tmp, prm);
     }
 
     private:
-        std::vector<value_type> luval;
+        std::vector<value_type> LU;
         std::vector<ptrdiff_t>  dia;
 
         template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
@@ -163,42 +163,22 @@ struct ilu0 {
 
             for(size_t i = 0; i < n; i++) {
                 for(ptrdiff_t j = A.ptr[i], e = dia[i]; j < e; ++j)
-                    tmp[i] -= luval[j] * tmp[A.col[j]];
+                    x[i] -= LU[j] * x[A.col[j]];
             }
 
             for(size_t i = n; i-- > 0;) {
                 for(ptrdiff_t j = dia[i] + 1, e = A.ptr[i + 1]; j < e; ++j)
-                    tmp[i] -= luval[j] * tmp[A.col[j]];
-                tmp[i] *= luval[dia[i]];
+                    x[i] -= LU[j] * x[A.col[j]];
+                x[i] *= LU[dia[i]];
             }
 
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i)
                 x[i] += prm.damping * tmp[i];
         }
-
 };
 
 } // namespace relaxation
-
-namespace backend {
-
-template <class Backend>
-struct relaxation_is_supported<
-    Backend,
-    relaxation::ilu0,
-    typename boost::disable_if<
-            typename boost::is_same<
-                Backend,
-                builtin<typename Backend::value_type>
-            >::type
-        >::type
-    > : boost::false_type
-{};
-
-} // namespace backend
 } // namespace amgcl
-
-
 
 #endif
