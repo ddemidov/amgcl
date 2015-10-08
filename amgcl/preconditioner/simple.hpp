@@ -43,7 +43,6 @@ THE SOFTWARE.
 #include <boost/range/irange.hpp>
 #include <boost/range/algorithm.hpp>
 #include <amgcl/amgcl.hpp>
-#include <amgcl/relaxation/ilu0.hpp>
 #include <amgcl/util.hpp>
 
 namespace amgcl {
