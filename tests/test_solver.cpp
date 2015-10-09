@@ -132,6 +132,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_backends, Backend, backend_list)
         amgcl::runtime::relaxation::gauss_seidel,
         amgcl::runtime::relaxation::multicolor_gauss_seidel,
         amgcl::runtime::relaxation::ilu0,
+        amgcl::runtime::relaxation::ilut,
         amgcl::runtime::relaxation::damped_jacobi,
         amgcl::runtime::relaxation::spai0,
         amgcl::runtime::relaxation::spai1,
