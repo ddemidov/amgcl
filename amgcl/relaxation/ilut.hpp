@@ -72,7 +72,7 @@ struct ilut {
         /// Damping factor.
         float damping;
 
-        params(int p = 2, float tau = 1e-4f, float damping = 1)
+        params(int p = 2, float tau = 1e-2f, float damping = 1)
             : p(p), tau(tau), damping(damping) {}
 
         params(const boost::property_tree::ptree &p)
@@ -195,7 +195,7 @@ struct ilut {
 
             ptrdiff_t dia;
 
-            sparse_vector(size_t n) : idx(n, -1), q(comp_indices(nz)) {
+            sparse_vector(size_t n) : idx(n, -1), q(comp_indices(nz)), dia(0) {
                 nz.reserve(16);
             }
 
