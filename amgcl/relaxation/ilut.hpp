@@ -102,7 +102,7 @@ struct ilut {
         LU.ptr.reserve(n + 1);
         LU.ptr.push_back(0);
 
-        dia.reserve(n);
+        uptr.reserve(n);
 
         sparse_vector w(n);
 
@@ -125,16 +125,16 @@ struct ilut {
 
             while(!w.q.empty()) {
                 ptrdiff_t k = w.next_nonzero();
-                value_type wk = (w[k] /= LU.val[dia[k]]);
+                value_type wk = (w[k] *= LU.val[uptr[k]]);
 
                 if (fabs(wk) > tol) {
-                    for(ptrdiff_t j = dia[k] + 1; j < LU.ptr[k+1]; ++j) {
+                    for(ptrdiff_t j = uptr[k] + 1; j < LU.ptr[k+1]; ++j) {
                         w[LU.col[j]] -= wk * LU.val[j];
                     }
                 }
             }
 
-            w.move_to(lenL + prm.p, lenU + prm.p, tol, LU, dia);
+            w.move_to(lenL + prm.p, lenU + prm.p, tol, LU, uptr);
         }
     }
 
@@ -162,7 +162,7 @@ struct ilut {
         typedef typename backend::builtin<value_type>::matrix build_matrix;
 
         build_matrix LU;
-        std::vector<ptrdiff_t>  dia;
+        std::vector<ptrdiff_t>  uptr;
 
         struct sparse_vector {
             struct nonzero {
@@ -293,14 +293,17 @@ struct ilut {
                 std::sort(b, lend, by_col());
                 std::sort(m, uend, by_col());
 
-                // copy L and U to the output matrix.
+                // copy L to the output matrix.
                 for(ptr a = b; a != lend; ++a) {
                     LU.col.push_back(a->col);
                     LU.val.push_back(a->val);
                 }
 
+                // Store pointer to diagonal and invert its value.
                 uptr.push_back(LU.val.size());
+                m->val = 1 / m->val;
 
+                // copy U to the output matrix.
                 for(ptr a = m; a != uend; ++a) {
                     LU.col.push_back(a->col);
                     LU.val.push_back(a->val);
@@ -324,14 +327,14 @@ struct ilut {
             const size_t n = backend::rows(A);
 
             for(size_t i = 0; i < n; i++) {
-                for(ptrdiff_t j = LU.ptr[i], e = dia[i]; j < e; ++j)
+                for(ptrdiff_t j = LU.ptr[i], e = uptr[i]; j < e; ++j)
                     tmp[i] -= LU.val[j] * tmp[LU.col[j]];
             }
 
             for(size_t i = n; i-- > 0;) {
-                for(ptrdiff_t j = dia[i] + 1, e = LU.ptr[i + 1]; j < e; ++j)
+                for(ptrdiff_t j = uptr[i] + 1, e = LU.ptr[i + 1]; j < e; ++j)
                     tmp[i] -= LU.val[j] * tmp[LU.col[j]];
-                tmp[i] /= LU.val[dia[i]];
+                tmp[i] *= LU.val[uptr[i]];
             }
 
             backend::axpby(prm.damping, tmp, 1, x);
