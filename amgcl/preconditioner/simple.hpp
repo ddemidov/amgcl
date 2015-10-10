@@ -27,7 +27,7 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/preconditioner/cpr.hpp
+ * \file   amgcl/preconditioner/simple.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
  * \brief  SIMPLE preconditioner (Semi-Implicit Method for Pressure-Linked Equations).
  */
