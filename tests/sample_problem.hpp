@@ -12,7 +12,6 @@ int sample_problem(
         )
 {
     ptrdiff_t n3  = n * n * n;
-    real h2i = static_cast<real>((n - 1) * (n - 1));
 
     ptr.clear();
     col.clear();
@@ -30,35 +29,35 @@ int sample_problem(
             for (ptrdiff_t i = 0; i < n; ++i, ++idx) {
                 if (k > 0) {
                     col.push_back(idx - n * n);
-                    val.push_back(-h2i);
+                    val.push_back(-1.0/6.0);
                 }
 
                 if (j > 0) {
                     col.push_back(idx - n);
-                    val.push_back(-h2i);
+                    val.push_back(-1.0/6.0);
                 }
 
                 if (i > 0) {
                     col.push_back(idx - 1);
-                    val.push_back(-h2i);
+                    val.push_back(-1.0/6.0);
                 }
 
                 col.push_back(idx);
-                val.push_back(6 * h2i);
+                val.push_back(1.0);
 
                 if (i + 1 < n) {
                     col.push_back(idx + 1);
-                    val.push_back(-h2i);
+                    val.push_back(-1.0/6.0);
                 }
 
                 if (j + 1 < n) {
                     col.push_back(idx + n);
-                    val.push_back(-h2i);
+                    val.push_back(-1.0/6.0);
                 }
 
                 if (k + 1 < n) {
                     col.push_back(idx + n * n);
-                    val.push_back(-h2i);
+                    val.push_back(-1.0/6.0);
                 }
 
                 rhs.push_back(1);
