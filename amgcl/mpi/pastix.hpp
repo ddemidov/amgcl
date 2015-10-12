@@ -183,22 +183,22 @@ class PaStiX {
 
         void call_pastix(double *x) const {
             d_dpastix(&pastix_data, comm, nrows,
-                    const_cast<pastix_int_t*>(ptr.data()),
-                    const_cast<pastix_int_t*>(col.data()),
-                    const_cast<double*      >(val.data()),
-                    const_cast<pastix_int_t*>(row.data()),
-                    const_cast<pastix_int_t*>(perm.data()),
+                    const_cast<pastix_int_t*>(&ptr[0]),
+                    const_cast<pastix_int_t*>(&col[0]),
+                    const_cast<double*      >(&val[0]),
+                    const_cast<pastix_int_t*>(&row[0]),
+                    const_cast<pastix_int_t*>(&perm[0]),
                     NULL, x, 1, iparm, dparm
                    );
         }
 
         void call_pastix(float *x) const {
             s_dpastix(&pastix_data, comm, nrows,
-                    const_cast<pastix_int_t*>(ptr.data()),
-                    const_cast<pastix_int_t*>(col.data()),
-                    const_cast<float*       >(val.data()),
-                    const_cast<pastix_int_t*>(row.data()),
-                    const_cast<pastix_int_t*>(perm.data()),
+                    const_cast<pastix_int_t*>(&ptr[0]),
+                    const_cast<pastix_int_t*>(&col[0]),
+                    const_cast<float*       >(&val[0]),
+                    const_cast<pastix_int_t*>(&row[0]),
+                    const_cast<pastix_int_t*>(&perm[0]),
                     NULL, x, 1, iparm, dparm
                    );
         }

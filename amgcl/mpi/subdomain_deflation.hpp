@@ -261,7 +261,7 @@ class subdomain_deflation {
                     );
 
             MPI_Allgather(
-                    num_recv.data(),    comm.size, mpi_ptrdiff_t,
+                    &num_recv[0],    comm.size, mpi_ptrdiff_t,
                     comm_matrix.data(), comm.size, mpi_ptrdiff_t,
                     comm
                     );
@@ -380,8 +380,8 @@ class subdomain_deflation {
             TOC("second pass");
 
             /* Finish communication pattern setup. */
-            MPI_Waitall(recv.req.size(), recv.req.data(), MPI_STATUSES_IGNORE);
-            MPI_Waitall(send.req.size(), send.req.data(), MPI_STATUSES_IGNORE);
+            MPI_Waitall(recv.req.size(), &recv.req[0], MPI_STATUSES_IGNORE);
+            MPI_Waitall(send.req.size(), &send.req[0], MPI_STATUSES_IGNORE);
 
             // Shift columns to send to local numbering:
             BOOST_FOREACH(ptrdiff_t &c, send_col) c -= chunk_start;
@@ -423,7 +423,7 @@ class subdomain_deflation {
                         &zsend[ndv * send.ptr[i]], ndv * (send.ptr[i+1] - send.ptr[i]),
                         dtype, send.nbr[i], tag_exc_vals, comm, &send.req[i]);
 
-            MPI_Waitall(recv.req.size(), recv.req.data(), MPI_STATUSES_IGNORE);
+            MPI_Waitall(recv.req.size(), &recv.req[0], MPI_STATUSES_IGNORE);
 
             boost::fill(marker, -1);
 
@@ -459,7 +459,7 @@ class subdomain_deflation {
             az->ptr.front() = 0;
             TOC("A*Z");
 
-            MPI_Waitall(send.req.size(), send.req.data(), MPI_STATUSES_IGNORE);
+            MPI_Waitall(send.req.size(), &send.req[0], MPI_STATUSES_IGNORE);
 
             /* Build deflated matrix E. */
             TIC("assemble E");
@@ -513,8 +513,8 @@ class subdomain_deflation {
             }
 
             MPI_Gatherv(
-                    &eptr[1], ndv, MPI_INT, Eptr.data() + 1,
-                    const_cast<int*>(ssize.data()), const_cast<int*>(sstart.data()),
+                    &eptr[1], ndv, MPI_INT, &Eptr[0] + 1,
+                    const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
                     MPI_INT, 0, slaves_comm
                     );
 
@@ -568,14 +568,14 @@ class subdomain_deflation {
             }
 
             MPI_Gatherv(
-                    ecol.data(), ecol.size(), MPI_INT, Ecol.data(),
-                    const_cast<int*>(ssize.data()), const_cast<int*>(sstart.data()),
+                    &ecol[0], ecol.size(), MPI_INT, &Ecol[0],
+                    const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
                     MPI_INT, 0, slaves_comm
                     );
 
             MPI_Gatherv(
-                    eval.data(), eval.size(), dtype, Eval.data(),
-                    const_cast<int*>(ssize.data()), const_cast<int*>(sstart.data()),
+                    &eval[0], eval.size(), dtype, &Eval[0],
+                    const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
                     dtype, 0, slaves_comm
                     );
             TOC("assemble E");
@@ -794,8 +794,8 @@ class subdomain_deflation {
         }
 
         void finish_exchange() const {
-            MPI_Waitall(recv.req.size(), recv.req.data(), MPI_STATUSES_IGNORE);
-            MPI_Waitall(send.req.size(), send.req.data(), MPI_STATUSES_IGNORE);
+            MPI_Waitall(recv.req.size(), &recv.req[0], MPI_STATUSES_IGNORE);
+            MPI_Waitall(send.req.size(), &send.req[0], MPI_STATUSES_IGNORE);
         }
 
         void coarse_solve(std::vector<value_type> &f, std::vector<value_type> &x) const
@@ -803,8 +803,8 @@ class subdomain_deflation {
             TIC("coarse solve");
             TIC("exchange rhs");
             MPI_Gatherv(
-                    f.data(), f.size(), dtype, cf.data(),
-                    const_cast<int*>(ssize.data()), const_cast<int*>(sstart.data()),
+                    &f[0], f.size(), dtype, &cf[0],
+                    const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
                     dtype, 0, slaves_comm
                     );
             TOC("exchange rhs");
@@ -816,15 +816,15 @@ class subdomain_deflation {
 
                 TIC("gather result");
                 MPI_Gatherv(
-                        cx.data(), cx.size(), dtype, x.data(),
-                        const_cast<int*>(msize.data()), const_cast<int*>(mstart.data()),
+                        &cx[0], cx.size(), dtype, &x[0],
+                        const_cast<int*>(&msize[0]), const_cast<int*>(&mstart[0]),
                         dtype, 0, masters_comm
                         );
                 TOC("gather result");
             }
 
             TIC("broadcast result");
-            MPI_Bcast(x.data(), x.size(), dtype, 0, comm);
+            MPI_Bcast(&x[0], x.size(), dtype, 0, comm);
             TOC("broadcast result");
             TOC("coarse solve");
         }

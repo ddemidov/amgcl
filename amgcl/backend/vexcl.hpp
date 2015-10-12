@@ -91,7 +91,7 @@ struct vexcl {
         precondition(!prm.q.empty(), "Empty VexCL context!");
 
         return boost::make_shared<matrix>(prm.q, rows(*A), cols(*A),
-                A->ptr.data(), A->col.data(), A->val.data()
+                &A->ptr[0], &A->col[0], &A->val[0]
                 );
     }
 

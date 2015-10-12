@@ -134,8 +134,8 @@ struct spai1 {
                         B[marker[a.col()] * I.size() + j - row_beg] = a.value();
                 }
 
-                qr.compute(J.size(), I.size(), B.data(), /*need Q: */false);
-                qr.solve(ek.data(), &Ainv->val[row_beg]);
+                qr.compute(J.size(), I.size(), &B[0], /*need Q: */false);
+                qr.solve(&ek[0], &Ainv->val[row_beg]);
 
                 for(size_t j = 0; j < J.size(); ++j)
                     marker[J[j]] = -1;

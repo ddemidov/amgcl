@@ -131,7 +131,7 @@ struct multicolor_gauss_seidel {
         const size_t n = backend::rows(A);
 
         std::vector<int> color(n);
-        num_colors = boost::sequential_vertex_coloring(amgcl::detail::as_graph(A), color.data());
+        num_colors = boost::sequential_vertex_coloring(amgcl::detail::as_graph(A), &color[0]);
 
         ptr.resize(num_colors + 1, 0);
 

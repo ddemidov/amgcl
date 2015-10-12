@@ -314,7 +314,7 @@ void sort_rows(crs<V, C, P> &A) {
     for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
         P beg = A.ptr[i];
         P end = A.ptr[i + 1];
-        amgcl::detail::sort_row(A.col.data() + beg, A.val.data() + beg, end - beg);
+        amgcl::detail::sort_row(&A.col[0] + beg, &A.val[0] + beg, end - beg);
     }
 }
 
@@ -337,7 +337,7 @@ crs<V, C, P> inverse(const crs<V, C, P> &A) {
         for(row_iterator a = A.row_begin(i); a; ++a)
             Ainv.val[i * n + a.col()] = a.value();
 
-    amgcl::detail::inverse(n, Ainv.val.data());
+    amgcl::detail::inverse(n, &Ainv.val[0]);
 
     Ainv.ptr[0] = 0;
     for(size_t i = 0, idx = 0; i < n; ) {
@@ -459,7 +459,7 @@ template < typename V, typename C, typename P >
 struct ptr_data_impl< crs<V, C, P> > {
     typedef const P* type;
     static type get(const crs<V, C, P> &A) {
-        return A.ptr.data();
+        return &A.ptr[0];
     }
 };
 
@@ -467,7 +467,7 @@ template < typename V, typename C, typename P >
 struct col_data_impl< crs<V, C, P> > {
     typedef const C* type;
     static type get(const crs<V, C, P> &A) {
-        return A.col.data();
+        return &A.col[0];
     }
 };
 
@@ -475,7 +475,7 @@ template < typename V, typename C, typename P >
 struct val_data_impl< crs<V, C, P> > {
     typedef const V* type;
     static type get(const crs<V, C, P> &A) {
-        return A.val.data();
+        return &A.val[0];
     }
 };
 

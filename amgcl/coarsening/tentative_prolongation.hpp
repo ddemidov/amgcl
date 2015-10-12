@@ -175,7 +175,7 @@ boost::shared_ptr<Matrix> tentative_prolongation(
                         std::back_inserter(Bpart)
                         );
 
-            qr.compute(d, nullspace.cols, Bpart.data());
+            qr.compute(d, nullspace.cols, &Bpart[0]);
 
             for(int ii = 0; ii < nullspace.cols; ++ii)
                 for(int jj = 0; jj < nullspace.cols; ++jj)

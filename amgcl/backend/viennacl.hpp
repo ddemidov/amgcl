@@ -207,7 +207,7 @@ struct viennacl {
             viennacl_matrix_adapter(
                     const typename backend::builtin<value_type>::matrix &A)
                 : rows(A.nrows), cols(A.ncols),
-                  row(A.ptr.data()), col(A.col.data()), val(A.val.data())
+                  row(&A.ptr[0]), col(&A.col[0]), val(&A.val[0])
             { }
 
             const_iterator1 begin1() const {

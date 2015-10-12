@@ -343,7 +343,7 @@ struct smoothed_aggr_emin {
                     }
 
                     amgcl::detail::sort_row(
-                            adap_col.data(), adap_val.data(), adap_col.size()
+                            &adap_col[0], &adap_val[0], adap_col.size()
                             );
 
                     // Update columnwise scalar products (AP,ADAP) and (ADAP,ADAP).

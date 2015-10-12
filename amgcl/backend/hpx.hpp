@@ -257,8 +257,8 @@ struct HPX {
         };
 
         void operator()(const vector &rhs, vector &x) const {
-            const real *fptr = rhs.data();
-            real       *xptr = x.data();
+            const real *fptr = &rhs[0];
+            real       *xptr = &x[0];
 
             using hpx::lcos::local::dataflow;
 
@@ -395,8 +395,8 @@ struct spmv_impl<
     static void apply(real alpha, const matrix &A, const vector &x,
             real beta, vector &y)
     {
-        const real *xptr = x.data();
-        real       *yptr = y.data();
+        const real *xptr = &x[0];
+        real       *yptr = &y[0];
 
         using hpx::lcos::local::dataflow;
 
@@ -489,9 +489,9 @@ struct residual_impl<
     static void apply(const vector &f, const matrix &A, const vector &x,
             vector &r)
     {
-        const real *xptr = x.data();
-        const real *fptr = f.data();
-        real       *rptr = r.data();
+        const real *xptr = &x[0];
+        const real *fptr = &f[0];
+        real       *rptr = &r[0];
 
         using hpx::lcos::local::dataflow;
 
@@ -546,7 +546,7 @@ struct clear_impl<
     };
 
     static void apply(vector &x) {
-        real *xptr = x.data();
+        real *xptr = &x[0];
 
         using hpx::lcos::local::dataflow;
 
@@ -590,8 +590,8 @@ struct copy_impl<
 
     static void apply(const vector &x, vector &y)
     {
-        const real *xptr = x.data();
-        real       *yptr = y.data();
+        const real *xptr = &x[0];
+        real       *yptr = &y[0];
 
         using hpx::lcos::local::dataflow;
 
@@ -635,8 +635,8 @@ struct copy_to_backend_impl<
 
     static void apply(const std::vector<real> &x, vector &y)
     {
-        const real *xptr = x.data();
-        real       *yptr = y.data();
+        const real *xptr = &x[0];
+        real       *yptr = &y[0];
 
         using hpx::lcos::local::dataflow;
 
@@ -684,8 +684,8 @@ struct inner_product_impl<
 
     static real get(const vector &x, const vector &y)
     {
-        const real *xptr = x.data();
-        const real *yptr = y.data();
+        const real *xptr = &x[0];
+        const real *yptr = &y[0];
 
         using hpx::lcos::local::dataflow;
 
@@ -753,8 +753,8 @@ struct axpby_impl<
 
     static void apply(real a, const vector &x, real b, vector &y)
     {
-        const real *xptr = x.data();
-        real       *yptr = y.data();
+        const real *xptr = &x[0];
+        real       *yptr = &y[0];
 
         using hpx::lcos::local::dataflow;
 
@@ -844,9 +844,9 @@ struct axpbypcz_impl<
             real c,       vector &z
             )
     {
-        const real *xptr = x.data();
-        const real *yptr = y.data();
-        real       *zptr = z.data();
+        const real *xptr = &x[0];
+        const real *yptr = &y[0];
+        real       *zptr = &z[0];
 
         using hpx::lcos::local::dataflow;
 
@@ -932,9 +932,9 @@ struct vmul_impl<
 
     static void apply(real a, const vector &x, const vector &y, real b, vector &z)
     {
-        const real *xptr = x.data();
-        const real *yptr = y.data();
-        real       *zptr = z.data();
+        const real *xptr = &x[0];
+        const real *yptr = &y[0];
+        real       *zptr = &z[0];
 
         using hpx::lcos::local::dataflow;
 

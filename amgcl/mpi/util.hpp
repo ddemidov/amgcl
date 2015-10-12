@@ -95,7 +95,7 @@ void precondition(communicator comm, const Condition &cond, const Message &messa
 
     if (!gc) {
         std::vector<int> c(comm.size);
-        MPI_Gather(&lc, 1, MPI_INT, c.data(), comm.size, MPI_INT, 0, comm);
+        MPI_Gather(&lc, 1, MPI_INT, &c[0], comm.size, MPI_INT, 0, comm);
         if (comm.rank == 0) {
             std::cerr << "Failed assumption: " << message << std::endl;
             std::cerr << "Offending processes:";

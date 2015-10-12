@@ -101,7 +101,7 @@ struct blaze {
     copy_vector(typename builtin<real>::vector const &x, const params&)
     {
         boost::shared_ptr<vector> v = boost::make_shared<vector>(
-                x.size(), x.data());
+                x.size(), &x[0]);
         return v;
     }
 

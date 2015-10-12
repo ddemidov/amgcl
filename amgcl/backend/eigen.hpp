@@ -82,7 +82,7 @@ struct eigen {
     {
         return boost::shared_ptr<matrix>(
                 new matrix(rows(*A), cols(*A), nonzeros(*A),
-                    A->ptr.data(), A->col.data(), A->val.data()),
+                    &A->ptr[0], &A->col[0], &A->val[0]),
                 hold_host(A)
                 );
     }
@@ -92,7 +92,7 @@ struct eigen {
     copy_vector(typename builtin<real>::vector const &x, const params&)
     {
         return boost::make_shared<vector>(
-                Eigen::Map<const vector>(x.data(), x.size())
+                Eigen::Map<const vector>(&x[0], x.size())
                 );
     }
 
