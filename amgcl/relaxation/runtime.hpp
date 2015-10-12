@@ -81,6 +81,9 @@ void process_rap(runtime::relaxation::type relaxation, const Func &func) {
         case runtime::relaxation::ilu0:
             process_rap<Backend, amgcl::relaxation::ilu0>(func);
             break;
+        case runtime::relaxation::parallel_ilu0:
+            process_rap<Backend, amgcl::relaxation::parallel_ilu0>(func);
+            break;
         case runtime::relaxation::ilut:
             process_rap<Backend, amgcl::relaxation::ilut>(func);
             break;

@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
         (
          "relaxation,r",
          po::value<amgcl::runtime::relaxation::type>(&relaxation)->default_value(relaxation),
-         "gauss_seidel, ilu0, damped_jacobi, spai0, chebyshev"
+         "gauss_seidel, ilu0, parallel_ilu0, damped_jacobi, spai0, chebyshev"
         )
         (
          "solver,s",

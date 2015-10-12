@@ -49,6 +49,7 @@ THE SOFTWARE.
 #include <amgcl/relaxation/gauss_seidel.hpp>
 #include <amgcl/relaxation/multicolor_gauss_seidel.hpp>
 #include <amgcl/relaxation/ilu0.hpp>
+#include <amgcl/relaxation/parallel_ilu0.hpp>
 #include <amgcl/relaxation/ilut.hpp>
 #include <amgcl/relaxation/damped_jacobi.hpp>
 #include <amgcl/relaxation/spai0.hpp>
@@ -118,6 +119,7 @@ enum type {
     gauss_seidel,
     multicolor_gauss_seidel,
     ilu0,
+    parallel_ilu0,
     ilut,
     damped_jacobi,
     spai0,
@@ -134,6 +136,8 @@ inline std::ostream& operator<<(std::ostream &os, type r)
             return os << "multicolor_gauss_seidel";
         case ilu0:
             return os << "ilu0";
+        case parallel_ilu0:
+            return os << "parallel_ilu0";
         case ilut:
             return os << "ilut";
         case damped_jacobi:
@@ -160,6 +164,8 @@ inline std::istream& operator>>(std::istream &in, type &r)
         r = gauss_seidel;
     else if (val == "ilu0")
         r = ilu0;
+    else if (val == "parallel_ilu0")
+        r = parallel_ilu0;
     else if (val == "ilut")
         r = ilut;
     else if (val == "damped_jacobi")
@@ -243,6 +249,13 @@ inline void process_amg(
                 Backend,
                 Coarsening,
                 amgcl::relaxation::ilu0
+                >(func);
+            break;
+        case runtime::relaxation::parallel_ilu0:
+            process_amg<
+                Backend,
+                Coarsening,
+                amgcl::relaxation::parallel_ilu0
                 >(func);
             break;
         case runtime::relaxation::ilut:
