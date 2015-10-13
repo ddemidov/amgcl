@@ -122,12 +122,33 @@ struct vexcl {
 
     struct gather {
         mutable vex::gather<value_type> G;
+        mutable std::vector<value_type> tmp;
 
         gather(size_t src_size, const std::vector<ptrdiff_t> &I, const params &prm)
             : G(prm.q, src_size, std::vector<size_t>(I.begin(), I.end())) { }
 
+        void operator()(const vector &src, vector &dst) const {
+            G(src, tmp);
+            vex::copy(tmp, dst);
+        }
+
         void operator()(const vector &vec, std::vector<value_type> &vals) const {
             G(vec, vals);
+        }
+    };
+
+    struct scatter {
+        mutable vex::scatter<value_type> S;
+        mutable std::vector<value_type> tmp;
+
+        scatter(size_t size, const std::vector<ptrdiff_t> &I, const params &prm)
+            : S(prm.q, size, std::vector<size_t>(I.begin(), I.end()))
+            , tmp(I.size())
+        { }
+
+        void operator()(const vector &src, vector &dst) const {
+            vex::copy(src, tmp);
+            S(tmp, dst);
         }
     };
 

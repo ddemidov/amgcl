@@ -407,13 +407,26 @@ struct builtin {
     struct gather {
         std::vector<ptrdiff_t> I;
 
-        gather(size_t /*src_size*/, const std::vector<ptrdiff_t> &I, const params&)
+        gather(size_t /*size*/, const std::vector<ptrdiff_t> &I, const params&)
             : I(I) { }
 
         template <class InVec, class OutVec>
         void operator()(const InVec &vec, OutVec &vals) const {
             for(size_t i = 0; i < I.size(); ++i)
                 vals[i] = vec[I[i]];
+        }
+    };
+
+    struct scatter {
+        std::vector<ptrdiff_t> I;
+
+        scatter(size_t /*size*/, const std::vector<ptrdiff_t> &I, const params&)
+            : I(I) { }
+
+        template <class InVec, class OutVec>
+        void operator()(const InVec &vals, OutVec &vec) const {
+            for(size_t i = 0; i < I.size(); ++i)
+                vec[I[i]] = vals[i];
         }
     };
 

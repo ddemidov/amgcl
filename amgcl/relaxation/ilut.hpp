@@ -267,10 +267,13 @@ struct ilut {
 
             struct higher_than {
                 value_type tol;
-                higher_than(value_type tol) : tol(tol) {}
+                ptrdiff_t dia;
+
+                higher_than(value_type tol, ptrdiff_t dia)
+                    : tol(tol), dia(dia) {}
 
                 bool operator()(const nonzero &v) const {
-                    return fabs(v.val) > tol;
+                    return v.col == dia || fabs(v.val) > tol;
                 }
             };
 
@@ -314,7 +317,7 @@ struct ilut {
                 ptr e = nz.end();
 
                 // Move zeros to back:
-                e = std::partition(b, e, higher_than(tol));
+                e = std::partition(b, e, higher_than(tol, dia));
 
                 // Split L and U:
                 ptr m = std::partition(b, e, L_first(dia));

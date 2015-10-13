@@ -159,13 +159,19 @@ class simple {
             Ass->ncols = ns;
             Ass->ptr.resize(ns + 1, 0);
 
-            idx.resize(n);
+            std::vector<size_t> idx(n);
+            std::vector<ptrdiff_t> pix(np);
+            std::vector<ptrdiff_t> six(ns);
 
             for(size_t i = 0, ip = 0, is = 0; i < n; ++i) {
                 if (prm.pmask[i]) {
-                    idx[i] = ip++;
+                    pix[ip] = i;
+                    idx[i] = ip;
+                    ++ip;
                 } else {
-                    idx[i] = is++;
+                    six[is] = i;
+                    idx[i] = is;
+                    ++is;
                 }
             }
 
@@ -292,6 +298,11 @@ class simple {
             A = backend_type::copy_matrix(boost::make_shared<build_matrix>(M), bprm);
             P = boost::make_shared<PressurePrecond>(*App, prm.pressure, bprm);
             I = boost::make_shared<FlowPrecond>(*Ass, prm.flow, bprm);
+
+            p_gather  = boost::make_shared<typename backend_type::gather >(n, pix, bprm);
+            p_scatter = boost::make_shared<typename backend_type::scatter>(n, pix, bprm);
+            s_gather  = boost::make_shared<typename backend_type::gather >(n, six, bprm);
+            s_scatter = boost::make_shared<typename backend_type::scatter>(n, six, bprm);
         }
 
         template <class Vec1, class Vec2>
@@ -304,16 +315,9 @@ class simple {
 #endif
                 ) const
         {
-            typedef typename backend::row_iterator<matrix>::type row_iterator;
-
             // Split RHS into p and s parts:
-#pragma omp parallel for
-            for(size_t i = 0; i < n; ++i) {
-                if (prm.pmask[i])
-                    (*bp)[idx[i]] = rhs[i];
-                else
-                    (*bs)[idx[i]] = rhs[i];
-            }
+            (*p_gather)(rhs, *bp);
+            (*s_gather)(rhs, *bs);
 
             // Solve for s part:
             I->apply(*bs, *xs);
@@ -328,14 +332,8 @@ class simple {
             backend::spmv(-1, *G, *xp, 1, *xs);
 
             // Expand partial vectors onto complete solution:
-            // TODO: this only works for host-addressable backends now.
-#pragma omp parallel for
-            for(size_t i = 0; i < n; ++i) {
-                if (prm.pmask[i])
-                    x[i] = (*xp)[idx[i]];
-                else
-                    x[i] = (*xs)[idx[i]];
-            }
+            (*p_scatter)(*xp, x);
+            (*s_scatter)(*xs, x);
         }
 
         const matrix& system_matrix() const {
@@ -345,7 +343,12 @@ class simple {
         typedef typename backend::builtin<value_type>::matrix build_matrix;
 
         size_t n;
-        std::vector<size_t> idx;
+
+        boost::shared_ptr<typename backend_type::gather>  p_gather;
+        boost::shared_ptr<typename backend_type::gather>  s_gather;
+        boost::shared_ptr<typename backend_type::scatter> p_scatter;
+        boost::shared_ptr<typename backend_type::scatter> s_scatter;
+
         boost::shared_ptr<matrix> A, K, D, G;
         boost::shared_ptr<vector> xp, bp, xs, bs;
         boost::shared_ptr<PressurePrecond> P;

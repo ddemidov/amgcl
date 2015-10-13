@@ -160,7 +160,7 @@ class cpr {
             B->ptr.resize(np + 1, 1); B->ptr[0] = 0;
 
             std::vector<ptrdiff_t> idx(n);
-            pix.resize(np);
+            std::vector<ptrdiff_t> pix(np);
 
             for(size_t i = 0, ip = 0, is = 0; i < n; ++i) {
                 if (prm.pmask[i]) {
@@ -295,6 +295,9 @@ class cpr {
 
             P = boost::make_shared<PressurePrecond>(App, prm.pressure, bprm);
             I = boost::make_shared<FlowPrecond>(M, prm.flow, bprm);
+
+            scatter = boost::make_shared<typename backend_type::scatter>(n, pix, bprm);
+            tmp.resize(np);
         }
 
         template <class Vec1, class Vec2>
@@ -307,8 +310,6 @@ class cpr {
 #endif
                 ) const
         {
-            typedef typename backend::row_iterator<matrix>::type row_iterator;
-
             backend::clear(x);
 
             // Compute RHS for the reduced pressure problem:
@@ -318,11 +319,7 @@ class cpr {
             P->apply(*bp, *xp);
 
             // Expand pressure vector onto complete solution:
-            // TODO: this only works for host-addressable backends now.
-#pragma omp parallel for
-            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(np); ++i)
-                x[pix[i]] = (*xp)[i];
-
+            (*scatter)(*xp, x);
 
             // Postprocess the complete solution with an ILU sweep:
             backend::residual(rhs, system_matrix(), x, *bu);
@@ -337,11 +334,13 @@ class cpr {
         typedef typename backend::builtin<value_type>::matrix build_matrix;
 
         size_t np;
-        std::vector<size_t> pix;
+        std::vector<value_type> tmp;
         boost::shared_ptr<matrix> Br;
         boost::shared_ptr<vector> xp, bp, xu, bu;
         boost::shared_ptr<PressurePrecond> P;
         boost::shared_ptr<FlowPrecond>     I;
+
+        boost::shared_ptr<typename backend_type::scatter> scatter;
 };
 
 } // namespace preconditioner
