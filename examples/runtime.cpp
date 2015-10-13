@@ -100,17 +100,15 @@ int main(int argc, char *argv[]) {
 
     prm.put("solver.type", solver);
 
+    typedef amgcl::backend::builtin<double> Backend;
+
     if (just_relax) {
         prm.put("precond.type", relaxation);
 
         prof.tic("setup");
         amgcl::make_solver<
-            amgcl::runtime::relaxation::as_preconditioner<
-                amgcl::backend::builtin<double>
-                >,
-            amgcl::runtime::iterative_solver<
-                amgcl::backend::builtin<double>
-                >
+            amgcl::runtime::relaxation::as_preconditioner<Backend>,
+            amgcl::runtime::iterative_solver<Backend>
             > solve(boost::tie(n, ptr, col, val), prm);
         prof.toc("setup");
 
@@ -125,12 +123,8 @@ int main(int argc, char *argv[]) {
 
         prof.tic("setup");
         amgcl::make_solver<
-            amgcl::runtime::amg<
-                amgcl::backend::builtin<double>
-                >,
-            amgcl::runtime::iterative_solver<
-                amgcl::backend::builtin<double>
-                >
+            amgcl::runtime::amg<Backend>,
+            amgcl::runtime::iterative_solver<Backend>
             > solve(boost::tie(n, ptr, col, val), prm);
         prof.toc("setup");
 

@@ -37,6 +37,7 @@ THE SOFTWARE.
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
+#include <amgcl/relaxation/detail/ilu_solve.hpp>
 
 namespace amgcl {
 namespace relaxation {
@@ -259,8 +260,8 @@ struct parallel_ilu0 {
         U = Backend::copy_matrix(Uh, bprm);
 
         D  = Backend::copy_vector(Dh, bprm);
-        y0 = Backend::create_vector(n, bprm);
-        y1 = Backend::create_vector(n, bprm);
+        t1 = Backend::create_vector(n, bprm);
+        t2 = Backend::create_vector(n, bprm);
     }
 
     /// \copydoc amgcl::relaxation::damped_jacobi::apply_pre
@@ -285,7 +286,7 @@ struct parallel_ilu0 {
 
     private:
         boost::shared_ptr<matrix> L, U;
-        boost::shared_ptr<vector> D, y0, y1;
+        boost::shared_ptr<vector> D, t1, t2;
 
         template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
         void apply(
@@ -294,22 +295,10 @@ struct parallel_ilu0 {
                 ) const
         {
             backend::residual(rhs, A, x, tmp);
-            backend::copy(tmp, *y0);
-
-            // Solve Ly = b through Jacobi iterations
-            for (unsigned i = 0; i < prm.jacobi_iters; ++i) {
-                backend::residual(tmp, *L, *y0, *y1);
-                backend::copy(*y1, *y0);
-            }
-
-            // Solve Ux = y through Jacobi iterations
-            backend::copy(*y1, tmp);
-            for(unsigned i = 0; i < prm.jacobi_iters; ++i) {
-                backend::residual(tmp, *U, *y0, *y1);
-                backend::vmul(1, *D, *y1, 0, *y0);
-            }
-
-            backend::axpby(prm.damping, *y0, 1, x);
+            relaxation::detail::parallel_ilu_solve(
+                    *L, *U, *D, tmp, *t1, *t2, prm.jacobi_iters
+                    );
+            backend::axpby(prm.damping, tmp, 1, x);
         }
 };
 

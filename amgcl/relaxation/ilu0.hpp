@@ -33,6 +33,7 @@ THE SOFTWARE.
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
+#include <amgcl/relaxation/detail/ilu_solve.hpp>
 
 namespace amgcl {
 namespace relaxation {
@@ -61,8 +62,7 @@ struct ilu0 {
         /** \note Used for approximate solution of triangular systems on parallel backends */
         unsigned jacobi_iters;
 
-        params(float damping = 1, unsigned jacobi_iters = 2)
-            : damping(damping), jacobi_iters(jacobi_iters) {}
+        params() : damping(1), jacobi_iters(2) {}
 
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, damping)
@@ -82,18 +82,6 @@ struct ilu0 {
         typedef typename backend::builtin<value_type>::matrix build_matrix;
         const size_t n = backend::rows(A);
 
-        boost::shared_ptr<build_matrix> L = boost::make_shared<build_matrix>();
-        boost::shared_ptr<build_matrix> U = boost::make_shared<build_matrix>();
-
-        L->nrows = L->ncols = n;
-        U->nrows = U->ncols = n;
-
-        L->ptr.reserve(n+1); L->ptr.push_back(0);
-        U->ptr.reserve(n+1); U->ptr.push_back(0);
-
-        std::vector<value_type> D;
-        D.reserve(n);
-
         size_t Lnz = 0, Unz = 0;
 
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
@@ -109,11 +97,21 @@ struct ilu0 {
             }
         }
 
+        boost::shared_ptr<build_matrix> L = boost::make_shared<build_matrix>();
+        boost::shared_ptr<build_matrix> U = boost::make_shared<build_matrix>();
+
+        L->nrows = L->ncols = n;
+        L->ptr.reserve(n+1); L->ptr.push_back(0);
         L->col.reserve(Lnz);
         L->val.reserve(Lnz);
 
+        U->nrows = U->ncols = n;
+        U->ptr.reserve(n+1); U->ptr.push_back(0);
         U->col.reserve(Unz);
         U->val.reserve(Unz);
+
+        std::vector<value_type> D;
+        D.reserve(n);
 
         std::vector<value_type*> work(n, NULL);
 
@@ -174,9 +172,9 @@ struct ilu0 {
         this->L = Backend::copy_matrix(L, bprm);
         this->U = Backend::copy_matrix(U, bprm);
 
-        if (!boost::is_same<Backend, backend::builtin<value_type> >::value) {
-            y0 = Backend::create_vector(n, bprm);
-            y1 = Backend::create_vector(n, bprm);
+        if (!serial_backend::value) {
+            t1 = Backend::create_vector(n, bprm);
+            t2 = Backend::create_vector(n, bprm);
         }
     }
 
@@ -187,7 +185,7 @@ struct ilu0 {
             const params &prm
             ) const
     {
-        apply<Backend>(A, rhs, x, tmp, prm);
+        apply_dispatch(A, rhs, x, tmp, prm, serial_backend());
     }
 
     /// \copydoc amgcl::relaxation::damped_jacobi::apply_post
@@ -197,72 +195,39 @@ struct ilu0 {
             const params &prm
             ) const
     {
-        apply<Backend>(A, rhs, x, tmp, prm);
+        apply_dispatch(A, rhs, x, tmp, prm, serial_backend());
     }
 
     private:
-        boost::shared_ptr<matrix> L, U;
-        boost::shared_ptr<vector> D, y0, y1;
+        typedef typename boost::is_same<
+                Backend, backend::builtin<value_type>
+            >::type serial_backend;
 
-        template <class B, class Matrix, class VectorRHS, class VectorX, class VectorTMP>
-        typename boost::enable_if<
-            typename boost::is_same<
-                B, backend::builtin<typename B::value_type>
-            >::type,
-            void
-        >::type
-        apply(
+        boost::shared_ptr<matrix> L, U;
+        boost::shared_ptr<vector> D, t1, t2;
+
+        template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
+        void apply_dispatch(
                 const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
-                const params &prm
+                const params &prm, boost::true_type
                 ) const
         {
-            const size_t n = backend::rows(A);
-
             backend::residual(rhs, A, x, tmp);
-
-            for(size_t i = 0; i < n; i++) {
-                for(ptrdiff_t j = L->ptr[i], e = L->ptr[i+1]; j < e; ++j)
-                    tmp[i] -= L->val[j] * tmp[L->col[j]];
-            }
-
-            for(size_t i = n; i-- > 0;) {
-                for(ptrdiff_t j = U->ptr[i], e = U->ptr[i+1]; j < e; ++j)
-                    tmp[i] -= U->val[j] * tmp[U->col[j]];
-                tmp[i] *= (*D)[i];
-            }
-
+            relaxation::detail::serial_ilu_solve(*L, *U, *D, tmp);
             backend::axpby(prm.damping, tmp, 1, x);
         }
 
-        template <class B, class Matrix, class VectorRHS, class VectorX, class VectorTMP>
-        typename boost::disable_if<
-            typename boost::is_same<
-                B, backend::builtin<typename B::value_type>
-            >::type,
-            void
-        >::type
-        apply(
+        template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
+        void apply_dispatch(
                 const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
-                const params &prm
+                const params &prm, boost::false_type
                 ) const
         {
             backend::residual(rhs, A, x, tmp);
-            backend::copy(tmp, *y0);
-
-            // Solve Ly = b through Jacobi iterations
-            for (unsigned i = 0; i < prm.jacobi_iters; ++i) {
-                backend::residual(tmp, *L, *y0, *y1);
-                backend::copy(*y1, *y0);
-            }
-
-            // Solve Ux = y through Jacobi iterations
-            backend::copy(*y1, tmp);
-            for(unsigned i = 0; i < prm.jacobi_iters; ++i) {
-                backend::residual(tmp, *U, *y0, *y1);
-                backend::vmul(1, *D, *y1, 0, *y0);
-            }
-
-            backend::axpby(prm.damping, *y0, 1, x);
+            relaxation::detail::parallel_ilu_solve(
+                    *L, *U, *D, tmp, *t1, *t2, prm.jacobi_iters
+                    );
+            backend::axpby(prm.damping, tmp, 1, x);
         }
 
 };
