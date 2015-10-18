@@ -126,8 +126,8 @@ int main() {
 ~~~
 
 There is a convenience class
-`amgcl::make_solver<Backend, Coarsening, Relaxation, Solver>` which wraps both
-an AMG preconditioner and an iterative solver. By using the class the above
+`amgcl::make_solver<Preconditioner, Solver>` which wraps
+a preconditioner and an iterative solver. By using the class the above
 example could be made a bit shorter:
 
 ~~~{.cpp}
