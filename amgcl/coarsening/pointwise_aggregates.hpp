@@ -254,15 +254,15 @@ class pointwise_aggregates {
                     for(unsigned k = 0; k < block_size; ++k, ++ia) {
                         for(row_iterator a = backend::row_begin(A, ia); a; ++a) {
                             ptrdiff_t cb = a.col() / block_size;
-                            V    va = fabs(a.value());
+                            V    va = a.value();
 
                             if (marker[cb] < row_beg) {
                                 marker[cb] = row_end;
                                 Ap.col[row_end] = cb;
-                                Ap.val[row_end] = va;
+                                Ap.val[row_end] = std::abs(va);
                                 ++row_end;
                             } else {
-                                Ap.val[marker[cb]] = std::max(Ap.val[marker[cb]], va);
+                                Ap.val[marker[cb]] = std::max(std::abs(Ap.val[marker[cb]]), std::abs(va));
                             }
                         }
                     }

@@ -112,7 +112,7 @@ struct plain_aggregates {
           id( backend::rows(A) )
     {
         typedef typename backend::value_type<Matrix>::type V;
-        V eps_squared = prm.eps_strong * prm.eps_strong;
+        float eps_squared = prm.eps_strong * prm.eps_strong;
 
         const size_t n = rows(A);
 
@@ -126,7 +126,7 @@ struct plain_aggregates {
                 ptrdiff_t c = A.col[j];
                 V    v = A.val[j];
 
-                strong_connection[j] = (c != i) && (v * v > eps_dia_i * dia[c]);
+                strong_connection[j] = (c != i) && (std::abs(v * v) > std::abs(eps_dia_i * dia[c]));
             }
         }
 

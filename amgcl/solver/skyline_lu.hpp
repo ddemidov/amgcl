@@ -235,7 +235,7 @@ class skyline_lu {
                     int newi = invperm[i];
                     int newj = invperm[j];
 
-                    if (v != 0) {
+                    if (std::abs(v) != 0) {
                         if (newi > newj) {
                             // row newi needs length at least newi - newj
                             if (ptr[newi] < newi - newj) ptr[newi]= newi - newj;
@@ -272,7 +272,7 @@ class skyline_lu {
                     int newi = invperm[i];
                     int newj = invperm[j];
 
-                    if (v != 0) {
+                    if (v != real()) {
                         if (newi < newj) {
                             U[ ptr[newj + 1] + newi - newj ] = v;
                         } else if (newi == newj) {
@@ -347,10 +347,8 @@ class skyline_lu {
          * end
          */
         void factorize() {
-            const real eps = amgcl::detail::eps<real>(1);
-
             precondition(
-                    fabs(D[0]) > eps,
+                    D[0] != real(),
                     "Zero diagonal in skyline_lu"
                     );
 
@@ -407,7 +405,7 @@ class skyline_lu {
                     sum -= L[j] * U[j];
 
                 precondition(
-                        fabs(sum) > eps,
+                        sum != real(),
                         "Zero sum in skyline_lu factorization"
                         );
 
