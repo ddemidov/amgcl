@@ -46,18 +46,15 @@ BOOST_AUTO_TEST_CASE(complex_matrix)
             amgcl::relaxation::spai0
             >,
         amgcl::solver::bicgstab<Backend>
-        > solve( amgcl::adapter::complex(boost::tie(n, ptr, col, val)), prm );
+        > solve( amgcl::adapter::complex_matrix(boost::tie(n, ptr, col, val)), prm );
 
     std::cout << solve.precond() << std::endl;
 
-    double const *fptr = reinterpret_cast<double const *>(&rhs[0]);
-    double       *xptr = reinterpret_cast<double       *>(&x[0]);
-
     boost::iterator_range<const double*> f_range =
-        boost::make_iterator_range(fptr, fptr + 2 * n);
+        amgcl::adapter::complex_range(rhs);
 
     boost::iterator_range<double*> x_range =
-        boost::make_iterator_range(xptr, xptr + 2 * n);
+        amgcl::adapter::complex_range(x);
 
     size_t iters;
     double resid;

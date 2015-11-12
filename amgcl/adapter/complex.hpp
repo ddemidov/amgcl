@@ -116,8 +116,47 @@ struct complex_adapter {
 };
 
 template <class Matrix>
-complex_adapter<Matrix> complex(const Matrix &A) {
+complex_adapter<Matrix> complex_matrix(const Matrix &A) {
     return complex_adapter<Matrix>(A);
+}
+
+template <class Range>
+boost::iterator_range<
+    typename boost::add_pointer<
+        typename boost::conditional<
+            boost::is_const<Range>::value,
+            typename boost::add_const<
+                typename boost::range_value<
+                    typename boost::decay<Range>::type
+                    >::type::value_type
+                >::type,
+            typename boost::range_value<
+                typename boost::decay<Range>::type
+                >::type::value_type
+            >::type
+        >::type
+    >
+complex_range(Range &rng) {
+    typedef
+        typename boost::add_pointer<
+            typename boost::conditional<
+                boost::is_const<Range>::value,
+                typename boost::add_const<
+                    typename boost::range_value<
+                        typename boost::decay<Range>::type
+                        >::type::value_type
+                    >::type,
+                typename boost::range_value<
+                    typename boost::decay<Range>::type
+                    >::type::value_type
+                >::type
+            >::type
+        pointer_type;
+
+    pointer_type b = reinterpret_cast<pointer_type>(&rng[0]);
+    pointer_type e = b + 2 * boost::size(rng);
+
+    return boost::iterator_range<pointer_type>(b, e);
 }
 
 } // namespace adapter
