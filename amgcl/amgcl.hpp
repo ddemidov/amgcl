@@ -175,6 +175,15 @@ class amg {
             boost::shared_ptr<build_matrix> A = boost::make_shared<build_matrix>( M );
             sort_rows(*A);
 
+            std::cout
+                << "Matrix size: "
+                << (
+                        sizeof(size_t) * backend::rows(*A) +
+                        sizeof(size_t) * backend::nonzeros(*A) +
+                        sizeof(value_type) * backend::nonzeros(*A)
+                   ) / (1024.0 * 1024.0)
+                << std::endl;
+
             while( backend::rows(*A) > prm.coarse_enough) {
                 TIC("transfer operators");
                 boost::tie(P, R) = Coarsening::transfer_operators(
@@ -307,6 +316,27 @@ class amg {
             size_t nonzeros() const {
                 return m_nonzeros;
             }
+
+            size_t bytes() const {
+                size_t nbytes = 0;
+                nbytes += sizeof(value_type) * rows() * 3;
+                if (A) {
+                    nbytes += sizeof(size_t) * rows();
+                    nbytes += sizeof(value_type) * backend::nonzeros(*A);
+                    nbytes += sizeof(size_t) * backend::nonzeros(*A);
+                }
+                if (R) {
+                    nbytes += sizeof(size_t) * rows();
+                    nbytes += sizeof(value_type) * backend::nonzeros(*R);
+                    nbytes += sizeof(size_t) * backend::nonzeros(*R);
+                }
+                if (P) {
+                    nbytes += sizeof(size_t) * rows();
+                    nbytes += sizeof(value_type) * backend::nonzeros(*P);
+                    nbytes += sizeof(size_t) * backend::nonzeros(*P);
+                }
+                return nbytes;
+            }
         };
 
         typedef typename std::list<level>::const_iterator level_iterator;
@@ -386,7 +416,9 @@ std::ostream& operator<<(std::ostream &os, const amg<B, C, R> &a)
             << std::setw(15) << lvl.nonzeros() << " ("
             << std::setw(5) << std::fixed << std::setprecision(2)
             << 100.0 * lvl.nonzeros() / sum_nnz
-            << "%)" << std::endl;
+            << "%)"
+            << " " << lvl.bytes() / (1024.0 * 1024.0)
+            << std::endl;
     }
 
     return os;
