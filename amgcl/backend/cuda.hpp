@@ -28,7 +28,7 @@ THE SOFTWARE.
 /**
  * \file   amgcl/backend/cuda.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
- * \brief  VexCL backend.
+ * \brief  CUDA backend.
  */
 
 #include <boost/static_assert.hpp>
@@ -48,7 +48,6 @@ THE SOFTWARE.
 
 namespace amgcl {
 namespace backend {
-
 namespace detail {
 
 inline void cuda_check(cusparseStatus_t rc, const char *file, int line) {
@@ -61,6 +60,25 @@ inline void cuda_check(cusparseStatus_t rc, const char *file, int line) {
 
 #define AMGCL_CALL_CUDA(rc)                                                    \
     amgcl::backend::detail::cuda_check(rc, __FILE__, __LINE__)
+
+struct cuda_deleter {
+    void operator()(cusparseMatDescr_t handle) {
+        AMGCL_CALL_CUDA( cusparseDestroyMatDescr(handle) );
+    }
+
+    void operator()(cusparseHybMat_t handle) {
+        AMGCL_CALL_CUDA( cusparseDestroyHybMat(handle) );
+    }
+
+    void operator()(csrilu02Info_t handle) {
+        AMGCL_CALL_CUDA( cusparseDestroyCsrilu02Info(handle) );
+    }
+
+    void operator()(csrsv2Info_t handle) {
+        AMGCL_CALL_CUDA( cusparseDestroyCsrsv2Info(handle) );
+    }
+};
+
 
 } // namespace detail
 
@@ -78,8 +96,8 @@ class cuda_hyb_matrix {
                 cusparseHandle_t handle
                 )
             : nrows(n), ncols(m), nnz(ptr[n]), handle( handle ),
-              desc  ( create_description(), deleter() ),
-              mat   ( create_matrix(),      deleter() )
+              desc  ( create_description(), backend::detail::cuda_deleter() ),
+              mat   ( create_matrix(),      backend::detail::cuda_deleter() )
         {
             fill_matrix(n, m, ptr, col, val);
         }
@@ -124,16 +142,6 @@ class cuda_hyb_matrix {
 
         boost::shared_ptr<boost::remove_pointer<cusparseMatDescr_t>::type> desc;
         boost::shared_ptr<boost::remove_pointer<cusparseHybMat_t>::type>   mat;
-
-        struct deleter {
-            void operator()(cusparseMatDescr_t handle) {
-                AMGCL_CALL_CUDA( cusparseDestroyMatDescr(handle) );
-            }
-
-            void operator()(cusparseHybMat_t handle) {
-                AMGCL_CALL_CUDA( cusparseDestroyHybMat(handle) );
-            }
-        };
 
         static cusparseMatDescr_t create_description() {
             cusparseMatDescr_t desc;
