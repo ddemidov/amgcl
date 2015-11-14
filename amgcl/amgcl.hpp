@@ -81,6 +81,8 @@ class amg {
         typedef typename Backend::vector     vector;
         typedef Relax<Backend>               relax_type;
 
+        typedef typename backend::builtin<value_type>::matrix build_matrix;
+
         /// Backend parameters.
         typedef typename Backend::params     backend_params;
 
@@ -166,38 +168,29 @@ class amg {
                 const backend_params &bprm = backend_params()
            ) : prm(p)
         {
-            precondition(
-                    backend::rows(M) == backend::cols(M),
-                    "Matrix should be square!"
-                    );
+            init(boost::make_shared<build_matrix>(M), bprm);
+        }
 
-            boost::shared_ptr<build_matrix> P, R;
-            boost::shared_ptr<build_matrix> A = boost::make_shared<build_matrix>( M );
-            sort_rows(*A);
-
-            while( backend::rows(*A) > prm.coarse_enough) {
-                TIC("transfer operators");
-                boost::tie(P, R) = Coarsening::transfer_operators(
-                        *A, prm.coarsening);
-                precondition(
-                        backend::cols(*P) > 0,
-                        "Zero-sized coarse level in amgcl (diagonal matrix?)"
-                        );
-                TOC("transfer operators");
-
-                TIC("move to backend")
-                levels.push_back( level(A, P, R, prm, bprm) );
-                TOC("move to backend")
-
-                TIC("coarse operator");
-                A = Coarsening::coarse_operator(*A, *P, *R, prm.coarsening);
-                sort_rows(*A);
-                TOC("coarse operator");
-            }
-
-            TIC("coarsest level");
-            levels.push_back( level(A, bprm, levels.empty()) );
-            TOC("coarsest level");
+        /// Builds the AMG hierarchy for the system matrix.
+        /**
+         * The shared pointer to the input matrix is passed here. The matrix
+         * will not be copied and should out-live the amg instance.
+         * The matrix should be either in amgcl::backend::crs<T> format, or
+         * inherit from the class and override its ptr(), col(), and val()
+         * virtual functions.
+         *
+         * \param A The system matrix.
+         * \param p AMG parameters.
+         *
+         * \sa amgcl/adapter/crs_tuple.hpp
+         */
+        amg(
+                boost::shared_ptr<build_matrix> A,
+                const params &p = params(),
+                const backend_params &bprm = backend_params()
+           ) : prm(prm)
+        {
+            init(A, bprm);
         }
 
         /// Performs single V-cycle for the given right-hand side and solution.
@@ -250,8 +243,6 @@ class amg {
         }
 
     private:
-        typedef typename backend::builtin<value_type>::matrix build_matrix;
-
         struct level {
             boost::shared_ptr<matrix> A;
             boost::shared_ptr<matrix> P;
@@ -312,6 +303,45 @@ class amg {
         typedef typename std::list<level>::const_iterator level_iterator;
 
         std::list<level> levels;
+
+        void init(
+                boost::shared_ptr<build_matrix> A,
+                const backend_params &bprm = backend_params()
+           )
+        {
+            precondition(
+                    backend::rows(*A) == backend::cols(*A),
+                    "Matrix should be square!"
+                    );
+
+            sort_rows(*A);
+
+            boost::shared_ptr<build_matrix> P, R;
+
+            while( backend::rows(*A) > prm.coarse_enough) {
+                TIC("transfer operators");
+                boost::tie(P, R) = Coarsening::transfer_operators(
+                        *A, prm.coarsening);
+                precondition(
+                        backend::cols(*P) > 0,
+                        "Zero-sized coarse level in amgcl (diagonal matrix?)"
+                        );
+                TOC("transfer operators");
+
+                TIC("move to backend")
+                levels.push_back( level(A, P, R, prm, bprm) );
+                TOC("move to backend")
+
+                TIC("coarse operator");
+                A = Coarsening::coarse_operator(*A, *P, *R, prm.coarsening);
+                sort_rows(*A);
+                TOC("coarse operator");
+            }
+
+            TIC("coarsest level");
+            levels.push_back( level(A, bprm, levels.empty()) );
+            TOC("coarsest level");
+        }
 
         template <class Vec1, class Vec2>
         void cycle(level_iterator lvl, const Vec1 &rhs, Vec2 &x) const
