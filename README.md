@@ -7,7 +7,7 @@
 
 
 AMGCL is a C++ header only library for constructing an algebraic [multigrid][]
-(AMG) hierarchy.  AMG is one the most effective methods for solution of large
+(AMG) hierarchy.  AMG is one of the most effective methods for solution of large
 sparse unstructured systems of equations, arising, for example, from
 discretization of PDEs on unstructured grids [9,11]. The method can be used as a
 black-box solver for various computational problems, since it does not require
