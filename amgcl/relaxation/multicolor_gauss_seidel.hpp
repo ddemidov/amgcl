@@ -65,7 +65,7 @@ struct graph {
     typedef boost::counting_iterator<vertex_descriptor> vertex_iterator;
     typedef vertex_descriptor vertices_size_type;
 
-    typedef typename std::vector<vertex_descriptor>::const_iterator adjacency_iterator;
+    typedef const vertex_descriptor* adjacency_iterator;
 
     static vertex_descriptor null_vertex() { return -1; }
 
