@@ -1,7 +1,7 @@
 import numpy
 import scipy
-import pyamgcl_ext
-from pyamgcl_ext import coarsening, relaxation, solver_type
+import pyamgcl.pyamgcl_ext
+from pyamgcl.pyamgcl_ext import coarsening, relaxation, solver_type
 from scipy.sparse.linalg import LinearOperator
 
 class make_solver:

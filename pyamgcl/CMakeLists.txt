@@ -6,15 +6,17 @@ find_package(NumPy QUIET)
 if (NUMPY_FOUND)
     include_directories(${NUMPY_INCLUDE_DIRS})
 
+    set(BOOST_PYTHON_COMPONENT "python" CACHE STRING "Boost python component (python/python3/...)")
+
     find_package(Boost COMPONENTS
         system
         filesystem
-        python
+        ${BOOST_PYTHON_COMPONENT}
         )
 
     add_library(pyamgcl_ext pyamgcl.cpp)
     set_target_properties(pyamgcl_ext PROPERTIES PREFIX "")
-    target_link_Libraries(pyamgcl_ext ${Boost_LIBRARIES})
+    target_link_Libraries(pyamgcl_ext ${Boost_LIBRARIES} ${PYTHON_LIBRARIES})
 
     configure_file(
         ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py
