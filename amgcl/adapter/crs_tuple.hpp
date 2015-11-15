@@ -66,7 +66,7 @@ AMG amg(boost::make_tuple(n,
 #include <boost/type_traits.hpp>
 
 #include <amgcl/util.hpp>
-#include <amgcl/backend/builtin.hpp>
+#include <amgcl/backend/interface.hpp>
 #include <amgcl/backend/detail/matrix_ops.hpp>
 
 namespace amgcl {
