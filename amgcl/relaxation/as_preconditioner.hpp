@@ -62,10 +62,17 @@ class as_preconditioner {
                 )
             : prm(prm)
         {
-            boost::shared_ptr<build_matrix> m = boost::make_shared<build_matrix>(M);
-            A = Backend::copy_matrix(m, bprm);
-            S = boost::make_shared<smoother>(*m, prm, bprm);
-            tmp = Backend::create_vector(backend::rows(*m), bprm);
+            init(boost::make_shared<build_matrix>(M), bprm);
+        }
+
+        as_preconditioner(
+                boost::shared_ptr<build_matrix> M,
+                const params &prm = params(),
+                const backend_params &bprm = backend_params()
+                )
+            : prm(prm)
+        {
+            init(M, bprm);
         }
 
         template <class Vec1, class Vec2>
@@ -92,6 +99,12 @@ class as_preconditioner {
         boost::shared_ptr<matrix>   A;
         boost::shared_ptr<smoother> S;
         boost::shared_ptr<vector> tmp;
+
+        void init(boost::shared_ptr<build_matrix> M, const backend_params &bprm) {
+            A = Backend::copy_matrix(M, bprm);
+            S = boost::make_shared<smoother>(*M, prm, bprm);
+            tmp = Backend::create_vector(backend::rows(*M), bprm);
+        }
 };
 
 } // namespace relaxation

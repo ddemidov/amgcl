@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include <queue>
 #include <cmath>
 
+#include <boost/typeof/typeof.hpp>
 #include <boost/foreach.hpp>
 
 #include <amgcl/backend/builtin.hpp>
@@ -98,14 +99,17 @@ struct ilut {
         typedef typename backend::row_iterator<Matrix>::type row_iterator;
         const size_t n = backend::rows(A);
 
+        BOOST_AUTO(Aptr, A.ptr_data());
+        BOOST_AUTO(Acol, A.col_data());
+
         size_t Lnz = 0, Unz = 0;
 
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-            ptrdiff_t row_beg = A.ptr[i];
-            ptrdiff_t row_end = A.ptr[i + 1];
+            ptrdiff_t row_beg = Aptr[i];
+            ptrdiff_t row_end = Aptr[i + 1];
 
             for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                ptrdiff_t c = A.col[j];
+                ptrdiff_t c = Acol[j];
                 if (c < i)
                     ++Lnz;
                 else if (c > i)

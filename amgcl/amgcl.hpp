@@ -168,7 +168,10 @@ class amg {
                 const backend_params &bprm = backend_params()
            ) : prm(p)
         {
-            init(boost::make_shared<build_matrix>(M), bprm);
+            boost::shared_ptr<build_matrix> A = boost::make_shared<build_matrix>(M);
+            sort_rows(*A);
+
+            init(A, bprm);
         }
 
         /// Builds the AMG hierarchy for the system matrix.
@@ -188,7 +191,7 @@ class amg {
                 boost::shared_ptr<build_matrix> A,
                 const params &p = params(),
                 const backend_params &bprm = backend_params()
-           ) : prm(prm)
+           ) : prm(p)
         {
             init(A, bprm);
         }
@@ -313,8 +316,6 @@ class amg {
                     backend::rows(*A) == backend::cols(*A),
                     "Matrix should be square!"
                     );
-
-            sort_rows(*A);
 
             boost::shared_ptr<build_matrix> P, R;
 

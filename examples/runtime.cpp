@@ -8,7 +8,7 @@
 #include <amgcl/runtime.hpp>
 #include <amgcl/make_solver.hpp>
 #include <amgcl/relaxation/runtime.hpp>
-#include <amgcl/adapter/crs_tuple.hpp>
+#include <amgcl/adapter/zero_copy.hpp>
 #include <amgcl/profiler.hpp>
 
 #include "sample_problem.hpp"
@@ -85,10 +85,10 @@ int main(int argc, char *argv[]) {
 
     // Assemble problem
     prof.tic("assemble");
-    std::vector<int>    ptr;
-    std::vector<int>    col;
-    std::vector<double> val;
-    std::vector<double> rhs;
+    std::vector<ptrdiff_t> ptr;
+    std::vector<ptrdiff_t> col;
+    std::vector<double>    val;
+    std::vector<double>    rhs;
 
     int n = sample_problem(m, val, col, ptr, rhs);
     prof.toc("assemble");
@@ -109,7 +109,7 @@ int main(int argc, char *argv[]) {
         amgcl::make_solver<
             amgcl::runtime::relaxation::as_preconditioner<Backend>,
             amgcl::runtime::iterative_solver<Backend>
-            > solve(boost::tie(n, ptr, col, val), prm);
+            > solve(amgcl::adapter::zero_copy(n, ptr.data(), col.data(), val.data()), prm);
         prof.toc("setup");
 
         std::cout << "Using relaxation as preconditioner" << std::endl;
@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
         amgcl::make_solver<
             amgcl::runtime::amg<Backend>,
             amgcl::runtime::iterative_solver<Backend>
-            > solve(boost::tie(n, ptr, col, val), prm);
+            > solve(amgcl::adapter::zero_copy(n, ptr.data(), col.data(), val.data()), prm);
         prof.toc("setup");
 
         std::cout << solve.precond() << std::endl;

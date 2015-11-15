@@ -6,7 +6,7 @@
 #include <amgcl/runtime.hpp>
 #include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/make_solver.hpp>
-#include <amgcl/adapter/crs_tuple.hpp>
+#include <amgcl/adapter/zero_copy.hpp>
 #include <amgcl/profiler.hpp>
 
 #include <amgcl/backend/builtin.hpp>
@@ -150,8 +150,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_backends, Backend, backend_list)
     typedef typename Backend::value_type value_type;
     typedef typename Backend::vector     vector;
 
-    std::vector<int>        ptr;
-    std::vector<int>        col;
+    std::vector<ptrdiff_t>  ptr;
+    std::vector<ptrdiff_t>  col;
     std::vector<value_type> val;
     std::vector<value_type> rhs;
 
@@ -167,7 +167,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_backends, Backend, backend_list)
             std::cout << Backend::name() << " " << s << " " << r << std::endl;
 
             try {
-                test_rap<Backend>(boost::tie(n, ptr, col, val), y, x, s, r);
+                test_rap<Backend>(amgcl::adapter::zero_copy(n, ptr.data(), col.data(), val.data()), y, x, s, r);
             } catch(const std::logic_error&) {}
 
             BOOST_FOREACH(amgcl::runtime::coarsening::type c, coarsening) {
@@ -176,7 +176,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_backends, Backend, backend_list)
                     << s << " " << r << " " << c << std::endl;
 
                 try {
-                    test_solver<Backend>(boost::tie(n, ptr, col, val), y, x, s, r, c);
+                    test_solver<Backend>( amgcl::adapter::zero_copy(n, ptr.data(), col.data(), val.data()), y, x, s, r, c);
                 } catch(const std::logic_error&) {}
             }
         }

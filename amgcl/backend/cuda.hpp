@@ -239,7 +239,7 @@ struct cuda {
     copy_matrix(boost::shared_ptr< typename builtin<real>::matrix > A, const params &prm)
     {
         return boost::make_shared<matrix>(rows(*A), cols(*A),
-                &A->ptr[0], &A->col[0], &A->val[0],
+                A->ptr_data(), A->col_data(), A->val_data(),
                 prm.cusparse_handle
                 );
     }

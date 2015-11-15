@@ -33,6 +33,7 @@ THE SOFTWARE.
 
 #include <limits>
 
+#include <boost/typeof/typeof.hpp>
 #include <boost/tuple/tuple.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
@@ -117,12 +118,17 @@ struct sa_emin_filtered_matrix {
             ) : base(base), strong(strong), dia( backend::rows(base) )
     {
         const size_t n = backend::rows(base);
+
+        BOOST_AUTO(Aptr, base.ptr_data());
+        BOOST_AUTO(Acol, base.col_data());
+        BOOST_AUTO(Aval, base.val_data());
+
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < ptrdiff_t(n); ++i) {
             value_type D = 0;
-            for(ptrdiff_t j = base.ptr[i], e = base.ptr[i + 1]; j < e; ++j) {
-                ptrdiff_t  c = base.col[j];
-                value_type v = base.val[j];
+            for(ptrdiff_t j = Aptr[i], e = Aptr[i + 1]; j < e; ++j) {
+                ptrdiff_t  c = Acol[j];
+                value_type v = Aval[j];
 
                 if (c == i)
                     D += v;
@@ -143,12 +149,16 @@ struct sa_emin_filtered_matrix {
     }
 
     row_iterator row_begin(size_t row) const {
-        ptr_type b = base.ptr[row];
-        ptr_type e = base.ptr[row + 1];
+        BOOST_AUTO(Aptr, base.ptr_data());
+        BOOST_AUTO(Acol, base.col_data());
+        BOOST_AUTO(Aval, base.val_data());
 
-        const col_type *col = &base.col[b];
-        const col_type *end = &base.col[e];
-        const val_type *val = &base.val[b];
+        ptr_type b = Aptr[row];
+        ptr_type e = Aptr[row + 1];
+
+        const col_type *col = Acol + b;
+        const col_type *end = Acol + e;
+        const val_type *val = Aval + b;
         const char     *str = &strong[b];
 
         return row_iterator(col, end, val, str, row, dia[row]);

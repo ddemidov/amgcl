@@ -74,6 +74,9 @@ class hpx_matrix {
             index_type n = backend::rows(*A);
             index_type m = backend::cols(*A);
 
+            BOOST_AUTO(Aptr, A->ptr_data());
+            BOOST_AUTO(Acol, A->col_data());
+
             index_type nseg = (n + grain_size - 1) / grain_size;
             index_type mseg = (m + grain_size - 1) / grain_size;
 
@@ -85,14 +88,12 @@ class hpx_matrix {
             hpx::parallel::for_each(
                     hpx::parallel::par,
                     boost::begin(range), boost::end(range),
-                    [this, grain_size, n](index_type seg) {
+                    [this, grain_size, n, Aptr, Acol](index_type seg) {
                         index_type i = seg * grain_size;
-                        index_type beg = base->ptr[i];
-                        index_type end = base->ptr[std::min<index_type>(i + grain_size, n)];
+                        index_type beg = Aptr[i];
+                        index_type end = Aptr[std::min<index_type>(i + grain_size, n)];
 
-                        auto mm = std::minmax_element(
-                                base->col.begin() + beg, base->col.begin() + end
-                                );
+                        auto mm = std::minmax_element(Acol + beg, Acol + end);
 
                         index_type xbeg = *std::get<0>(mm) / grain_size;
                         index_type xend = *std::get<1>(mm) / grain_size + 1;

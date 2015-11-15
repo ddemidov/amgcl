@@ -31,6 +31,7 @@ THE SOFTWARE.
  * \brief  Ruge-Stuben coarsening with direct interpolation.
  */
 
+#include <boost/typeof/typeof.hpp>
 #include <boost/foreach.hpp>
 #include <boost/tuple/tuple.hpp>
 #include <boost/shared_ptr.hpp>
@@ -126,6 +127,10 @@ struct ruge_stuben {
             Amax.resize(n);
         }
 
+        BOOST_AUTO(Aptr, A.ptr_data());
+        BOOST_AUTO(Acol, A.col_data());
+        BOOST_AUTO(Aval, A.val_data());
+
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
             if (cf[i] == 'C') {
@@ -136,25 +141,25 @@ struct ruge_stuben {
             if (prm.do_trunc) {
                 Val amin = 0, amax = 0;
 
-                for(ptrdiff_t j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
-                    if (!S.val[j] || cf[ A.col[j] ] != 'C') continue;
+                for(ptrdiff_t j = Aptr[i], e = Aptr[i + 1]; j < e; ++j) {
+                    if (!S.val[j] || cf[ Acol[j] ] != 'C') continue;
 
-                    amin = std::min(amin, A.val[j]);
-                    amax = std::max(amax, A.val[j]);
+                    amin = std::min(amin, Aval[j]);
+                    amax = std::max(amax, Aval[j]);
                 }
 
                 Amin[i] = (amin *= prm.eps_trunc);
                 Amax[i] = (amax *= prm.eps_trunc);
 
-                for(ptrdiff_t j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
-                    if (!S.val[j] || cf[A.col[j]] != 'C') continue;
+                for(ptrdiff_t j = Aptr[i], e = Aptr[i + 1]; j < e; ++j) {
+                    if (!S.val[j] || cf[Acol[j]] != 'C') continue;
 
-                    if (A.val[j] <= amin || A.val[j] >= amax)
+                    if (Aval[j] <= amin || Aval[j] >= amax)
                         ++P->ptr[i + 1];
                 }
             } else {
-                for(ptrdiff_t j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j)
-                    if (S.val[j] && cf[A.col[j]] == 'C')
+                for(ptrdiff_t j = Aptr[i], e = Aptr[i + 1]; j < e; ++j)
+                    if (S.val[j] && cf[Acol[j]] == 'C')
                         ++P->ptr[i + 1];
             }
         }
@@ -178,9 +183,9 @@ struct ruge_stuben {
             Val b_num = 0, b_den = 0;
             Val d_neg = 0, d_pos = 0;
 
-            for(ptrdiff_t j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
-                ptrdiff_t c = A.col[j];
-                Val  v = A.val[j];
+            for(ptrdiff_t j = Aptr[i], e = Aptr[i + 1]; j < e; ++j) {
+                ptrdiff_t c = Acol[j];
+                Val  v = Aval[j];
 
                 if (c == i) {
                     dia = v;
@@ -215,9 +220,9 @@ struct ruge_stuben {
             Val alpha = fabs(a_den) > eps ? -cf_neg * a_num / (dia * a_den) : 0;
             Val beta  = fabs(b_den) > eps ? -cf_pos * b_num / (dia * b_den) : 0;
 
-            for(ptrdiff_t j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
-                ptrdiff_t c = A.col[j];
-                Val  v = A.val[j];
+            for(ptrdiff_t j = Aptr[i], e = Aptr[i + 1]; j < e; ++j) {
+                ptrdiff_t c = Acol[j];
+                Val  v = Aval[j];
 
                 if (!S.val[j] || cf[c] != 'C') continue;
                 if (prm.do_trunc && v > Amin[i] && v < Amax[i]) continue;
@@ -273,6 +278,10 @@ struct ruge_stuben {
             S.ptr.resize( n+1 );
             S.val.resize( nnz );
 
+            BOOST_AUTO(Aptr, A.ptr_data());
+            BOOST_AUTO(Acol, A.col_data());
+            BOOST_AUTO(Aval, A.val_data());
+
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
                 Val a_min = 0;
@@ -287,21 +296,21 @@ struct ruge_stuben {
 
                 a_min *= eps_strong;
 
-                for(Ptr j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j)
-                    S.val[j] = (A.col[j] != i && A.val[j] < a_min);
+                for(Ptr j = Aptr[i], e = Aptr[i + 1]; j < e; ++j)
+                    S.val[j] = (Acol[j] != i && Aval[j] < a_min);
             }
 
             // Transposition of S:
             for(size_t i = 0; i < nnz; ++i)
-                if (S.val[i]) ++( S.ptr[ A.col[i] + 1] );
+                if (S.val[i]) ++( S.ptr[ Acol[i] + 1] );
 
             boost::partial_sum(S.ptr, S.ptr.begin());
 
             S.col.resize( S.ptr.back() );
 
             for(size_t i = 0; i < n; ++i)
-                for(Ptr j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j)
-                    if (S.val[j]) S.col[ S.ptr[ A.col[j] ]++ ] = i;
+                for(Ptr j = Aptr[i], e = Aptr[i + 1]; j < e; ++j)
+                    if (S.val[j]) S.col[ S.ptr[ Acol[j] ]++ ] = i;
 
             std::rotate(S.ptr.begin(), S.ptr.end() - 1, S.ptr.end());
             S.ptr.front() = 0;
@@ -316,6 +325,9 @@ struct ruge_stuben {
                 )
         {
             const size_t n = rows(A);
+
+            BOOST_AUTO(Aptr, A.ptr_data());
+            BOOST_AUTO(Acol, A.col_data());
 
             std::vector<Col> lambda(n);
 
@@ -378,10 +390,10 @@ struct ruge_stuben {
                     cf[c] = 'F';
 
                     // Increase lambdas of the newly created F's neighbours.
-                    for(Ptr aj = A.ptr[c], ae = A.ptr[c + 1]; aj < ae; ++aj) {
+                    for(Ptr aj = Aptr[c], ae = Aptr[c + 1]; aj < ae; ++aj) {
                         if (!S.val[aj]) continue;
 
-                        Col ac    = A.col[aj];
+                        Col ac    = Acol[aj];
                         Col lam_a = lambda[ac];
 
                         if (cf[ac] != 'U' || static_cast<size_t>(lam_a) + 1 >= n)
@@ -404,10 +416,10 @@ struct ruge_stuben {
                 }
 
                 // Decrease lambdas of the newly create C's neighbours.
-                for(Ptr j = A.ptr[i], e = A.ptr[i + 1]; j < e; j++) {
+                for(Ptr j = Aptr[i], e = Aptr[i + 1]; j < e; j++) {
                     if (!S.val[j]) continue;
 
-                    Col c   = A.col[j];
+                    Col c   = Acol[j];
                     Col lam = lambda[c];
 
                     if (cf[c] != 'U' || lam == 0) continue;

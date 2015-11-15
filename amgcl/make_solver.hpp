@@ -32,7 +32,7 @@ THE SOFTWARE.
  */
 
 #include <boost/type_traits.hpp>
-#include <amgcl/backend/interface.hpp>
+#include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
 
 namespace amgcl {
@@ -53,6 +53,7 @@ class make_solver {
 
         typedef typename Backend::value_type value_type;
         typedef typename Backend::params backend_params;
+        typedef typename backend::builtin<value_type>::matrix build_matrix;
 
         struct params {
             typename Precond::params         precond;
@@ -85,6 +86,17 @@ class make_solver {
             prm(prm), n(backend::rows(A)),
             P(A, prm.precond, bprm),
             S(backend::rows(A), prm.solver, bprm)
+        {}
+
+        /// Constructs the preconditioner and creates iterative solver.
+        make_solver(
+                boost::shared_ptr<build_matrix> A,
+                const params &prm = params(),
+                const backend_params &bprm = backend_params()
+                ) :
+            prm(prm), n(backend::rows(*A)),
+            P(A, prm.precond, bprm),
+            S(backend::rows(*A), prm.solver, bprm)
         {}
 
         /// Solves the linear system for the given system matrix.

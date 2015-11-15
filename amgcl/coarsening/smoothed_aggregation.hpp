@@ -31,6 +31,7 @@ THE SOFTWARE.
  * \brief  Smoothed aggregation coarsening scheme.
  */
 
+#include <boost/typeof/typeof.hpp>
 #include <boost/tuple/tuple.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
@@ -108,6 +109,10 @@ struct smoothed_aggregation {
 
         const size_t n = rows(A);
 
+        BOOST_AUTO(Aptr, A.ptr_data());
+        BOOST_AUTO(Acol, A.col_data());
+        BOOST_AUTO(Aval, A.val_data());
+
         TIC("aggregates");
         Aggregates aggr(A, prm.aggr, prm.nullspace.cols);
         prm.aggr.eps_strong *= 0.5;
@@ -142,8 +147,8 @@ struct smoothed_aggregation {
 
             // Count number of entries in P.
             for(ptrdiff_t i = chunk_start; i < chunk_end; ++i) {
-                for(ptrdiff_t ja = A.ptr[i], ea = A.ptr[i+1]; ja < ea; ++ja) {
-                    ptrdiff_t ca = A.col[ja];
+                for(ptrdiff_t ja = Aptr[i], ea = Aptr[i+1]; ja < ea; ++ja) {
+                    ptrdiff_t ca = Acol[ja];
 
                     // Skip weak off-diagonal connections.
                     if (ca != i && !aggr.strong_connection[ja])
@@ -176,23 +181,23 @@ struct smoothed_aggregation {
                 // Diagonal of the filtered matrix is the original matrix
                 // diagonal minus its weak connections.
                 Val dia = 0;
-                for(ptrdiff_t j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
-                    if (A.col[j] == i)
-                        dia += A.val[j];
+                for(ptrdiff_t j = Aptr[i], e = Aptr[i+1]; j < e; ++j) {
+                    if (Acol[j] == i)
+                        dia += Aval[j];
                     else if (!aggr.strong_connection[j])
-                        dia -= A.val[j];
+                        dia -= Aval[j];
                 }
                 dia = 1 / dia;
 
                 ptrdiff_t row_beg = P->ptr[i];
                 ptrdiff_t row_end = row_beg;
-                for(ptrdiff_t ja = A.ptr[i], ea = A.ptr[i + 1]; ja < ea; ++ja) {
-                    ptrdiff_t ca = A.col[ja];
+                for(ptrdiff_t ja = Aptr[i], ea = Aptr[i + 1]; ja < ea; ++ja) {
+                    ptrdiff_t ca = Acol[ja];
 
                     // Skip weak off-diagonal connections.
                     if (ca != i && !aggr.strong_connection[ja]) continue;
 
-                    Val va = (ca == i) ? 1 - prm.relax : -prm.relax * dia * A.val[ja];
+                    Val va = (ca == i) ? 1 - prm.relax : -prm.relax * dia * Aval[ja];
 
                     for(ptrdiff_t jp = P_tent->ptr[ca], ep = P_tent->ptr[ca+1]; jp < ep; ++jp) {
                         ptrdiff_t cp = P_tent->col[jp];

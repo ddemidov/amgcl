@@ -71,16 +71,20 @@ struct spai1 {
         typedef typename backend::value_type<Matrix>::type   value_type;
         typedef typename backend::row_iterator<Matrix>::type row_iterator;
 
-        const size_t n = rows(A);
-        const size_t m = cols(A);
+        const size_t n   = backend::rows(A);
+        const size_t m   = backend::cols(A);
+        const size_t nnz = backend::nonzeros(A);
+
+        BOOST_AUTO(Aptr, A.ptr_data());
+        BOOST_AUTO(Acol, A.col_data());
 
         boost::shared_ptr<Matrix> Ainv = boost::make_shared<Matrix>();
         Ainv->nrows = n;
         Ainv->ncols = m;
 
-        Ainv->ptr = A.ptr;
-        Ainv->col = A.col;
-        Ainv->val.assign(A.ptr.back(), 0);
+        Ainv->ptr.assign(Aptr, Aptr + n+1);
+        Ainv->col.assign(Acol, Acol + nnz);
+        Ainv->val.assign(nnz, 0);
 
 #pragma omp parallel
         {
@@ -102,17 +106,17 @@ struct spai1 {
             amgcl::detail::QR<value_type> qr;
 
             for(size_t i = chunk_start; i < chunk_end; ++i) {
-                ptrdiff_t row_beg = A.ptr[i];
-                ptrdiff_t row_end = A.ptr[i + 1];
+                ptrdiff_t row_beg = Aptr[i];
+                ptrdiff_t row_end = Aptr[i + 1];
 
-                I.assign(A.col.begin() + row_beg, A.col.begin() + row_end);
+                I.assign(Acol + row_beg, Acol + row_end);
 
                 J.clear();
                 for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                    ptrdiff_t c = A.col[j];
+                    ptrdiff_t c = Acol[j];
 
-                    for(ptrdiff_t jj = A.ptr[c], ee = A.ptr[c + 1]; jj < ee; ++jj) {
-                        ptrdiff_t cc = A.col[jj];
+                    for(ptrdiff_t jj = Aptr[c], ee = Aptr[c + 1]; jj < ee; ++jj) {
+                        ptrdiff_t cc = Acol[jj];
                         if (marker[cc] < 0) {
                             marker[cc] = 1;
                             J.push_back(cc);
@@ -128,7 +132,7 @@ struct spai1 {
                 }
 
                 for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                    ptrdiff_t c = A.col[j];
+                    ptrdiff_t c = Acol[j];
 
                     for(row_iterator a = row_begin(A, c); a; ++a)
                         B[marker[a.col()] * I.size() + j - row_beg] = a.value();

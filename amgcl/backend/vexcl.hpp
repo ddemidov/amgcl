@@ -90,9 +90,13 @@ struct vexcl {
     {
         precondition(!prm.q.empty(), "Empty VexCL context!");
 
-        return boost::make_shared<matrix>(prm.q, rows(*A), cols(*A),
-                &A->ptr[0], &A->col[0], &A->val[0]
-                );
+        const typename builtin<real>::matrix &a = *A;
+
+        BOOST_AUTO(Aptr, a.ptr_data());
+        BOOST_AUTO(Acol, a.col_data());
+        BOOST_AUTO(Aval, a.val_data());
+
+        return boost::make_shared<matrix>(prm.q, rows(*A), cols(*A), Aptr, Acol, Aval);
     }
 
     /// Copy vector from builtin backend.

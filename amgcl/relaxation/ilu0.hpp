@@ -31,6 +31,8 @@ THE SOFTWARE.
  * \brief  Incomplete LU with zero fill-in relaxation scheme.
  */
 
+#include <boost/typeof/typeof.hpp>
+
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
 #include <amgcl/relaxation/detail/ilu_solve.hpp>
@@ -81,15 +83,18 @@ struct ilu0 {
     {
         typedef typename backend::builtin<value_type>::matrix build_matrix;
         const size_t n = backend::rows(A);
+        BOOST_AUTO(Aptr, A.ptr_data());
+        BOOST_AUTO(Acol, A.col_data());
+        BOOST_AUTO(Aval, A.val_data());
 
         size_t Lnz = 0, Unz = 0;
 
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-            ptrdiff_t row_beg = A.ptr[i];
-            ptrdiff_t row_end = A.ptr[i + 1];
+            ptrdiff_t row_beg = Aptr[i];
+            ptrdiff_t row_end = Aptr[i + 1];
 
             for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                ptrdiff_t c = A.col[j];
+                ptrdiff_t c = Acol[j];
                 if (c < i)
                     ++Lnz;
                 else if (c > i)
@@ -116,12 +121,12 @@ struct ilu0 {
         std::vector<value_type*> work(n, NULL);
 
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-            ptrdiff_t row_beg = A.ptr[i];
-            ptrdiff_t row_end = A.ptr[i + 1];
+            ptrdiff_t row_beg = Aptr[i];
+            ptrdiff_t row_end = Aptr[i + 1];
 
             for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                ptrdiff_t  c = A.col[j];
-                value_type v = A.val[j];
+                ptrdiff_t  c = Acol[j];
+                value_type v = Aval[j];
 
                 if (c < i) {
                     L->col.push_back(c);
@@ -141,7 +146,7 @@ struct ilu0 {
             U->ptr.push_back(U->val.size());
 
             for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                ptrdiff_t c = A.col[j];
+                ptrdiff_t c = Acol[j];
 
                 // Exit if diagonal is reached
                 if (c >= i) {
@@ -165,7 +170,7 @@ struct ilu0 {
 
             // Refresh work
             for(ptrdiff_t j = row_beg; j < row_end; ++j)
-                work[A.col[j]] = NULL;
+                work[Acol[j]] = NULL;
         }
 
         this->D = Backend::copy_vector(D, bprm);

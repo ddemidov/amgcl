@@ -31,6 +31,7 @@ THE SOFTWARE.
  * \brief  Sparse matrix in CRS format.
  */
 
+#include <boost/typeof/typeof.hpp>
 #include <boost/type_traits.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
@@ -80,9 +81,19 @@ struct eigen {
     static boost::shared_ptr<matrix>
     copy_matrix(boost::shared_ptr< typename builtin<real>::matrix > A, const params&)
     {
+        const typename builtin<real>::matrix &a = *A;
+
+        BOOST_AUTO(Aptr, a.ptr_data());
+        BOOST_AUTO(Acol, a.col_data());
+        BOOST_AUTO(Aval, a.val_data());
+
         return boost::shared_ptr<matrix>(
-                new matrix(rows(*A), cols(*A), nonzeros(*A),
-                    &A->ptr[0], &A->col[0], &A->val[0]),
+                new matrix(
+                    rows(*A), cols(*A), nonzeros(*A),
+                    const_cast<index_type*>(Aptr),
+                    const_cast<index_type*>(Acol),
+                    const_cast<value_type*>(Aval)
+                    ),
                 hold_host(A)
                 );
     }

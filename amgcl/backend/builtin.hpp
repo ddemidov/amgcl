@@ -38,6 +38,7 @@ THE SOFTWARE.
 #  include <omp.h>
 #endif
 
+#include <boost/typeof/typeof.hpp>
 #include <boost/type_traits.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
@@ -115,6 +116,16 @@ struct crs {
         }
     }
 
+    virtual ~crs() {}
+
+    virtual const ptr_type* ptr_data() const { return &ptr[0]; }
+    virtual const col_type* col_data() const { return &col[0]; }
+    virtual const val_type* val_data() const { return &val[0]; }
+
+    virtual ptr_type* ptr_data() { return &ptr[0]; }
+    virtual col_type* col_data() { return &col[0]; }
+    virtual val_type* val_data() { return &val[0]; }
+
     class row_iterator {
         public:
             row_iterator(
@@ -149,9 +160,9 @@ struct crs {
     };
 
     row_iterator row_begin(size_t row) const {
-        ptr_type p = ptr[row];
-        ptr_type e = ptr[row + 1];
-        return row_iterator(&col[0] + p, &col[0] + e, &val[0] + p);
+        ptr_type p = ptr_data()[row];
+        ptr_type e = ptr_data()[row + 1];
+        return row_iterator(col_data() + p, col_data() + e, val_data() + p);
     }
 
 };
@@ -173,17 +184,21 @@ crs<V, C, P> transpose(const crs<V, C, P> &A)
 
     boost::fill(T.ptr, P());
 
+    const P* Aptr = A.ptr_data();
+    const C* Acol = A.col_data();
+    const V* Aval = A.val_data();
+
     for(size_t j = 0; j < nnz; ++j)
-        ++( T.ptr[A.col[j] + 1] );
+        ++( T.ptr[Acol[j] + 1] );
 
     boost::partial_sum(T.ptr, T.ptr.begin());
 
     for(size_t i = 0; i < n; i++) {
-        for(P j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
-            P head = T.ptr[A.col[j]]++;
+        for(P j = Aptr[i], e = Aptr[i + 1]; j < e; ++j) {
+            P head = T.ptr[Acol[j]]++;
 
             T.col[head] = static_cast<C>(i);
-            T.val[head] = A.val[j];
+            T.val[head] = Aval[j];
         }
     }
 
@@ -309,12 +324,15 @@ std::vector<V> diagonal(const crs<V, C, P> &A, bool invert = false)
 template < typename V, typename C, typename P >
 void sort_rows(crs<V, C, P> &A) {
     const size_t n = rows(A);
+    BOOST_AUTO(Aptr, A.ptr_data());
+    BOOST_AUTO(Acol, A.col_data());
+    BOOST_AUTO(Aval, A.val_data());
 
 #pragma omp parallel for
     for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-        P beg = A.ptr[i];
-        P end = A.ptr[i + 1];
-        amgcl::detail::sort_row(&A.col[0] + beg, &A.val[0] + beg, end - beg);
+        P beg = Aptr[i];
+        P end = Aptr[i + 1];
+        amgcl::detail::sort_row(Acol + beg, Aval + beg, end - beg);
     }
 }
 
@@ -472,7 +490,7 @@ template < typename V, typename C, typename P >
 struct ptr_data_impl< crs<V, C, P> > {
     typedef const P* type;
     static type get(const crs<V, C, P> &A) {
-        return &A.ptr[0];
+        return A.ptr_data();
     }
 };
 
@@ -480,7 +498,7 @@ template < typename V, typename C, typename P >
 struct col_data_impl< crs<V, C, P> > {
     typedef const C* type;
     static type get(const crs<V, C, P> &A) {
-        return &A.col[0];
+        return A.col_data();
     }
 };
 
@@ -488,14 +506,14 @@ template < typename V, typename C, typename P >
 struct val_data_impl< crs<V, C, P> > {
     typedef const V* type;
     static type get(const crs<V, C, P> &A) {
-        return &A.val[0];
+        return A.val_data();
     }
 };
 
 template < typename V, typename C, typename P >
 struct nonzeros_impl< crs<V, C, P> > {
     static size_t get(const crs<V, C, P> &A) {
-        return A.ptr.empty() ? 0 : A.ptr.back();
+        return A.nrows == 0 ? 0 : A.ptr_data()[A.nrows];
     }
 };
 
@@ -518,7 +536,8 @@ struct row_begin_impl< crs<V, C, P> > {
 template < typename V, typename C, typename P >
 struct row_nonzeros_impl< crs<V, C, P> > {
     static size_t get(const crs<V, C, P> &A, size_t row) {
-        return A.ptr[row + 1] - A.ptr[row];
+        const P *Aptr = A.ptr_data();
+        return Aptr[row + 1] - Aptr[row];
     }
 };
 
