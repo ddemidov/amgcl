@@ -7,6 +7,7 @@
 
 #include <amgcl/backend/viennacl.hpp>
 #include <amgcl/runtime.hpp>
+#include <amgcl/make_solver.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/profiler.hpp>
 
@@ -100,10 +101,13 @@ int main(int argc, char *argv[]) {
     prof.toc("assemble");
 
     typedef
-        amgcl::runtime::make_solver<
-            amgcl::backend::viennacl<
-                viennacl::compressed_matrix<double>
-                >
+        amgcl::backend::viennacl< viennacl::compressed_matrix<double> >
+        Backend;
+
+    typedef
+        amgcl::make_solver<
+            amgcl::runtime::amg<Backend>,
+            amgcl::runtime::iterative_solver<Backend>
             >
         Solver;
 
