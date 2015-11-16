@@ -32,7 +32,7 @@ THE SOFTWARE.
  */
 
 #include <boost/typeof/typeof.hpp>
-#include <thrust/device_vector.hpp>
+#include <thrust/device_vector.h>
 #include <cusparse_v2.h>
 
 #include <amgcl/backend/cuda.hpp>
@@ -68,7 +68,7 @@ struct ilu0< backend::cuda<real> > {
         : handle(bprm.cusparse_handle),
           n(backend::rows(A)), nnz(backend::nonzeros(A)),
           ptr(A.ptr_data(), A.ptr_data() + n+1),
-          col(A.col_data(), A.cal_data() + nnz),
+          col(A.col_data(), A.col_data() + nnz),
           val(A.val_data(), A.val_data() + nnz),
           y(n)
     {
