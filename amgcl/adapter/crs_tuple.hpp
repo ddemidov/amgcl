@@ -107,6 +107,7 @@ struct cols_impl< boost::tuple<N, PRng, CRng, VRng> >
     }
 };
 
+/*
 template < typename N, typename PRng, typename CRng, typename VRng >
 struct ptr_data_impl< boost::tuple<N, PRng, CRng, VRng> > {
     typedef const typename boost::range_value<
@@ -136,6 +137,7 @@ struct val_data_impl< boost::tuple<N, PRng, CRng, VRng> > {
         return &boost::get<3>(A)[0];
     }
 };
+*/
 
 template < typename N, typename PRng, typename CRng, typename VRng >
 struct nonzeros_impl< boost::tuple<N, PRng, CRng, VRng> >
@@ -164,8 +166,10 @@ struct row_iterator< boost::tuple<N, PRng, CRng, VRng> >
                          >::type
                 val_type;
 
-            type(const boost::tuple<N, PRng, CRng, VRng> &A,
-                 size_t row)
+            type(const boost::tuple<N, PRng, CRng, VRng> &A, size_t row)
+                : m_col(boost::begin(boost::get<2>(A)))
+                , m_end(boost::begin(boost::get<2>(A)))
+                , m_val(boost::begin(boost::get<3>(A)))
             {
                 typedef
                     typename boost::range_value<
@@ -176,9 +180,9 @@ struct row_iterator< boost::tuple<N, PRng, CRng, VRng> >
                 ptr_type row_begin = boost::get<1>(A)[row];
                 ptr_type row_end   = boost::get<1>(A)[row + 1];
 
-                m_col = boost::begin( boost::get<2>(A) ) + row_begin;
-                m_end = boost::begin( boost::get<2>(A) ) + row_end;
-                m_val = boost::begin( boost::get<3>(A) ) + row_begin;
+                m_col += row_begin;
+                m_end += row_end;
+                m_val += row_begin;
             }
 
             operator bool() const {
