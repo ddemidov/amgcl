@@ -70,6 +70,9 @@ amgclHandle STDCALL amgcl_precond_create(
 // Apply AMG preconditioner (x = M^(-1) * rhs).
 void STDCALL amgcl_precond_apply(amgclHandle amg, const double *rhs, double *x);
 
+// Printout preconditioner structure
+void STDCALL amgcl_precond_report(amgclHandle amg);
+
 // Destroy AMG preconditioner
 void STDCALL amgcl_precond_destroy(amgclHandle amg);
 
@@ -104,6 +107,9 @@ conv_info STDCALL amgcl_solver_solve_mtx(
         double const * rhs,
         double       * x
         );
+
+// Printout solver structure
+void STDCALL amgcl_solver_report(amgclHandle solver);
 
 // Destroy iterative solver.
 void STDCALL amgcl_solver_destroy(amgclHandle solver);

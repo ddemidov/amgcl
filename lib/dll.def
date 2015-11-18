@@ -7,8 +7,10 @@ EXPORTS
     amgcl_params_destroy
     amgcl_precond_create
     amgcl_precond_apply
+    amgcl_precond_report
     amgcl_precond_destroy
     amgcl_solver_create
     amgcl_solver_solve
     amgcl_solver_solve_mtx
     amgcl_solver_destroy
+    amgcl_solver_report

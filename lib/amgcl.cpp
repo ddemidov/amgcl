@@ -21,7 +21,7 @@ namespace amgcl {
 typedef amgcl::backend::builtin<double>           Backend;
 typedef amgcl::runtime::amg<Backend>              AMG;
 typedef amgcl::runtime::iterative_solver<Backend> ISolver;
-typedef amgcl::make_solver<AMG, ISolver>      Solver;
+typedef amgcl::make_solver<AMG, ISolver>          Solver;
 typedef boost::property_tree::ptree               Params;
 
 //---------------------------------------------------------------------------
@@ -98,6 +98,11 @@ void STDCALL amgcl_precond_apply(amgclHandle handle, const double *rhs, double *
 }
 
 //---------------------------------------------------------------------------
+void STDCALL amgcl_precond_report(amgclHandle handle) {
+    std::cout << *static_cast<AMG*>(handle) << std::endl;
+}
+
+//---------------------------------------------------------------------------
 void STDCALL amgcl_precond_destroy(amgclHandle handle) {
     delete static_cast<AMG*>(handle);
 }
@@ -135,6 +140,11 @@ amgclHandle STDCALL amgcl_solver_create(
                     )
                 );
     }
+}
+
+//---------------------------------------------------------------------------
+void STDCALL amgcl_solver_report(amgclHandle handle) {
+    std::cout << static_cast<Solver*>(handle)->precond() << std::endl;
 }
 
 //---------------------------------------------------------------------------
