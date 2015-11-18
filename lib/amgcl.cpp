@@ -58,17 +58,30 @@ amgclHandle STDCALL amgcl_precond_create(
         amgclHandle   prm
         )
 {
-    return static_cast<amgclHandle>(
-            new AMG(
-                boost::make_tuple(
-                    n,
-                    boost::make_iterator_range(ptr, ptr + n + 1),
-                    boost::make_iterator_range(col, col + ptr[n]),
-                    boost::make_iterator_range(val, val + ptr[n])
-                    ),
-                *static_cast<Params*>(prm)
-                )
-            );
+    if (prm) {
+        return static_cast<amgclHandle>(
+                new AMG(
+                    boost::make_tuple(
+                        n,
+                        boost::make_iterator_range(ptr, ptr + n + 1),
+                        boost::make_iterator_range(col, col + ptr[n]),
+                        boost::make_iterator_range(val, val + ptr[n])
+                        ),
+                    *static_cast<Params*>(prm)
+                    )
+                );
+    } else {
+        return static_cast<amgclHandle>(
+                new AMG(
+                    boost::make_tuple(
+                        n,
+                        boost::make_iterator_range(ptr, ptr + n + 1),
+                        boost::make_iterator_range(col, col + ptr[n]),
+                        boost::make_iterator_range(val, val + ptr[n])
+                        )
+                    )
+                );
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -98,17 +111,30 @@ amgclHandle STDCALL amgcl_solver_create(
         amgclHandle   prm
         )
 {
-    return static_cast<amgclHandle>(
-            new Solver(
-                boost::make_tuple(
-                    n,
-                    boost::make_iterator_range(ptr, ptr + n + 1),
-                    boost::make_iterator_range(col, col + ptr[n]),
-                    boost::make_iterator_range(val, val + ptr[n])
-                    ),
-                *static_cast<Params*>(prm)
-                )
-            );
+    if (prm) {
+        return static_cast<amgclHandle>(
+                new Solver(
+                    boost::make_tuple(
+                        n,
+                        boost::make_iterator_range(ptr, ptr + n + 1),
+                        boost::make_iterator_range(col, col + ptr[n]),
+                        boost::make_iterator_range(val, val + ptr[n])
+                        ),
+                    *static_cast<Params*>(prm)
+                    )
+                );
+    } else {
+        return static_cast<amgclHandle>(
+                new Solver(
+                    boost::make_tuple(
+                        n,
+                        boost::make_iterator_range(ptr, ptr + n + 1),
+                        boost::make_iterator_range(col, col + ptr[n]),
+                        boost::make_iterator_range(val, val + ptr[n])
+                        )
+                    )
+                );
+    }
 }
 
 //---------------------------------------------------------------------------
