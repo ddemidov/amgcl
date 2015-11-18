@@ -67,6 +67,16 @@ amgclHandle STDCALL amgcl_precond_create(
         amgclHandle   parameters
         );
 
+// Create AMG preconditioner.
+// ptr and col arrays are 1-based (as in Fortran).
+amgclHandle STDCALL amgcl_precond_create_f(
+        int           n,
+        const int    *ptr,
+        const int    *col,
+        const double *val,
+        amgclHandle   parameters
+        );
+
 // Apply AMG preconditioner (x = M^(-1) * rhs).
 void STDCALL amgcl_precond_apply(amgclHandle amg, const double *rhs, double *x);
 
@@ -78,6 +88,16 @@ void STDCALL amgcl_precond_destroy(amgclHandle amg);
 
 // Create iterative solver preconditioned by AMG.
 amgclHandle STDCALL amgcl_solver_create(
+        int           n,
+        const int    *ptr,
+        const int    *col,
+        const double *val,
+        amgclHandle   parameters
+        );
+
+// Create iterative solver preconditioned by AMG.
+// ptr and col arrays are 1-based (as in Fortran).
+amgclHandle STDCALL amgcl_solver_create_f(
         int           n,
         const int    *ptr,
         const int    *col,

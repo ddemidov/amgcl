@@ -187,8 +187,17 @@ add_subdirectory(tests)
 #----------------------------------------------------------------------------
 set(BUILD_SHARED_LIBS ON)
 add_subdirectory(lib)
-add_subdirectory(pyamgcl)
 add_subdirectory(examples)
 add_subdirectory(doc)
+add_subdirectory(pyamgcl)
 
+#----------------------------------------------------------------------------
+# Build Fortran example
+#----------------------------------------------------------------------------
+option(HAVE_FORTRAN "Build Fortran example" OFF)
+if (HAVE_FORTRAN)
+    add_subdirectory(fortran)
+endif()
+
+#----------------------------------------------------------------------------
 install(DIRECTORY amgcl DESTINATION include)
