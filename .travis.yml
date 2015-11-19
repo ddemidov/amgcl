@@ -14,7 +14,7 @@ addons:
     notification_email: dennis.demidov@gmail.com
     build_command_prepend: mkdir build-coverity && cd build-coverity && cmake -DCMAKE_BUILD_TYPE=Release ..
     build_command: make
-    branch_pattern: master
+    branch_pattern: coverity-scan
 
 before_install:
 - sudo add-apt-repository ppa:boost-latest/ppa -y
