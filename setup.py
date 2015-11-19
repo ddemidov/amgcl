@@ -142,7 +142,7 @@ setup(
         zip_safe=False,
         packages=['pyamgcl'],
         ext_modules=[
-            Extension('pyamgcl_ext', ['pyamgcl/pyamgcl.cpp'],
+            Extension('pyamgcl.pyamgcl_ext', ['pyamgcl/pyamgcl.cpp'],
                 include_dirs=['.', numpy.get_include()],
                 libraries=[boost_python_lib()],
                 extra_compile_args=['-O3']
