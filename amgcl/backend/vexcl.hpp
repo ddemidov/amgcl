@@ -69,16 +69,24 @@ struct vexcl {
         /// Command queues that identify compute devices to use with VexCL.
         std::vector< vex::backend::command_queue > q;
 
-        params() : q(vex::current_context().queue()) {}
+        params() {}
 
         params(const boost::property_tree::ptree &p) {
             std::vector<vex::backend::command_queue> *ptr = 0;
             ptr = p.get("q", ptr);
-            q = ptr ? *ptr : vex::current_context().queue();
+            if (ptr) q = *ptr;
         }
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {
             p.put(path + "q", &q);
+        }
+
+        const std::vector<vex::backend::command_queue>& context() const {
+            if (q.empty())
+                return vex::current_context().queue();
+            else
+                return q;
+
         }
     };
 
@@ -88,7 +96,7 @@ struct vexcl {
     static boost::shared_ptr<matrix>
     copy_matrix(boost::shared_ptr< typename builtin<real>::matrix > A, const params &prm)
     {
-        precondition(!prm.q.empty(), "Empty VexCL context!");
+        precondition(!prm.context().empty(), "Empty VexCL context!");
 
         const typename builtin<real>::matrix &a = *A;
 
@@ -96,16 +104,16 @@ struct vexcl {
         BOOST_AUTO(Acol, a.col_data());
         BOOST_AUTO(Aval, a.val_data());
 
-        return boost::make_shared<matrix>(prm.q, rows(*A), cols(*A), Aptr, Acol, Aval);
+        return boost::make_shared<matrix>(prm.context(), rows(*A), cols(*A), Aptr, Acol, Aval);
     }
 
     /// Copy vector from builtin backend.
     static boost::shared_ptr<vector>
     copy_vector(typename builtin<real>::vector const &x, const params &prm)
     {
-        precondition(!prm.q.empty(), "Empty VexCL context!");
+        precondition(!prm.context().empty(), "Empty VexCL context!");
 
-        return boost::make_shared<vector>(prm.q, x);
+        return boost::make_shared<vector>(prm.context(), x);
     }
 
     /// Copy vector from builtin backend.
@@ -119,9 +127,9 @@ struct vexcl {
     static boost::shared_ptr<vector>
     create_vector(size_t size, const params &prm)
     {
-        precondition(!prm.q.empty(), "Empty VexCL context!");
+        precondition(!prm.context().empty(), "Empty VexCL context!");
 
-        return boost::make_shared<vector>(prm.q, size);
+        return boost::make_shared<vector>(prm.context(), size);
     }
 
     struct gather {
@@ -129,7 +137,7 @@ struct vexcl {
         mutable std::vector<value_type> tmp;
 
         gather(size_t src_size, const std::vector<ptrdiff_t> &I, const params &prm)
-            : G(prm.q, src_size, std::vector<size_t>(I.begin(), I.end())) { }
+            : G(prm.context(), src_size, std::vector<size_t>(I.begin(), I.end())) { }
 
         void operator()(const vector &src, vector &dst) const {
             G(src, tmp);
@@ -146,7 +154,7 @@ struct vexcl {
         mutable std::vector<value_type> tmp;
 
         scatter(size_t size, const std::vector<ptrdiff_t> &I, const params &prm)
-            : S(prm.q, size, std::vector<size_t>(I.begin(), I.end()))
+            : S(prm.context(), size, std::vector<size_t>(I.begin(), I.end()))
             , tmp(I.size())
         { }
 

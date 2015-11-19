@@ -126,7 +126,7 @@ int main(int argc, char *argv[]) {
 
     boost::property_tree::ptree prm;
     if (vm.count("params")) read_json(parameter_file, prm);
- 
+
     prm.put("precond.coarsening.type", coarsening);
     prm.put("precond.relaxation.type", relaxation);
     prm.put("solver.type",         iterative_solver);
