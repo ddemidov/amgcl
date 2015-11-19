@@ -62,9 +62,8 @@ program poisson
     ! Create solver parameters.
     ! Strings need to be null-terminated.
     params = amgcl_params_create()
-    call amgcl_params_sets(params, "precond.coarsening.type"//C_NULL_CHAR, "smoothed_aggregation"//C_NULL_CHAR)
-    call amgcl_params_sets(params, "solver.type"//C_NULL_CHAR, "cg"//C_NULL_CHAR)
-    call amgcl_params_setf(params, "solver.tol"//C_NULL_CHAR, 1e-3)
+    call amgcl_params_sets(params, "solver.type", "cg")
+    call amgcl_params_setf(params, "solver.tol", 1e-6)
 
     ! Create solver, printout its structure.
     solver = amgcl_solver_create(n2, ptr, col, val, params)

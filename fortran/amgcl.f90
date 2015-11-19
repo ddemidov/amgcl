@@ -1,5 +1,9 @@
 module amgcl
     use iso_c_binding
+    private
+    public c_size_t, c_int, c_double, c_char, conv_info, &
+        amgcl_params_create, amgcl_params_seti, amgcl_params_setf, amgcl_params_sets, amgcl_params_destroy, &
+        amgcl_solver_create, amgcl_solver_solve, amgcl_solver_report, amgcl_solver_destroy
 
     type, bind(C) :: conv_info
         integer (c_int)    :: iterations
@@ -12,21 +16,22 @@ module amgcl
             use iso_c_binding
         end function
 
-        subroutine amgcl_params_seti(prm, name, val) bind (C, name="amgcl_params_seti")
+        subroutine amgcl_params_seti_c(prm, name, val) bind (C, name="amgcl_params_seti")
             use iso_c_binding
+
             integer   (c_size_t), intent(in), value :: prm
             character (c_char),   intent(in)        :: name(*)
             integer   (c_int),    intent(in), value :: val
         end subroutine
 
-        subroutine amgcl_params_setf(prm, name, val) bind (C, name="amgcl_params_setf")
+        subroutine amgcl_params_setf_c(prm, name, val) bind (C, name="amgcl_params_setf")
             use iso_c_binding
             integer   (c_size_t), intent(in), value :: prm
             character (c_char),   intent(in)        :: name(*)
             real      (c_float),  intent(in), value :: val
         end subroutine
 
-        subroutine amgcl_params_sets(prm, name, val) bind (C, name="amgcl_params_sets")
+        subroutine amgcl_params_sets_c(prm, name, val) bind (C, name="amgcl_params_sets")
             use iso_c_binding
             integer   (c_size_t), intent(in), value :: prm
             character (c_char),   intent(in)        :: name(*)
@@ -71,4 +76,34 @@ module amgcl
             integer (c_size_t), intent(in), value :: solver
         end subroutine
     end interface
+
+    contains
+
+    subroutine amgcl_params_seti(prm, name, val)
+        use iso_c_binding
+        integer   (c_size_t), intent(in), value :: prm
+        character (len=*),    intent(in)        :: name
+        integer   (c_int),    intent(in), value :: val
+
+        call amgcl_params_seti_c(prm, name // c_null_char, val)
+    end subroutine
+
+    subroutine amgcl_params_setf(prm, name, val)
+        use iso_c_binding
+        integer   (c_size_t), intent(in), value :: prm
+        character (len=*),    intent(in)        :: name
+        real      (c_float),  intent(in), value :: val
+
+        call amgcl_params_setf_c(prm, name // c_null_char, val)
+    end subroutine
+
+    subroutine amgcl_params_sets(prm, name, val)
+        use iso_c_binding
+        integer   (c_size_t), intent(in), value :: prm
+        character (len=*),    intent(in)        :: name
+        character (len=*),    intent(in)        :: val
+
+        call amgcl_params_sets_c(prm, name // c_null_char, val // c_null_char)
+    end subroutine
+
 end module
