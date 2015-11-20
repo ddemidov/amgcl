@@ -60,7 +60,6 @@ program poisson
     x = 0
 
     ! Create solver parameters.
-    ! Strings need to be null-terminated.
     params = amgcl_params_create()
     call amgcl_params_sets(params, "solver.type", "cg")
     call amgcl_params_setf(params, "solver.tol", 1e-6)
