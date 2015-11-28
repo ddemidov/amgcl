@@ -14,6 +14,7 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
+#include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/mpi/runtime.hpp>
 #include <amgcl/profiler.hpp>
 
@@ -86,7 +87,8 @@ int main(int argc, char *argv[]) {
     amgcl::runtime::solver::type        iterative_solver = amgcl::runtime::solver::bicgstabl;
     amgcl::runtime::direct_solver::type direct_solver    = amgcl::runtime::direct_solver::skyline_lu;
 
-    bool        symm_dirichlet = true;
+    bool just_relax = false;
+    bool symm_dirichlet = true;
     std::string parameter_file;
 
     namespace po = boost::program_options;
@@ -137,6 +139,11 @@ int main(int argc, char *argv[]) {
          po::value<std::string>(&parameter_file),
          "parameter file in json format"
         )
+        (
+         "just-relax,0",
+         po::bool_switch(&just_relax),
+         "Do not create AMG hierarchy, use relaxation as preconditioner"
+        )
         ;
 
     po::variables_map vm;
@@ -151,8 +158,6 @@ int main(int argc, char *argv[]) {
     boost::property_tree::ptree prm;
     if (vm.count("params")) read_json(parameter_file, prm);
 
-    prm.put("precond.coarsening.type", coarsening);
-    prm.put("precond.relaxation.type", relaxation);
     prm.put("solver.type",         iterative_solver);
     prm.put("direct_solver.type",  direct_solver);
 
@@ -258,23 +263,44 @@ int main(int argc, char *argv[]) {
     }
     prof.toc("assemble");
 
-    prof.tic("setup");
-    typedef
-        amgcl::runtime::mpi::subdomain_deflation<
-            amgcl::runtime::amg< amgcl::backend::builtin<double> >
-            >
-        SDD;
-
-    SDD solve(world, boost::tie(chunk, ptr, col, val), def, prm);
-    double tm_setup = prof.toc("setup");
-
     std::vector<double> x(chunk, 0);
-
-    prof.tic("solve");
     size_t iters;
-    double resid;
-    boost::tie(iters, resid) = solve(rhs, x);
-    double tm_solve = prof.toc("solve");
+    double resid, tm_setup, tm_solve;
+
+    if (just_relax) {
+        prm.put("precond.type", relaxation);
+
+        prof.tic("setup");
+        typedef
+            amgcl::runtime::mpi::subdomain_deflation<
+                amgcl::runtime::relaxation::as_preconditioner< amgcl::backend::builtin<double> >
+                >
+            SDD;
+
+        SDD solve(world, boost::tie(chunk, ptr, col, val), def, prm);
+        tm_setup = prof.toc("setup");
+
+        prof.tic("solve");
+        boost::tie(iters, resid) = solve(rhs, x);
+        tm_solve = prof.toc("solve");
+    } else {
+        prm.put("precond.coarsening.type", coarsening);
+        prm.put("precond.relaxation.type", relaxation);
+
+        prof.tic("setup");
+        typedef
+            amgcl::runtime::mpi::subdomain_deflation<
+                amgcl::runtime::amg< amgcl::backend::builtin<double> >
+                >
+            SDD;
+
+        SDD solve(world, boost::tie(chunk, ptr, col, val), def, prm);
+        tm_setup = prof.toc("setup");
+
+        prof.tic("solve");
+        boost::tie(iters, resid) = solve(rhs, x);
+        tm_solve = prof.toc("solve");
+    }
 
     if (world.rank == 0) {
         std::cout
