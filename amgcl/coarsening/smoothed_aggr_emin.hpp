@@ -372,8 +372,9 @@ struct smoothed_aggr_emin {
                         else if (cb < ca)
                             ++jb;
                         else /*ca == cb*/ {
+                            Val v = AP->val[ja] * adap_val[jb];
 #pragma omp atomic
-                            omega[ca] += AP->val[ja] * adap_val[jb];
+                            omega[ca] += v;
                             ++ja;
                             ++jb;
                         }
