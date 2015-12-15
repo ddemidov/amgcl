@@ -55,6 +55,8 @@ class make_solver {
         typedef typename Backend::params backend_params;
         typedef typename backend::builtin<value_type>::matrix build_matrix;
 
+        typedef typename backend::scalar_of<value_type>::type scalar_type;
+
         struct params {
             typename Precond::params         precond;
             typename IterativeSolver::params solver;
@@ -113,7 +115,7 @@ class make_solver {
          * \cite Demidov2012.
          */
         template <class Matrix, class Vec1, class Vec2>
-        boost::tuple<size_t, value_type> operator()(
+        boost::tuple<size_t, scalar_type> operator()(
                 Matrix  const &A,
                 Vec1    const &rhs,
 #ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
@@ -132,7 +134,7 @@ class make_solver {
          * \param x   Solution vector.
          */
         template <class Vec1, class Vec2>
-        boost::tuple<size_t, value_type> operator()(
+        boost::tuple<size_t, scalar_type> operator()(
                 Vec1    const &rhs,
 #ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
                 Vec2          &x

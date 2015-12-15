@@ -3,29 +3,16 @@
 
 #include <complex>
 #include <boost/type_traits.hpp>
-
-template <typename real>
-struct make_one {
-    static real get() {
-        return static_cast<real>(1);
-    }
-};
-
-template <typename real>
-struct make_one< std::complex<real> > {
-    static std::complex<real> get() {
-        return std::complex<real>(make_one<real>::get(), make_one<real>::get());
-    }
-};
+#include <amgcl/util.hpp>
 
 // Generates matrix for poisson problem in a unit cube.
-template <typename real, typename index>
+template <typename ValueType, typename IndexType>
 int sample_problem(
-        ptrdiff_t           n,
-        std::vector<real>  &val,
-        std::vector<index> &col,
-        std::vector<index> &ptr,
-        std::vector<real>  &rhs
+        ptrdiff_t               n,
+        std::vector<ValueType>  &val,
+        std::vector<IndexType>  &col,
+        std::vector<IndexType>  &ptr,
+        std::vector<ValueType>  &rhs
         )
 {
     ptrdiff_t n3  = n * n * n;
@@ -40,7 +27,7 @@ int sample_problem(
     val.reserve(n3 * 7);
     rhs.reserve(n3);
 
-    real one = make_one<real>::get();
+    ValueType one = amgcl::math::make_one<ValueType>();
 
     ptr.push_back(0);
     for(ptrdiff_t k = 0, idx = 0; k < n; ++k) {
@@ -62,7 +49,7 @@ int sample_problem(
                 }
 
                 col.push_back(idx);
-                val.push_back(1.0);
+                val.push_back(one);
 
                 if (i + 1 < n) {
                     col.push_back(idx + 1);
@@ -80,7 +67,7 @@ int sample_problem(
                 }
 
                 rhs.push_back( one );
-                ptr.push_back( static_cast<index>(col.size()) );
+                ptr.push_back( static_cast<IndexType>(col.size()) );
             }
         }
     }

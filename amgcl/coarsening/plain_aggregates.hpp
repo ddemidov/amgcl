@@ -112,8 +112,10 @@ struct plain_aggregates {
           strong_connection( backend::nonzeros(A) ),
           id( backend::rows(A) )
     {
-        typedef typename backend::value_type<Matrix>::type V;
-        V eps_squared = prm.eps_strong * prm.eps_strong;
+        typedef typename backend::value_type<Matrix>::type value_type;
+        typedef typename backend::scalar_of<value_type>::type scalar_type;
+
+        scalar_type eps_squared = prm.eps_strong * prm.eps_strong;
 
         const size_t n = rows(A);
 
@@ -122,14 +124,14 @@ struct plain_aggregates {
         BOOST_AUTO(Aval, A.val_data());
 
         /* 1. Get strong connections */
-        std::vector<V> dia = diagonal(A);
+        std::vector<value_type> dia = diagonal(A);
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-            V eps_dia_i = eps_squared * dia[i];
+        	value_type eps_dia_i = eps_squared * dia[i];
 
             for(ptrdiff_t j = Aptr[i], e = Aptr[i+1]; j < e; ++j) {
                 ptrdiff_t c = Acol[j];
-                V    v = Aval[j];
+                value_type v = Aval[j];
 
                 strong_connection[j] = (c != i) && (v * v > eps_dia_i * dia[c]);
             }

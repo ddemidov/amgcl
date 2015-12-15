@@ -105,7 +105,7 @@ struct smoothed_aggregation {
     static boost::tuple< boost::shared_ptr<Matrix>, boost::shared_ptr<Matrix> >
     transfer_operators(const Matrix &A, params &prm)
     {
-        typedef typename backend::value_type<Matrix>::type Val;
+        typedef typename backend::value_type<Matrix>::type value_type;
 
         const size_t n = rows(A);
 
@@ -180,14 +180,14 @@ struct smoothed_aggregation {
 
                 // Diagonal of the filtered matrix is the original matrix
                 // diagonal minus its weak connections.
-                Val dia = 0;
+                value_type dia = 0;
                 for(ptrdiff_t j = Aptr[i], e = Aptr[i+1]; j < e; ++j) {
                     if (Acol[j] == i)
                         dia += Aval[j];
                     else if (!aggr.strong_connection[j])
                         dia -= Aval[j];
                 }
-                dia = 1 / dia;
+                dia = math::inverse(dia);
 
                 ptrdiff_t row_beg = P->ptr[i];
                 ptrdiff_t row_end = row_beg;
@@ -197,11 +197,13 @@ struct smoothed_aggregation {
                     // Skip weak off-diagonal connections.
                     if (ca != i && !aggr.strong_connection[ja]) continue;
 
-                    Val va = (ca == i) ? 1 - prm.relax : -prm.relax * dia * Aval[ja];
+                    value_type va = (ca == i)
+                    		? math::make_one<value_type>() - static_cast<value_type>(prm.relax)
+                    				: -static_cast<value_type>(prm.relax) * dia * Aval[ja];
 
                     for(ptrdiff_t jp = P_tent->ptr[ca], ep = P_tent->ptr[ca+1]; jp < ep; ++jp) {
                         ptrdiff_t cp = P_tent->col[jp];
-                        Val       vp = P_tent->val[jp];
+                        value_type vp = P_tent->val[jp];
 
                         if (marker[cp] < row_beg) {
                             marker[cp] = row_end;

@@ -311,7 +311,7 @@ std::vector<V> diagonal(const crs<V, C, P> &A, bool invert = false)
     for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
         for(row_iterator a = A.row_begin(i); a; ++a) {
             if (a.col() == i) {
-                dia[i] = invert ? 1 / a.value() : a.value();
+                dia[i] = invert ? math::inverse(a.value()) : a.value();
                 break;
             }
         }
@@ -372,10 +372,10 @@ crs<V, C, P> inverse(const crs<V, C, P> &A) {
  * \param real Value type.
  * \ingroup backends
  */
-template <typename real>
+template <typename ValueType>
 struct builtin {
-    typedef real      value_type;
-    typedef ptrdiff_t index_type;
+    typedef ValueType      value_type;
+    typedef ptrdiff_t      index_type;
 
     struct provides_row_iterator : boost::true_type {};
 
@@ -575,7 +575,7 @@ struct inner_product_impl<
         const size_t n = x.size();
         V sum = 0;
 
-#pragma omp parallel reduction(+:sum)
+#pragma omp parallel
         {
 #ifdef _OPENMP
             int nt  = omp_get_num_threads();
@@ -592,12 +592,12 @@ struct inner_product_impl<
             V s = 0;
             V c = 0;
             for(size_t i = chunk_start; i < chunk_end; ++i) {
-                V d = x[i] * y[i] - c;
+                V d = x[i] * math::conj_transp(y[i]) - c;
                 V t = s + d;
                 c = (t - s) - d;
                 s = t;
             }
-
+#pragma omp critical
             sum += s;
         }
         return sum;
@@ -620,7 +620,7 @@ struct axpby_impl<
     static void apply(V a, const Vec1 &x, V b, Vec2 &y)
     {
         const size_t n = x.size();
-        if (b) {
+        if (!math::is_zero(b)) {
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
                 y[i] = a * x[i] + b * y[i];
@@ -651,7 +651,7 @@ struct axpbypcz_impl<
     static void apply(V a, const Vec1 &x, V b, const Vec2 &y, V c, Vec3 &z)
     {
         const size_t n = x.size();
-        if (c) {
+        if (!math::is_zero(c)) {
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
                 z[i] = a * x[i] + b * y[i] + c * z[i];
@@ -682,7 +682,7 @@ struct vmul_impl<
     static void apply(V a, const Vec1 &x, const Vec2 &y, V b, Vec3 &z)
     {
         const size_t n = x.size();
-        if (b) {
+        if (!math::is_zero(b)) {
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
                 z[i] = a * x[i] * y[i] + b * z[i];

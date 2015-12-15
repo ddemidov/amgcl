@@ -191,11 +191,14 @@ struct CuthillMcKee {
 
 /// Direct solver that uses skyline LU factorization.
 template <
-    typename real,
+    typename ValueType,
     class ordering = matrix_permutation::CuthillMcKee<false>
     >
 class skyline_lu {
     public:
+		typedef ValueType value_type;
+        typedef typename backend::scalar_of<value_type>::type scalar_type;
+
         struct params {
             params() {}
             params(const boost::property_tree::ptree&) {}
@@ -230,12 +233,12 @@ class skyline_lu {
             for(int i = 0; i < n; ++i) {
                 for(row_iterator a = backend::row_begin(A, i); a; ++a) {
                     int  j = a.col();
-                    real v = a.value();
+                    value_type v = a.value();
 
                     int newi = invperm[i];
                     int newj = invperm[j];
 
-                    if (v != 0) {
+                    if (!math::is_zero(v)) {
                         if (newi > newj) {
                             // row newi needs length at least newi - newj
                             if (ptr[newi] < newi - newj) ptr[newi]= newi - newj;
@@ -267,12 +270,12 @@ class skyline_lu {
             for(int i = 0; i < n; ++i) {
                 for(row_iterator a = backend::row_begin(A, i); a; ++a) {
                     int  j = a.col();
-                    real v = a.value();
+                    value_type v = a.value();
 
                     int newi = invperm[i];
                     int newj = invperm[j];
 
-                    if (v != 0) {
+                    if (!math::is_zero(v)) {
                         if (newi < newj) {
                             U[ ptr[newj + 1] + newi - newj ] = v;
                         } else if (newi == newj) {
@@ -294,7 +297,7 @@ class skyline_lu {
             // x = invperm[y];
 
             for(int i = 0; i < n; ++i) {
-                real sum = rhs[perm[i]];
+            	value_type sum = rhs[perm[i]];
                 for(int k = ptr[i], j = i - ptr[i+1] + k; k < ptr[i+1]; ++k, ++j)
                     sum -= L[k] * y[j];
 
@@ -313,11 +316,11 @@ class skyline_lu {
         int n;
         std::vector<int> perm;
         std::vector<int> ptr;
-        std::vector<real> L;
-        std::vector<real> U;
-        std::vector<real> D;
+        std::vector<value_type> L;
+        std::vector<value_type> U;
+        std::vector<value_type> D;
 
-        mutable std::vector<real> y;
+        mutable std::vector<value_type> y;
 
         /*
          * Perform and in-place LU factorization of a skyline matrix by Crout's
@@ -347,10 +350,10 @@ class skyline_lu {
          * end
          */
         void factorize() {
-            const real eps = amgcl::detail::eps<real>(1);
+            const scalar_type eps = amgcl::detail::eps<scalar_type>(1);
 
             precondition(
-                    fabs(D[0]) > eps,
+                    std::abs(D[0]) > eps,
                     "Zero diagonal in skyline_lu"
                     );
 
@@ -366,7 +369,7 @@ class skyline_lu {
                 for(int i = iBeginCol; i <= k; ++indexEntry, ++i) {
                     if (i == 0) continue;
 
-                    real sum = U[indexEntry]; // this is element U(i,k+1)
+                    value_type sum = U[indexEntry]; // this is element U(i,k+1)
 
                     // Multiply row i of L and Column k+1 of U
                     int jBeginRow  = i - ptr[i + 1] + ptr[i];
@@ -386,7 +389,7 @@ class skyline_lu {
                 for(int i = iBeginCol; i <= k; ++indexEntry, ++i) {
                     if (i == 0) continue;
 
-                    real sum = L[indexEntry]; // this is the element L(k+1,i)
+                    value_type sum = L[indexEntry]; // this is the element L(k+1,i)
 
                     // Multiply row k+1 of L and column i of U
                     int jBeginCol  = i - ptr[i+1] + ptr[i];
@@ -402,12 +405,12 @@ class skyline_lu {
                 }
 
                 // Find element in diagonal
-                real sum = D[k + 1];
+                value_type sum = D[k + 1];
                 for(int j = ptr[k+1]; j < ptr[k+2]; ++j)
                     sum -= L[j] * U[j];
 
                 precondition(
-                        fabs(sum) > eps,
+                        std::abs(sum) > eps,
                         "Zero sum in skyline_lu factorization"
                         );
 
@@ -415,7 +418,7 @@ class skyline_lu {
             }
 
             // Invert diagonal
-            for(int i = 0; i < n; ++i) D[i] = 1 / D[i];
+            for(int i = 0; i < n; ++i) D[i] = math::inverse(D[i]);
         }
 };
 

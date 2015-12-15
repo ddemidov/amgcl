@@ -4,3 +4,8 @@ RELEASE-VERSION
 dist
 pyamgcl.egg-info
 __pycache__
+/debug/
+.project
+.cproject
+.pydevproject
+.sync.ffs_db
