@@ -396,11 +396,13 @@ class subdomain_deflation {
             zcol_ptr.push_back(0);
 
             for(size_t i = 0; i < recv.nbr.size(); ++i) {
-                ptrdiff_t size = dv_size[recv.nbr[i]] * (recv.ptr[i + 1] - recv.ptr[i]);
+                ptrdiff_t ncols = recv.ptr[i + 1] - recv.ptr[i];
+                ptrdiff_t nvecs = dv_size[recv.nbr[i]];
+                ptrdiff_t size = nvecs * ncols;
                 zrecv_ptr[i + 1] = zrecv_ptr[i] + size;
 
-                for(ptrdiff_t j = 0; j < size; ++j)
-                    zcol_ptr.push_back(zcol_ptr.back() + dv_size[recv.nbr[i]]);
+                for(ptrdiff_t j = 0; j < ncols; ++j)
+                    zcol_ptr.push_back(zcol_ptr.back() + nvecs);
             }
 
             std::vector<value_type> zrecv(zrecv_ptr.back());
