@@ -90,7 +90,7 @@ struct bilinear_deflation : public deflation {
             ptrdiff_t chunk,
             boost::array<ptrdiff_t, 2> lo,
             boost::array<ptrdiff_t, 2> hi
-            ) : chunk(chunk)
+            ) : nv(0), chunk(chunk)
     {
         // See which neighbors we have.
         int neib[2][2] = {
