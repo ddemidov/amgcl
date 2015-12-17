@@ -3,16 +3,20 @@
 #include <fstream>
 #include <vector>
 #include <cmath>
+#include <stdexcept>
 #ifdef _OPENMP
 #include <omp.h>
 #endif
 
 #include <boost/scope_exit.hpp>
+#include <boost/shared_ptr.hpp>
 #include <boost/range/algorithm.hpp>
 
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
+
+#include <boost/multi_array.hpp>
 
 #include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/mpi/runtime.hpp>
@@ -24,16 +28,47 @@ namespace amgcl {
     profiler<> prof;
 }
 
-struct deflation_vectors {
-    size_t nv;
+struct deflation {
+    virtual size_t dim() const = 0;
+    virtual double operator()(ptrdiff_t i, unsigned j) const = 0;
+    virtual ~deflation() {}
+};
+
+struct constant_deflation : public deflation {
+    size_t dim() const { return 1; }
+    double operator()(ptrdiff_t i, unsigned j) const { return 1.0; }
+};
+
+struct linear_deflation : public deflation {
     std::vector<double> x;
     std::vector<double> y;
 
-    deflation_vectors(ptrdiff_t n, size_t nv = 3) : nv(nv), x(n), y(n) {}
+    linear_deflation(
+            ptrdiff_t chunk,
+            boost::array<ptrdiff_t, 2> lo,
+            boost::array<ptrdiff_t, 2> hi
+            )
+    {
+        double hx = 1.0 / (hi[0] - lo[0]);
+        double hy = 1.0 / (hi[1] - lo[1]);
 
-    size_t dim() const { return nv; }
+        ptrdiff_t nx = hi[0] - lo[0] + 1;
+        ptrdiff_t ny = hi[1] - lo[1] + 1;
 
-    double operator()(ptrdiff_t i, int j) const {
+        x.reserve(chunk);
+        y.reserve(chunk);
+
+        for (ptrdiff_t j = 0; j < ny; ++j) {
+            for (ptrdiff_t i = 0; i < nx; ++i) {
+                x.push_back(i * hx - 0.5);
+                y.push_back(j * hy - 0.5);
+            }
+        }
+    }
+
+    size_t dim() const { return 3; }
+
+    double operator()(ptrdiff_t i, unsigned j) const {
         switch(j) {
             default:
             case 0:
@@ -43,6 +78,73 @@ struct deflation_vectors {
             case 2:
                 return y[i];
         }
+    }
+};
+
+struct bilinear_deflation : public deflation {
+    size_t nv, chunk;
+    std::vector<double> v;
+
+    bilinear_deflation(
+            ptrdiff_t n,
+            ptrdiff_t chunk,
+            boost::array<ptrdiff_t, 2> lo,
+            boost::array<ptrdiff_t, 2> hi
+            ) : chunk(chunk)
+    {
+        // See which neighbors we have.
+        int neib[2][2] = {
+            {lo[0] > 0 || lo[1] > 0,     hi[0] + 1 < n || lo[1] > 0    },
+            {lo[0] > 0 || hi[1] + 1 < n, hi[0] + 1 < n || hi[1] + 1 < n}
+        };
+
+        for(int j = 0; j < 2; ++j)
+            for(int i = 0; i < 2; ++i)
+                if (neib[j][i]) ++nv;
+
+        if (nv == 0) {
+            // Single MPI process?
+            nv = 1;
+            v.resize(chunk, 1);
+            return;
+        }
+
+        v.resize(chunk * nv, 0);
+
+        double *dv = v.data();
+
+        ptrdiff_t nx = hi[0] - lo[0] + 1;
+        ptrdiff_t ny = hi[1] - lo[1] + 1;
+
+        double hx = 1.0 / (nx - 1);
+        double hy = 1.0 / (ny - 1);
+
+        for(int j = 0; j < 2; ++j) {
+            for(int i = 0; i < 2; ++i) {
+                if (!neib[j][i]) continue;
+
+                boost::multi_array_ref<double, 2> V(dv, boost::extents[ny][nx]);
+
+                for(ptrdiff_t jj = 0; jj < ny; ++jj) {
+                    double y = jj * hy;
+                    double b = std::abs((1 - j) - y);
+                    for(ptrdiff_t ii = 0; ii < nx; ++ii) {
+                        double x = ii * hx;
+
+                        double a = std::abs((1 - i) - x);
+                        V[jj][ii] = a * b;
+                    }
+                }
+
+                dv += chunk;
+            }
+        }
+    }
+
+    size_t dim() const { return nv; }
+
+    double operator()(ptrdiff_t i, unsigned j) const {
+        return v[j * chunk + i];
     }
 };
 
@@ -77,7 +179,7 @@ int main(int argc, char *argv[]) {
 
     // Read configuration from command line
     ptrdiff_t n = 1024;
-    bool constant_deflation = false;
+    std::string deflation_type = "bilinear";
 
     amgcl::runtime::coarsening::type    coarsening       = amgcl::runtime::coarsening::smoothed_aggregation;
     amgcl::runtime::relaxation::type    relaxation       = amgcl::runtime::relaxation::spai0;
@@ -133,9 +235,9 @@ int main(int argc, char *argv[]) {
 #endif
         )
         (
-         "cd",
-         po::bool_switch(&constant_deflation),
-         "Use constant deflation (linear deflation is used by default)"
+         "deflation,v",
+         po::value<std::string>(&deflation_type)->default_value(deflation_type),
+         "Deflation type (constant, linear, bilinear)"
         )
         (
          "params,p",
@@ -187,20 +289,22 @@ int main(int argc, char *argv[]) {
 
     lo = part.domain(world.rank).min_corner();
     hi = part.domain(world.rank).max_corner();
+    prof.toc("partition");
 
     renumbering renum(part, domain);
 
-    deflation_vectors def(chunk, constant_deflation ? 1 : 3);
-    for(ptrdiff_t j = lo[1]; j <= hi[1]; ++j) {
-        for(ptrdiff_t i = lo[0]; i <= hi[0]; ++i) {
-            boost::array<ptrdiff_t, 2> p = {{i, j}};
-            std::pair<int,ptrdiff_t> v = part.index(p);
+    prof.tic("deflation");
+    boost::shared_ptr<deflation> def;
 
-            def.x[v.second] = h * (i - (lo[0] + hi[0]) / 2);
-            def.y[v.second] = h * (j - (lo[1] + hi[1]) / 2);
-        }
-    }
-    prof.toc("partition");
+    if (deflation_type == "constant")
+        def.reset(new constant_deflation());
+    else if (deflation_type == "linear")
+        def.reset(new linear_deflation(chunk, lo, hi));
+    else if (deflation_type == "bilinear")
+        def.reset(new bilinear_deflation(n, chunk, lo, hi));
+    else
+        throw std::runtime_error("Unsupported deflation type");
+    prof.toc("deflation");
 
     prof.tic("assemble");
     std::vector<ptrdiff_t> ptr;
@@ -315,7 +419,7 @@ int main(int argc, char *argv[]) {
                 >
             SDD;
 
-        SDD solve(world, boost::tie(chunk, ptr, col, val), def, prm);
+        SDD solve(world, boost::tie(chunk, ptr, col, val), *def, prm);
         tm_setup = prof.toc("setup");
 
         prof.tic("solve");
@@ -332,7 +436,7 @@ int main(int argc, char *argv[]) {
                 >
             SDD;
 
-        SDD solve(world, boost::tie(chunk, ptr, col, val), def, prm);
+        SDD solve(world, boost::tie(chunk, ptr, col, val), *def, prm);
         tm_setup = prof.toc("setup");
 
         prof.tic("solve");
