@@ -12,7 +12,7 @@ addons:
       name: "ddemidov/amgcl"
       description: "Build submitted via Travis CI"
     notification_email: dennis.demidov@gmail.com
-    build_command_prepend: mkdir build-coverity && cd build-coverity && cmake -DCMAKE_BUILD_TYPE=Release ..
+    build_command_prepend: mkdir build-coverity && cd build-coverity && cmake ..
     build_command: make
     branch_pattern: coverity-scan
 
@@ -25,7 +25,7 @@ before_install:
   python-scipy
 script:
 - mkdir -p build && cd build
-- cmake -DTEST_COVERAGE=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
+- cmake -DTEST_COVERAGE=ON ..
 - make
 - ctest --output-on-failure
 - for n in 1 4 16; do echo --- $n ---; mpirun -np $n ./examples/mpi/runtime_sdd; done
