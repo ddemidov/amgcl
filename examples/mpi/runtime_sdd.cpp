@@ -18,8 +18,11 @@
 
 #include <boost/multi_array.hpp>
 
+#include <amgcl/make_solver.hpp>
 #include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/mpi/runtime.hpp>
+#include <amgcl/adapter/crs_tuple.hpp>
+#include <amgcl/adapter/zero_copy.hpp>
 #include <amgcl/profiler.hpp>
 
 #include "domain_partition.hpp"
@@ -148,6 +151,135 @@ struct bilinear_deflation : public deflation {
     }
 };
 
+struct harmonic_deflation : public deflation {
+    size_t nv, chunk;
+    std::vector<double> v;
+
+    harmonic_deflation(
+            ptrdiff_t n,
+            ptrdiff_t chunk,
+            boost::array<ptrdiff_t, 2> lo,
+            boost::array<ptrdiff_t, 2> hi
+            ) : nv(0), chunk(chunk)
+    {
+        // See which neighbors we have.
+        int neib[2][2] = {
+            {lo[0] > 0 || lo[1] > 0,     hi[0] + 1 < n || lo[1] > 0    },
+            {lo[0] > 0 || hi[1] + 1 < n, hi[0] + 1 < n || hi[1] + 1 < n}
+        };
+
+        for(int j = 0; j < 2; ++j)
+            for(int i = 0; i < 2; ++i)
+                if (neib[j][i]) ++nv;
+
+        if (nv == 0) {
+            // Single MPI process?
+            nv = 1;
+            v.resize(chunk, 1);
+            return;
+        }
+
+        v.resize(chunk * nv, 0);
+        double *dv = v.data();
+
+
+        ptrdiff_t nx = hi[0] - lo[0] + 1;
+        ptrdiff_t ny = hi[1] - lo[1] + 1;
+
+        std::vector<ptrdiff_t> ptr;
+        std::vector<ptrdiff_t> col;
+        std::vector<double>    val;
+        std::vector<double>    rhs(chunk, 0.0);
+
+        ptr.reserve(chunk + 1);
+        col.reserve(chunk * 5);
+        val.reserve(chunk * 5);
+
+        ptr.push_back(0);
+
+        for(int j = 0, k = 0; j < ny; ++j) {
+            for(int i = 0; i < nx; ++i, ++k) {
+                if (
+                        (i == 0    && j == 0   ) ||
+                        (i == 0    && j == ny-1) ||
+                        (i == nx-1 && j == 0   ) ||
+                        (i == nx-1 && j == ny-1)
+                   )
+                {
+                    col.push_back(k);
+                    val.push_back(1);
+                } else {
+                    col.push_back(k);
+                    val.push_back(1.0);
+
+                    if (j == 0) {
+                        col.push_back(k + nx);
+                        val.push_back(-0.5);
+                    } else if (j == ny-1) {
+                        col.push_back(k - nx);
+                        val.push_back(-0.5);
+                    } else {
+                        col.push_back(k - nx);
+                        val.push_back(-0.25);
+
+                        col.push_back(k + nx);
+                        val.push_back(-0.25);
+                    }
+
+                    if (i == 0) {
+                        col.push_back(k + 1);
+                        val.push_back(-0.5);
+                    } else if (i == nx-1) {
+                        col.push_back(k - 1);
+                        val.push_back(-0.5);
+                    } else {
+                        col.push_back(k - 1);
+                        val.push_back(-0.25);
+
+                        col.push_back(k + 1);
+                        val.push_back(-0.25);
+                    }
+                }
+
+                ptr.push_back(col.size());
+            }
+        }
+
+        amgcl::make_solver<
+            amgcl::amg<
+                amgcl::backend::builtin<double>,
+                amgcl::coarsening::smoothed_aggregation,
+                amgcl::relaxation::gauss_seidel
+                >,
+            amgcl::solver::gmres<
+                amgcl::backend::builtin<double>
+                >
+            > solve( amgcl::adapter::zero_copy(chunk, ptr.data(), col.data(), val.data()) );
+
+        for(int j = 0; j < 2; ++j) {
+            for(int i = 0; i < 2; ++i) {
+                if (!neib[j][i]) continue;
+
+                ptrdiff_t idx = i * (nx - 1) + j * (ny - 1) * nx;
+                rhs[idx] = 1.0;
+
+                boost::iterator_range<double*> x(dv, dv + chunk);
+                solve(rhs, x);
+
+                rhs[idx] = 0.0;
+
+                dv += chunk;
+            }
+        }
+    }
+
+    size_t dim() const { return nv; }
+
+    double operator()(ptrdiff_t i, unsigned j) const {
+        return v[j * chunk + i];
+    }
+};
+
 struct renumbering {
     const domain_partition<2> &part;
     const std::vector<ptrdiff_t> &dom;
@@ -238,7 +370,7 @@ int main(int argc, char *argv[]) {
         (
          "deflation,v",
          po::value<std::string>(&deflation_type)->default_value(deflation_type),
-         "Deflation type (constant, linear, bilinear)"
+         "constant, linear, bilinear, harmonic"
         )
         (
          "params,p",
@@ -308,6 +440,8 @@ int main(int argc, char *argv[]) {
         def.reset(new linear_deflation(chunk, lo, hi));
     else if (deflation_type == "bilinear")
         def.reset(new bilinear_deflation(n, chunk, lo, hi));
+    else if (deflation_type == "harmonic")
+        def.reset(new harmonic_deflation(n, chunk, lo, hi));
     else
         throw std::runtime_error("Unsupported deflation type");
     prof.toc("deflation");
