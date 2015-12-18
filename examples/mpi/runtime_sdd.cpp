@@ -190,6 +190,7 @@ int main(int argc, char *argv[]) {
     bool symm_dirichlet = true;
     std::string problem = "laplace2d";
     std::string parameter_file;
+    std::string out_file;
 
     namespace po = boost::program_options;
     po::options_description desc("Options");
@@ -248,6 +249,11 @@ int main(int argc, char *argv[]) {
          "just-relax,0",
          po::bool_switch(&just_relax),
          "Do not create AMG hierarchy, use relaxation as preconditioner"
+        )
+        (
+         "out,o",
+         po::value<std::string>(&out_file),
+         "out file"
         )
         ;
 
@@ -464,4 +470,25 @@ int main(int argc, char *argv[]) {
             << "\t" << iters << "\t" << std::endl;
     }
 
+    if (!out_file.empty()) {
+        if (world.rank == 0) {
+            std::vector<double> X(n2);
+            boost::copy(x, X.begin());
+
+            for(int i = 1; i < world.size; ++i)
+                MPI_Recv(&X[domain[i]], domain[i+1] - domain[i], MPI_DOUBLE, i, 42, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+            std::ofstream f(out_file.c_str(), std::ios::binary);
+            int m = n;
+            f.write((char*)&m, sizeof(int));
+            for(int j = 0; j < n; ++j) {
+                for(int i = 0; i < n; ++i) {
+                    double buf = X[renum(i,j)];
+                    f.write((char*)&buf, sizeof(double));
+                }
+            }
+        } else {
+            MPI_Send(x.data(), chunk, MPI_DOUBLE, 0, 42, MPI_COMM_WORLD);
+        }
+    }
 }
