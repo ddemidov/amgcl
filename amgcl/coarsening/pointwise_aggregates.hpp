@@ -258,7 +258,7 @@ class pointwise_aggregates {
                     for(unsigned k = 0; k < block_size; ++k, ++ia) {
                         for(row_iterator a = backend::row_begin(A, ia); a; ++a) {
                             ptrdiff_t cb = a.col() / block_size;
-                            V    va = fabs(a.value());
+                            V    va = std::abs(a.value());
 
                             if (marker[cb] < row_beg) {
                                 marker[cb] = row_end;

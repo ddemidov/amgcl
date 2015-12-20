@@ -72,6 +72,12 @@ struct value_type {
     typedef typename T::value_type type;
 };
 
+/// Metafunction that extracts the scalar type of a non-scalar type.
+template <class T, class Enable = void>
+struct scalar_of {
+    typedef T type;
+};
+
 /// Implementation for function returning the number of rows in a matrix.
 /** \note Used in rows() */
 template <class Matrix, class Enable = void>
@@ -344,7 +350,6 @@ void vmul(
 {
     vmul_impl<Vector1, Vector2, Vector3>::apply(alpha, x, y, beta, z);
 }
-
 
 /// Is the relaxation supported by the backend?
 template <class Backend, template <class> class Relaxation, class Enable = void>

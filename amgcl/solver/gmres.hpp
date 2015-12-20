@@ -63,6 +63,8 @@ class gmres {
         typedef typename Backend::value_type value_type;
         typedef typename Backend::params     backend_params;
 
+        typedef typename backend::scalar_of<value_type>::type scalar_type;
+
         /// Solver parameters.
         struct params {
             /// Number of iterations before restart.
@@ -72,9 +74,9 @@ class gmres {
             size_t maxiter;
 
             /// Target residual error.
-            value_type tol;
+            scalar_type tol;
 
-            params(int M = 50, size_t maxiter = 100, value_type tol = 1e-8)
+            params(int M = 50, size_t maxiter = 100, scalar_type tol = 1e-8)
                 : M(M), maxiter(maxiter), tol(tol)
             {
                 precondition(M > 0, "M in GMRES(M) should be >=1");
@@ -127,7 +129,7 @@ class gmres {
          * \cite Demidov2012.
          */
         template <class Matrix, class Precond, class Vec1, class Vec2>
-        boost::tuple<size_t, value_type> operator()(
+        boost::tuple<size_t, scalar_type> operator()(
                 Matrix  const &A,
                 Precond const &P,
                 Vec1    const &rhs,
@@ -136,15 +138,15 @@ class gmres {
         {
             size_t iter = 0;
 
-            value_type norm_rhs = norm(rhs);
-            if (norm_rhs < amgcl::detail::eps<value_type>(n)) {
+            scalar_type norm_rhs = norm(rhs);
+            if (norm_rhs < amgcl::detail::eps<scalar_type>(n)) {
                 backend::clear(x);
                 return boost::make_tuple(0, norm_rhs);
             }
 
-            value_type eps = prm.tol * norm_rhs;
+            scalar_type eps = prm.tol * norm_rhs;
 
-            value_type res_norm = restart(A, rhs, P, x);
+            scalar_type res_norm = restart(A, rhs, P, x);
             if (res_norm < eps)
                 return boost::make_tuple(0, res_norm / norm_rhs);
 
@@ -172,7 +174,7 @@ class gmres {
          * \param x   Solution vector.
          */
         template <class Precond, class Vec1, class Vec2>
-        boost::tuple<size_t, value_type> operator()(
+        boost::tuple<size_t, scalar_type> operator()(
                 Precond const &P,
                 Vec1    const &rhs,
                 Vec2          &x
@@ -195,8 +197,8 @@ class gmres {
         InnerProduct inner_product;
 
         template <class Vec>
-        value_type norm(const Vec &x) const {
-            return sqrt(inner_product(x, x));
+        scalar_type norm(const Vec &x) const {
+            return std::abs(sqrt(inner_product(x, x)));
         }
 
         static void apply_plane_rotation(
@@ -212,16 +214,16 @@ class gmres {
                 value_type dx, value_type dy, value_type &cs, value_type &sn
                 )
         {
-            if (dy == 0) {
+            if (math::is_zero(dy)) {
                 cs = 1;
                 sn = 0;
-            } else if (fabs(dy) > fabs(dx)) {
+            } else if (std::abs(dy) > std::abs(dx)) {
                 value_type tmp = dx / dy;
-                sn = 1 / sqrt(1 + tmp * tmp);
+                sn = math::inverse(sqrt(math::make_one<value_type>() + tmp * tmp));
                 cs = tmp * sn;
             } else {
                 value_type tmp = dy / dx;
-                cs = 1 / sqrt(1 + tmp * tmp);
+                cs = math::inverse(sqrt(math::make_one<value_type>() + tmp * tmp));
                 sn = tmp * cs;
             }
         }
@@ -245,7 +247,7 @@ class gmres {
         }
 
         template <class Matrix, class Precond, class Vec1, class Vec2>
-        value_type restart(const Matrix &A, const Vec1 &rhs,
+        scalar_type restart(const Matrix &A, const Vec1 &rhs,
                 const Precond &P, const Vec2 &x) const
         {
             backend::residual(rhs, A, x, *w);
@@ -254,14 +256,14 @@ class gmres {
             boost::fill(s, 0);
             s[0] = norm(*r);
 
-            if (s[0])
-                backend::axpby(1 / s[0], *r, 0, *v[0]);
+            if (!math::is_zero(s[0]))
+                backend::axpby(math::inverse(s[0]), *r, 0, *v[0]);
 
-            return s[0];
+            return std::abs(s[0]);
         }
 
         template <class Matrix, class Precond>
-        value_type iteration(const Matrix &A, const Precond &P, int i) const
+        scalar_type iteration(const Matrix &A, const Precond &P, int i) const
         {
             backend::spmv(1, A, *v[i], 0, *r);
             P.apply(*r, *w);
@@ -273,7 +275,7 @@ class gmres {
 
             H[i+1][i] = norm(*w);
 
-            backend::axpby(1 / H[i+1][i], *w, 0, *v[i+1]);
+            backend::axpby(math::inverse(H[i+1][i]), *w, 0, *v[i+1]);
 
             for(int k = 0; k < i; ++k)
                 apply_plane_rotation(H[k][i], H[k+1][i], cs[k], sn[k]);
@@ -282,7 +284,7 @@ class gmres {
             apply_plane_rotation(H[i][i], H[i+1][i], cs[i], sn[i]);
             apply_plane_rotation(s[i], s[i+1], cs[i], sn[i]);
 
-            return fabs(s[i+1]);
+            return std::abs(s[i+1]);
         }
 };
 

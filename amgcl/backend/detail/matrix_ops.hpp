@@ -59,7 +59,7 @@ struct spmv_impl<
     {
         const ptrdiff_t n = static_cast<ptrdiff_t>( rows(A) );
 
-        if (beta) {
+        if (!math::is_zero(beta)) {
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < n; ++i) {
                 V sum = 0;
