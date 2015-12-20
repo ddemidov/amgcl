@@ -176,7 +176,7 @@ struct ilu0< backend::cuda<real> > {
                     )
                 );
 
-	precondition(
+        precondition(
                 CUSPARSE_STATUS_ZERO_PIVOT != cusparseXcsrilu02_zeroPivot(handle, info_M.get(), &structural_zero),
                 "Zero pivot in cuSPARSE ILU0"
                 );
@@ -213,7 +213,7 @@ struct ilu0< backend::cuda<real> > {
                     thrust::raw_pointer_cast(&buf[0])
                     )
                 );
-	precondition(
+        precondition(
               CUSPARSE_STATUS_ZERO_PIVOT != cusparseXcsrilu02_zeroPivot(handle, info_M.get(), &numerical_zero),
               "Zero pivot in cuSPARSE ILU0"
               );
@@ -264,10 +264,10 @@ struct ilu0< backend::cuda<real> > {
                 const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp, const params &prm
                 ) const
         {
-	    backend::residual(rhs, A, x, tmp);
+            backend::residual(rhs, A, x, tmp);
             value_type alpha = 1;
 
-	    // Solve L * y = tmp
+            // Solve L * y = tmp
             AMGCL_CALL_CUDA(
                     cusparseXcsrsv2_solve(
                         handle, trans_L, n, nnz, &alpha, descr_L.get(),
@@ -282,7 +282,7 @@ struct ilu0< backend::cuda<real> > {
                         )
                     );
 
-	    // Solve U * tmp = y
+            // Solve U * tmp = y
             AMGCL_CALL_CUDA(
                     cusparseXcsrsv2_solve(
                         handle, trans_U, n, nnz, &alpha, descr_U.get(),
@@ -297,7 +297,7 @@ struct ilu0< backend::cuda<real> > {
                         )
                     );
 
-	    backend::axpby(prm.damping, tmp, 1, x);
+            backend::axpby(prm.damping, tmp, 1, x);
         }
 
 

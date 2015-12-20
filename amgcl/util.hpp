@@ -130,31 +130,31 @@ struct inverse_impl {
 /// Return conjugate transpose of argument.
 template <typename ValueType>
 ValueType conj_transp(ValueType x) {
-	return conj_transp_impl<ValueType>::get(x);
+    return conj_transp_impl<ValueType>::get(x);
 }
 
 /// Return true if argument is considered zero.
 template <typename ValueType>
 bool is_zero(ValueType x) {
-	return is_zero_impl<ValueType>::get(x);
+    return is_zero_impl<ValueType>::get(x);
 }
 
 /// Create zero element of type ValueType.
 template <typename ValueType>
 ValueType make_zero() {
-	return make_zero_impl<ValueType>::get();
+    return make_zero_impl<ValueType>::get();
 }
 
 /// Create one element of type ValueType.
 template <typename ValueType>
 ValueType make_one() {
-	return make_one_impl<ValueType>::get();
+    return make_one_impl<ValueType>::get();
 }
 
 /// Return inverse of the argument.
 template <typename ValueType>
 ValueType inverse(ValueType x) {
-	return inverse_impl<ValueType>::get(x);
+    return inverse_impl<ValueType>::get(x);
 }
 
 template <typename ValueType>
@@ -162,45 +162,45 @@ struct conj_transp_impl<ValueType,
 typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
 {
     /// Conjuate transpose is noop for arithmetic types.
-	static ValueType get(ValueType x) {
-		return x;
-	}
+    static ValueType get(ValueType x) {
+        return x;
+    }
 };
 
 template <typename ValueType>
 struct is_zero_impl<ValueType,
 typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
 {
-	static bool get(ValueType x) {
-		return x == make_zero<ValueType>();
-	}
+    static bool get(ValueType x) {
+        return x == make_zero<ValueType>();
+    }
 };
 
 template <typename ValueType>
 struct make_zero_impl<ValueType,
 typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
 {
-	static ValueType get() {
-		return static_cast<ValueType>(0);
-	}
+    static ValueType get() {
+        return static_cast<ValueType>(0);
+    }
 };
 
 template <typename ValueType>
 struct make_one_impl<ValueType,
 typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
 {
-	static ValueType get() {
-		return static_cast<ValueType>(1);
-	}
+    static ValueType get() {
+        return static_cast<ValueType>(1);
+    }
 };
 
 template <typename ValueType>
 struct inverse_impl<ValueType,
 typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
 {
-	static ValueType get(ValueType x) {
-		return make_one<ValueType>() / x;
-	}
+    static ValueType get(ValueType x) {
+        return make_one<ValueType>() / x;
+    }
 };
 
 }  // namespace math

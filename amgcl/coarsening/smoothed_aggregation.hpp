@@ -198,8 +198,8 @@ struct smoothed_aggregation {
                     if (ca != i && !aggr.strong_connection[ja]) continue;
 
                     value_type va = (ca == i)
-                    		? math::make_one<value_type>() - static_cast<value_type>(prm.relax)
-                    				: -static_cast<value_type>(prm.relax) * dia * Aval[ja];
+                            ? math::make_one<value_type>() - static_cast<value_type>(prm.relax)
+                                    : -static_cast<value_type>(prm.relax) * dia * Aval[ja];
 
                     for(ptrdiff_t jp = P_tent->ptr[ca], ep = P_tent->ptr[ca+1]; jp < ep; ++jp) {
                         ptrdiff_t cp = P_tent->col[jp];

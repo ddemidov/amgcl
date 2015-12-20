@@ -127,7 +127,7 @@ struct plain_aggregates {
         std::vector<value_type> dia = diagonal(A);
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-        	value_type eps_dia_i = eps_squared * dia[i];
+            value_type eps_dia_i = eps_squared * dia[i];
 
             for(ptrdiff_t j = Aptr[i], e = Aptr[i+1]; j < e; ++j) {
                 ptrdiff_t c = Acol[j];

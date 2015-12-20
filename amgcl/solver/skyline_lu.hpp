@@ -196,7 +196,7 @@ template <
     >
 class skyline_lu {
     public:
-		typedef ValueType value_type;
+        typedef ValueType value_type;
         typedef typename backend::scalar_of<value_type>::type scalar_type;
 
         struct params {
@@ -297,7 +297,7 @@ class skyline_lu {
             // x = invperm[y];
 
             for(int i = 0; i < n; ++i) {
-            	value_type sum = rhs[perm[i]];
+                value_type sum = rhs[perm[i]];
                 for(int k = ptr[i], j = i - ptr[i+1] + k; k < ptr[i+1]; ++k, ++j)
                     sum -= L[k] * y[j];
 

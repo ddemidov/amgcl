@@ -58,9 +58,9 @@ struct conj_transp_impl<
     typename boost::enable_if<boost::is_complex<ValueType> >::type
     >
 {
-	static ValueType get(ValueType x) {
-		return std::conj(x);
-	}
+    static ValueType get(ValueType x) {
+        return std::conj(x);
+    }
 };
 
 /// Specialization of zero element for complex type.
@@ -68,9 +68,9 @@ template <typename ValueType>
 struct is_zero_impl<ValueType,
 typename boost::enable_if<boost::is_complex<ValueType> >::type>
 {
-	static bool get(ValueType x) {
-		return x == math::make_zero<ValueType>();
-	}
+    static bool get(ValueType x) {
+        return x == math::make_zero<ValueType>();
+    }
 };
 
 /// Specialization of zero element for complex type.
@@ -78,9 +78,9 @@ template <typename ValueType>
 struct make_zero_impl<ValueType,
 typename boost::enable_if<boost::is_complex<ValueType> >::type>
 {
-	static ValueType get() {
-		return static_cast<ValueType>(0);
-	}
+    static ValueType get() {
+        return static_cast<ValueType>(0);
+    }
 };
 
 /// Specialization of one element for complex type.
@@ -88,9 +88,9 @@ template <typename ValueType>
 struct make_one_impl<ValueType,
 typename boost::enable_if<boost::is_complex<ValueType> >::type>
 {
-	static ValueType get() {
-		return static_cast<ValueType>(1);
-	}
+    static ValueType get() {
+        return static_cast<ValueType>(1);
+    }
 };
 
 /// Specialization of inversion for complex type.
@@ -98,16 +98,16 @@ template <typename ValueType>
 struct inverse_impl<ValueType,
 typename boost::enable_if<boost::is_complex<ValueType> >::type>
 {
-	static ValueType get(ValueType x) {
-		return math::make_one<ValueType>() / x;
-	}
+    static ValueType get(ValueType x) {
+        return math::make_one<ValueType>() / x;
+    }
 };
 
 }  // namespace math
 
 template <typename V>
 bool operator>(const std::complex<V> &a, const std::complex<V> &b) {
-	return std::abs(a) > std::abs(b);
+    return std::abs(a) > std::abs(b);
 }
 
 } // namespace amgcl
@@ -116,12 +116,12 @@ namespace std {
 
 template <typename T>
 std::complex<T> min(const std::complex<T> &a, const std::complex<T> &b) {
-	return std::abs(a) < std::abs(b) ? a : b;
+    return std::abs(a) < std::abs(b) ? a : b;
 }
 
 template <typename T>
 std::complex<T> max(const std::complex<T> &a, const std::complex<T> &b) {
-	return std::abs(a) > std::abs(b) ? a : b;
+    return std::abs(a) > std::abs(b) ? a : b;
 }
 
 } // namespace std
