@@ -26,6 +26,7 @@
 #include <amgcl/profiler.hpp>
 
 #include "domain_partition.hpp"
+#include "mba.hpp"
 
 namespace amgcl {
     profiler<> prof;
@@ -138,6 +139,82 @@ struct bilinear_deflation : public deflation {
                         V[jj][ii] = a * b;
                     }
                 }
+
+                dv += chunk;
+            }
+        }
+    }
+
+    size_t dim() const { return nv; }
+
+    double operator()(ptrdiff_t i, unsigned j) const {
+        return v[j * chunk + i];
+    }
+};
+
+struct mba_deflation : public deflation {
+    size_t chunk, nv;
+    std::vector<double> v;
+
+    mba_deflation(
+            ptrdiff_t n,
+            ptrdiff_t chunk,
+            boost::array<ptrdiff_t,2> lo,
+            boost::array<ptrdiff_t,2> hi
+            ) : chunk(chunk), nv(1)
+    {
+        // See which neighbors we have.
+        int neib[2][2] = {
+            {lo[0] > 0 || lo[1] > 0,     hi[0] + 1 < n || lo[1] > 0    },
+            {lo[0] > 0 || hi[1] + 1 < n, hi[0] + 1 < n || hi[1] + 1 < n}
+        };
+
+        for(int j = 0; j < 2; ++j)
+            for(int i = 0; i < 2; ++i)
+                if (neib[j][i]) ++nv;
+
+        v.resize(chunk * nv, 0);
+
+        double *dv = v.data();
+        std::fill(dv, dv + chunk, 1.0);
+        dv += chunk;
+
+        ptrdiff_t nx = hi[0] - lo[0] + 1;
+        ptrdiff_t ny = hi[1] - lo[1] + 1;
+
+        double hx = 1.0 / (nx - 1);
+        double hy = 1.0 / (ny - 1);
+
+        boost::array<double, 2> cmin = {-0.01, -0.01};
+        boost::array<double, 2> cmax = { 1.01,  1.01};
+        boost::array<size_t, 2> grid = {3, 3};
+
+        boost::array< boost::array<double, 2>, 4 > coo;
+        boost::array< double, 4 > val;
+
+        for(int j = 0, idx = 0; j < 2; ++j) {
+            for(int i = 0; i < 2; ++i, ++idx) {
+                coo[idx][0] = i;
+                coo[idx][1] = j;
+            }
+        }
+
+        for(int j = 0, idx = 0; j < 2; ++j) {
+            for(int i = 0; i < 2; ++i, ++idx) {
+                if (!neib[j][i]) continue;
+
+                std::fill(val.begin(), val.end(), 0.0);
+                val[idx] = 1.0;
+
+                mba::MBA<2> interp(cmin, cmax, grid, coo, val);
+
+                boost::multi_array_ref<double, 2> V(dv, boost::extents[ny][nx]);
+
+                for(int jj = 0; jj < ny; ++jj)
+                    for(int ii = 0; ii < nx; ++ii) {
+                        boost::array<double, 2> p = {ii * hx, jj * hy};
+                        V[jj][ii] = interp(p);
+                    }
 
                 dv += chunk;
             }
@@ -370,7 +447,7 @@ int main(int argc, char *argv[]) {
         (
          "deflation,v",
          po::value<std::string>(&deflation_type)->default_value(deflation_type),
-         "constant, linear, bilinear, harmonic"
+         "constant, linear, bilinear, mba, harmonic"
         )
         (
          "params,p",
@@ -440,6 +517,8 @@ int main(int argc, char *argv[]) {
         def.reset(new linear_deflation(chunk, lo, hi));
     else if (deflation_type == "bilinear")
         def.reset(new bilinear_deflation(n, chunk, lo, hi));
+    else if (deflation_type == "mba")
+        def.reset(new mba_deflation(n, chunk, lo, hi));
     else if (deflation_type == "harmonic")
         def.reset(new harmonic_deflation(n, chunk, lo, hi));
     else
