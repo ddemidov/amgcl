@@ -146,8 +146,9 @@ class subdomain_deflation {
         : comm(mpi_comm),
           nrows(backend::rows(Astrip)), ndv(def_vec.dim()),
           dtype( datatype<value_type>::get() ), dv_start(comm.size + 1, 0),
-          Z( ndv ), master_rank(0),
-          q( Backend::create_vector(nrows, prm.backend) )
+          Z( ndv ), Z_norm( ndv ), master_rank(0),
+          q( Backend::create_vector(nrows, prm.backend) ),
+          p( Backend::create_vector(nrows, prm.backend) )
         {
             MPI_Datatype mpi_ptrdiff_t = mpi::datatype<ptrdiff_t>::get();
 
@@ -181,9 +182,13 @@ class subdomain_deflation {
             {
                 std::vector<value_type> z(nrows);
                 for(int j = 0; j < ndv; ++j) {
-                    for(ptrdiff_t i = 0; i < nrows; ++i)
+                    value_type z_norm = 0;
+                    for(ptrdiff_t i = 0; i < nrows; ++i) {
                         z[i] = def_vec(i, j);
+                        z_norm += z[i] * z[i];
+                    }
                     Z[j] = Backend::copy_vector(z, prm.backend);
+                    Z_norm[j] = 1 / z_norm; // This is actually square of the norm inverted.
                 }
             }
             TOC("copy deflation vectors");
@@ -685,6 +690,7 @@ class subdomain_deflation {
         std::vector<int> sstart, ssize, mstart, msize;
 
         std::vector< boost::shared_ptr<vector> > Z;
+        std::vector< value_type > Z_norm;
 
         MPI_Comm masters_comm, slaves_comm;
         int master_rank;
@@ -692,6 +698,7 @@ class subdomain_deflation {
 
         boost::shared_ptr<matrix> AZ;
         boost::shared_ptr<vector> q;
+        boost::shared_ptr<vector> p;
         boost::shared_ptr<vector> dd;
         boost::shared_ptr<vector> dv;
 
@@ -717,8 +724,11 @@ class subdomain_deflation {
         void mul(value_type alpha, const Vec1 &x, value_type beta, Vec2 &y) const {
             TIC("top/spmv");
 
-            start_exchange(x);
-            backend::spmv(alpha, P->system_matrix(), x, beta, y);
+            backend::copy(x, *p);
+            orthoganalize(*p);
+
+            start_exchange(*p);
+            backend::spmv(alpha, P->system_matrix(), *p, beta, y);
 
             finish_exchange();
 
@@ -747,6 +757,16 @@ class subdomain_deflation {
             TOC("spmv");
 
             TOC("project");
+        }
+
+        template <class Vector>
+        void orthoganalize(Vector &x) const {
+            TIC("orthoganalize");
+            for(ptrdiff_t j = 0; j < ndv; ++j) {
+                value_type zx = backend::inner_product(x, *Z[j]);
+                backend::axpby(-zx * Z_norm[j], *Z[j], 1, x);
+            }
+            TOC("orthoganalize");
         }
 
         template <class Vec1, class Vec2>
