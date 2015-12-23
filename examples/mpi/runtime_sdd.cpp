@@ -206,7 +206,7 @@ struct mba_deflation : public deflation {
                 std::fill(val.begin(), val.end(), 0.0);
                 val[idx] = 1.0;
 
-                mba::MBA<2> interp(cmin, cmax, grid, coo, val);
+                mba::MBA<2> interp(cmin, cmax, grid, coo, val, 8, 1e-8, 0.5, zero);
 
                 boost::multi_array_ref<double, 2> V(dv, boost::extents[ny][nx]);
 
@@ -225,6 +225,10 @@ struct mba_deflation : public deflation {
 
     double operator()(ptrdiff_t i, unsigned j) const {
         return v[j * chunk + i];
+    }
+
+    static double zero(const boost::array<double, 2>&) {
+        return 0;
     }
 };
 
