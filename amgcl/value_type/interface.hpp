@@ -61,11 +61,18 @@ struct make_zero_impl {
     typedef typename ValueType::MAKE_ZERO_NOT_IMPLEMENTED type;
 };
 
-/// Implementation for the one element.
-/** \note Used in make_one() */
+/// Implementation for the identity element.
+/** \note Used in make_identity() */
 template <typename ValueType, class Enable = void>
-struct make_one_impl {
-    typedef typename ValueType::MAKE_ONE_NOT_IMPLEMENTED type;
+struct make_identity_impl {
+    typedef typename ValueType::MAKE_IDENTITY_NOT_IMPLEMENTED type;
+};
+
+/// Implementation for the constant element.
+/** \note Used in make_constant() */
+template <typename ValueType, class Enable = void>
+struct make_constant_impl {
+    typedef typename ValueType::MAKE_CONSTANT_NOT_IMPLEMENTED type;
 };
 
 /// Implementation of inversion operation.
@@ -94,10 +101,16 @@ ValueType make_zero() {
     return make_zero_impl<ValueType>::get();
 }
 
+/// Create identity of type ValueType.
+template <typename ValueType>
+ValueType make_identity() {
+    return make_identity_impl<ValueType>::get();
+}
+
 /// Create one element of type ValueType.
 template <typename ValueType>
-ValueType make_one() {
-    return make_one_impl<ValueType>::get();
+ValueType make_constant(typename scalar_of<ValueType>::type c) {
+    return make_constant_impl<ValueType>::get(c);
 }
 
 /// Return inverse of the argument.
@@ -137,7 +150,7 @@ typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
 };
 
 template <typename ValueType>
-struct make_one_impl<ValueType,
+struct make_identity_impl<ValueType,
 typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
 {
     static ValueType get() {
@@ -146,11 +159,20 @@ typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
 };
 
 template <typename ValueType>
+struct make_constant_impl<ValueType,
+typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
+{
+    static ValueType get(typename scalar_of<ValueType>::type c) {
+        return static_cast<ValueType>(c);
+    }
+};
+
+template <typename ValueType>
 struct inverse_impl<ValueType,
 typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
 {
     static ValueType get(ValueType x) {
-        return make_one<ValueType>() / x;
+        return make_identity<ValueType>() / x;
     }
 };
 

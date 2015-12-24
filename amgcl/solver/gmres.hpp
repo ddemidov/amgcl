@@ -219,11 +219,11 @@ class gmres {
                 sn = 0;
             } else if (std::abs(dy) > std::abs(dx)) {
                 value_type tmp = dx / dy;
-                sn = math::inverse(sqrt(math::make_one<value_type>() + tmp * tmp));
+                sn = math::inverse(sqrt(math::make_identity<value_type>() + tmp * tmp));
                 cs = tmp * sn;
             } else {
                 value_type tmp = dy / dx;
-                cs = math::inverse(sqrt(math::make_one<value_type>() + tmp * tmp));
+                cs = math::inverse(sqrt(math::make_identity<value_type>() + tmp * tmp));
                 sn = tmp * cs;
             }
         }

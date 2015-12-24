@@ -80,12 +80,21 @@ struct make_zero_impl< std::complex<T> >
     }
 };
 
-/// Specialization of one element for complex type.
+/// Specialization of identity element for complex type.
 template <typename T>
-struct make_one_impl< std::complex<T> >
+struct make_identity_impl< std::complex<T> >
 {
     static std::complex<T> get() {
         return static_cast< std::complex<T> >(1);
+    }
+};
+
+/// Specialization of constant element for complex type.
+template <typename T>
+struct make_constant_impl< std::complex<T> >
+{
+    static std::complex<T> get(T c) {
+        return std::complex<T>(c, c);
     }
 };
 
@@ -94,7 +103,7 @@ template <typename T>
 struct inverse_impl< std::complex<T> >
 {
     static std::complex<T> get(std::complex<T> x) {
-        return math::make_one<T>() / x;
+        return static_cast<T>(1) / x;
     }
 };
 
