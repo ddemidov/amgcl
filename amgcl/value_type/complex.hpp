@@ -53,8 +53,10 @@ namespace math {
 
 /// Specialization of conjugate transpose for scalar complex arguments.
 template <typename T>
-struct conj_transp_impl< std::complex<T> >
+struct adjoint_impl< std::complex<T> >
 {
+    typedef std::complex<T> return_type;
+
     static std::complex<T> get(std::complex<T> x) {
         return std::conj(x);
     }

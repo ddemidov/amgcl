@@ -35,9 +35,9 @@ namespace amgcl {
 namespace math {
 
 /// Implementation for conjugate transpose.
-/** \note Used in conj_transp() */
+/** \note Used in adjoint() */
 template <typename ValueType, class Enable = void>
-struct conj_transp_impl {
+struct adjoint_impl {
     typedef typename ValueType::CONJ_TRANSP_NOT_IMPLEMENTED type;
 };
 
@@ -71,8 +71,9 @@ struct inverse_impl {
 
 /// Return conjugate transpose of argument.
 template <typename ValueType>
-ValueType conj_transp(ValueType x) {
-    return conj_transp_impl<ValueType>::get(x);
+typename adjoint_impl<ValueType>::return_type
+adjoint(ValueType x) {
+    return adjoint_impl<ValueType>::get(x);
 }
 
 /// Return true if argument is considered zero.
@@ -100,9 +101,11 @@ ValueType inverse(ValueType x) {
 }
 
 template <typename ValueType>
-struct conj_transp_impl<ValueType,
+struct adjoint_impl<ValueType,
 typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
 {
+    typedef ValueType return_type;
+
     /// Conjuate transpose is noop for arithmetic types.
     static ValueType get(ValueType x) {
         return x;

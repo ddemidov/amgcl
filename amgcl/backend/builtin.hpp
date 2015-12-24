@@ -592,7 +592,7 @@ struct inner_product_impl<
             V s = 0;
             V c = 0;
             for(size_t i = chunk_start; i < chunk_end; ++i) {
-                V d = x[i] * math::conj_transp(y[i]) - c;
+                V d = x[i] * math::adjoint(y[i]) - c;
                 V t = s + d;
                 c = (t - s) - d;
                 s = t;
