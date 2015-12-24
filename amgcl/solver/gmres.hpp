@@ -63,7 +63,7 @@ class gmres {
         typedef typename Backend::value_type value_type;
         typedef typename Backend::params     backend_params;
 
-        typedef typename backend::scalar_of<value_type>::type scalar_type;
+        typedef typename math::scalar_of<value_type>::type scalar_type;
 
         /// Solver parameters.
         struct params {

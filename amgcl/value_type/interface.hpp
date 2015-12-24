@@ -34,11 +34,17 @@ THE SOFTWARE.
 namespace amgcl {
 namespace math {
 
+/// Metafunction that extracts the scalar type of a non-scalar type.
+template <class T, class Enable = void>
+struct scalar_of {
+    typedef T type;
+};
+
 /// Implementation for conjugate transpose.
 /** \note Used in adjoint() */
 template <typename ValueType, class Enable = void>
 struct adjoint_impl {
-    typedef typename ValueType::CONJ_TRANSP_NOT_IMPLEMENTED type;
+    typedef typename ValueType::ADJOINT_NOT_IMPLEMENTED type;
 };
 
 /// Implementation for zero check.

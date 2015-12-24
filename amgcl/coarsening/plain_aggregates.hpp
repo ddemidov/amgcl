@@ -113,7 +113,7 @@ struct plain_aggregates {
           id( backend::rows(A) )
     {
         typedef typename backend::value_type<Matrix>::type value_type;
-        typedef typename backend::scalar_of<value_type>::type scalar_type;
+        typedef typename math::scalar_of<value_type>::type scalar_type;
 
         scalar_type eps_squared = prm.eps_strong * prm.eps_strong;
 

@@ -55,7 +55,7 @@ class make_solver {
         typedef typename Backend::params backend_params;
         typedef typename backend::builtin<value_type>::matrix build_matrix;
 
-        typedef typename backend::scalar_of<value_type>::type scalar_type;
+        typedef typename math::scalar_of<value_type>::type scalar_type;
 
         struct params {
             typename Precond::params         precond;

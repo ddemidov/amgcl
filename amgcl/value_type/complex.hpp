@@ -41,15 +41,15 @@ namespace backend {
 template <typename T>
 struct is_builtin_vector< std::vector<std::complex<T> > > : boost::true_type {};
 
+} // namespace backend
+
+namespace math {
+
 /// Specialization that extracts the scalar type of a complex type.
 template <class T>
 struct scalar_of< std::complex<T> > {
     typedef T type;
 };
-
-} // namespace backend
-
-namespace math {
 
 /// Specialization of conjugate transpose for scalar complex arguments.
 template <typename T>

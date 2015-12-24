@@ -197,7 +197,7 @@ template <
 class skyline_lu {
     public:
         typedef ValueType value_type;
-        typedef typename backend::scalar_of<value_type>::type scalar_type;
+        typedef typename math::scalar_of<value_type>::type scalar_type;
 
         struct params {
             params() {}
