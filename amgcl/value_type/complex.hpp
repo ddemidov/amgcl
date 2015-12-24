@@ -113,18 +113,8 @@ struct inverse_impl< std::complex<T> >
 namespace std {
 
 template <typename V>
-bool operator>(const std::complex<V> &a, const std::complex<V> &b) {
-    return std::abs(a) > std::abs(b);
-}
-
-template <typename T>
-std::complex<T> min(const std::complex<T> &a, const std::complex<T> &b) {
-    return std::abs(a) < std::abs(b) ? a : b;
-}
-
-template <typename T>
-std::complex<T> max(const std::complex<T> &a, const std::complex<T> &b) {
-    return std::abs(a) > std::abs(b) ? a : b;
+bool operator<(const std::complex<V> &a, const std::complex<V> &b) {
+    return std::abs(a) < std::abs(b);
 }
 
 } // namespace std

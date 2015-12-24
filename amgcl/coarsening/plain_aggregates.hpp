@@ -133,7 +133,7 @@ struct plain_aggregates {
                 ptrdiff_t c = Acol[j];
                 value_type v = Aval[j];
 
-                strong_connection[j] = (c != i) && (v * v > eps_dia_i * dia[c]);
+                strong_connection[j] = (c != i) && (eps_dia_i * dia[c] < v * v);
             }
         }
 
