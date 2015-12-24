@@ -52,67 +52,59 @@ struct scalar_of< std::complex<T> > {
 namespace math {
 
 /// Specialization of conjugate transpose for scalar complex arguments.
-template <typename ValueType>
-struct conj_transp_impl<
-    ValueType,
-    typename boost::enable_if<boost::is_complex<ValueType> >::type
-    >
+template <typename T>
+struct conj_transp_impl< std::complex<T> >
 {
-    static ValueType get(ValueType x) {
+    static std::complex<T> get(std::complex<T> x) {
         return std::conj(x);
     }
 };
 
 /// Specialization of zero element for complex type.
-template <typename ValueType>
-struct is_zero_impl<ValueType,
-typename boost::enable_if<boost::is_complex<ValueType> >::type>
+template <typename T>
+struct is_zero_impl< std::complex<T> >
 {
-    static bool get(ValueType x) {
-        return x == math::make_zero<ValueType>();
+    static bool get(std::complex<T> x) {
+        return x == math::make_zero< std::complex<T> >();
     }
 };
 
 /// Specialization of zero element for complex type.
-template <typename ValueType>
-struct make_zero_impl<ValueType,
-typename boost::enable_if<boost::is_complex<ValueType> >::type>
+template <typename T>
+struct make_zero_impl< std::complex<T> >
 {
-    static ValueType get() {
-        return static_cast<ValueType>(0);
+    static std::complex<T> get() {
+        return static_cast< std::complex<T> >(0);
     }
 };
 
 /// Specialization of one element for complex type.
-template <typename ValueType>
-struct make_one_impl<ValueType,
-typename boost::enable_if<boost::is_complex<ValueType> >::type>
+template <typename T>
+struct make_one_impl< std::complex<T> >
 {
-    static ValueType get() {
-        return static_cast<ValueType>(1);
+    static std::complex<T> get() {
+        return static_cast< std::complex<T> >(1);
     }
 };
 
 /// Specialization of inversion for complex type.
-template <typename ValueType>
-struct inverse_impl<ValueType,
-typename boost::enable_if<boost::is_complex<ValueType> >::type>
+template <typename T>
+struct inverse_impl< std::complex<T> >
 {
-    static ValueType get(ValueType x) {
-        return math::make_one<ValueType>() / x;
+    static std::complex<T> get(std::complex<T> x) {
+        return math::make_one<T>() / x;
     }
 };
 
 }  // namespace math
+} // namespace amgcl
+
+namespace std {
 
 template <typename V>
 bool operator>(const std::complex<V> &a, const std::complex<V> &b) {
     return std::abs(a) > std::abs(b);
 }
-
-} // namespace amgcl
-
-namespace std {
 
 template <typename T>
 std::complex<T> min(const std::complex<T> &a, const std::complex<T> &b) {
