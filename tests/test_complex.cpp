@@ -3,7 +3,7 @@
 
 #include <complex>
 
-#include <amgcl/backend/enable_complex.hpp>
+#include <amgcl/value_type/complex.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/amgcl.hpp>
 #include <amgcl/make_solver.hpp>

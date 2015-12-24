@@ -1,5 +1,5 @@
-#ifndef ENABLE_COMPLEX_HPP
-#define ENABLE_COMPLEX_HPP
+#ifndef AMGCL_VALUE_TYPE_COMPLEX_HPP
+#define AMGCL_VALUE_TYPE_COMPLEX_HPP
 
 /*
 The MIT License
@@ -26,13 +26,13 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/backend/enable_complex.hpp
+ * \file   amgcl/value_type/complex.hpp
  * \author Christoph Sohrmann
  * \brief  Enable std::complex<T> as value type.
  */
 
 #include <amgcl/backend/builtin.hpp>
-#include <amgcl/util.hpp>
+#include <amgcl/value_type/interface.hpp>
 
 namespace amgcl {
 namespace backend {

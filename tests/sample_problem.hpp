@@ -3,16 +3,16 @@
 
 #include <complex>
 #include <boost/type_traits.hpp>
-#include <amgcl/util.hpp>
+#include <amgcl/value_type/interface.hpp>
 
 // Generates matrix for poisson problem in a unit cube.
-template <typename ValueType, typename IndexType>
+template <typename ValueType, typename IndexType, typename RhsType>
 int sample_problem(
         ptrdiff_t               n,
         std::vector<ValueType>  &val,
         std::vector<IndexType>  &col,
         std::vector<IndexType>  &ptr,
-        std::vector<ValueType>  &rhs
+        std::vector<RhsType>  &rhs
         )
 {
     ptrdiff_t n3  = n * n * n;
@@ -66,7 +66,7 @@ int sample_problem(
                     val.push_back(-1.0/6.0 * one);
                 }
 
-                rhs.push_back( one );
+                rhs.push_back( amgcl::math::make_one<RhsType>() );
                 ptr.push_back( static_cast<IndexType>(col.size()) );
             }
         }
