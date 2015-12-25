@@ -50,7 +50,7 @@ class QR {
                 )
         {
             precondition(rows >= cols,
-                    "QR decomposion of wide matrices is not supported"
+                    "QR decomposition of wide matrices is not supported"
                     );
 
             m = rows;
