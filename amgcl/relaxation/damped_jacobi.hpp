@@ -130,7 +130,7 @@ struct damped_jacobi {
                 ) const
         {
             backend::residual(rhs, A, x, tmp);
-            backend::vmul(prm.damping, *dia, tmp, 1, x);
+            backend::vmul(prm.damping, *dia, tmp, math::identity<scalar_type>(), x);
         }
 };
 

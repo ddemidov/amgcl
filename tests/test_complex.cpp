@@ -12,6 +12,7 @@
 
 #include <amgcl/relaxation/gauss_seidel.hpp>
 #include <amgcl/relaxation/spai0.hpp>
+#include <amgcl/relaxation/damped_jacobi.hpp>
 
 #include <amgcl/solver/cg.hpp>
 #include <amgcl/solver/bicgstab.hpp>
@@ -112,6 +113,12 @@ BOOST_AUTO_TEST_CASE(complex_matrix)
     test_complex_matrix<
         amgcl::coarsening::smoothed_aggregation,
         amgcl::relaxation::spai0,
+        amgcl::solver::cg<Backend>
+        >(n, ptr, col, val, rhs);
+
+    test_complex_matrix<
+        amgcl::coarsening::smoothed_aggregation,
+        amgcl::relaxation::damped_jacobi,
         amgcl::solver::cg<Backend>
         >(n, ptr, col, val, rhs);
 
