@@ -27,7 +27,7 @@ int sample_problem(
     val.reserve(n3 * 7);
     rhs.reserve(n3);
 
-    ValueType one = amgcl::math::make_identity<ValueType>();
+    ValueType one = amgcl::math::identity<ValueType>();
 
     ptr.push_back(0);
     for(ptrdiff_t k = 0, idx = 0; k < n; ++k) {
@@ -66,7 +66,7 @@ int sample_problem(
                     val.push_back(-1.0/6.0 * one);
                 }
 
-                rhs.push_back( amgcl::math::make_constant<RhsType>(1) );
+                rhs.push_back( amgcl::math::constant<RhsType>(1) );
                 ptr.push_back( static_cast<IndexType>(col.size()) );
             }
         }

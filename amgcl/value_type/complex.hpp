@@ -67,13 +67,13 @@ template <typename T>
 struct is_zero_impl< std::complex<T> >
 {
     static bool get(std::complex<T> x) {
-        return x == math::make_zero< std::complex<T> >();
+        return x == math::zero< std::complex<T> >();
     }
 };
 
 /// Specialization of zero element for complex type.
 template <typename T>
-struct make_zero_impl< std::complex<T> >
+struct zero_impl< std::complex<T> >
 {
     static std::complex<T> get() {
         return static_cast< std::complex<T> >(0);
@@ -82,7 +82,7 @@ struct make_zero_impl< std::complex<T> >
 
 /// Specialization of identity element for complex type.
 template <typename T>
-struct make_identity_impl< std::complex<T> >
+struct identity_impl< std::complex<T> >
 {
     static std::complex<T> get() {
         return static_cast< std::complex<T> >(1);
@@ -91,7 +91,7 @@ struct make_identity_impl< std::complex<T> >
 
 /// Specialization of constant element for complex type.
 template <typename T>
-struct make_constant_impl< std::complex<T> >
+struct constant_impl< std::complex<T> >
 {
     static std::complex<T> get(T c) {
         return std::complex<T>(c, c);

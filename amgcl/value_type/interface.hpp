@@ -55,23 +55,23 @@ struct is_zero_impl {
 };
 
 /// Implementation for the zero element.
-/** \note Used in make_zero() */
+/** \note Used in zero() */
 template <typename ValueType, class Enable = void>
-struct make_zero_impl {
+struct zero_impl {
     typedef typename ValueType::MAKE_ZERO_NOT_IMPLEMENTED type;
 };
 
 /// Implementation for the identity element.
-/** \note Used in make_identity() */
+/** \note Used in identity() */
 template <typename ValueType, class Enable = void>
-struct make_identity_impl {
+struct identity_impl {
     typedef typename ValueType::MAKE_IDENTITY_NOT_IMPLEMENTED type;
 };
 
 /// Implementation for the constant element.
-/** \note Used in make_constant() */
+/** \note Used in constant() */
 template <typename ValueType, class Enable = void>
-struct make_constant_impl {
+struct constant_impl {
     typedef typename ValueType::MAKE_CONSTANT_NOT_IMPLEMENTED type;
 };
 
@@ -97,20 +97,20 @@ bool is_zero(ValueType x) {
 
 /// Create zero element of type ValueType.
 template <typename ValueType>
-ValueType make_zero() {
-    return make_zero_impl<ValueType>::get();
+ValueType zero() {
+    return zero_impl<ValueType>::get();
 }
 
 /// Create identity of type ValueType.
 template <typename ValueType>
-ValueType make_identity() {
-    return make_identity_impl<ValueType>::get();
+ValueType identity() {
+    return identity_impl<ValueType>::get();
 }
 
 /// Create one element of type ValueType.
 template <typename ValueType>
-ValueType make_constant(typename scalar_of<ValueType>::type c) {
-    return make_constant_impl<ValueType>::get(c);
+ValueType constant(typename scalar_of<ValueType>::type c) {
+    return constant_impl<ValueType>::get(c);
 }
 
 /// Return inverse of the argument.
@@ -136,12 +136,12 @@ struct is_zero_impl<ValueType,
 typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
 {
     static bool get(ValueType x) {
-        return x == make_zero<ValueType>();
+        return x == zero<ValueType>();
     }
 };
 
 template <typename ValueType>
-struct make_zero_impl<ValueType,
+struct zero_impl<ValueType,
 typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
 {
     static ValueType get() {
@@ -150,7 +150,7 @@ typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
 };
 
 template <typename ValueType>
-struct make_identity_impl<ValueType,
+struct identity_impl<ValueType,
 typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
 {
     static ValueType get() {
@@ -159,7 +159,7 @@ typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
 };
 
 template <typename ValueType>
-struct make_constant_impl<ValueType,
+struct constant_impl<ValueType,
 typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
 {
     static ValueType get(typename scalar_of<ValueType>::type c) {
@@ -172,7 +172,7 @@ struct inverse_impl<ValueType,
 typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
 {
     static ValueType get(ValueType x) {
-        return make_identity<ValueType>() / x;
+        return identity<ValueType>() / x;
     }
 };
 

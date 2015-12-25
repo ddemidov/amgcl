@@ -35,7 +35,7 @@ BOOST_AUTO_TEST_CASE(complex_matrix)
 
     size_t n = sample_problem(32, val, col, ptr, rhs);
 
-    std::vector<complex> x(n, amgcl::math::make_zero<complex>());
+    std::vector<complex> x(n, amgcl::math::zero<complex>());
 
     typedef amgcl::backend::builtin<complex> Backend;
 
