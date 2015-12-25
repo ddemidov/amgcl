@@ -41,7 +41,9 @@ namespace detail {
 
 struct default_inner_product {
     template <class Vec1, class Vec2>
-    typename backend::value_type<Vec1>::type
+    typename math::inner_product_impl<
+        typename backend::value_type<Vec1>::type
+    >::return_type
     operator()(const Vec1 &x, const Vec2 &y) const {
         return backend::inner_product(x, y);
     }

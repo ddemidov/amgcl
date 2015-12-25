@@ -31,6 +31,9 @@ THE SOFTWARE.
  * \brief  Support for various value types.
  */
 
+#include <boost/type_traits.hpp>
+#include <boost/typeof/typeof.hpp>
+
 namespace amgcl {
 namespace math {
 
@@ -48,6 +51,18 @@ struct adjoint_impl {
 
     static ValueType get(ValueType x) {
         return x;
+    }
+};
+
+/// Default implementation for inner product
+/** \note Used in adjoint() */
+template <typename ValueType, class Enable = void>
+struct inner_product_impl {
+    typedef typename adjoint_impl<ValueType>::return_type Transposed;
+    typedef BOOST_TYPEOF_TPL(Transposed() * ValueType()) return_type;
+
+    static return_type get(ValueType x, ValueType y) {
+        return adjoint_impl<ValueType>::get(x) * y;
     }
 };
 
@@ -101,6 +116,13 @@ template <typename ValueType>
 typename adjoint_impl<ValueType>::return_type
 adjoint(ValueType x) {
     return adjoint_impl<ValueType>::get(x);
+}
+
+/// Return inner product of two arguments.
+template <typename ValueType>
+typename inner_product_impl<ValueType>::return_type
+inner_product(ValueType x, ValueType y) {
+    return inner_product_impl<ValueType>::get(x, y);
 }
 
 /// Return true if argument is considered zero.

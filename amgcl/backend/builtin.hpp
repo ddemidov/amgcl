@@ -570,10 +570,12 @@ struct inner_product_impl<
 {
     typedef typename value_type<Vec1>::type V;
 
-    static V get(const Vec1 &x, const Vec2 &y)
+    typedef typename math::inner_product_impl<V>::return_type return_type;
+
+    static return_type get(const Vec1 &x, const Vec2 &y)
     {
         const size_t n = x.size();
-        V sum = 0;
+        return_type sum = math::zero<return_type>();
 
 #pragma omp parallel
         {
@@ -589,11 +591,11 @@ struct inner_product_impl<
             size_t chunk_end   = n;
 #endif
 
-            V s = 0;
-            V c = 0;
+            return_type s = math::zero<return_type>();
+            return_type c = math::zero<return_type>();
             for(size_t i = chunk_start; i < chunk_end; ++i) {
-                V d = x[i] * math::adjoint(y[i]) - c;
-                V t = s + d;
+                return_type d = math::inner_product(x[i], y[i]) - c;
+                return_type t = s + d;
                 c = (t - s) - d;
                 s = t;
             }

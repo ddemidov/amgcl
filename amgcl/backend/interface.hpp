@@ -299,7 +299,9 @@ void copy_to_backend(const std::vector<typename value_type<Vector>::type> &data,
 
 /// Computes inner product of two vectors.
 template <class Vector1, class Vector2>
-typename value_type<Vector1>::type
+typename math::inner_product_impl<
+    typename value_type<Vector1>::type
+    >::return_type
 inner_product(const Vector1 &x, const Vector2 &y)
 {
     return inner_product_impl<Vector1, Vector2>::get(x, y);
