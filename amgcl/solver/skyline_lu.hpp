@@ -358,7 +358,7 @@ class skyline_lu {
             for(int k = 0; k < n - 1; ++k) {
                 // check whether A(1,k+1) lies within the skyline structure
                 if (ptr[k + 1] + k + 1 == ptr[k + 2]) {
-                    U[ptr[k+1]] = U[ptr[k+1]] * math::inverse(D[0]);
+                    U[ptr[k+1]] = math::inverse(D[0]) * U[ptr[k+1]];
                 }
 
                 // Compute column k+1 of U
@@ -378,7 +378,7 @@ class skyline_lu {
                     for(int j = jBeginMult; j < i; ++j, ++indexL, ++indexU)
                         sum -= L[indexL] * U[indexU];
 
-                    U[indexEntry] = sum * math::inverse(D[i]);
+                    U[indexEntry] = math::inverse(D[i]) * sum;
                 }
 
                 // Compute row k+1 of L
