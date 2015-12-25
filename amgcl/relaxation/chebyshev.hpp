@@ -161,16 +161,19 @@ class chebyshev {
                 const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &res
                 ) const
         {
+            static const scalar_type one  = math::identity<scalar_type>();
+            static const scalar_type zero = math::zero<scalar_type>();
+
             backend::residual(rhs, A, x, res);
-            backend::axpby(C[0], res, 0, *p);
+            backend::axpby(C[0], res, zero, *p);
 
             BOOST_FOREACH(scalar_type c, boost::make_iterator_range(C.begin() + 1, C.end()))
             {
-                backend::spmv(1, A, *p, 0, *q);
-                backend::axpbypcz(c, res, 1, *q, 0, *p);
+                backend::spmv(one, A, *p, zero, *q);
+                backend::axpbypcz(c, res, one, *q, zero, *p);
             }
 
-            backend::axpby(1, *p, 1, x);
+            backend::axpby(one, *p, one, x);
         }
 
         template <class Matrix>
