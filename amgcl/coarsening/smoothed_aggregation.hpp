@@ -106,6 +106,7 @@ struct smoothed_aggregation {
     transfer_operators(const Matrix &A, params &prm)
     {
         typedef typename backend::value_type<Matrix>::type value_type;
+        typedef typename math::scalar_of<value_type>::type scalar_type;
 
         const size_t n = rows(A);
 
@@ -180,7 +181,7 @@ struct smoothed_aggregation {
 
                 // Diagonal of the filtered matrix is the original matrix
                 // diagonal minus its weak connections.
-                value_type dia = 0;
+                value_type dia = math::zero<value_type>();
                 for(ptrdiff_t j = Aptr[i], e = Aptr[i+1]; j < e; ++j) {
                     if (Acol[j] == i)
                         dia += Aval[j];
@@ -198,8 +199,8 @@ struct smoothed_aggregation {
                     if (ca != i && !aggr.strong_connection[ja]) continue;
 
                     value_type va = (ca == i)
-                            ? math::identity<value_type>() - static_cast<value_type>(prm.relax)
-                                    : -static_cast<value_type>(prm.relax) * dia * Aval[ja];
+                        ? static_cast<value_type>(math::identity<value_type>() * static_cast<scalar_type>(1 - prm.relax))
+                        : static_cast<value_type>(static_cast<scalar_type>(-prm.relax) * dia * Aval[ja]);
 
                     for(ptrdiff_t jp = P_tent->ptr[ca], ep = P_tent->ptr[ca+1]; jp < ep; ++jp) {
                         ptrdiff_t cp = P_tent->col[jp];

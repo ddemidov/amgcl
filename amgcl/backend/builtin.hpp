@@ -377,10 +377,12 @@ struct builtin {
     typedef ValueType      value_type;
     typedef ptrdiff_t      index_type;
 
+    typedef typename math::rhs_of<value_type>::type rhs_type;
+
     struct provides_row_iterator : boost::true_type {};
 
     typedef crs<value_type, index_type>    matrix;
-    typedef std::vector<value_type>        vector;
+    typedef std::vector<rhs_type>          vector;
     typedef solver::skyline_lu<value_type> direct_solver;
 
     /// Backend parameters.
@@ -549,10 +551,12 @@ struct clear_impl<
 {
     static void apply(Vec &x)
     {
+        typedef typename backend::value_type<Vec>::type V;
+
         const size_t n = x.size();
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-            x[i] = 0;
+            x[i] = math::zero<V>();
         }
     }
 };

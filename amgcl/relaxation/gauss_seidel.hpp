@@ -89,16 +89,17 @@ struct gauss_seidel {
         {
             typedef typename backend::row_iterator<Matrix>::type row_iterator;
             typedef typename backend::value_type<Matrix>::type val_type;
+            typedef typename math::rhs_of<val_type>::type rhs_type;
 
-            val_type temp = rhs[i];
-            val_type diag = 1;
+            rhs_type temp = rhs[i];
+            val_type diag = math::identity<val_type>();
             for (row_iterator a = backend::row_begin(A, i); a; ++a) {
                 if (static_cast<size_t>(a.col()) == i)
                     diag = a.value();
                 else
                     temp -= a.value() * x[a.col()];
             }
-            x[i] = temp / diag;
+            x[i] = math::inverse(diag) * temp;
         }
 };
 

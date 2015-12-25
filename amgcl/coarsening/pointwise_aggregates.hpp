@@ -93,6 +93,8 @@ class pointwise_aggregates {
         pointwise_aggregates(const Matrix &A, const params &prm, unsigned min_aggregate)
             : count(0)
         {
+            typedef typename backend::value_type<Matrix>::type value_type;
+            typedef typename math::scalar_of<value_type>::type scalar_type;
             if (prm.block_size == 1) {
                 plain_aggregates aggr(A, prm);
 
@@ -105,7 +107,7 @@ class pointwise_aggregates {
                 strong_connection.resize( nonzeros(A) );
                 id.resize( rows(A) );
 
-                Matrix Ap = pointwise_matrix(A, prm.block_size);
+                backend::crs<scalar_type> Ap = pointwise_matrix(A, prm.block_size);
 
                 plain_aggregates pw_aggr(Ap, prm);
 
@@ -193,9 +195,14 @@ class pointwise_aggregates {
         }
 
         template <class Matrix>
-        static backend::crs<typename backend::value_type<Matrix>::type>
+        static backend::crs<
+            typename math::scalar_of<
+                typename backend::value_type<Matrix>::type
+                >::type
+            >
         pointwise_matrix(const Matrix &A, size_t block_size) {
-            typedef typename backend::value_type<Matrix>::type   V;
+            typedef typename backend::value_type<Matrix>::type V;
+            typedef typename math::scalar_of<V>::type S;
             typedef typename backend::row_iterator<Matrix>::type row_iterator;
 
             const size_t n  = backend::rows(A);
@@ -206,7 +213,7 @@ class pointwise_aggregates {
             precondition(n % block_size == 0 && m % block_size == 0,
                     "Matrix size should be divisible by block_size");
 
-            backend::crs<V> Ap;
+            backend::crs<S> Ap;
             Ap.nrows = np;
             Ap.ncols = mp;
             Ap.ptr.resize(np + 1, 0);
@@ -258,7 +265,7 @@ class pointwise_aggregates {
                     for(unsigned k = 0; k < block_size; ++k, ++ia) {
                         for(row_iterator a = backend::row_begin(A, ia); a; ++a) {
                             ptrdiff_t cb = a.col() / block_size;
-                            V    va = std::abs(a.value());
+                            S va = math::norm(a.value());
 
                             if (marker[cb] < row_beg) {
                                 marker[cb] = row_end;

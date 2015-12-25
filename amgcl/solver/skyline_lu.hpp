@@ -198,6 +198,7 @@ class skyline_lu {
     public:
         typedef ValueType value_type;
         typedef typename math::scalar_of<value_type>::type scalar_type;
+        typedef typename math::rhs_of<value_type>::type    rhs_type;
 
         struct params {
             params() {}
@@ -209,7 +210,7 @@ class skyline_lu {
 
         template <class Matrix>
         skyline_lu(const Matrix &A, const params& = params())
-            : n( backend::rows(A) ), perm(n), ptr(n + 1, 0), D(n, 0), y(n)
+            : n( backend::rows(A) ), perm(n), ptr(n + 1, 0), D(n, math::zero<value_type>()), y(n)
         {
             typedef typename backend::row_iterator<Matrix>::type row_iterator;
 
@@ -262,8 +263,8 @@ class skyline_lu {
             }
 
             // Allocate variables for skyline format entries
-            L.resize(ptr.back(), 0);
-            U.resize(ptr.back(), 0);
+            L.resize(ptr.back(), math::zero<value_type>());
+            U.resize(ptr.back(), math::zero<value_type>());
 
             // And finally traverse again the CSR matrix, copying its entries
             // into the correct places in the skyline format
@@ -297,11 +298,11 @@ class skyline_lu {
             // x = invperm[y];
 
             for(int i = 0; i < n; ++i) {
-                value_type sum = rhs[perm[i]];
+                rhs_type sum = rhs[perm[i]];
                 for(int k = ptr[i], j = i - ptr[i+1] + k; k < ptr[i+1]; ++k, ++j)
                     sum -= L[k] * y[j];
 
-                y[i] = sum * D[i];
+                y[i] = D[i] * sum;
             }
 
             for(int j = n - 1; j >= 0; --j) {
@@ -320,7 +321,7 @@ class skyline_lu {
         std::vector<value_type> U;
         std::vector<value_type> D;
 
-        mutable std::vector<value_type> y;
+        mutable std::vector<rhs_type> y;
 
         /*
          * Perform and in-place LU factorization of a skyline matrix by Crout's
@@ -352,15 +353,12 @@ class skyline_lu {
         void factorize() {
             const scalar_type eps = amgcl::detail::eps<scalar_type>(1);
 
-            precondition(
-                    std::abs(D[0]) > eps,
-                    "Zero diagonal in skyline_lu"
-                    );
+            precondition(!math::is_zero(D[0]), "Zero diagonal in skyline_lu");
 
             for(int k = 0; k < n - 1; ++k) {
                 // check whether A(1,k+1) lies within the skyline structure
                 if (ptr[k + 1] + k + 1 == ptr[k + 2]) {
-                    U[ptr[k+1]] = U[ptr[k+1]] / D[0];
+                    U[ptr[k+1]] = U[ptr[k+1]] * math::inverse(D[0]);
                 }
 
                 // Compute column k+1 of U
@@ -380,7 +378,7 @@ class skyline_lu {
                     for(int j = jBeginMult; j < i; ++j, ++indexL, ++indexU)
                         sum -= L[indexL] * U[indexU];
 
-                    U[indexEntry] = sum / D[i];
+                    U[indexEntry] = sum * math::inverse(D[i]);
                 }
 
                 // Compute row k+1 of L
@@ -409,10 +407,8 @@ class skyline_lu {
                 for(int j = ptr[k+1]; j < ptr[k+2]; ++j)
                     sum -= L[j] * U[j];
 
-                precondition(
-                        std::abs(sum) > eps,
-                        "Zero sum in skyline_lu factorization"
-                        );
+                precondition(!math::is_zero(sum),
+                        "Zero sum in skyline_lu factorization");
 
                 D[k+1] = sum;
             }

@@ -46,4 +46,5 @@ add_amgcl_test(test_complex    test_complex.cpp)
 
 if (EIGEN_INCLUDE)
     add_amgcl_test(test_eigen_solver test_eigen_solver.cpp)
+    add_amgcl_test(test_eigen_values test_eigen_values.cpp)
 endif()

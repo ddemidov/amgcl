@@ -71,15 +71,17 @@ class cg {
         typedef typename Backend::value_type value_type;
         typedef typename Backend::params     backend_params;
 
+        typedef typename math::scalar_of<value_type>::type scalar_type;
+
         /// Solver parameters.
         struct params {
             /// Maximum number of iterations.
             size_t maxiter;
 
             /// Target residual error.
-            value_type tol;
+            scalar_type tol;
 
-            params(size_t maxiter = 100, value_type tol = 1e-8)
+            params(size_t maxiter = 100, scalar_type tol = 1e-8)
                 : maxiter(maxiter), tol(tol)
             {}
 
@@ -128,7 +130,7 @@ class cg {
          * \cite Demidov2012.
          */
         template <class Matrix, class Precond, class Vec1, class Vec2>
-        boost::tuple<size_t, value_type> operator()(
+        boost::tuple<size_t, scalar_type> operator()(
                 Matrix  const &A,
                 Precond const &P,
                 Vec1    const &rhs,
@@ -140,19 +142,20 @@ class cg {
                 ) const
         {
             backend::residual(rhs, A, x, *r);
-            value_type norm_rhs = norm(rhs);
-            if (norm_rhs < amgcl::detail::eps<value_type>(n)) {
+            scalar_type norm_rhs = norm(rhs);
+            if (norm_rhs < amgcl::detail::eps<scalar_type>(n)) {
                 backend::clear(x);
                 return boost::make_tuple(0, norm_rhs);
             }
 
-            value_type eps  = prm.tol * norm_rhs;
-            value_type eps2 = eps * eps;
-            value_type rho1 = 2 * eps2, rho2 = 0;
-            value_type res_norm = norm(*r);
+            scalar_type eps  = prm.tol * norm_rhs;
+            scalar_type eps2 = eps * eps;
+
+            scalar_type rho1 = 2 * eps2, rho2 = 0;
+            scalar_type res_norm = norm(*r);
 
             size_t iter = 0;
-            for(; iter < prm.maxiter && fabs(rho1) > eps2; ++iter) {
+            for(; iter < prm.maxiter && std::abs(rho1) > eps2; ++iter) {
                 P.apply(*r, *s);
 
                 rho2 = rho1;
@@ -165,7 +168,7 @@ class cg {
 
                 backend::spmv(1, A, *p, 0, *q);
 
-                value_type alpha = rho1 / inner_product(*q, *p);
+                scalar_type alpha = rho1 / inner_product(*q, *p);
 
                 backend::axpby( alpha, *p, 1,  x);
                 backend::axpby(-alpha, *q, 1, *r);
@@ -184,7 +187,7 @@ class cg {
          * \param x   Solution vector.
          */
         template <class Precond, class Vec1, class Vec2>
-        boost::tuple<size_t, value_type> operator()(
+        boost::tuple<size_t, scalar_type> operator()(
                 Precond const &P,
                 Vec1    const &rhs,
 #ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
@@ -211,7 +214,7 @@ class cg {
         InnerProduct inner_product;
 
         template <class Vec>
-        value_type norm(const Vec &x) const {
+        scalar_type norm(const Vec &x) const {
             return sqrt(inner_product(x, x));
         }
 };

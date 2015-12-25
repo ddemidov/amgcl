@@ -37,9 +37,15 @@ THE SOFTWARE.
 namespace amgcl {
 namespace math {
 
-/// Metafunction that extracts the scalar type of a non-scalar type.
+/// Scalar type of a non-scalar type.
 template <class T, class Enable = void>
 struct scalar_of {
+    typedef T type;
+};
+
+/// RHS type corresponding to a non-scalar type.
+template <class T, class Enable = void>
+struct rhs_of {
     typedef T type;
 };
 
@@ -63,6 +69,15 @@ struct inner_product_impl {
 
     static return_type get(ValueType x, ValueType y) {
         return adjoint_impl<ValueType>::get(x) * y;
+    }
+};
+
+/// Default implementation for element norm.
+/** \note Used in zero() */
+template <typename ValueType, class Enable = void>
+struct norm_impl {
+    static typename scalar_of<ValueType>::type get(ValueType x) {
+        return std::abs(x);
     }
 };
 
@@ -125,16 +140,22 @@ inner_product(ValueType x, ValueType y) {
     return inner_product_impl<ValueType>::get(x, y);
 }
 
-/// Return true if argument is considered zero.
+/// Compute norm of an element.
 template <typename ValueType>
-bool is_zero(ValueType x) {
-    return is_zero_impl<ValueType>::get(x);
+typename scalar_of<ValueType>::type norm(const ValueType &a) {
+    return norm_impl<ValueType>::get(a);
 }
 
 /// Create zero element of type ValueType.
 template <typename ValueType>
 ValueType zero() {
     return zero_impl<ValueType>::get();
+}
+
+/// Return true if argument is considered zero.
+template <typename ValueType>
+bool is_zero(ValueType x) {
+    return is_zero_impl<ValueType>::get(x);
 }
 
 /// Create identity of type ValueType.
