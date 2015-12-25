@@ -62,48 +62,12 @@ struct adjoint_impl< std::complex<T> >
     }
 };
 
-/// Specialization of zero element for complex type.
-template <typename T>
-struct is_zero_impl< std::complex<T> >
-{
-    static bool get(std::complex<T> x) {
-        return x == math::zero< std::complex<T> >();
-    }
-};
-
-/// Specialization of zero element for complex type.
-template <typename T>
-struct zero_impl< std::complex<T> >
-{
-    static std::complex<T> get() {
-        return static_cast< std::complex<T> >(0);
-    }
-};
-
-/// Specialization of identity element for complex type.
-template <typename T>
-struct identity_impl< std::complex<T> >
-{
-    static std::complex<T> get() {
-        return static_cast< std::complex<T> >(1);
-    }
-};
-
 /// Specialization of constant element for complex type.
 template <typename T>
 struct constant_impl< std::complex<T> >
 {
     static std::complex<T> get(T c) {
         return std::complex<T>(c, c);
-    }
-};
-
-/// Specialization of inversion for complex type.
-template <typename T>
-struct inverse_impl< std::complex<T> >
-{
-    static std::complex<T> get(std::complex<T> x) {
-        return static_cast<T>(1) / x;
     }
 };
 

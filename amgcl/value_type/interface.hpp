@@ -40,46 +40,60 @@ struct scalar_of {
     typedef T type;
 };
 
-/// Implementation for conjugate transpose.
+/// Default implementation for conjugate transpose.
 /** \note Used in adjoint() */
 template <typename ValueType, class Enable = void>
 struct adjoint_impl {
-    typedef typename ValueType::ADJOINT_NOT_IMPLEMENTED type;
+    typedef ValueType return_type;
+
+    static ValueType get(ValueType x) {
+        return x;
+    }
 };
 
-/// Implementation for zero check.
-/** \note Used in is_zero() */
-template <typename ValueType, class Enable = void>
-struct is_zero_impl {
-    typedef typename ValueType::IS_ZERO_NOT_IMPLEMENTED type;
-};
-
-/// Implementation for the zero element.
+/// Default implementation for the zero element.
 /** \note Used in zero() */
 template <typename ValueType, class Enable = void>
 struct zero_impl {
-    typedef typename ValueType::MAKE_ZERO_NOT_IMPLEMENTED type;
+    static ValueType get() {
+        return static_cast<ValueType>(0);
+    }
 };
 
-/// Implementation for the identity element.
+/// Default implementation for zero check.
+/** \note Used in is_zero() */
+template <typename ValueType, class Enable = void>
+struct is_zero_impl {
+    static bool get(ValueType x) {
+        return x == zero_impl<ValueType>::get();
+    }
+};
+
+/// Default implementation for the identity element.
 /** \note Used in identity() */
 template <typename ValueType, class Enable = void>
 struct identity_impl {
-    typedef typename ValueType::MAKE_IDENTITY_NOT_IMPLEMENTED type;
+    static ValueType get() {
+        return static_cast<ValueType>(1);
+    }
 };
 
-/// Implementation for the constant element.
+/// Default implementation for the constant element.
 /** \note Used in constant() */
 template <typename ValueType, class Enable = void>
 struct constant_impl {
-    typedef typename ValueType::MAKE_CONSTANT_NOT_IMPLEMENTED type;
+    static ValueType get(typename scalar_of<ValueType>::type c) {
+        return static_cast<ValueType>(c);
+    }
 };
 
-/// Implementation of inversion operation.
+/// Default implementation of inversion operation.
 /** \note Used in inverse() */
 template <typename ValueType, class Enable = void>
 struct inverse_impl {
-    typedef typename ValueType::INVERSE_NOT_IMPLEMENTED type;
+    static ValueType get(ValueType x) {
+        return identity_impl<ValueType>::get() / x;
+    }
 };
 
 /// Return conjugate transpose of argument.
@@ -118,64 +132,6 @@ template <typename ValueType>
 ValueType inverse(ValueType x) {
     return inverse_impl<ValueType>::get(x);
 }
-
-template <typename ValueType>
-struct adjoint_impl<ValueType,
-typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
-{
-    typedef ValueType return_type;
-
-    /// Conjuate transpose is noop for arithmetic types.
-    static ValueType get(ValueType x) {
-        return x;
-    }
-};
-
-template <typename ValueType>
-struct is_zero_impl<ValueType,
-typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
-{
-    static bool get(ValueType x) {
-        return x == zero<ValueType>();
-    }
-};
-
-template <typename ValueType>
-struct zero_impl<ValueType,
-typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
-{
-    static ValueType get() {
-        return static_cast<ValueType>(0);
-    }
-};
-
-template <typename ValueType>
-struct identity_impl<ValueType,
-typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
-{
-    static ValueType get() {
-        return static_cast<ValueType>(1);
-    }
-};
-
-template <typename ValueType>
-struct constant_impl<ValueType,
-typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
-{
-    static ValueType get(typename scalar_of<ValueType>::type c) {
-        return static_cast<ValueType>(c);
-    }
-};
-
-template <typename ValueType>
-struct inverse_impl<ValueType,
-typename boost::enable_if<boost::is_arithmetic<ValueType> >::type>
-{
-    static ValueType get(ValueType x) {
-        return identity<ValueType>() / x;
-    }
-};
-
 
 } // namespace math
 } // namespace amgcl
