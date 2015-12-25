@@ -56,10 +56,12 @@ struct ilu0 {
     typedef typename Backend::matrix          matrix;
     typedef typename Backend::matrix_diagonal matrix_diagonal;
 
+    typedef typename math::scalar_of<value_type>::type scalar_type;
+
     /// Relaxation parameters.
     struct params {
         /// Damping factor.
-        float damping;
+        scalar_type damping;
 
         /// Number of Jacobi iterations.
         /** \note Used for approximate solution of triangular systems on parallel backends */
@@ -221,7 +223,7 @@ struct ilu0 {
         {
             backend::residual(rhs, A, x, tmp);
             relaxation::detail::serial_ilu_solve(*L, *U, *D, tmp);
-            backend::axpby(prm.damping, tmp, 1, x);
+            backend::axpby(prm.damping, tmp, math::identity<scalar_type>(), x);
         }
 
         template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
@@ -234,7 +236,7 @@ struct ilu0 {
             relaxation::detail::parallel_ilu_solve(
                     *L, *U, *D, tmp, *t1, *t2, prm.jacobi_iters
                     );
-            backend::axpby(prm.damping, tmp, 1, x);
+            backend::axpby(prm.damping, tmp, math::identity<scalar_type>(), x);
         }
 
 };
