@@ -236,6 +236,7 @@ struct HPX {
 
     typedef hpx_matrix<value_type>         matrix;
     typedef hpx_vector<value_type>         vector;
+    typedef hpx_vector<value_type>         matrix_diagonal;
 
     struct direct_solver : public solver::skyline_lu<value_type> {
         typedef solver::skyline_lu<value_type> Base;

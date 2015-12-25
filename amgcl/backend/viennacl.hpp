@@ -64,6 +64,7 @@ struct viennacl {
     typedef ptrdiff_t                                  index_type;
     typedef Matrix                                     matrix;
     typedef ::viennacl::vector<value_type>             vector;
+    typedef ::viennacl::vector<value_type>             matrix_diagonal;
     typedef detail::default_direct_solver<viennacl>    direct_solver;
 
     struct provides_row_iterator : boost::false_type {};

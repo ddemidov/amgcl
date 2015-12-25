@@ -58,6 +58,7 @@ struct blaze {
 
     typedef ::blaze::CompressedMatrix<real> matrix;
     typedef ::blaze::DynamicVector<real>    vector;
+    typedef ::blaze::DynamicVector<real>    matrix_diagonal;
     typedef solver::skyline_lu<real>        direct_solver;
 
     /// Backend parameters.

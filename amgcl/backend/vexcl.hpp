@@ -60,6 +60,7 @@ struct vexcl {
 
     typedef vex::SpMat<value_type, index_type, index_type> matrix;
     typedef vex::vector<value_type>                        vector;
+    typedef vex::vector<value_type>                        matrix_diagonal;
     typedef detail::default_direct_solver<vexcl>           direct_solver;
 
     struct provides_row_iterator : boost::false_type {};

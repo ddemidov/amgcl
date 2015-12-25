@@ -214,6 +214,7 @@ struct cuda {
     typedef real value_type;
     typedef cuda_hyb_matrix<real>               matrix;
     typedef thrust::device_vector<real>         vector;
+    typedef thrust::device_vector<real>         matrix_diagonal;
     typedef detail::default_direct_solver<cuda> direct_solver;
 
     struct provides_row_iterator : boost::false_type {};

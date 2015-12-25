@@ -156,6 +156,7 @@ struct block_crs {
 
     typedef bcrs<real, index_type, index_type> matrix;
     typedef typename builtin<real>::vector     vector;
+    typedef typename builtin<real>::vector     matrix_diagonal;
     typedef solver::skyline_lu<value_type>     direct_solver;
 
     struct provides_row_iterator : boost::false_type {};

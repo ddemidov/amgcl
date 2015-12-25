@@ -383,6 +383,7 @@ struct builtin {
 
     typedef crs<value_type, index_type>    matrix;
     typedef std::vector<rhs_type>          vector;
+    typedef std::vector<value_type>        matrix_diagonal;
     typedef solver::skyline_lu<value_type> direct_solver;
 
     /// Backend parameters.
@@ -403,16 +404,18 @@ struct builtin {
     }
 
     /// Copy vector to builtin backend.
-    static boost::shared_ptr<vector>
-    copy_vector(const vector &x, const params&)
+    template <class T>
+    static boost::shared_ptr< std::vector<T> >
+    copy_vector(const std::vector<T> &x, const params&)
     {
-        return boost::make_shared<vector>(x);
+        return boost::make_shared< std::vector<T> >(x);
     }
 
     /// Copy vector to builtin backend.
     /** This is a noop for builtin backend. */
-    static boost::shared_ptr<vector>
-    copy_vector(boost::shared_ptr< vector > x, const params&)
+    template <class T>
+    static boost::shared_ptr< std::vector<T> >
+    copy_vector(boost::shared_ptr< std::vector<T> > x, const params&)
     {
         return x;
     }

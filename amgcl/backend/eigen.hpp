@@ -60,9 +60,8 @@ struct eigen {
         Eigen::MappedSparseMatrix<value_type, Eigen::RowMajor, index_type>
         matrix;
 
-    typedef
-        Eigen::Matrix<value_type, Eigen::Dynamic, 1>
-        vector;
+    typedef Eigen::Matrix<value_type, Eigen::Dynamic, 1> vector;
+    typedef Eigen::Matrix<value_type, Eigen::Dynamic, 1> matrix_diagonal;
 
     typedef solver::skyline_lu<real> direct_solver;
 
