@@ -61,6 +61,11 @@ class bicgstabl {
 
         typedef typename math::scalar_of<value_type>::type scalar_type;
 
+        typedef typename math::inner_product_impl<
+            typename math::rhs_of<value_type>::type
+            >::return_type coef_type;
+
+
         /// Solver parameters.
         struct params {
             /// Order of the method.
@@ -138,6 +143,9 @@ class bicgstabl {
 #endif
                 ) const
         {
+            static const coef_type one  = math::identity<coef_type>();
+            static const coef_type zero = math::zero<coef_type>();
+
             const int L = prm.L;
 
             backend::residual(rhs, A, x, *r0);
@@ -156,7 +164,7 @@ class bicgstabl {
 
             backend::copy(*r0, *r[0]);
             backend::clear( *u[0] );
-            scalar_type rho0 = 1, alpha = 0, omega = 1;
+            coef_type rho0 = one, alpha = zero, omega = one;
 
             size_t iter = 0;
 
@@ -165,37 +173,37 @@ class bicgstabl {
 
                 // Bi-CG part
                 for(int j = 0; j < L; ++j) {
-                    precondition(rho0 != 0, "Zero rho in BiCGStab(L)");
+                    precondition(!math::is_zero(rho0), "Zero rho in BiCGStab(L)");
 
-                    scalar_type rho1 = inner_product(*r[j], *r0);
-                    scalar_type beta = alpha * rho1 / rho0;
+                    coef_type rho1 = inner_product(*r[j], *r0);
+                    coef_type beta = alpha * rho1 / rho0;
                     rho0 = rho1;
 
                     for(int i = 0; i <= j; ++i)
-                        backend::axpby(1, *r[i], -beta, *u[i]);
+                        backend::axpby(one, *r[i], -beta, *u[i]);
 
                     P.apply(*u[j], *q);
-                    backend::spmv(1, A, *q, 0, *u[j+1]);
+                    backend::spmv(one, A, *q, zero, *u[j+1]);
 
                     alpha = inner_product(*u[j+1], *r0);
 
-                    if (alpha == 0) break;
+                    if (math::is_zero(alpha)) break;
 
                     alpha = rho0 / alpha;
 
                     for(int i = 0; i <= j; ++i)
-                        backend::axpby(-alpha, *u[i+1], 1, *r[i]);
+                        backend::axpby(-alpha, *u[i+1], one, *r[i]);
 
                     P.apply(*r[j], *q);
-                    backend::spmv(1, A, *q, 0, *r[j+1]);
-                    backend::axpby(alpha, *u[0], 1, x);
+                    backend::spmv(one, A, *q, zero, *r[j+1]);
+                    backend::axpby(alpha, *u[0], one, x);
                 }
 
                 // MR part
                 for(int j = 0; j < L; ++j) {
                     for(int i = 0; i < j; ++i) {
                         tau[i][j] = inner_product(*r[j+1], *r[i+1]) / sigma[i];
-                        backend::axpby(-tau[i][j], *r[i+1], 1, *r[j+1]);
+                        backend::axpby(-tau[i][j], *r[i+1], one, *r[j+1]);
                     }
                     sigma[j] = inner_product(*r[j+1], *r[j+1]);
                     gamma1[j] = inner_product(*r[0], *r[j+1]) / sigma[j];
@@ -215,14 +223,14 @@ class bicgstabl {
                 }
 
                 // Update
-                backend::axpby(gamma[0], *r[0], 1, x);
-                backend::axpby(-gamma1[L-1], *r[L], 1, *r[0]);
-                backend::axpby(-gamma[L-1], *u[L], 1, *u[0]);
+                backend::axpby(gamma[0], *r[0], one, x);
+                backend::axpby(-gamma1[L-1], *r[L], one, *r[0]);
+                backend::axpby(-gamma[L-1], *u[L], one, *u[0]);
 
                 for(int j = 1; j < L; ++j) {
-                    backend::axpby(-gamma[j-1], *u[j], 1, *u[0]);
-                    backend::axpby(gamma2[j-1], *r[j], 1, x);
-                    backend::axpby(-gamma1[j-1], *r[j], 1, *r[0]);
+                    backend::axpby(-gamma[j-1], *u[j], one, *u[0]);
+                    backend::axpby(gamma2[j-1], *r[j], one, x);
+                    backend::axpby(-gamma1[j-1], *r[j], one, *r[0]);
                 }
 
                 res_norm = norm(*r[0]);
@@ -268,15 +276,15 @@ class bicgstabl {
         mutable std::vector< boost::shared_ptr< vector > > r;
         mutable std::vector< boost::shared_ptr< vector > > u;
 
-        mutable boost::multi_array<scalar_type, 2> tau;
-        mutable std::vector<scalar_type> sigma;
-        mutable std::vector<scalar_type> gamma, gamma1, gamma2;
+        mutable boost::multi_array<coef_type, 2> tau;
+        mutable std::vector<coef_type> sigma;
+        mutable std::vector<coef_type> gamma, gamma1, gamma2;
 
         InnerProduct inner_product;
 
         template <class Vec>
         scalar_type norm(const Vec &x) const {
-            return sqrt(inner_product(x, x));
+            return sqrt(math::norm(inner_product(x, x)));
         }
 };
 
