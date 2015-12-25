@@ -351,8 +351,6 @@ class skyline_lu {
          * end
          */
         void factorize() {
-            const scalar_type eps = amgcl::detail::eps<scalar_type>(1);
-
             precondition(!math::is_zero(D[0]), "Zero diagonal in skyline_lu");
 
             for(int k = 0; k < n - 1; ++k) {
