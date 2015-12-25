@@ -45,7 +45,7 @@ BOOST_AUTO_TEST_CASE(complex_matrix)
             amgcl::coarsening::smoothed_aggregation,
             amgcl::relaxation::gauss_seidel
             >,
-        amgcl::solver::cg<Backend>
+        amgcl::solver::bicgstab<Backend>
         > solve( boost::tie(n, ptr, col, val) );
 
     std::cout << solve.precond() << std::endl;

@@ -59,6 +59,11 @@ class bicgstab {
 
         typedef typename math::scalar_of<value_type>::type scalar_type;
 
+        typedef typename math::inner_product_impl<
+            typename math::rhs_of<value_type>::type
+            >::return_type coef_type;
+
+
         /// Solver parameters.
         struct params {
             /// Maximum number of iterations.
@@ -127,6 +132,9 @@ class bicgstab {
 #endif
                 ) const
         {
+            static const coef_type one  = math::identity<coef_type>();
+            static const coef_type zero = math::zero<coef_type>();
+
             backend::residual(rhs, A, x, *r);
 
             scalar_type norm_rhs = norm(rhs);
@@ -137,10 +145,12 @@ class bicgstab {
 
             scalar_type eps = norm_rhs * prm.tol;
 
-            scalar_type rho1  = 0, rho2  = 0;
-            scalar_type alpha = 0, omega = 0;
+            coef_type rho1  = zero;
+            coef_type rho2  = zero;
+            coef_type alpha = zero;
+            coef_type omega = zero;
 
-            size_t     iter = 0;
+            size_t      iter = 0;
             scalar_type res  = norm(*r);
 
             backend::copy(*r, *rh);
@@ -155,31 +165,31 @@ class bicgstab {
                     first = false;
                 } else {
                     precondition(!math::is_zero(rho2), "Zero rho in BiCGStab");
-                    scalar_type beta = (rho1 * alpha) / (rho2 * omega);
-                    backend::axpbypcz(1, *r, -beta * omega, *v, beta, *p);
+                    coef_type beta = (rho1 * alpha) / (rho2 * omega);
+                    backend::axpbypcz(one, *r, -beta * omega, *v, beta, *p);
                 }
 
                 P.apply(*p, *ph);
 
-                backend::spmv(1, A, *ph, 0, *v);
+                backend::spmv(one, A, *ph, zero, *v);
 
                 alpha = rho1 / inner_product(*rh, *v);
 
-                backend::axpbypcz(1, *r, -alpha, *v, 0, *s);
+                backend::axpbypcz(one, *r, -alpha, *v, zero, *s);
 
                 if ((res = norm(*s)) <= eps) {
-                    backend::axpby(alpha, *ph, 1, x);
+                    backend::axpby(alpha, *ph, one, x);
                 } else {
                     P.apply(*s, *sh);
 
-                    backend::spmv(1, A, *sh, 0, *t);
+                    backend::spmv(one, A, *sh, zero, *t);
 
                     omega = inner_product(*t, *s) / inner_product(*t, *t);
 
                     precondition(!math::is_zero(omega), "Zero omega in BiCGStab");
 
-                    backend::axpbypcz(alpha, *ph, omega, *sh, 1, x);
-                    backend::axpbypcz(1, *s, -omega, *t, 0, *r);
+                    backend::axpbypcz(alpha, *ph, omega, *sh, one, x);
+                    backend::axpbypcz(one, *s, -omega, *t, zero, *r);
 
                     res = norm(*r);
                 }
@@ -228,7 +238,7 @@ class bicgstab {
 
         template <class Vec>
         scalar_type norm(const Vec &x) const {
-            return sqrt(inner_product(x, x));
+            return sqrt(math::norm(inner_product(x, x)));
         }
 };
 

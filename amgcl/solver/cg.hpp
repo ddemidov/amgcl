@@ -145,6 +145,9 @@ class cg {
 #endif
                 ) const
         {
+            static const coef_type one  = math::identity<coef_type>();
+            static const coef_type zero = math::zero<coef_type>();
+
             backend::residual(rhs, A, x, *r);
             scalar_type norm_rhs = norm(rhs);
             if (norm_rhs < amgcl::detail::eps<scalar_type>(n)) {
@@ -155,8 +158,8 @@ class cg {
             scalar_type eps  = prm.tol * norm_rhs;
             scalar_type eps2 = eps * eps;
 
-            coef_type rho1 = 2 * eps2 * math::identity<coef_type>();
-            coef_type rho2 = math::zero<coef_type>();
+            coef_type rho1 = 2 * eps2 * one;
+            coef_type rho2 = zero;
             scalar_type res_norm = norm(*r);
 
             size_t iter = 0;
@@ -167,16 +170,16 @@ class cg {
                 rho1 = inner_product(*r, *s);
 
                 if (iter)
-                    backend::axpby(math::identity<coef_type>(), *s, rho1 / rho2, *p);
+                    backend::axpby(one, *s, rho1 / rho2, *p);
                 else
                     backend::copy(*s, *p);
 
-                backend::spmv(math::identity<coef_type>(), A, *p, math::zero<coef_type>(), *q);
+                backend::spmv(one, A, *p, zero, *q);
 
                 coef_type alpha = rho1 / inner_product(*q, *p);
 
-                backend::axpby( alpha, *p, math::identity<coef_type>(),  x);
-                backend::axpby(-alpha, *q, math::identity<coef_type>(), *r);
+                backend::axpby( alpha, *p, one,  x);
+                backend::axpby(-alpha, *q, one, *r);
             }
 
             backend::residual(rhs, A, x, *r);
@@ -220,7 +223,7 @@ class cg {
 
         template <class Vec>
         scalar_type norm(const Vec &x) const {
-            return sqrt(std::abs(inner_product(x, x)));
+            return sqrt(math::norm(inner_product(x, x)));
         }
 };
 
