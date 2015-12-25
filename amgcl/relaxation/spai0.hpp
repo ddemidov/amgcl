@@ -51,6 +51,7 @@ struct spai0 {
     typedef typename Backend::value_type      value_type;
     typedef typename Backend::matrix_diagonal matrix_diagonal;
 
+    typedef typename math::scalar_of<value_type>::type scalar_type;
     /// Relaxation parameters.
     struct params {
         params() {}
@@ -113,8 +114,10 @@ struct spai0 {
                 const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp
                 ) const
         {
+            static const scalar_type one = math::identity<scalar_type>();
+
             backend::residual(rhs, A, x, tmp);
-            backend::vmul(1, *M, tmp, 1, x);
+            backend::vmul(one, *M, tmp, one, x);
         }
 
 };
