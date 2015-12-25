@@ -69,10 +69,10 @@ struct ilut {
         int p;
 
         /// Minimum magnitude of non-zero elements relative to the current row norm.
-        float tau;
+        scalar_type tau;
 
         /// Damping factor.
-        float damping;
+        scalar_type damping;
 
         /// Number of Jacobi iterations.
         /** \note Used for approximate solution of triangular systems on parallel backends */
@@ -373,7 +373,7 @@ struct ilut {
         {
             backend::residual(rhs, A, x, tmp);
             relaxation::detail::serial_ilu_solve(*L, *U, *D, tmp);
-            backend::axpby(prm.damping, tmp, 1, x);
+            backend::axpby(prm.damping, tmp, math::identity<scalar_type>(), x);
         }
 
         template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
@@ -386,7 +386,7 @@ struct ilut {
             relaxation::detail::parallel_ilu_solve(
                     *L, *U, *D, tmp, *t1, *t2, prm.jacobi_iters
                     );
-            backend::axpby(prm.damping, tmp, 1, x);
+            backend::axpby(prm.damping, tmp, math::identity<scalar_type>(), x);
         }
 };
 

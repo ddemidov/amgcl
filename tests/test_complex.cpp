@@ -131,6 +131,12 @@ BOOST_AUTO_TEST_CASE(complex_matrix)
         amgcl::solver::cg<Backend>
         >(n, ptr, col, val, rhs);
 
+    test_complex_matrix<
+        amgcl::coarsening::smoothed_aggregation,
+        amgcl::relaxation::ilut,
+        amgcl::solver::cg<Backend>
+        >(n, ptr, col, val, rhs);
+
 }
 
 BOOST_AUTO_TEST_CASE(complex_matrix_adapter)
