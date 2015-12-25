@@ -56,9 +56,12 @@ namespace relaxation {
  */
 template <class Backend>
 struct ilut {
-    typedef typename Backend::value_type value_type;
-    typedef typename Backend::matrix     matrix;
-    typedef typename Backend::vector     vector;
+    typedef typename Backend::value_type      value_type;
+    typedef typename Backend::matrix          matrix;
+    typedef typename Backend::matrix_diagonal matrix_diagonal;
+    typedef typename Backend::vector          vector;
+
+    typedef typename math::scalar_of<value_type>::type scalar_type;
 
     /// Relaxation parameters.
     struct params {
@@ -141,11 +144,11 @@ struct ilut {
             int lenL = 0;
             int lenU = 0;
 
-            value_type tol = 0;
+            scalar_type tol = math::zero<scalar_type>();
 
             for(row_iterator a = backend::row_begin(A, i); a; ++a) {
                 w[a.col()] = a.value();
-                tol += fabs(a.value());
+                tol += math::norm(a.value());
 
                 if (a.col() <  i) ++lenL;
                 if (a.col() >= i) ++lenU;
@@ -154,9 +157,10 @@ struct ilut {
 
             while(!w.q.empty()) {
                 ptrdiff_t k = w.next_nonzero();
-                value_type wk = (w[k] *= D[k]);
+                w[k] = D[k] * w[k];
+                value_type wk = w[k];
 
-                if (fabs(wk) > tol) {
+                if (math::norm(wk) > tol) {
                     for(ptrdiff_t j = U->ptr[k]; j < U->ptr[k+1]; ++j)
                         w[U->col[j]] -= wk * U->val[j];
                 }
@@ -203,7 +207,8 @@ struct ilut {
         typedef typename backend::builtin<value_type>::matrix build_matrix;
 
         boost::shared_ptr<matrix> L, U;
-        boost::shared_ptr<vector> D, t1, t2;
+        boost::shared_ptr<matrix_diagonal> D;
+        boost::shared_ptr<vector> t1, t2;
 
         struct sparse_vector {
             struct nonzero {
@@ -270,14 +275,14 @@ struct ilut {
             }
 
             struct higher_than {
-                value_type tol;
-                ptrdiff_t dia;
+                scalar_type tol;
+                ptrdiff_t   dia;
 
-                higher_than(value_type tol, ptrdiff_t dia)
+                higher_than(scalar_type tol, ptrdiff_t dia)
                     : tol(tol), dia(dia) {}
 
                 bool operator()(const nonzero &v) const {
-                    return v.col == dia || fabs(v.val) > tol;
+                    return v.col == dia || math::norm(v.val) > tol;
                 }
             };
 
@@ -300,7 +305,7 @@ struct ilut {
                     if (a.col == dia) return true;
                     if (b.col == dia) return false;
 
-                    return fabs(a.val) > fabs(b.val);
+                    return math::norm(a.val) > math::norm(b.val);
                 }
             };
 
@@ -311,7 +316,7 @@ struct ilut {
             };
 
             void move_to(
-                    int lp, int up, value_type tol,
+                    int lp, int up, scalar_type tol,
                     build_matrix &L, build_matrix &U, std::vector<value_type> &D
                     )
             {
@@ -345,7 +350,7 @@ struct ilut {
                 L.ptr.push_back(L.val.size());
 
                 // Store inverted diagonal.
-                D.push_back(1 / m->val);
+                D.push_back(math::inverse(m->val));
                 ++m;
 
                 // copy U to the output matrix.
