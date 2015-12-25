@@ -73,6 +73,10 @@ class cg {
 
         typedef typename math::scalar_of<value_type>::type scalar_type;
 
+        typedef typename math::inner_product_impl<
+            typename math::rhs_of<value_type>::type
+            >::return_type coef_type;
+
         /// Solver parameters.
         struct params {
             /// Maximum number of iterations.
@@ -151,27 +155,28 @@ class cg {
             scalar_type eps  = prm.tol * norm_rhs;
             scalar_type eps2 = eps * eps;
 
-            scalar_type rho1 = 2 * eps2, rho2 = 0;
+            coef_type rho1 = 2 * eps2 * math::identity<coef_type>();
+            coef_type rho2 = math::zero<coef_type>();
             scalar_type res_norm = norm(*r);
 
             size_t iter = 0;
-            for(; iter < prm.maxiter && std::abs(rho1) > eps2; ++iter) {
+            for(; iter < prm.maxiter && math::norm(rho1) > eps2; ++iter) {
                 P.apply(*r, *s);
 
                 rho2 = rho1;
                 rho1 = inner_product(*r, *s);
 
                 if (iter)
-                    backend::axpby(1, *s, rho1 / rho2, *p);
+                    backend::axpby(math::identity<coef_type>(), *s, rho1 / rho2, *p);
                 else
                     backend::copy(*s, *p);
 
-                backend::spmv(1, A, *p, 0, *q);
+                backend::spmv(math::identity<coef_type>(), A, *p, math::zero<coef_type>(), *q);
 
-                scalar_type alpha = rho1 / inner_product(*q, *p);
+                coef_type alpha = rho1 / inner_product(*q, *p);
 
-                backend::axpby( alpha, *p, 1,  x);
-                backend::axpby(-alpha, *q, 1, *r);
+                backend::axpby( alpha, *p, math::identity<coef_type>(),  x);
+                backend::axpby(-alpha, *q, math::identity<coef_type>(), *r);
             }
 
             backend::residual(rhs, A, x, *r);
@@ -215,7 +220,7 @@ class cg {
 
         template <class Vec>
         scalar_type norm(const Vec &x) const {
-            return sqrt(inner_product(x, x));
+            return sqrt(std::abs(inner_product(x, x)));
         }
 };
 

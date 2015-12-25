@@ -10,7 +10,7 @@
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
 #include <amgcl/relaxation/gauss_seidel.hpp>
 #include <amgcl/relaxation/spai0.hpp>
-#include <amgcl/solver/gmres.hpp>
+#include <amgcl/solver/cg.hpp>
 #include <amgcl/solver/bicgstab.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/adapter/complex.hpp>
@@ -45,7 +45,7 @@ BOOST_AUTO_TEST_CASE(complex_matrix)
             amgcl::coarsening::smoothed_aggregation,
             amgcl::relaxation::gauss_seidel
             >,
-        amgcl::solver::gmres<Backend>
+        amgcl::solver::cg<Backend>
         > solve( boost::tie(n, ptr, col, val) );
 
     std::cout << solve.precond() << std::endl;
