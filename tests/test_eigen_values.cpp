@@ -8,7 +8,7 @@
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
 #include <amgcl/relaxation/gauss_seidel.hpp>
 #include <amgcl/relaxation/spai0.hpp>
-#include <amgcl/solver/cg.hpp>
+#include <amgcl/solver/bicgstab.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/adapter/complex.hpp>
 #include <amgcl/profiler.hpp>
@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE(eigen_value_type)
             amgcl::coarsening::smoothed_aggregation,
             amgcl::relaxation::gauss_seidel
             >,
-        amgcl::solver::cg<Backend>
+        amgcl::solver::bicgstab<Backend>
         > solve( boost::tie(n, ptr, col, val) );
 
     std::cout << solve.precond() << std::endl;

@@ -57,15 +57,17 @@ class bicgstab {
         typedef typename Backend::value_type value_type;
         typedef typename Backend::params     backend_params;
 
+        typedef typename math::scalar_of<value_type>::type scalar_type;
+
         /// Solver parameters.
         struct params {
             /// Maximum number of iterations.
             size_t maxiter;
 
             /// Target residual error.
-            value_type tol;
+            scalar_type tol;
 
-            params(size_t maxiter = 100, value_type tol = 1e-8)
+            params(size_t maxiter = 100, scalar_type tol = 1e-8)
                 : maxiter(maxiter), tol(tol)
             {}
 
@@ -114,7 +116,7 @@ class bicgstab {
          * \cite Demidov2012.
          */
         template <class Matrix, class Precond, class Vec1, class Vec2>
-        boost::tuple<size_t, value_type> operator()(
+        boost::tuple<size_t, scalar_type> operator()(
                 Matrix  const &A,
                 Precond const &P,
                 Vec1    const &rhs,
@@ -127,19 +129,19 @@ class bicgstab {
         {
             backend::residual(rhs, A, x, *r);
 
-            value_type norm_rhs = norm(rhs);
-            if (norm_rhs < amgcl::detail::eps<value_type>(n)) {
+            scalar_type norm_rhs = norm(rhs);
+            if (norm_rhs < amgcl::detail::eps<scalar_type>(n)) {
                 backend::clear(x);
                 return boost::make_tuple(0, norm_rhs);
             }
 
-            value_type eps = norm_rhs * prm.tol;
+            scalar_type eps = norm_rhs * prm.tol;
 
-            value_type rho1  = 0, rho2  = 0;
-            value_type alpha = 0, omega = 0;
+            scalar_type rho1  = 0, rho2  = 0;
+            scalar_type alpha = 0, omega = 0;
 
             size_t     iter = 0;
-            value_type res  = norm(*r);
+            scalar_type res  = norm(*r);
 
             backend::copy(*r, *rh);
 
@@ -152,8 +154,8 @@ class bicgstab {
                     backend::copy(*r, *p);
                     first = false;
                 } else {
-                    precondition(rho2 != 0, "Zero rho in BiCGStab");
-                    value_type beta = (rho1 * alpha) / (rho2 * omega);
+                    precondition(!math::is_zero(rho2), "Zero rho in BiCGStab");
+                    scalar_type beta = (rho1 * alpha) / (rho2 * omega);
                     backend::axpbypcz(1, *r, -beta * omega, *v, beta, *p);
                 }
 
@@ -174,7 +176,7 @@ class bicgstab {
 
                     omega = inner_product(*t, *s) / inner_product(*t, *t);
 
-                    precondition(omega != 0, "Zero omega in BiCGStab");
+                    precondition(!math::is_zero(omega), "Zero omega in BiCGStab");
 
                     backend::axpbypcz(alpha, *ph, omega, *sh, 1, x);
                     backend::axpbypcz(1, *s, -omega, *t, 0, *r);
@@ -193,7 +195,7 @@ class bicgstab {
          * \param x   Solution vector.
          */
         template <class Precond, class Vec1, class Vec2>
-        boost::tuple<size_t, value_type> operator()(
+        boost::tuple<size_t, scalar_type> operator()(
                 Precond const &P,
                 Vec1    const &rhs,
 #ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
@@ -225,7 +227,7 @@ class bicgstab {
         InnerProduct inner_product;
 
         template <class Vec>
-        value_type norm(const Vec &x) const {
+        scalar_type norm(const Vec &x) const {
             return sqrt(inner_product(x, x));
         }
 };
