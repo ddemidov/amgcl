@@ -61,14 +61,13 @@ struct adjoint_impl {
 };
 
 /// Default implementation for inner product
-/** \note Used in adjoint() */
+/** \note Used in inner_product() */
 template <typename ValueType, class Enable = void>
 struct inner_product_impl {
-    typedef typename adjoint_impl<ValueType>::return_type Transposed;
-    typedef BOOST_TYPEOF_TPL(Transposed() * ValueType()) return_type;
+    typedef ValueType return_type;
 
     static return_type get(ValueType x, ValueType y) {
-        return adjoint_impl<ValueType>::get(x) * y;
+        return x * y;
     }
 };
 
