@@ -604,9 +604,9 @@ struct inner_product_impl<
     }
 };
 
-template < class Vec1, class Vec2 >
+template <class A, class Vec1, class B, class Vec2 >
 struct axpby_impl<
-    Vec1, Vec2,
+    A, Vec1, B, Vec2,
     typename boost::enable_if<
             typename boost::mpl::and_<
                 typename is_builtin_vector<Vec1>::type,
@@ -615,9 +615,7 @@ struct axpby_impl<
         >::type
     >
 {
-    typedef typename value_type<Vec2>::type V;
-
-    static void apply(V a, const Vec1 &x, V b, Vec2 &y)
+    static void apply(A a, const Vec1 &x, B b, Vec2 &y)
     {
         const size_t n = x.size();
         if (!math::is_zero(b)) {
@@ -634,9 +632,9 @@ struct axpby_impl<
     }
 };
 
-template < class Vec1, class Vec2, class Vec3 >
+template < class A, class Vec1, class B, class Vec2, class C, class Vec3 >
 struct axpbypcz_impl<
-    Vec1, Vec2, Vec3,
+    A, Vec1, B, Vec2, C, Vec3,
     typename boost::enable_if<
             typename boost::mpl::and_<
                 typename is_builtin_vector<Vec1>::type,
@@ -646,9 +644,7 @@ struct axpbypcz_impl<
         >::type
     >
 {
-    typedef typename value_type<Vec3>::type V;
-
-    static void apply(V a, const Vec1 &x, V b, const Vec2 &y, V c, Vec3 &z)
+    static void apply(A a, const Vec1 &x, B b, const Vec2 &y, C c, Vec3 &z)
     {
         const size_t n = x.size();
         if (!math::is_zero(c)) {
@@ -665,9 +661,9 @@ struct axpbypcz_impl<
     }
 };
 
-template < class Vec1, class Vec2, class Vec3 >
+template < class Alpha, class Vec1, class Vec2, class Beta, class Vec3 >
 struct vmul_impl<
-    Vec1, Vec2, Vec3,
+    Alpha, Vec1, Vec2, Beta, Vec3,
     typename boost::enable_if<
             typename boost::mpl::and_<
                 typename is_builtin_vector<Vec1>::type,
@@ -677,9 +673,7 @@ struct vmul_impl<
         >::type
     >
 {
-    typedef typename value_type<Vec3>::type V;
-
-    static void apply(V a, const Vec1 &x, const Vec2 &y, V b, Vec3 &z)
+    static void apply(Alpha a, const Vec1 &x, const Vec2 &y, Beta b, Vec3 &z)
     {
         const size_t n = x.size();
         if (!math::is_zero(b)) {

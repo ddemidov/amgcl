@@ -241,9 +241,9 @@ class gmres {
             // Unroll the loop
             int j = 0;
             for (; j <= k; j += 2)
-                backend::axpbypcz(y[j], *v[j], y[j+1], *v[j+1], 1, x);
+                backend::axpbypcz(y[j], *v[j], y[j+1], *v[j+1], math::identity<scalar_type>(), x);
             for (; j <= k; ++j)
-                backend::axpby(y[j], *v[j], 1, x);
+                backend::axpby(y[j], *v[j], math::identity<scalar_type>(), x);
         }
 
         template <class Matrix, class Precond, class Vec1, class Vec2>
@@ -257,7 +257,7 @@ class gmres {
             s[0] = norm(*r);
 
             if (!math::is_zero(s[0]))
-                backend::axpby(math::inverse(s[0]), *r, 0, *v[0]);
+                backend::axpby(math::inverse(s[0]), *r, math::zero<scalar_type>(), *v[0]);
 
             return std::abs(s[0]);
         }
@@ -265,17 +265,17 @@ class gmres {
         template <class Matrix, class Precond>
         scalar_type iteration(const Matrix &A, const Precond &P, int i) const
         {
-            backend::spmv(1, A, *v[i], 0, *r);
+            backend::spmv(math::identity<scalar_type>(), A, *v[i], math::zero<scalar_type>(), *r);
             P.apply(*r, *w);
 
             for(int k = 0; k <= i; ++k) {
                 H[k][i] = inner_product(*w, *v[k]);
-                backend::axpby(-H[k][i], *v[k], 1, *w);
+                backend::axpby(-H[k][i], *v[k], math::identity<scalar_type>(), *w);
             }
 
             H[i+1][i] = norm(*w);
 
-            backend::axpby(math::inverse(H[i+1][i]), *w, 0, *v[i+1]);
+            backend::axpby(math::inverse(H[i+1][i]), *w, math::zero<scalar_type>(), *v[i+1]);
 
             for(int k = 0; k < i; ++k)
                 apply_plane_rotation(H[k][i], H[k+1][i], cs[k], sn[k]);

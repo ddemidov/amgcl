@@ -337,21 +337,20 @@ struct nonzeros_impl< hpx_matrix<real> > {
     }
 };
 
-template < typename real >
+template < typename Alpha, typename Beta, typename real >
 struct spmv_impl<
-    hpx_matrix<real>,
-    hpx_vector<real>,
-    hpx_vector<real>
+    Alpha, hpx_matrix<real>, hpx_vector<real>,
+    Beta,  hpx_vector<real>
     >
 {
     typedef hpx_matrix<real> matrix;
     typedef hpx_vector<real> vector;
 
     struct process_ab {
-        real                    alpha;
+        Alpha                   alpha;
         const hpx_matrix<real> &A;
         const real             *xptr;
-        real                    beta;
+        Beta                    beta;
         real                   *yptr;
 
         ptrdiff_t beg;
@@ -369,7 +368,7 @@ struct spmv_impl<
     };
 
     struct process_a {
-        real                    alpha;
+        Alpha                   alpha;
         const hpx_matrix<real> &A;
         const real             *xptr;
         real                   *yptr;
@@ -393,8 +392,8 @@ struct spmv_impl<
         void operator()(T&&) const {}
     };
 
-    static void apply(real alpha, const matrix &A, const vector &x,
-            real beta, vector &y)
+    static void apply(Alpha alpha, const matrix &A, const vector &x,
+            Beta beta, vector &y)
     {
         const real *xptr = &x[0];
         real       *yptr = &y[0];
@@ -709,10 +708,10 @@ struct inner_product_impl<
     }
 };
 
-template < typename real >
+template < typename A, typename B, typename real >
 struct axpby_impl<
-    hpx_vector<real>,
-    hpx_vector<real>
+    A, hpx_vector<real>,
+    B, hpx_vector<real>
     >
 {
     typedef hpx_vector<real> vector;
@@ -720,9 +719,9 @@ struct axpby_impl<
     struct process_ab {
         typedef void result_type;
 
-        real        a;
+        A           a;
         const real *xptr;
-        real        b;
+        B           b;
         real       *yptr;
 
         ptrdiff_t beg;
@@ -738,7 +737,7 @@ struct axpby_impl<
     struct process_a {
         typedef void result_type;
 
-        real        a;
+        A           a;
         const real *xptr;
         real       *yptr;
 
@@ -752,7 +751,7 @@ struct axpby_impl<
         }
     };
 
-    static void apply(real a, const vector &x, real b, vector &y)
+    static void apply(A a, const vector &x, B b, vector &y)
     {
         const real *xptr = &x[0];
         real       *yptr = &y[0];
@@ -795,21 +794,21 @@ struct axpby_impl<
     }
 };
 
-template < typename real >
+template < typename A, typename B, typename C, typename real >
 struct axpbypcz_impl<
-    hpx_vector<real>,
-    hpx_vector<real>,
-    hpx_vector<real>
+    A, hpx_vector<real>,
+    B, hpx_vector<real>,
+    C, hpx_vector<real>
     >
 {
     typedef hpx_vector<real> vector;
 
     struct process_abc {
-        real        a;
+        A           a;
         const real *xptr;
-        real        b;
+        B           b;
         const real *yptr;
-        real        c;
+        C           c;
         real       *zptr;
 
         ptrdiff_t beg;
@@ -823,9 +822,9 @@ struct axpbypcz_impl<
     };
 
     struct process_ab {
-        real        a;
+        A           a;
         const real *xptr;
-        real        b;
+        B           b;
         const real *yptr;
         real       *zptr;
 
@@ -840,9 +839,9 @@ struct axpbypcz_impl<
     };
 
     static void apply(
-            real a, const vector &x,
-            real b, const vector &y,
-            real c,       vector &z
+            A a, const vector &x,
+            B b, const vector &y,
+            C c,       vector &z
             )
     {
         const real *xptr = &x[0];
@@ -889,20 +888,19 @@ struct axpbypcz_impl<
     }
 };
 
-template < typename real >
+template < typename A, typename B, typename real >
 struct vmul_impl<
-    hpx_vector<real>,
-    hpx_vector<real>,
-    hpx_vector<real>
+    A, hpx_vector<real>, hpx_vector<real>,
+    B, hpx_vector<real>
     >
 {
     typedef hpx_vector<real> vector;
 
     struct process_ab {
-        real        a;
+        A           a;
         const real *xptr;
         const real *yptr;
-        real        b;
+        B           b;
         real       *zptr;
 
         ptrdiff_t beg;
@@ -916,7 +914,7 @@ struct vmul_impl<
     };
 
     struct process_a {
-        real        a;
+        A           a;
         const real *xptr;
         const real *yptr;
         real       *zptr;
@@ -931,7 +929,7 @@ struct vmul_impl<
         }
     };
 
-    static void apply(real a, const vector &x, const vector &y, real b, vector &z)
+    static void apply(A a, const vector &x, const vector &y, B b, vector &z)
     {
         const real *xptr = &x[0];
         const real *yptr = &y[0];

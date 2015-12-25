@@ -297,18 +297,17 @@ struct nonzeros_impl< cuda_hyb_matrix<V> > {
     }
 };
 
-template < typename V >
+template < typename Alpha, typename Beta, typename V >
 struct spmv_impl<
-    cuda_hyb_matrix<V>,
-    thrust::device_vector<V>,
-    thrust::device_vector<V>
+    Alpha, cuda_hyb_matrix<V>, thrust::device_vector<V>,
+    Beta,  thrust::device_vector<V>
     >
 {
     typedef cuda_hyb_matrix<V> matrix;
     typedef thrust::device_vector<V> vector;
 
-    static void apply(V alpha, const matrix &A, const vector &x,
-            V beta, vector &y)
+    static void apply(Alpha alpha, const matrix &A, const vector &x,
+            Beta beta, vector &y)
     {
         A.spmv(alpha, x, beta, y, typename boost::is_same<V, double>::type());
     }
@@ -372,17 +371,18 @@ struct inner_product_impl<
     }
 };
 
-template < typename V >
+template < typename A, typename B, typename V >
 struct axpby_impl<
-    thrust::device_vector<V>,
-    thrust::device_vector<V>
+    A, thrust::device_vector<V>,
+    B, thrust::device_vector<V>
     >
 {
     typedef thrust::device_vector<V> vector;
 
     struct functor {
-        V a, b;
-        functor(V a, V b) : a(a), b(b) {}
+        A a;
+        B b;
+        functor(A a, B b) : a(a), b(b) {}
 
         template <class Tuple>
         __host__ __device__ void operator()( Tuple t ) const {
@@ -395,7 +395,7 @@ struct axpby_impl<
         }
     };
 
-    static void apply(V a, const vector &x, V b, vector &y)
+    static void apply(A a, const vector &x, B b, vector &y)
     {
         thrust::for_each(
                 thrust::make_zip_iterator(
@@ -413,18 +413,21 @@ struct axpby_impl<
     }
 };
 
-template < typename V >
+template < typename A, typename B, typename C, typename V >
 struct axpbypcz_impl<
-    thrust::device_vector<V>,
-    thrust::device_vector<V>,
-    thrust::device_vector<V>
+    A, thrust::device_vector<V>,
+    B, thrust::device_vector<V>,
+    C, thrust::device_vector<V>
     >
 {
     typedef thrust::device_vector<V> vector;
 
     struct functor {
-        V a, b, c;
-        functor(V a, V b, V c) : a(a), b(b), c(c) {}
+        A a;
+        B b;
+        C c;
+
+        functor(A a, B b, C c) : a(a), b(b), c(c) {}
 
         template <class Tuple>
         __host__ __device__ void operator()( Tuple t ) const {
@@ -438,9 +441,9 @@ struct axpbypcz_impl<
     };
 
     static void apply(
-            V a, const vector &x,
-            V b, const vector &y,
-            V c,       vector &z
+            A a, const vector &x,
+            B b, const vector &y,
+            C c,       vector &z
             )
     {
         thrust::for_each(
@@ -459,18 +462,18 @@ struct axpbypcz_impl<
     }
 };
 
-template < typename V >
+template < typename A, typename B, typename V >
 struct vmul_impl<
-    thrust::device_vector<V>,
-    thrust::device_vector<V>,
-    thrust::device_vector<V>
+    A, thrust::device_vector<V>, thrust::device_vector<V>,
+    B, thrust::device_vector<V>
     >
 {
     typedef thrust::device_vector<V> vector;
 
     struct functor {
-        V a, b;
-        functor(V a, V b) : a(a), b(b) {}
+        A a;
+        B b;
+        functor(A a, B b) : a(a), b(b) {}
 
         template <class Tuple>
         __host__ __device__ void operator()( Tuple t ) const {
@@ -483,8 +486,7 @@ struct vmul_impl<
         }
     };
 
-    static void apply(V a, const vector &x, const vector &y,
-            V b, vector &z)
+    static void apply(A a, const vector &x, const vector &y, B b, vector &z)
     {
         thrust::for_each(
                 thrust::make_zip_iterator(

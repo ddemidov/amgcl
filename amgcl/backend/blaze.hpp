@@ -171,20 +171,18 @@ struct nonzeros_impl< ::blaze::CompressedMatrix<V> > {
     }
 };
 
-template < typename V >
+template < class A, class B, typename V >
 struct spmv_impl<
-    ::blaze::CompressedMatrix<V>,
-    ::blaze::DynamicVector<V>,
-    ::blaze::DynamicVector<V>
+    A, ::blaze::CompressedMatrix<V>, ::blaze::DynamicVector<V>,
+    B, ::blaze::DynamicVector<V>
     >
 {
     typedef ::blaze::CompressedMatrix<V> matrix;
     typedef ::blaze::DynamicVector<V>    vector;
 
-    static void apply(V alpha, const matrix &A, const vector &x,
-            V beta, vector &y)
+    static void apply(A alpha, const matrix &A, const vector &x, B beta, vector &y)
     {
-        if (beta)
+        if (!math::is_zero(beta))
             y = alpha * (A * x) + beta * y;
         else
             y = alpha * (A * x);
@@ -248,28 +246,28 @@ struct inner_product_impl<
     }
 };
 
-template < typename V >
+template < typename A, typename B, typename V >
 struct axpby_impl<
-    ::blaze::DynamicVector<V>,
-    ::blaze::DynamicVector<V>
+    A, ::blaze::DynamicVector<V>,
+    B, ::blaze::DynamicVector<V>
     >
 {
     typedef ::blaze::DynamicVector<V> vector;
 
-    static void apply(V a, const vector &x, V b, vector &y)
+    static void apply(A a, const vector &x, B b, vector &y)
     {
-        if (b)
+        if (!math::is_zero(b))
             y = a * x + b * y;
         else
             y = a * x;
     }
 };
 
-template < typename V >
+template < typename A, typename B, typename C, typename V >
 struct axpbypcz_impl<
-    ::blaze::DynamicVector<V>,
-    ::blaze::DynamicVector<V>,
-    ::blaze::DynamicVector<V>
+    A, ::blaze::DynamicVector<V>,
+    B, ::blaze::DynamicVector<V>,
+    C, ::blaze::DynamicVector<V>
     >
 {
     typedef ::blaze::DynamicVector<V> vector;
@@ -280,26 +278,24 @@ struct axpbypcz_impl<
             V c,       vector &z
             )
     {
-        if (c)
+        if (!math::is_zero(c))
             z = a * x + b * y + c * z;
         else
             z = a * x + b * y;
     }
 };
 
-template < typename V >
+template < typename A, typename B, typename V >
 struct vmul_impl<
-    ::blaze::DynamicVector<V>,
-    ::blaze::DynamicVector<V>,
-    ::blaze::DynamicVector<V>
+    A, ::blaze::DynamicVector<V>, ::blaze::DynamicVector<V>,
+    B, ::blaze::DynamicVector<V>
     >
 {
     typedef ::blaze::DynamicVector<V> vector;
 
-    static void apply(V a, const vector &x, const vector &y,
-            V b, vector &z)
+    static void apply(A a, const vector &x, const vector &y, B b, vector &z)
     {
-        if (b)
+        if (!math::is_zero(b))
             z = a * x * y + b * z;
         else
             z = a * x * y;

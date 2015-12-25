@@ -239,9 +239,9 @@ struct row_begin_impl <
     }
 };
 
-template < class M, class V1, class V2 >
+template < class Alpha, class M, class V1, class Beta, class V2 >
 struct spmv_impl<
-    M, V1, V2,
+    Alpha, M, V1, Beta, V2,
     typename boost::enable_if<
             typename boost::mpl::and_<
                 typename is_eigen_sparse_matrix<M>::type,
@@ -251,11 +251,9 @@ struct spmv_impl<
         >::type
     >
 {
-    typedef typename value_type<M>::type real;
-
-    static void apply(real alpha, const M &A, const V1 &x, real beta, V2 &y)
+    static void apply(Alpha alpha, const M &A, const V1 &x, Beta beta, V2 &y)
     {
-        if (beta)
+        if (!math::is_zero(beta))
             y = alpha * A * x + beta * y;
         else
             y = alpha * A * x;
@@ -311,9 +309,9 @@ struct inner_product_impl<
     }
 };
 
-template < class V1, class V2 >
+template < class A, class V1, class B, class V2 >
 struct axpby_impl<
-    V1, V2,
+    A, V1, B, V2,
     typename boost::enable_if<
             typename boost::mpl::and_<
                 typename is_eigen_type<V1>::type,
@@ -322,20 +320,18 @@ struct axpby_impl<
         >::type
     >
 {
-    typedef typename value_type<V1>::type real;
-
-    static void apply(real a, const V1 &x, real b, V2 &y)
+    static void apply(A a, const V1 &x, B b, V2 &y)
     {
-        if (b)
+        if (!math::is_zero(b))
             y = a * x + b * y;
         else
             y = a * x;
     }
 };
 
-template < class V1, class V2, class V3 >
+template < class A, class V1, class B, class V2, class C, class V3 >
 struct axpbypcz_impl<
-    V1, V2, V3,
+    A, V1, B, V2, C, V3,
     typename boost::enable_if<
             typename boost::mpl::and_<
                 typename is_eigen_type<V1>::type,
@@ -353,16 +349,16 @@ struct axpbypcz_impl<
             real c,       V3 &z
             )
     {
-        if (c)
+        if (!math::is_zero(c))
             z = a * x + b * y + c * z;
         else
             z = a * x + b * y;
     }
 };
 
-template < class V1, class V2, class V3 >
+template < class Alpha, class V1, class V2, class Beta, class V3 >
 struct vmul_impl<
-    V1, V2, V3,
+    Alpha, V1, V2, Beta, V3,
     typename boost::enable_if<
             typename boost::mpl::and_<
                 typename is_eigen_type<V1>::type,
@@ -372,11 +368,9 @@ struct vmul_impl<
         >::type
     >
 {
-    typedef typename value_type<V1>::type real;
-
-    static void apply(real a, const V1 &x, const V2 &y, real b, V3 &z)
+    static void apply(Alpha a, const V1 &x, const V2 &y, Beta b, V3 &z)
     {
-        if (b)
+        if (!math::is_zero(b))
             z.array() = a * x.array() * y.array() + b * z.array();
         else
             z.array() = a * x.array() * y.array();

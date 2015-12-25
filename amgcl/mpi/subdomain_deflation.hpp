@@ -840,16 +840,18 @@ template <
     class LocalPrecond,
     template <class, class> class IterativeSolver,
     class DirectSolver,
+    class Alpha, class Beta,
     class Vec1,
     class Vec2
     >
 struct spmv_impl<
+    Alpha,
     mpi::subdomain_deflation<
         LocalPrecond,
         IterativeSolver,
         DirectSolver
         >,
-    Vec1, Vec2
+    Vec1, Beta, Vec2
     >
 {
     typedef
@@ -860,9 +862,7 @@ struct spmv_impl<
             >
         M;
 
-    typedef typename LocalPrecond::backend_type::value_type V;
-
-    static void apply(V alpha, const M &A, const Vec1 &x, V beta, Vec2 &y)
+    static void apply(Alpha alpha, const M &A, const Vec1 &x, Beta beta, Vec2 &y)
     {
         A.mul_n_project(alpha, x, beta, y);
     }

@@ -197,18 +197,17 @@ struct nonzeros_impl< vex::SpMat<V, C, P> > {
     }
 };
 
-template < typename V, typename C, typename P >
+template < typename Alpha, typename Beta, typename V, typename C, typename P >
 struct spmv_impl<
-    vex::SpMat<V, C, P>,
-    vex::vector<V>,
-    vex::vector<V>
+    Alpha, vex::SpMat<V, C, P>, vex::vector<V>,
+    Beta,  vex::vector<V>
     >
 {
     typedef vex::SpMat<V, C, P> matrix;
     typedef vex::vector<V>      vector;
 
-    static void apply(V alpha, const matrix &A, const vector &x,
-            V beta, vector &y)
+    static void apply(Alpha alpha, const matrix &A, const vector &x,
+            Beta beta, vector &y)
     {
         if (beta)
             y = alpha * (A * x) + beta * y;
@@ -280,12 +279,12 @@ struct inner_product_impl<
     }
 };
 
-template < typename V >
+template < typename A, typename B, typename V >
 struct axpby_impl<
-    vex::vector<V>,
-    vex::vector<V>
+    A, vex::vector<V>,
+    B, vex::vector<V>
     > {
-    static void apply(V a, const vex::vector<V> &x, V b, vex::vector<V> &y)
+    static void apply(A a, const vex::vector<V> &x, B b, vex::vector<V> &y)
     {
         if (b)
             y = a * x + b * y;
@@ -294,17 +293,17 @@ struct axpby_impl<
     }
 };
 
-template < typename V >
+template < typename A, typename B, typename C, typename V >
 struct axpbypcz_impl<
-    vex::vector<V>,
-    vex::vector<V>,
-    vex::vector<V>
+    A, vex::vector<V>,
+    B, vex::vector<V>,
+    C, vex::vector<V>
     >
 {
     static void apply(
-            V a, const vex::vector<V> &x,
-            V b, const vex::vector<V> &y,
-            V c,       vex::vector<V> &z
+            A a, const vex::vector<V> &x,
+            B b, const vex::vector<V> &y,
+            C c,       vex::vector<V> &z
             )
     {
         if (c)
@@ -314,15 +313,14 @@ struct axpbypcz_impl<
     }
 };
 
-template < typename V >
+template < typename A, typename B, typename V >
 struct vmul_impl<
-    vex::vector<V>,
-    vex::vector<V>,
-    vex::vector<V>
+    A, vex::vector<V>, vex::vector<V>,
+    B, vex::vector<V>
     >
 {
-    static void apply(V a, const vex::vector<V> &x, const vex::vector<V> &y,
-            V b, vex::vector<V> &z)
+    static void apply(A a, const vex::vector<V> &x, const vex::vector<V> &y,
+            B b, vex::vector<V> &z)
     {
         if (b)
             z = a * x * y + b * z;

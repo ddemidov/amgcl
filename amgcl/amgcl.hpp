@@ -83,6 +83,8 @@ class amg {
 
         typedef typename backend::builtin<value_type>::matrix build_matrix;
 
+        typedef typename math::scalar_of<value_type>::type scalar_type;
+
         /// Backend parameters.
         typedef typename Backend::params     backend_params;
 
@@ -365,14 +367,14 @@ class amg {
                     TOC("residual");
 
                     TIC("restrict");
-                    backend::spmv(1, *lvl->R, *lvl->t, 0, *nxt->f);
+                    backend::spmv(math::identity<scalar_type>(), *lvl->R, *lvl->t, math::zero<scalar_type>(), *nxt->f);
                     TOC("restrict");
 
                     backend::clear(*nxt->u);
                     cycle(nxt, *nxt->f, *nxt->u);
 
                     TIC("prolongate");
-                    backend::spmv(1, *lvl->P, *nxt->u, 1, x);
+                    backend::spmv(math::identity<scalar_type>(), *lvl->P, *nxt->u, math::identity<scalar_type>(), x);
                     TOC("prolongate");
 
                     TIC("relax");
