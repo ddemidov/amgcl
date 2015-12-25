@@ -52,13 +52,15 @@ namespace relaxation {
  */
 template <class Backend>
 struct damped_jacobi {
+    typedef typename Backend::value_type               value_type;
+    typedef typename math::scalar_of<value_type>::type scalar_type;
+
     /// Relaxation parameters.
     struct params {
         /// Damping factor.
-        typename Backend::value_type damping;
+        scalar_type damping;
 
-        params(typename Backend::value_type damping = 0.72)
-            : damping(damping) {}
+        params(scalar_type damping = 0.72) : damping(damping) {}
 
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, damping)
@@ -69,7 +71,7 @@ struct damped_jacobi {
         }
     };
 
-    boost::shared_ptr<typename Backend::vector> dia;
+    boost::shared_ptr<typename Backend::matrix_diagonal> dia;
 
     /// Constructs smoother for the system matrix.
     /**
