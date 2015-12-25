@@ -62,6 +62,17 @@ struct adjoint_impl< std::complex<T> >
     }
 };
 
+/// Default implementation for inner product
+/** \note Used in adjoint() */
+template <typename T>
+struct inner_product_impl< std::complex<T> > {
+    typedef std::complex<T> return_type;
+
+    static return_type get(std::complex<T> x, std::complex<T> y) {
+        return x * std::conj(y);
+    }
+};
+
 /// Specialization of constant element for complex type.
 template <typename T>
 struct constant_impl< std::complex<T> >
