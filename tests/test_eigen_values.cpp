@@ -6,7 +6,7 @@
 #include <amgcl/amgcl.hpp>
 #include <amgcl/make_solver.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
-#include <amgcl/relaxation/damped_jacobi.hpp>
+#include <amgcl/relaxation/ilu0.hpp>
 #include <amgcl/solver/cg.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/adapter/complex.hpp>
@@ -40,7 +40,7 @@ BOOST_AUTO_TEST_CASE(eigen_value_type)
         amgcl::amg<
             Backend,
             amgcl::coarsening::smoothed_aggregation,
-            amgcl::relaxation::damped_jacobi
+            amgcl::relaxation::ilu0
             >,
         amgcl::solver::cg<Backend>
         > solve( boost::tie(n, ptr, col, val) );

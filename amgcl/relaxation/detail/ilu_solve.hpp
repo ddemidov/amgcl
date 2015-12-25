@@ -7,9 +7,9 @@ namespace amgcl {
 namespace relaxation {
 namespace detail {
 
-template <class Matrix, class Vec>
+template <class Matrix, class VecD, class VecX>
 void serial_ilu_solve(
-        const Matrix &L, const Matrix &U, const Vec &D, Vec &x
+        const Matrix &L, const Matrix &U, const VecD &D, VecX &x
         )
 {
     const size_t n = backend::rows(L);
@@ -22,19 +22,19 @@ void serial_ilu_solve(
     for(size_t i = n; i-- > 0;) {
         for(ptrdiff_t j = U.ptr[i], e = U.ptr[i+1]; j < e; ++j)
             x[i] -= U.val[j] * x[U.col[j]];
-        x[i] *= D[i];
+        x[i] = D[i] * x[i];
     }
 }
 
-template <class Matrix, class Vec>
+template <class Matrix, class VecD, class VecX>
 void parallel_ilu_solve(
-        const Matrix &L, const Matrix &U, const Vec &D,
-        Vec &x, Vec &t1, Vec &t2, unsigned jacobi_iters
+        const Matrix &L, const Matrix &U, const VecD &D,
+        VecX &x, VecX &t1, VecX &t2, unsigned jacobi_iters
         )
 {
-    Vec *b  = &x;
-    Vec *y0 = &t1;
-    Vec *y1 = &t2;
+    VecX *b  = &x;
+    VecX *y0 = &t1;
+    VecX *y1 = &t2;
 
     backend::copy(*b, *y0);
     for(unsigned i = 0; i < jacobi_iters; ++i) {

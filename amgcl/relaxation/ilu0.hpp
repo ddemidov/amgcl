@@ -51,9 +51,10 @@ namespace relaxation {
  */
 template <class Backend>
 struct ilu0 {
-    typedef typename Backend::value_type value_type;
-    typedef typename Backend::vector     vector;
-    typedef typename Backend::matrix     matrix;
+    typedef typename Backend::value_type      value_type;
+    typedef typename Backend::vector          vector;
+    typedef typename Backend::matrix          matrix;
+    typedef typename Backend::matrix_diagonal matrix_diagonal;
 
     /// Relaxation parameters.
     struct params {
@@ -151,9 +152,9 @@ struct ilu0 {
                 // Exit if diagonal is reached
                 if (c >= i) {
                     precondition(c == i, "No diagonal value in system matrix");
-                    precondition(D[i] != 0, "Zero pivot in ILU");
+                    precondition(!math::is_zero(D[i]), "Zero pivot in ILU");
 
-                    D[i] = 1 / D[i];
+                    D[i] = math::inverse(D[i]);
                     break;
                 }
 
@@ -209,7 +210,8 @@ struct ilu0 {
             >::type serial_backend;
 
         boost::shared_ptr<matrix> L, U;
-        boost::shared_ptr<vector> D, t1, t2;
+        boost::shared_ptr<matrix_diagonal> D;
+        boost::shared_ptr<vector> t1, t2;
 
         template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
         void apply_dispatch(
