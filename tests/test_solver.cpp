@@ -9,6 +9,7 @@
 #include <amgcl/adapter/zero_copy.hpp>
 #include <amgcl/profiler.hpp>
 
+#include <amgcl/value_type/complex.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/backend/block_crs.hpp>
 #ifdef AMGCL_HAVE_EIGEN
@@ -30,6 +31,7 @@ namespace amgcl {
 //---------------------------------------------------------------------------
 typedef boost::mpl::list<
       amgcl::backend::builtin<double>
+    , amgcl::backend::builtin< std::complex<double> >
     , amgcl::backend::block_crs<double>
 #ifdef AMGCL_HAVE_EIGEN
     , amgcl::backend::eigen<double>

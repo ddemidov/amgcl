@@ -339,6 +339,10 @@ void vmul(Alpha alpha, const Vector1 &x, const Vector2 &y, Beta beta, Vector3 &z
 template <class Backend, template <class> class Relaxation, class Enable = void>
 struct relaxation_is_supported : boost::true_type {};
 
+/// Is the coarsening supported by the backend?
+template <class Backend, class Coarsening, class Enable = void>
+struct coarsening_is_supported : boost::true_type {};
+
 } // namespace backend
 } // namespace amgcl
 

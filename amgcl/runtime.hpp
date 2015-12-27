@@ -224,7 +224,30 @@ template <
     class Coarsening,
     class Func
     >
-inline void process_amg(
+inline
+typename boost::disable_if<
+    typename backend::coarsening_is_supported<Backend, Coarsening>::type,
+    void
+    >::type
+process_amg(
+        runtime::relaxation::type relaxation,
+        const Func &func
+        )
+{
+    throw std::logic_error("The coarsening is not supported by the backend");
+}
+
+template <
+    class Backend,
+    class Coarsening,
+    class Func
+    >
+inline
+typename boost::enable_if<
+    typename backend::coarsening_is_supported<Backend, Coarsening>::type,
+    void
+    >::type
+process_amg(
         runtime::relaxation::type relaxation,
         const Func &func
         )
@@ -699,6 +722,7 @@ template <
     >
 struct solver_solve {
     typedef typename Precond::backend_type::value_type value_type;
+    typedef typename math::scalar_of<value_type>::type scalar_type;
 
     void * handle;
 
@@ -707,11 +731,11 @@ struct solver_solve {
     Vec1    const &rhs;
     Vec2          &x;
 
-    size_t     &iters;
-    value_type &resid;
+    size_t      &iters;
+    scalar_type &resid;
 
     solver_solve(void * handle, const Matrix &A, const Precond &P,
-            const Vec1 &rhs, Vec2 &x, size_t &iters, value_type &resid
+            const Vec1 &rhs, Vec2 &x, size_t &iters, scalar_type &resid
             )
         : handle(handle), A(A), P(P), rhs(rhs), x(x),
           iters(iters), resid(resid)
@@ -738,6 +762,8 @@ class iterative_solver {
 
         typedef typename Backend::value_type value_type;
         typedef typename Backend::vector     vector;
+
+        typedef typename math::scalar_of<value_type>::type scalar_type;
 
         /// Constructs the iterative solver.
         /**
@@ -791,7 +817,7 @@ class iterative_solver {
          * \cite Demidov2012.
          */
         template <class Matrix, class Precond, class Vec1, class Vec2>
-        boost::tuple<size_t, value_type> operator()(
+        boost::tuple<size_t, scalar_type> operator()(
                 Matrix  const &A,
                 Precond const &P,
                 Vec1    const &rhs,
@@ -802,8 +828,8 @@ class iterative_solver {
 #endif
                 ) const
         {
-            size_t     iters = 0;
-            value_type resid = 0;
+            size_t      iters = 0;
+            scalar_type resid = 0;
 
             runtime::detail::process_solver<Backend, InnerProduct>(
                     solver,
@@ -821,7 +847,7 @@ class iterative_solver {
          * \param x   Solution vector.
          */
         template <class Precond, class Vec1, class Vec2>
-        boost::tuple<size_t, value_type> operator()(
+        boost::tuple<size_t, scalar_type> operator()(
                 Precond const &P,
                 Vec1    const &rhs,
 #ifdef BOOST_NO_CXX11_RVALUE_REFERENCES

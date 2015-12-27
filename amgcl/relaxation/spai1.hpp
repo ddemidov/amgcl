@@ -57,6 +57,8 @@ struct spai1 {
     typedef typename Backend::value_type value_type;
     typedef typename Backend::vector     vector;
 
+    typedef typename math::scalar_of<value_type>::type scalar_type;
+
     /// Relaxation parameters.
     struct params {
         params() {}
@@ -178,7 +180,7 @@ struct spai1 {
                 ) const
         {
             backend::residual(rhs, A, x, tmp);
-            backend::spmv(1, *M, tmp, 1, x);
+            backend::spmv(math::identity<scalar_type>(), *M, tmp, math::identity<scalar_type>(), x);
         }
 
 };

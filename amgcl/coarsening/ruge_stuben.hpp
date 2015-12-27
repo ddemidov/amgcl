@@ -442,6 +442,22 @@ struct ruge_stuben {
 };
 
 } // namespace coarsening
+
+namespace backend {
+
+template <class Backend>
+struct coarsening_is_supported<
+    Backend,
+    coarsening::ruge_stuben,
+    typename boost::disable_if<
+            typename boost::is_arithmetic<
+                typename backend::value_type<Backend>::type
+            >::type
+        >::type
+    > : boost::false_type
+{};
+
+} // namespace backend
 } // namespace amgcl
 
 #endif
