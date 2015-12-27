@@ -12,4 +12,4 @@ build_script:
     - cmake .
     - cmake --build . --config Release
 test_script:
-    - tests\Release\test_solver.exe
+    - ctest --build-config Release --output-on-failure
