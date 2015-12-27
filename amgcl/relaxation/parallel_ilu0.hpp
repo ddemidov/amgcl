@@ -162,7 +162,7 @@ struct parallel_ilu0 {
 
                     for(ptrdiff_t k = U_head; k < U_tail; ++k) {
                         ptrdiff_t i = Uh->col[k];
-                        value_type s = 0;
+                        value_type s = math::zero<value_type>();
 
                         ptrdiff_t kl = Lh->ptr[i];
                         ptrdiff_t jl = (kl < Lh->ptr[i+1]) ? Lh->col[kl] : n;

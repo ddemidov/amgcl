@@ -98,8 +98,13 @@ struct ruge_stuben {
     transfer_operators(const Matrix &A, const params &prm)
     {
         typedef typename backend::value_type<Matrix>::type Val;
+        typedef typename math::scalar_of<Val>::type        Scalar;
+
         const size_t n = rows(A);
-        const Val eps = amgcl::detail::eps<Val>(1);
+
+        static const Scalar eps = amgcl::detail::eps<Scalar>(1);
+
+        static const Val zero = math::zero<Val>();
 
         std::vector<char> cf(n, 'U');
         backend::crs<char, ptrdiff_t, ptrdiff_t> S;
@@ -139,7 +144,7 @@ struct ruge_stuben {
             }
 
             if (prm.do_trunc) {
-                Val amin = 0, amax = 0;
+                Val amin = zero, amax = zero;
 
                 for(ptrdiff_t j = Aptr[i], e = Aptr[i + 1]; j < e; ++j) {
                     if (!S.val[j] || cf[ Acol[j] ] != 'C') continue;
@@ -154,7 +159,7 @@ struct ruge_stuben {
                 for(ptrdiff_t j = Aptr[i], e = Aptr[i + 1]; j < e; ++j) {
                     if (!S.val[j] || cf[Acol[j]] != 'C') continue;
 
-                    if (Aval[j] <= amin || Aval[j] >= amax)
+                    if (Aval[j] < amin || amax < Aval[j])
                         ++P->ptr[i + 1];
                 }
             } else {
@@ -174,14 +179,14 @@ struct ruge_stuben {
 
             if (cf[i] == 'C') {
                 P->col[row_head] = cidx[i];
-                P->val[row_head] = 1;
+                P->val[row_head] = math::identity<Val>();
                 continue;
             }
 
-            Val dia   = 0;
-            Val a_num = 0, a_den = 0;
-            Val b_num = 0, b_den = 0;
-            Val d_neg = 0, d_pos = 0;
+            Val dia   = zero;
+            Val a_num = zero, a_den = zero;
+            Val b_num = zero, b_den = zero;
+            Val d_neg = zero, d_pos = zero;
 
             for(ptrdiff_t j = Aptr[i], e = Aptr[i + 1]; j < e; ++j) {
                 ptrdiff_t c = Acol[j];
@@ -192,11 +197,11 @@ struct ruge_stuben {
                     continue;
                 }
 
-                if (v < 0) {
+                if (v < zero) {
                     a_num += v;
                     if (S.val[j] && cf[c] == 'C') {
                         a_den += v;
-                        if (prm.do_trunc && v > Amin[i]) d_neg += v;
+                        if (prm.do_trunc && Amin[i] < v) d_neg += v;
                     }
                 } else {
                     b_num += v;
@@ -207,28 +212,31 @@ struct ruge_stuben {
                 }
             }
 
-            Val cf_neg = 1;
-            Val cf_pos = 1;
+            Scalar cf_neg = 1;
+            Scalar cf_pos = 1;
 
             if (prm.do_trunc) {
-                if (fabs(a_den - d_neg) > eps) cf_neg = a_den / (a_den - d_neg);
-                if (fabs(b_den - d_pos) > eps) cf_pos = b_den / (b_den - d_pos);
+                if (math::norm(static_cast<Val>(a_den - d_neg)) > eps)
+                    cf_neg = math::norm(a_den) / math::norm(static_cast<Val>(a_den - d_neg));
+
+                if (math::norm(static_cast<Val>(b_den - d_pos)) > eps)
+                    cf_pos = math::norm(b_den) / math::norm(static_cast<Val>(b_den - d_pos));
             }
 
-            if (b_num > 0 && fabs(b_den) < eps) dia += b_num;
+            if (zero < b_num && math::norm(b_den) < eps) dia += b_num;
 
-            Val alpha = fabs(a_den) > eps ? -cf_neg * a_num / (dia * a_den) : 0;
-            Val beta  = fabs(b_den) > eps ? -cf_pos * b_num / (dia * b_den) : 0;
+            Scalar alpha = math::norm(a_den) > eps ? -cf_neg * math::norm(a_num) / (math::norm(dia) * math::norm(a_den)) : 0;
+            Scalar beta  = math::norm(b_den) > eps ? -cf_pos * math::norm(b_num) / (math::norm(dia) * math::norm(b_den)) : 0;
 
             for(ptrdiff_t j = Aptr[i], e = Aptr[i + 1]; j < e; ++j) {
                 ptrdiff_t c = Acol[j];
                 Val  v = Aval[j];
 
                 if (!S.val[j] || cf[c] != 'C') continue;
-                if (prm.do_trunc && v > Amin[i] && v < Amax[i]) continue;
+                if (prm.do_trunc && Amin[i] < v && v < Amax[i]) continue;
 
                 P->col[row_head] = cidx[c];
-                P->val[row_head] = (v < 0 ? alpha : beta) * v;
+                P->val[row_head] = (v < zero ? alpha : beta) * v;
                 ++row_head;
             }
         }
@@ -270,9 +278,11 @@ struct ruge_stuben {
             typedef backend::crs<Val, Col, Ptr>                  matrix;
             typedef typename backend::row_iterator<matrix>::type row_iterator;
 
+            typedef typename math::scalar_of<Val>::type Scalar;
+
             const size_t n   = rows(A);
             const size_t nnz = nonzeros(A);
-            const Val eps = amgcl::detail::eps<Val>(1);
+            const Scalar eps = amgcl::detail::eps<Scalar>(1);
 
             S.nrows = S.ncols = n;
             S.ptr.resize( n+1 );
@@ -284,12 +294,12 @@ struct ruge_stuben {
 
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-                Val a_min = 0;
+                Val a_min = math::zero<Val>();
 
                 for(row_iterator a = row_begin(A, i); a; ++a)
                     if (a.col() != i) a_min = std::min(a_min, a.value());
 
-                if (fabs(a_min) < eps) {
+                if (math::norm(a_min) < eps) {
                     cf[i] = 'F';
                     continue;
                 }

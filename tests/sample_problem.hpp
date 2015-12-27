@@ -66,7 +66,7 @@ int sample_problem(
                     val.push_back(-1.0/6.0 * one);
                 }
 
-                rhs.push_back( amgcl::math::constant<RhsType>(1) );
+                rhs.push_back( amgcl::math::constant<RhsType>(1.0) );
                 ptr.push_back( static_cast<IndexType>(col.size()) );
             }
         }

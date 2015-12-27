@@ -125,7 +125,7 @@ struct sa_emin_filtered_matrix {
 
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < ptrdiff_t(n); ++i) {
-            value_type D = 0;
+            value_type D = math::zero<value_type>();
             for(ptrdiff_t j = Aptr[i], e = Aptr[i + 1]; j < e; ++j) {
                 ptrdiff_t  c = Acol[j];
                 value_type v = Aval[j];
@@ -304,8 +304,8 @@ struct smoothed_aggr_emin {
 
             *AP = product(A, P_tent, /*sort rows: */true);
 
-            omega.resize(nc, Val(0));
-            std::vector<Val> denum(nc, 0);
+            omega.resize(nc, math::zero<Val>());
+            std::vector<Val> denum(nc, math::zero<Val>());
 
 #pragma omp parallel
             {
@@ -336,7 +336,7 @@ struct smoothed_aggr_emin {
                     // Form current row of ADAP matrix.
                     for(Aiterator a = A.row_begin(ia); a; ++a) {
                         Col ca  = a.col();
-                        Val va  = a.value() / A.dia[ca];
+                        Val va  = math::inverse(A.dia[ca]) * a.value();
 
                         for(Piterator p = AP->row_begin(ca); p; ++p) {
                             Col c = p.col();
@@ -391,7 +391,8 @@ struct smoothed_aggr_emin {
                 }
             }
 
-            boost::transform(omega, denum, omega.begin(), std::divides<Val>());
+            for(size_t i = 0, m = omega.size(); i < m; ++i)
+                omega[i] = math::inverse(denum[i]) * omega[i];
 
             // Update AP to obtain P: P = (P_tent - D^-1 A P Omega)
             /*
@@ -465,7 +466,7 @@ struct smoothed_aggr_emin {
                    )
                 {
                     Col ca = RA->col[ja];
-                    Val va = -w * RA->val[ja] / A.dia[ca];
+                    Val va = -w * math::inverse(A.dia[ca]) * RA->val[ja];
 
                     for(; jr < er; ++jr) {
                         Col cr = R_tent.col[jr];
