@@ -1,7 +1,5 @@
-#define BOOST_TEST_MODULE TestSolvers
-#include <boost/test/unit_test.hpp>
-#include <boost/mpl/list.hpp>
-#include <boost/mpl/for_each.hpp>
+#ifndef TESTS_TEST_SOLVER_HPP
+#define TESTS_TEST_SOLVER_HPP
 
 #include <amgcl/runtime.hpp>
 #include <amgcl/relaxation/runtime.hpp>
@@ -9,77 +7,11 @@
 #include <amgcl/adapter/zero_copy.hpp>
 #include <amgcl/profiler.hpp>
 
-#include <amgcl/value_type/complex.hpp>
-#include <amgcl/backend/builtin.hpp>
-#include <amgcl/backend/block_crs.hpp>
-#ifdef AMGCL_HAVE_EIGEN
-#include <amgcl/backend/eigen.hpp>
-#include <amgcl/value_type/eigen.hpp>
-#endif
-#ifdef AMGCL_HAVE_BLAZE
-#include <amgcl/backend/blaze.hpp>
-#endif
-#ifdef AMGCL_HAVE_VIENNACL
-#include <amgcl/backend/viennacl.hpp>
-#endif
-
 #include "sample_problem.hpp"
 
 namespace amgcl {
     profiler<> prof;
 }
-
-template <typename T>
-struct type_name_impl {};
-
-template <>
-struct type_name_impl<double> {
-    static std::string get() {
-        return "double";
-    }
-};
-
-template <>
-struct type_name_impl< std::complex<double> > {
-    static std::string get() {
-        return "std::complex<double>";
-    }
-};
-
-#ifdef AMGCL_HAVE_EIGEN
-template <int N, int M>
-struct type_name_impl< Eigen::Matrix<double, N, M> > {
-    static std::string get() {
-        std::ostringstream s;
-        s << "Eigen::Matrix<double, " << N << ", " << M << ">";
-        return s.str();
-    }
-};
-#endif
-
-template <typename T>
-std::string type_name() {
-    return type_name_impl<T>::get();
-}
-
-//---------------------------------------------------------------------------
-typedef boost::mpl::list<
-      amgcl::backend::builtin<double>
-    , amgcl::backend::builtin< std::complex<double> >
-    , amgcl::backend::block_crs<double>
-#ifdef AMGCL_HAVE_EIGEN
-    , amgcl::backend::builtin< Eigen::Matrix<double, 2, 2> >
-    , amgcl::backend::eigen<double>
-#endif
-#ifdef AMGCL_HAVE_BLAZE
-    , amgcl::backend::blaze<double>
-#endif
-#ifdef AMGCL_HAVE_VIENNACL
-    , amgcl::backend::viennacl< viennacl::compressed_matrix<double> >
-    , amgcl::backend::viennacl< viennacl::ell_matrix<double> >
-    , amgcl::backend::viennacl< viennacl::hyb_matrix<double> >
-#endif
-    > backend_list;
 
 //---------------------------------------------------------------------------
 template <class Backend, class Matrix>
@@ -153,11 +85,8 @@ void test_rap(
     BOOST_CHECK_SMALL(resid, 1e-4);
 }
 
-//---------------------------------------------------------------------------
-BOOST_AUTO_TEST_SUITE( test_solvers )
-
-BOOST_AUTO_TEST_CASE_TEMPLATE(test_backends, Backend, backend_list)
-{
+template <class Backend>
+void test_backend() {
     amgcl::runtime::coarsening::type coarsening[] = {
         amgcl::runtime::coarsening::ruge_stuben,
         amgcl::runtime::coarsening::aggregation,
@@ -202,18 +131,14 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_backends, Backend, backend_list)
 
     BOOST_FOREACH(amgcl::runtime::solver::type s, solver) {
         BOOST_FOREACH(amgcl::runtime::relaxation::type r, relaxation) {
-            std::cout
-                << Backend::name() << "<" << type_name<value_type>() << "> "
-                << s << " " << r << std::endl;
+            std::cout << s << " " << r << std::endl;
 
             try {
                 test_rap<Backend>(amgcl::adapter::zero_copy(n, ptr.data(), col.data(), val.data()), y, x, s, r);
             } catch(const std::logic_error&) {}
 
             BOOST_FOREACH(amgcl::runtime::coarsening::type c, coarsening) {
-                std::cout
-                    << Backend::name() << "<" << type_name<value_type>() << "> "
-                    << s << " " << r << " " << c << std::endl;
+                std::cout << s << " " << r << " " << c << std::endl;
 
                 try {
                     test_solver<Backend>( amgcl::adapter::zero_copy(n, ptr.data(), col.data(), val.data()), y, x, s, r, c);
@@ -224,4 +149,4 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_backends, Backend, backend_list)
 
 }
 
-BOOST_AUTO_TEST_SUITE_END()
+#endif

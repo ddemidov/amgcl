@@ -40,11 +40,24 @@ function(add_amgcl_test TEST_NAME TEST_SOURCE)
     add_test(${TEST_NAME} ${TEST_NAME})
 endfunction()
 
-add_amgcl_test(test_solver      test_solver.cpp)
 add_amgcl_test(test_skyline_lu  test_skyline_lu.cpp)
 add_amgcl_test(test_complex_erf test_complex_erf.cpp)
 add_amgcl_test(test_qr          test_qr.cpp)
 
+add_amgcl_test(test_solver_builtin   test_solver_builtin.cpp)
+add_amgcl_test(test_solver_complex   test_solver_complex.cpp)
+add_amgcl_test(test_solver_block_crs test_solver_block_crs.cpp)
+
+if (BLAZE_INCLUDE)
+    add_amgcl_test(test_solver_blaze     test_solver_blaze.cpp)
+endif()
+
+if (VIENNACL_INCLUDE)
+    add_amgcl_test(test_solver_viennacl  test_solver_viennacl.cpp)
+endif()
+
 if (EIGEN_INCLUDE)
-    add_amgcl_test(test_eigen_solver test_eigen_solver.cpp)
+    add_amgcl_test(test_eigen_solver     test_eigen_solver.cpp)
+    add_amgcl_test(test_solver_eigen     test_solver_eigen.cpp)
+    add_amgcl_test(test_solver_nonscalar test_solver_nonscalar.cpp)
 endif()
