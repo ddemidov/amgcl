@@ -154,20 +154,21 @@ if (SCOTCH_INCLUDES)
 endif()
 
 #----------------------------------------------------------------------------
-# Protect Visual Studio from itself
+# Visual Studio compilation flags
 #----------------------------------------------------------------------------
 if (WIN32)
     add_definitions(-DNOMINMAX)
     add_definitions(-D_VARIADIC_MAX=10)
     add_definitions(/bigobj)
     add_definitions(-D_SCL_SECURE_NO_WARNINGS)
+    add_definitions(/fp:fast)
 endif ()
 
 #----------------------------------------------------------------------------
 # Enable C++11 support, set compilation flags
 #----------------------------------------------------------------------------
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wclobbered -Wempty-body -Wignored-qualifiers -Wmissing-field-initializers -Wsign-compare -Wtype-limits -Wuninitialized -Wno-unused-parameter -Wunused-but-set-parameter -Wno-comment -Wno-type-limits -Wno-strict-aliasing -Wno-unused-local-typedefs -Wno-deprecated-declarations")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffast-math -Wall -Wclobbered -Wempty-body -Wignored-qualifiers -Wmissing-field-initializers -Wsign-compare -Wtype-limits -Wuninitialized -Wno-unused-parameter -Wunused-but-set-parameter -Wno-comment -Wno-type-limits -Wno-strict-aliasing -Wno-unused-local-typedefs -Wno-deprecated-declarations")
     set(CXX11_FLAG -std=c++0x)
 endif ()
 
@@ -176,7 +177,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
 endif ()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wempty-body -Wignored-qualifiers -Wmissing-field-initializers -Wsign-compare -Wtype-limits -Wuninitialized -Wno-unused-parameter -Wno-comment -Wno-tautological-compare -Wno-deprecated-declarations -Wno-unused-local-typedef")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffast-math -Wall -Wempty-body -Wignored-qualifiers -Wmissing-field-initializers -Wsign-compare -Wtype-limits -Wuninitialized -Wno-unused-parameter -Wno-comment -Wno-tautological-compare -Wno-deprecated-declarations -Wno-unused-local-typedef")
     set(CXX11_FLAG -std=c++11)
 
     option(USE_LIBCPP "Use libc++ with Clang" OFF)
