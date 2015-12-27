@@ -45,14 +45,6 @@ struct is_builtin_vector< std::vector<Eigen::Matrix<T, N, M> > > : boost::true_t
 
 } // namespace backend
 
-namespace backend {
-
-/// Enable statically sized Eigen matrices as value types.
-template <typename T, int N, int M>
-struct is_builtin_vector< Eigen::Matrix<T, N, M> > : boost::true_type {};
-
-} // namespace backend
-
 namespace math {
 
 /// Scalar type of a non-scalar type.
