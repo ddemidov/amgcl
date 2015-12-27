@@ -8,7 +8,9 @@
 #include <amgcl/amgcl.hpp>
 #include <amgcl/make_solver.hpp>
 
+#include <amgcl/coarsening/aggregation.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
+#include <amgcl/coarsening/smoothed_aggr_emin.hpp>
 
 #include <amgcl/relaxation/damped_jacobi.hpp>
 #include <amgcl/relaxation/gauss_seidel.hpp>
@@ -147,6 +149,25 @@ BOOST_AUTO_TEST_CASE(complex_matrix)
     test_complex_matrix<
         amgcl::coarsening::smoothed_aggregation,
         amgcl::relaxation::chebyshev,
+        amgcl::solver::cg<Backend>
+        >(n, ptr, col, val, rhs);
+
+    // Coarsening
+    test_complex_matrix<
+        amgcl::coarsening::aggregation,
+        amgcl::relaxation::gauss_seidel,
+        amgcl::solver::cg<Backend>
+        >(n, ptr, col, val, rhs);
+
+    test_complex_matrix<
+        amgcl::coarsening::smoothed_aggregation,
+        amgcl::relaxation::gauss_seidel,
+        amgcl::solver::cg<Backend>
+        >(n, ptr, col, val, rhs);
+
+    test_complex_matrix<
+        amgcl::coarsening::smoothed_aggr_emin,
+        amgcl::relaxation::gauss_seidel,
         amgcl::solver::cg<Backend>
         >(n, ptr, col, val, rhs);
 

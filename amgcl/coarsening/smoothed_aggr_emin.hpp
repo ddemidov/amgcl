@@ -373,7 +373,7 @@ struct smoothed_aggr_emin {
                             ++jb;
                         else /*ca == cb*/ {
                             Val v = AP->val[ja] * adap_val[jb];
-#pragma omp atomic
+#pragma omp critical
                             omega[ca] += v;
                             ++ja;
                             ++jb;
@@ -384,7 +384,7 @@ struct smoothed_aggr_emin {
                     for(size_t j = 0, e = adap_col.size(); j < e; ++j) {
                         Col c = adap_col[j];
                         Val v = adap_val[j];
-#pragma omp atomic
+#pragma omp critical
                         denum[c] += v * v;
                         marker[c] = -1;
                     }
@@ -402,7 +402,7 @@ struct smoothed_aggr_emin {
              */
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-                Val dia = 1 / A.dia[i];
+                Val dia = math::inverse(A.dia[i]);
 
                 for(Ptr ja = AP->ptr[i],    ea = AP->ptr[i+1],
                         jp = P_tent.ptr[i], ep = P_tent.ptr[i+1];
