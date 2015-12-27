@@ -1,6 +1,6 @@
 language: cpp
 compiler:
-- clang
+- g++
 
 env:
   global:
