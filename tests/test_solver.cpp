@@ -65,10 +65,10 @@ std::string type_name() {
 //---------------------------------------------------------------------------
 typedef boost::mpl::list<
       amgcl::backend::builtin<double>
-    , amgcl::backend::builtin< Eigen::Matrix<double, 2, 2> >
     , amgcl::backend::builtin< std::complex<double> >
     , amgcl::backend::block_crs<double>
 #ifdef AMGCL_HAVE_EIGEN
+    , amgcl::backend::builtin< Eigen::Matrix<double, 2, 2> >
     , amgcl::backend::eigen<double>
 #endif
 #ifdef AMGCL_HAVE_BLAZE

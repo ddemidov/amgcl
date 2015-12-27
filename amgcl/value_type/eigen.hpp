@@ -160,7 +160,7 @@ namespace backend {
 template <class Backend>
 struct relaxation_is_supported<
     Backend, relaxation::spai1,
-    typename boost::disable_if<
+    typename boost::enable_if<
         typename boost::is_base_of<
             Eigen::MatrixBase<typename Backend::value_type>,
             typename Backend::value_type
