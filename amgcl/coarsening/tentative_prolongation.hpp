@@ -130,7 +130,6 @@ boost::shared_ptr<Matrix> tentative_prolongation(
 
     TIC("tentative");
     if (nullspace.cols > 0) {
-#ifdef TODO_IMPLEMENT_QR
         // Sort fine points by aggregate number.
         // Put points not belonging to any aggregate to the end of the list.
         std::vector<ptrdiff_t> order(
@@ -188,13 +187,14 @@ boost::shared_ptr<Matrix> tentative_prolongation(
 
                 for(int jj = 0; jj < nullspace.cols; ++jj) {
                     c[jj] = i * nullspace.cols + jj;
-                    v[jj] = qr.Q(ii,jj);
+                    // TODO: this is just a workaround to make non-scalar value
+                    // types compile. Most probably this won't actually work.
+                    v[jj] = math::identity<value_type>() * qr.Q(ii,jj);
                 }
             }
         }
 
         std::swap(nullspace.B, Bnew);
-#endif
     } else {
         P->nrows = n;
         P->ncols = naggr;
