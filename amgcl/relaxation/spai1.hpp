@@ -86,7 +86,7 @@ struct spai1 {
 
         Ainv->ptr.assign(Aptr, Aptr + n+1);
         Ainv->col.assign(Acol, Acol + nnz);
-        Ainv->val.assign(nnz, 0);
+        Ainv->val.assign(nnz, math::zero<value_type>());
 
 #pragma omp parallel
         {
@@ -126,11 +126,11 @@ struct spai1 {
                     }
                 }
                 std::sort(J.begin(), J.end());
-                B.assign(I.size() * J.size(), 0);
-                ek.assign(J.size(), 0);
+                B.assign(I.size() * J.size(), math::zero<value_type>());
+                ek.assign(J.size(), math::zero<value_type>());
                 for(size_t j = 0; j < J.size(); ++j) {
                     marker[J[j]] = j;
-                    if (J[j] == static_cast<ptrdiff_t>(i)) ek[j] = 1;
+                    if (J[j] == static_cast<ptrdiff_t>(i)) ek[j] = math::identity<value_type>();
                 }
 
                 for(ptrdiff_t j = row_beg; j < row_end; ++j) {

@@ -14,6 +14,7 @@
 #include <amgcl/backend/block_crs.hpp>
 #ifdef AMGCL_HAVE_EIGEN
 #include <amgcl/backend/eigen.hpp>
+#include <amgcl/value_type/eigen.hpp>
 #endif
 #ifdef AMGCL_HAVE_BLAZE
 #include <amgcl/backend/blaze.hpp>
@@ -28,9 +29,43 @@ namespace amgcl {
     profiler<> prof;
 }
 
+template <typename T>
+struct type_name_impl {};
+
+template <>
+struct type_name_impl<double> {
+    static std::string get() {
+        return "double";
+    }
+};
+
+template <>
+struct type_name_impl< std::complex<double> > {
+    static std::string get() {
+        return "std::complex<double>";
+    }
+};
+
+#ifdef AMGCL_HAVE_EIGEN
+template <int N, int M>
+struct type_name_impl< Eigen::Matrix<double, N, M> > {
+    static std::string get() {
+        std::ostringstream s;
+        s << "Eigen::Matrix<double, " << N << ", " << M << ">";
+        return s.str();
+    }
+};
+#endif
+
+template <typename T>
+std::string type_name() {
+    return type_name_impl<T>::get();
+}
+
 //---------------------------------------------------------------------------
 typedef boost::mpl::list<
       amgcl::backend::builtin<double>
+    , amgcl::backend::builtin< Eigen::Matrix<double, 2, 2> >
     , amgcl::backend::builtin< std::complex<double> >
     , amgcl::backend::block_crs<double>
 #ifdef AMGCL_HAVE_EIGEN
@@ -80,7 +115,7 @@ void test_solver(
               << "Error:      " << resid << std::endl
               << std::endl;
 
-    BOOST_CHECK_SMALL(resid, 1e-4);
+    BOOST_REQUIRE_SMALL(resid, 1e-4);
 }
 
 //---------------------------------------------------------------------------
@@ -151,13 +186,14 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_backends, Backend, backend_list)
 
     typedef typename Backend::value_type value_type;
     typedef typename Backend::vector     vector;
+    typedef typename amgcl::math::rhs_of<value_type>::type rhs_type;
 
     std::vector<ptrdiff_t>  ptr;
     std::vector<ptrdiff_t>  col;
     std::vector<value_type> val;
-    std::vector<value_type> rhs;
+    std::vector<rhs_type>   rhs;
 
-    size_t n = sample_problem(25, val, col, ptr, rhs);
+    size_t n = sample_problem(32, val, col, ptr, rhs);
 
     typename Backend::params prm;
 
@@ -166,7 +202,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_backends, Backend, backend_list)
 
     BOOST_FOREACH(amgcl::runtime::solver::type s, solver) {
         BOOST_FOREACH(amgcl::runtime::relaxation::type r, relaxation) {
-            std::cout << Backend::name() << " " << s << " " << r << std::endl;
+            std::cout
+                << Backend::name() << "<" << type_name<value_type>() << "> "
+                << s << " " << r << std::endl;
 
             try {
                 test_rap<Backend>(amgcl::adapter::zero_copy(n, ptr.data(), col.data(), val.data()), y, x, s, r);
@@ -174,7 +212,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_backends, Backend, backend_list)
 
             BOOST_FOREACH(amgcl::runtime::coarsening::type c, coarsening) {
                 std::cout
-                    << Backend::name() << " "
+                    << Backend::name() << "<" << type_name<value_type>() << "> "
                     << s << " " << r << " " << c << std::endl;
 
                 try {

@@ -64,6 +64,8 @@ class gmres {
         typedef typename Backend::params     backend_params;
 
         typedef typename math::scalar_of<value_type>::type scalar_type;
+        typedef typename math::rhs_of<value_type>::type rhs_type;
+        typedef typename math::inner_product_impl<rhs_type>::return_type coef_type;
 
         /// Solver parameters.
         struct params {
@@ -189,8 +191,8 @@ class gmres {
     private:
         size_t n;
 
-        mutable boost::multi_array<value_type, 2> H;
-        mutable std::vector<value_type> s, cs, sn, y;
+        mutable boost::multi_array<coef_type, 2> H;
+        mutable std::vector<coef_type> s, cs, sn, y;
         boost::shared_ptr<vector> r, w;
         std::vector< boost::shared_ptr<vector> > v;
 
@@ -202,28 +204,28 @@ class gmres {
         }
 
         static void apply_plane_rotation(
-                value_type &dx, value_type &dy, value_type cs, value_type sn
+                coef_type &dx, coef_type &dy, coef_type cs, coef_type sn
                 )
         {
-            value_type tmp = cs * dx + sn * dy;
+            coef_type tmp = cs * dx + sn * dy;
             dy = -sn * dx + cs * dy;
             dx = tmp;
         }
 
         static void generate_plane_rotation(
-                value_type dx, value_type dy, value_type &cs, value_type &sn
+                coef_type dx, coef_type dy, coef_type &cs, coef_type &sn
                 )
         {
             if (math::is_zero(dy)) {
                 cs = 1;
                 sn = 0;
             } else if (std::abs(dy) > std::abs(dx)) {
-                value_type tmp = dx / dy;
-                sn = math::inverse(sqrt(math::identity<value_type>() + tmp * tmp));
+                coef_type tmp = dx / dy;
+                sn = math::inverse(sqrt(math::identity<coef_type>() + tmp * tmp));
                 cs = tmp * sn;
             } else {
-                value_type tmp = dy / dx;
-                cs = math::inverse(sqrt(math::identity<value_type>() + tmp * tmp));
+                coef_type tmp = dy / dx;
+                cs = math::inverse(sqrt(math::identity<coef_type>() + tmp * tmp));
                 sn = tmp * cs;
             }
         }
