@@ -32,6 +32,9 @@ void parallel_ilu_solve(
         VecX &x, VecX &t1, VecX &t2, unsigned jacobi_iters
         )
 {
+    typedef typename backend::value_type<Matrix>::type value_type;
+    typedef typename math::scalar_of<value_type>::type scalar_type;
+
     VecX *b  = &x;
     VecX *y0 = &t1;
     VecX *y1 = &t2;
@@ -47,7 +50,7 @@ void parallel_ilu_solve(
     backend::copy(*b, *y0);
     for(unsigned i = 0; i < jacobi_iters; ++i) {
         backend::residual(*b, U, *y0, *y1);
-        backend::vmul(1, D, *y1, 0, *y0);
+        backend::vmul(math::identity<scalar_type>(), D, *y1, math::zero<scalar_type>(), *y0);
     }
 }
 

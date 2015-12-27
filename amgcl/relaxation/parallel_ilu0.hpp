@@ -51,10 +51,13 @@ namespace relaxation {
  */
 template <class Backend>
 struct parallel_ilu0 {
-    typedef typename Backend::value_type value_type;
-    typedef typename Backend::vector     vector;
-    typedef typename Backend::matrix     matrix;
-    typedef typename Backend::params     backend_params;
+    typedef typename Backend::value_type      value_type;
+    typedef typename Backend::vector          vector;
+    typedef typename Backend::matrix          matrix;
+    typedef typename Backend::params          backend_params;
+    typedef typename Backend::matrix_diagonal matrix_diagonal;
+
+    typedef typename math::scalar_of<value_type>::type scalar_type;
 
     /// Relaxation parameters.
     struct params {
@@ -65,9 +68,9 @@ struct parallel_ilu0 {
         unsigned jacobi_iters;
 
         /// Damping factor.
-        float damping;
+        scalar_type damping;
 
-        params(unsigned factor_sweeps = 2, unsigned jacobi_iters = 2, float damping = 1)
+        params(unsigned factor_sweeps = 2, unsigned jacobi_iters = 2, scalar_type damping = 1)
             : factor_sweeps(factor_sweeps), jacobi_iters(jacobi_iters), damping(damping) {}
 
         params(const boost::property_tree::ptree &p)
@@ -208,7 +211,7 @@ struct parallel_ilu0 {
                                 s -= Lh->val[kl] * Uh->val[ku];
                         }
 
-                        Ltmp[k] = s / Uh->val[Uh->ptr[j+1]-1];
+                        Ltmp[k] = math::inverse(Uh->val[Uh->ptr[j+1]-1]) * s;
                     }
                 }
             }
@@ -226,7 +229,7 @@ struct parallel_ilu0 {
             for(ptrdiff_t k = Uh->ptr[i]; k < Uh->ptr[i+1]; ++k) {
                 ptrdiff_t j = Uh->col[k];
                 if (j == i) {
-                    Dh[i] = 1 / Uh->val[k];
+                    Dh[i] = math::inverse(Uh->val[k]);
                 } else {
                     ++ptr[j+1];
                 }
@@ -286,7 +289,8 @@ struct parallel_ilu0 {
 
     private:
         boost::shared_ptr<matrix> L, U;
-        boost::shared_ptr<vector> D, t1, t2;
+        boost::shared_ptr<matrix_diagonal> D;
+        boost::shared_ptr<vector> t1, t2;
 
         template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
         void apply(
@@ -298,7 +302,7 @@ struct parallel_ilu0 {
             relaxation::detail::parallel_ilu_solve(
                     *L, *U, *D, tmp, *t1, *t2, prm.jacobi_iters
                     );
-            backend::axpby(prm.damping, tmp, 1, x);
+            backend::axpby(prm.damping, tmp, math::identity<scalar_type>(), x);
         }
 };
 

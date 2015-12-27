@@ -15,6 +15,7 @@
 #include <amgcl/relaxation/spai0.hpp>
 #include <amgcl/relaxation/ilu0.hpp>
 #include <amgcl/relaxation/ilut.hpp>
+#include <amgcl/relaxation/parallel_ilu0.hpp>
 #include <amgcl/relaxation/chebyshev.hpp>
 
 #include <amgcl/solver/cg.hpp>
@@ -128,6 +129,12 @@ BOOST_AUTO_TEST_CASE(complex_matrix)
     test_complex_matrix<
         amgcl::coarsening::smoothed_aggregation,
         amgcl::relaxation::ilu0,
+        amgcl::solver::cg<Backend>
+        >(n, ptr, col, val, rhs);
+
+    test_complex_matrix<
+        amgcl::coarsening::smoothed_aggregation,
+        amgcl::relaxation::parallel_ilu0,
         amgcl::solver::cg<Backend>
         >(n, ptr, col, val, rhs);
 
