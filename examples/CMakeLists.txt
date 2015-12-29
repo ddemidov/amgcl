@@ -31,6 +31,9 @@ if (EIGEN_INCLUDE)
     add_executable(solve_mm solve_mm.cpp)
     target_link_libraries(solve_mm ${Boost_LIBRARIES})
 
+    add_executable(nonscalar nonscalar.cpp)
+    target_link_libraries(nonscalar ${Boost_LIBRARIES})
+
     add_executable(two_step_precond two_step_precond.cpp)
     target_link_libraries(two_step_precond ${Boost_LIBRARIES})
 endif()
