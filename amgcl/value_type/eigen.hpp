@@ -4,7 +4,7 @@
 /*
 The MIT License
 
-Copyright (c) 2012-2015 Christoph Sohrmann
+Copyright (c) 2012-2015 Denis Demidov <dennis.demidov@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,7 @@ THE SOFTWARE.
 
 /**
  * \file   amgcl/value_type/eigen.hpp
- * \author Christoph Sohrmann
+ * \author Denis Demidov <dennis.demidov@gmail.com>
  * \brief  Enable statically sized eigen matrices as value types.
  */
 
@@ -39,7 +39,7 @@ THE SOFTWARE.
 namespace amgcl {
 namespace backend {
 
-/// Enable std::complex as a value-type.
+/// Enable Eigen matrix as a value-type.
 template <typename T, int N, int M>
 struct is_builtin_vector< std::vector<Eigen::Matrix<T, N, M> > > : boost::true_type {};
 
