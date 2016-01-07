@@ -194,9 +194,13 @@ class bicgstabl {
                     for(int i = 0; i <= j; ++i)
                         backend::axpby(-alpha, *u[i+1], one, *r[i]);
 
+                    backend::axpby(alpha, *u[0], one, x);
+
+                    res_norm = norm(*r[j]);
+                    if (res_norm <= eps) goto done;
+
                     P.apply(*r[j], *q);
                     backend::spmv(one, A, *q, zero, *r[j+1]);
-                    backend::axpby(alpha, *u[0], one, x);
                 }
 
                 // MR part
@@ -236,6 +240,7 @@ class bicgstabl {
                 res_norm = norm(*r[0]);
             }
 
+done:
             P.apply(x, *q);
             backend::copy(*q, x);
             backend::residual(rhs, A, x, *r0);
