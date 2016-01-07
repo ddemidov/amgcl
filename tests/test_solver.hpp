@@ -7,6 +7,9 @@
 #include <amgcl/adapter/zero_copy.hpp>
 #include <amgcl/profiler.hpp>
 
+#include <boost/assign/std/vector.hpp>
+using namespace boost::assign;
+
 #include "sample_problem.hpp"
 
 namespace amgcl {
@@ -85,8 +88,15 @@ void test_rap(
     BOOST_CHECK_SMALL(resid, 1e-4);
 }
 
-template <class Backend>
-void test_backend() {
+template <class Backend, class value_type, class rhs_type>
+void test_problem(
+        size_t n,
+        std::vector<ptrdiff_t>  ptr,
+        std::vector<ptrdiff_t>  col,
+        std::vector<value_type> val,
+        std::vector<rhs_type>   rhs
+        )
+{
     amgcl::runtime::coarsening::type coarsening[] = {
         amgcl::runtime::coarsening::aggregation,
         amgcl::runtime::coarsening::smoothed_aggregation,
@@ -113,16 +123,7 @@ void test_backend() {
         amgcl::runtime::solver::gmres
     };
 
-    typedef typename Backend::value_type value_type;
-    typedef typename Backend::vector     vector;
-    typedef typename amgcl::math::rhs_of<value_type>::type rhs_type;
-
-    std::vector<ptrdiff_t>  ptr;
-    std::vector<ptrdiff_t>  col;
-    std::vector<value_type> val;
-    std::vector<rhs_type>   rhs;
-
-    size_t n = sample_problem(32, val, col, ptr, rhs);
+    typedef typename Backend::vector vector;
 
     typename Backend::params prm;
 
@@ -167,6 +168,40 @@ void test_backend() {
                     amgcl::adapter::zero_copy(n, ptr.data(), col.data(), val.data()),
                     y, x, solver[0], relaxation[0], c);
         } catch(const std::logic_error&) {}
+    }
+}
+template <class Backend>
+void test_backend() {
+    typedef typename Backend::value_type value_type;
+    typedef typename amgcl::math::rhs_of<value_type>::type rhs_type;
+
+    // Poisson 3D
+    {
+        std::vector<ptrdiff_t>  ptr;
+        std::vector<ptrdiff_t>  col;
+        std::vector<value_type> val;
+        std::vector<rhs_type>   rhs;
+
+        size_t n = sample_problem(32, val, col, ptr, rhs);
+
+        test_problem<Backend>(n, ptr, col, val, rhs);
+    }
+
+    // Trivial problem
+    {
+        std::vector<ptrdiff_t>  ptr;
+        std::vector<ptrdiff_t>  col;
+        std::vector<value_type> val;
+        std::vector<rhs_type>   rhs;
+
+	val += amgcl::math::identity<value_type>(), amgcl::math::identity<value_type>();
+	col += 0, 1;
+	ptr += 0, 1, 2;
+	rhs += amgcl::math::constant<rhs_type>(1.0), amgcl::math::zero<rhs_type>();
+
+	size_t n = rhs.size();
+
+        test_problem<Backend>(n, ptr, col, val, rhs);
     }
 }
 
