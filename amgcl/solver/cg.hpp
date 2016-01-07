@@ -163,7 +163,7 @@ class cg {
             scalar_type res_norm = norm(*r);
 
             size_t iter = 0;
-            for(; iter < prm.maxiter && math::norm(rho1) > eps2; ++iter) {
+            for(; iter < prm.maxiter && math::norm(res_norm) > eps2; ++iter) {
                 P.apply(*r, *s);
 
                 rho2 = rho1;
@@ -180,6 +180,8 @@ class cg {
 
                 backend::axpby( alpha, *p, one,  x);
                 backend::axpby(-alpha, *q, one, *r);
+
+                res_norm = norm(*r);
             }
 
             backend::residual(rhs, A, x, *r);
