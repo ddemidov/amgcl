@@ -242,7 +242,7 @@ class gmres {
 
             // Unroll the loop
             int j = 0;
-            for (; j <= k; j += 2)
+            for (; j + 1 <= k; j += 2)
                 backend::axpbypcz(y[j], *v[j], y[j+1], *v[j+1], math::identity<scalar_type>(), x);
             for (; j <= k; ++j)
                 backend::axpby(y[j], *v[j], math::identity<scalar_type>(), x);
