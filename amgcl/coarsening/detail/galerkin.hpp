@@ -45,7 +45,7 @@ boost::shared_ptr<Matrix> galerkin(
         )
 {
     boost::shared_ptr<Matrix> a = boost::make_shared<Matrix>();
-    *a = product(product(R, A), P);
+    *a = product(R, product(A, P));
     return a;
 }
 
