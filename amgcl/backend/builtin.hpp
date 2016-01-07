@@ -51,6 +51,7 @@ THE SOFTWARE.
 #include <amgcl/solver/skyline_lu.hpp>
 #include <amgcl/detail/inverse.hpp>
 #include <amgcl/detail/sort_row.hpp>
+#include <amgcl/detail/spgemm.hpp>
 #include <amgcl/backend/detail/matrix_ops.hpp>
 
 namespace amgcl {
@@ -59,7 +60,7 @@ namespace backend {
 /// Sparse matrix stored in CRS format.
 template <
     typename val_t = double,
-    typename col_t = int,
+    typename col_t = ptrdiff_t,
     typename ptr_t = col_t
     >
 struct crs {
@@ -167,6 +168,22 @@ struct crs {
 
 };
 
+/// Sort rows of the matrix column-wise.
+template < typename V, typename C, typename P >
+void sort_rows(crs<V, C, P> &A) {
+    const size_t n = rows(A);
+    BOOST_AUTO(Aptr, A.ptr_data());
+    BOOST_AUTO(Acol, A.col_data());
+    BOOST_AUTO(Aval, A.val_data());
+
+#pragma omp parallel for
+    for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
+        P beg = Aptr[i];
+        P end = Aptr[i + 1];
+        amgcl::detail::sort_row(Acol + beg, Aval + beg, end - beg);
+    }
+}
+
 /// Transpose of a sparse matrix.
 template < typename V, typename C, typename P >
 crs<V, C, P> transpose(const crs<V, C, P> &A)
@@ -213,90 +230,35 @@ template <class MatrixA, class MatrixB>
 crs< typename value_type<MatrixA>::type >
 product(const MatrixA &A, const MatrixB &B, bool sort = false) {
     typedef typename value_type<MatrixA>::type  V;
-    typedef ptrdiff_t C;
-    typedef ptrdiff_t P;
 
-    typedef typename row_iterator<MatrixA>::type Aiterator;
-    typedef typename row_iterator<MatrixB>::type Biterator;
-
-    const size_t n = rows(A);
-    const size_t m = cols(B);
-
-    crs<V, C, P> c;
-    c.nrows = n;
-    c.ncols = m;
-    c.ptr.resize(n + 1);
-    boost::fill(c.ptr, P());
-
-#pragma omp parallel
-    {
-        std::vector<ptrdiff_t> marker(m, -1);
+    crs<V, ptrdiff_t> C;
+    C.nrows = rows(A);
+    C.ncols = cols(B);
 
 #ifdef _OPENMP
-        int nt  = omp_get_num_threads();
-        int tid = omp_get_thread_num();
-
-        size_t chunk_size  = (n + nt - 1) / nt;
-        size_t chunk_start = tid * chunk_size;
-        size_t chunk_end   = std::min(n, chunk_start + chunk_size);
+    int nt = omp_get_max_threads();
 #else
-        size_t chunk_start = 0;
-        size_t chunk_end   = n;
+    int nt = 1;
 #endif
 
-        for(size_t ia = chunk_start; ia < chunk_end; ++ia) {
-            for(Aiterator a = A.row_begin(ia); a; ++a) {
-                for(Biterator b = B.row_begin(a.col()); b; ++b) {
-                    if (marker[b.col()] != static_cast<C>(ia)) {
-                        marker[b.col()]  = static_cast<C>(ia);
-                        ++( c.ptr[ia + 1] );
-                    }
-                }
-            }
-        }
-
-        boost::fill(marker, -1);
-
-#pragma omp barrier
-#pragma omp single
-        {
-            boost::partial_sum(c.ptr, c.ptr.begin());
-            c.col.resize(c.ptr.back());
-            c.val.resize(c.ptr.back());
-        }
-
-        for(size_t ia = chunk_start; ia < chunk_end; ++ia) {
-            P row_beg = c.ptr[ia];
-            P row_end = row_beg;
-
-            for(Aiterator a = A.row_begin(ia); a; ++a) {
-                C ca = a.col();
-                V va = a.value();
-
-                for(Biterator b = B.row_begin(ca); b; ++b) {
-                    C cb = b.col();
-                    V vb = b.value();
-
-                    if (marker[cb] < row_beg) {
-                        marker[cb] = row_end;
-                        c.col[row_end] = cb;
-                        c.val[row_end] = va * vb;
-                        ++row_end;
-                    } else {
-                        c.val[marker[cb]] += va * vb;
-                    }
-                }
-            }
-
-            if (sort) {
-                amgcl::detail::sort_row(
-                        &c.col[row_beg], &c.val[row_beg], row_end - row_beg
-                        );
-            }
-        }
+    if (nt > 4) {
+        spgemm_rmerge(
+                static_cast<ptrdiff_t>(C.nrows),
+                ptr_data(A), col_data(A), val_data(A),
+                ptr_data(B), col_data(B), val_data(B),
+                C.ptr, C.col, C.val
+                );
+    } else {
+        spgemm_saad(
+                static_cast<ptrdiff_t>(C.nrows),
+                static_cast<ptrdiff_t>(C.ncols),
+                ptr_data(A), col_data(A), val_data(A),
+                ptr_data(B), col_data(B), val_data(B),
+                C.ptr, C.col, C.val, sort
+                );
     }
 
-    return c;
+    return C;
 }
 
 /// Diagonal of a matrix
@@ -318,22 +280,6 @@ std::vector<V> diagonal(const crs<V, C, P> &A, bool invert = false)
     }
 
     return dia;
-}
-
-/// Sort rows of the matrix column-wise.
-template < typename V, typename C, typename P >
-void sort_rows(crs<V, C, P> &A) {
-    const size_t n = rows(A);
-    BOOST_AUTO(Aptr, A.ptr_data());
-    BOOST_AUTO(Acol, A.col_data());
-    BOOST_AUTO(Aval, A.val_data());
-
-#pragma omp parallel for
-    for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-        P beg = Aptr[i];
-        P end = Aptr[i + 1];
-        amgcl::detail::sort_row(Acol + beg, Aval + beg, end - beg);
-    }
 }
 
 /// Invert matrix.

@@ -329,6 +329,8 @@ class amg {
                         backend::cols(*P) > 0,
                         "Zero-sized coarse level in amgcl (diagonal matrix?)"
                         );
+                sort_rows(*P);
+                sort_rows(*R);
                 TOC("transfer operators");
 
                 TIC("move to backend")
