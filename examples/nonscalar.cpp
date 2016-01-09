@@ -11,7 +11,9 @@
 #include <amgcl/make_solver.hpp>
 
 #include <amgcl/backend/builtin.hpp>
+#include <amgcl/backend/eigen.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
+#include <amgcl/adapter/block_matrix.hpp>
 #include <amgcl/value_type/eigen.hpp>
 #include <amgcl/value_type/static_matrix.hpp>
 
@@ -67,53 +69,6 @@ void solve(const std::string &matrix_file, const std::string &rhs_file) {
             }
         }
     }
-
-    prof.tic("convert to point-wise");
-    // Convert the scalar matrix into blockwise one.
-    std::vector<int> ptr(n+1, 0);
-    std::vector<int> marker(n, -1);
-
-    for(int ip = 0, ia = 0; ip < n; ++ip) {
-        for(int k = 0; k < B; ++k, ++ia) {
-            for(row_iterator a(A, ia); a; ++a) {
-                int cp = a.col() / B;
-                if (marker[cp] != ip) {
-                    marker[cp] = ip;
-                    ++ptr[ip+1];
-                }
-            }
-        }
-    }
-
-    boost::fill(marker, -1);
-    boost::partial_sum(ptr, ptr.begin());
-
-    std::vector<int>        col(ptr.back());
-    std::vector<value_type> val(ptr.back(), amgcl::math::zero<value_type>());
-
-    for(int ip = 0, ia = 0; ip < n; ++ip) {
-        int row_beg = ptr[ip];
-        int row_end = row_beg;
-
-        for(int k = 0; k < B; ++k, ++ia) {
-            for(row_iterator a(A, ia); a; ++a) {
-                int cp = a.col() / B;
-                int m  = a.col() % B;
-
-                double va = a.value();
-
-                if (marker[cp] < row_beg) {
-                    marker[cp] = row_end;
-                    col[row_end] = cp;
-                    val[row_end](k,m) = va;
-                    ++row_end;
-                } else {
-                    val[marker[cp]](k,m) = va;
-                }
-            }
-        }
-    }
-    prof.toc("convert to point-wise");
     prof.toc("read problem");
 
     typedef amgcl::backend::builtin<value_type> Backend;
@@ -129,7 +84,7 @@ void solve(const std::string &matrix_file, const std::string &rhs_file) {
             amgcl::relaxation::gauss_seidel
             >,
         amgcl::solver::bicgstabl<Backend>
-        > solve( boost::tie(n, ptr, col, val), prm );
+        > solve(amgcl::adapter::block_matrix<B, value_type>(A), prm);
     prof.toc("setup");
 
     std::cout << solve.precond() << std::endl;
