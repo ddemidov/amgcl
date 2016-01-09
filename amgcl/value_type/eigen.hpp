@@ -71,10 +71,8 @@ struct adjoint_impl< Eigen::Matrix<T, N, M> >
 };
 
 /// Inner-product result of two Eigen vectors.
-template <class T, int N, int M>
-struct inner_product_impl< Eigen::Matrix<T, N, M>,
-    typename boost::enable_if_c<M == 1>::type
-    >
+template <class T, int N>
+struct inner_product_impl< Eigen::Matrix<T, N, 1> >
 {
     typedef T return_type;
     static T get(const Eigen::Matrix<T, N, 1> &x, const Eigen::Matrix<T, N, 1> &y) {
@@ -84,9 +82,7 @@ struct inner_product_impl< Eigen::Matrix<T, N, M>,
 
 /// Inner-product result of two Eigen matrices.
 template <class T, int N, int M>
-struct inner_product_impl< Eigen::Matrix<T, N, M>,
-    typename boost::enable_if_c<M != 1>::type
-    >
+struct inner_product_impl< Eigen::Matrix<T, N, M> >
 {
     typedef Eigen::Matrix<T, M, M> return_type;
 

@@ -189,7 +189,7 @@ boost::shared_ptr<Matrix> tentative_prolongation(
                     c[jj] = i * nullspace.cols + jj;
                     // TODO: this is just a workaround to make non-scalar value
                     // types compile. Most probably this won't actually work.
-                    v[jj] = math::identity<value_type>() * qr.Q(ii,jj);
+                    v[jj] = qr.Q(ii,jj) * math::identity<value_type>();
                 }
             }
         }

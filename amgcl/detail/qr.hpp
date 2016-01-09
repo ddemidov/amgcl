@@ -93,8 +93,8 @@ class QR {
                 if (q.size() < m * p) q.resize(m * p);
 
                 for(unsigned k=p; k --> 0;) {
-                    q[k*p+k] = math::identity<value_type>() * (
-                            1 - betaR[k] * sqr(math::norm(r[k*p+k])));
+                    q[k*p+k] = (1 - betaR[k] * sqr(math::norm(r[k*p+k]))) *
+                        math::identity<value_type>();
 
                     for(unsigned i = k+1; i < m; ++i)
                         q[i*p+k] = -betaR[k] * r[i*p+k] * math::adjoint(r[k*p+k]);

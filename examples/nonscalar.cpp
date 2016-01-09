@@ -13,6 +13,7 @@
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/value_type/eigen.hpp>
+#include <amgcl/value_type/static_matrix.hpp>
 
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
 #include <amgcl/relaxation/gauss_seidel.hpp>
@@ -26,8 +27,15 @@ namespace amgcl {
 
 template <int B>
 void solve(const std::string &matrix_file, const std::string &rhs_file) {
+#if 1
+    // Use Eigen static matrices for value types.
     typedef Eigen::Matrix<double, B, B> value_type;
     typedef Eigen::Matrix<double, B, 1> rhs_type;
+#else
+    // Use builtin static matrices for value types.
+    typedef amgcl::static_matrix<double, B, B> value_type;
+    typedef amgcl::static_matrix<double, B, 1> rhs_type;
+#endif
 
     typedef Eigen::SparseMatrix<double, Eigen::RowMajor, int> EigenMatrix;
     typedef EigenMatrix::InnerIterator row_iterator;
