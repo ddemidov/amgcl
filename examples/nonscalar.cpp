@@ -3,25 +3,24 @@
 
 #include <boost/program_options.hpp>
 
-#include <Eigen/Dense>
-#include <Eigen/Sparse>
-#include <unsupported/Eigen/SparseExtra>
-
 #include <amgcl/amgcl.hpp>
 #include <amgcl/make_solver.hpp>
 
 #include <amgcl/backend/builtin.hpp>
-#include <amgcl/backend/eigen.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/adapter/block_matrix.hpp>
-#include <amgcl/value_type/eigen.hpp>
 #include <amgcl/value_type/static_matrix.hpp>
+
+#ifdef AMGCL_HAVE_EIGEN
+#  include <amgcl/value_type/eigen.hpp>
+#endif
 
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
 #include <amgcl/relaxation/gauss_seidel.hpp>
 #include <amgcl/solver/bicgstabl.hpp>
 
 #include <amgcl/profiler.hpp>
+#include <amgcl/io/mm.hpp>
 
 namespace amgcl {
     profiler<> prof;
@@ -29,7 +28,7 @@ namespace amgcl {
 
 template <int B>
 void solve(const std::string &matrix_file, const std::string &rhs_file) {
-#if 1
+#if 1 && defined(AMGCL_HAVE_EIGEN)
     // Use Eigen static matrices for value types.
     typedef Eigen::Matrix<double, B, B> value_type;
     typedef Eigen::Matrix<double, B, 1> rhs_type;
@@ -39,36 +38,35 @@ void solve(const std::string &matrix_file, const std::string &rhs_file) {
     typedef amgcl::static_matrix<double, B, 1> rhs_type;
 #endif
 
-    typedef Eigen::SparseMatrix<double, Eigen::RowMajor, int> EigenMatrix;
-    typedef EigenMatrix::InnerIterator row_iterator;
-
     using amgcl::precondition;
     using amgcl::prof;
 
     prof.tic("read problem");
     // Read scalar matrix
-    EigenMatrix A;
-    precondition(Eigen::loadMarket(A, matrix_file),
-            "Failed to load matrix file (" + matrix_file + ")");
-    precondition(A.rows() % B == 0,
-            "System size is not divisible by block size");
+    std::vector<int> ptr, col;
+    std::vector<double> val;
+    int rows, cols;
+    boost::tie(rows, cols) = amgcl::io::mm_read(matrix_file, ptr, col, val);
+    precondition(rows == cols, "System matrix is not square");
+    precondition(rows % B == 0, "System size is not divisible by block size");
 
-    const int n = A.rows() / B;
+    int n = rows / B;
 
     // Read RHS (if any).
     std::vector<rhs_type> rhs(n, amgcl::math::constant<rhs_type>(1.0));
-
     if (!rhs_file.empty()) {
-        Eigen::Matrix<double, Eigen::Dynamic, 1> b;
-        precondition(Eigen::loadMarketVector(b, rhs_file),
-                "Failed to load RHS file (" + rhs_file + ")");
+        int nn, mm;
+        std::vector<double> b;
+        boost::tie(nn, mm) = amgcl::io::mm_read(rhs_file, b);
+        precondition(nn == rows && mm == 1, "RHS has incorrect size");
 
         for(int ip = 0, ia = 0; ip < n; ++ip) {
             for(int k = 0; k < B; ++k, ++ia) {
-                rhs[ip](k) = b(ia);
+                rhs[ip](k) = b[ia];
             }
         }
     }
+
     prof.toc("read problem");
 
     typedef amgcl::backend::builtin<value_type> Backend;
@@ -84,7 +82,7 @@ void solve(const std::string &matrix_file, const std::string &rhs_file) {
             amgcl::relaxation::gauss_seidel
             >,
         amgcl::solver::bicgstabl<Backend>
-        > solve(amgcl::adapter::block_matrix<B, value_type>(A), prm);
+        > solve(amgcl::adapter::block_matrix<B, value_type>(boost::tie(rows, ptr, col, val)), prm);
     prof.toc("setup");
 
     std::cout << solve.precond() << std::endl;
