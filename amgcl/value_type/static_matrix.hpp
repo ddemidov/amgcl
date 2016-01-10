@@ -136,11 +136,12 @@ static_matrix<T, N, M> operator*(
 {
     static_matrix<T, N, M> c;
     for(int i = 0; i < N; ++i) {
-        for(int j = 0; j < M; ++j) {
-            T sum = math::zero<T>();
-            for(int k = 0; k < K; ++k)
-                sum += a(i,k) * b(k,j);
-            c(i,j) = sum;
+        for(int j = 0; j < M; ++j)
+            c(i,j) = math::zero<T>();
+        for(int k = 0; k < K; ++k) {
+            T aik = a(i,k);
+            for(int j = 0; j < M; ++j)
+                c(i,j) += aik * b(k,j);
         }
     }
     return c;
@@ -221,7 +222,7 @@ struct inner_product_impl< static_matrix<T, N, M> >
     }
 };
 
-/// Specialization of element norm for static matrices.
+/// Implementation of Frobenius norm for static matrices.
 template <typename T, int N, int M>
 struct norm_impl< static_matrix<T, N, M> >
 {
