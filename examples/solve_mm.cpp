@@ -180,7 +180,7 @@ int main(int argc, char *argv[]) {
         prof.toc("solve");
     }
 
-    if (vm.count("out")) {
+    if (vm.count("output")) {
         prof.tic("write");
         amgcl::io::mm_write(out_file, &x[0], x.size());
         prof.toc("write");

@@ -11,8 +11,8 @@
 #include <amgcl/preconditioner/cpr.hpp>
 #include <amgcl/preconditioner/simple.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
-#include <amgcl/profiler.hpp>
 #include <amgcl/io/mm.hpp>
+#include <amgcl/profiler.hpp>
 
 namespace amgcl {
     profiler<> prof;
