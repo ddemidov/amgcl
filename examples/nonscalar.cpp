@@ -46,7 +46,8 @@ void solve(const std::string &matrix_file, const std::string &rhs_file) {
     std::vector<int> ptr, col;
     std::vector<double> val;
     int rows, cols;
-    boost::tie(rows, cols) = amgcl::io::mm_read(matrix_file, ptr, col, val);
+    boost::tie(rows, cols) = amgcl::io::mm_reader(matrix_file)(ptr, col, val);
+
     precondition(rows == cols, "System matrix is not square");
     precondition(rows % B == 0, "System size is not divisible by block size");
 
@@ -57,7 +58,8 @@ void solve(const std::string &matrix_file, const std::string &rhs_file) {
     if (!rhs_file.empty()) {
         int nn, mm;
         std::vector<double> b;
-        boost::tie(nn, mm) = amgcl::io::mm_read(rhs_file, b);
+        boost::tie(nn, mm) = amgcl::io::mm_reader(rhs_file)(b);
+
         precondition(nn == rows && mm == 1, "RHS has incorrect size");
 
         for(int ip = 0, ia = 0; ip < n; ++ip) {

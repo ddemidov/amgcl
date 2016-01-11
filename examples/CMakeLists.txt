@@ -27,16 +27,14 @@ target_link_libraries(block_crs ${Boost_LIBRARIES})
 add_executable(call_lib call_lib.cpp)
 target_link_libraries(call_lib ${Boost_LIBRARIES} amgcl)
 
-if (EIGEN_INCLUDE)
-    add_executable(solve_mm solve_mm.cpp)
-    target_link_libraries(solve_mm ${Boost_LIBRARIES})
+add_executable(solve_mm solve_mm.cpp)
+target_link_libraries(solve_mm ${Boost_LIBRARIES})
 
-    add_executable(nonscalar nonscalar.cpp)
-    target_link_libraries(nonscalar ${Boost_LIBRARIES})
+add_executable(nonscalar nonscalar.cpp)
+target_link_libraries(nonscalar ${Boost_LIBRARIES})
 
-    add_executable(two_step_precond two_step_precond.cpp)
-    target_link_libraries(two_step_precond ${Boost_LIBRARIES})
-endif()
+add_executable(two_step_precond two_step_precond.cpp)
+target_link_libraries(two_step_precond ${Boost_LIBRARIES})
 
 if (HPX_FOUND)
     add_hpx_executable(hpx

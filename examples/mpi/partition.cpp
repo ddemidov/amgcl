@@ -9,24 +9,19 @@
 #include <boost/range/numeric.hpp>
 #include <boost/program_options.hpp>
 
-#include <Eigen/Dense>
-#include <Eigen/Sparse>
-#include <unsupported/Eigen/SparseExtra>
+#include <amgcl/io/mm.hpp>
 
 extern "C" {
 #include <metis.h>
 }
-
-typedef Eigen::SparseMatrix<double, Eigen::RowMajor, int> EigenMatrix;
-typedef Eigen::Matrix<int, Eigen::Dynamic, 1>             PartVector;
 
 using amgcl::precondition;
 
 //---------------------------------------------------------------------------
 void pointwise_graph(
         int n, int block_size,
-        const int *ptr,
-        const int *col,
+        const std::vector<int> &ptr,
+        const std::vector<int> &col,
         std::vector<int> &pptr,
         std::vector<int> &pcol
         )
@@ -199,9 +194,9 @@ std::vector<int> pointwise_partition(
 }
 
 //---------------------------------------------------------------------------
-PartVector partition(
+std::vector<int> partition(
         int n, int nparts, int block_size,
-        const int *ptr, const int *col
+        const std::vector<int> &ptr, const std::vector<int> &col
         )
 {
     // Pointwise graph
@@ -211,7 +206,7 @@ PartVector partition(
     // Pointwise partition
     std::vector<int> ppart = pointwise_partition(nparts, pptr, pcol);
 
-    PartVector part(n);
+    std::vector<int> part(n);
     for(int i = 0; i < n; ++i)
         part[i] = ppart[i / block_size];
 
@@ -251,19 +246,15 @@ int main(int argc, char *argv[]) {
 
         po::notify(vm);
 
-        EigenMatrix A;
-        precondition(
-            Eigen::loadMarket(A, ifile),
-            "Failed to load matrix file"
-            );
+        size_t rows, cols;
+        std::vector<int> ptr, col;
+        std::vector<double> val;
 
-        PartVector part = partition(A.rows(), nparts, block_size,
-                A.outerIndexPtr(), A.innerIndexPtr());
+        boost::tie(rows, cols) = amgcl::io::mm_reader(ifile)(ptr, col, val);
 
-        precondition(
-                Eigen::saveMarketVector(part, ofile),
-                "Failed to write partition data"
-                );
+        std::vector<int> part = partition(rows, nparts, block_size, ptr, col);
+
+        amgcl::io::mm_write(ofile, &part[0], part.size());
     } catch (const std::exception &e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;

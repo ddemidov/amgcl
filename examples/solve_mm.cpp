@@ -5,62 +5,17 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
-#include <Eigen/Dense>
-#include <Eigen/Sparse>
-#include <unsupported/Eigen/SparseExtra>
-
 #include <amgcl/runtime.hpp>
 #include <amgcl/make_solver.hpp>
 #include <amgcl/relaxation/runtime.hpp>
-#include <amgcl/backend/eigen.hpp>
-#include <amgcl/adapter/crs_tuple.hpp>
-#include <amgcl/profiler.hpp>
+#include <amgcl/adapter/zero_copy.hpp>
 
-typedef Eigen::SparseMatrix<double, Eigen::RowMajor, int> EigenMatrix;
-typedef Eigen::Matrix<double, Eigen::Dynamic, 1>          EigenVector;
+#include <amgcl/io/mm.hpp>
+#include <amgcl/profiler.hpp>
 
 namespace amgcl {
 profiler<> prof;
 } // namespace amgcl
-
-//---------------------------------------------------------------------------
-template<typename Matrix>
-void mmread(Matrix &vec, const std::string &fname) {
-    typedef typename Matrix::Scalar Scalar;
-
-    using amgcl::precondition;
-
-    std::ifstream in(fname.c_str());
-    precondition(in, "Failed to open file \"" + fname + "\"");
-
-    std::string line;
-    int n = 0, col = 0;
-
-    // Skip comments
-    do {
-        precondition(
-                std::getline(in, line),
-                "Format error in " + fname
-                );
-    } while (line[0] == '%');
-
-    std::istringstream newline(line);
-    newline >> n >> col;
-    precondition(n > 0 && col > 0, "Wrong dimensions in Null-space file");
-    vec.resize(n, col);
-
-    for(int j = 0; j < col; ++j) {
-        for(int i = 0; i < n; ++i) {
-            Scalar v;
-            precondition(
-                    in >> v,
-                    "Format error in " + fname
-                    );
-
-            vec(i, j) = v;
-        }
-    }
-}
 
 //---------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
@@ -145,42 +100,39 @@ int main(int argc, char *argv[]) {
 
     // Read the matrix and the right-hand side.
     prof.tic("read");
-    EigenMatrix A;
-    precondition(
-            Eigen::loadMarket(A, A_file),
-            "Failed to load matrix file (" + A_file + ")"
-            );
+    size_t rows, cols;
+    std::vector<ptrdiff_t> ptr, col;
+    std::vector<double> val;
+    boost::tie(rows, cols) = amgcl::io::mm_reader(A_file)(ptr, col, val);
 
-    EigenVector rhs;
+    std::vector<double> rhs;
     if (vm.count("rhs")) {
-        precondition(
-                Eigen::loadMarketVector(rhs, rhs_file),
-                "Failed to load RHS file (" + rhs_file + ")"
-                );
+        size_t n, m;
+        boost::tie(n, m) = amgcl::io::mm_reader(rhs_file)(rhs);
     } else {
         std::cout << "RHS was not provided; using default value of 1" << std::endl;
-        rhs = EigenVector::Constant(A.rows(), 1);
+        rhs.resize(rows, 1.0);
     }
 
-    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Z;
+    std::vector<double> Z;
     if (vm.count("null")) {
-        mmread(Z, null_file);
+        size_t Zrows, Zcols;
+        boost::tie(Zrows, Zcols) = amgcl::io::mm_reader(null_file)(Z);
 
         precondition(
-                Z.rows() == A.rows(),
+                Zrows == rows,
                 "Inconsistent dimensions in Null-space file"
                 );
 
-        prm.put("precond.coarsening.nullspace.cols", Z.cols());
-        prm.put("precond.coarsening.nullspace.rows", Z.rows());
-        prm.put("precond.coarsening.nullspace.B",    Z.data());
+        prm.put("precond.coarsening.nullspace.cols", Zcols);
+        prm.put("precond.coarsening.nullspace.rows", Zrows);
+        prm.put("precond.coarsening.nullspace.B",    &Z[0]);
     }
 
-    precondition(A.rows() == rhs.size(), "Matrix and RHS sizes differ");
+    precondition(rows == rhs.size(), "Matrix and RHS sizes differ");
     prof.toc("read");
 
-    std::vector<double> f(&rhs[0], &rhs[0] + rhs.size());
-    std::vector<double> x(rhs.size(), 0);
+    std::vector<double> x(rows, 0);
 
     size_t iters;
     double resid;
@@ -200,11 +152,11 @@ int main(int argc, char *argv[]) {
             amgcl::runtime::iterative_solver<
                 amgcl::backend::builtin<double>
             >
-        > solve(A, prm);
+        > solve(amgcl::adapter::zero_copy(rows, &ptr[0], &col[0], &val[0]), prm);
         prof.toc("setup");
 
         prof.tic("solve");
-        boost::tie(iters, resid) = solve(f, x);
+        boost::tie(iters, resid) = solve(rhs, x);
         prof.toc("solve");
     } else {
         prm.put("precond.coarsening.type", coarsening);
@@ -218,28 +170,24 @@ int main(int argc, char *argv[]) {
             amgcl::runtime::iterative_solver<
                 amgcl::backend::builtin<double>
             >
-        > solve(A, prm);
+        > solve(amgcl::adapter::zero_copy(rows, &ptr[0], &col[0], &val[0]), prm);
         prof.toc("setup");
 
         std::cout << solve.precond() << std::endl;
 
         prof.tic("solve");
-        boost::tie(iters, resid) = solve(f, x);
+        boost::tie(iters, resid) = solve(rhs, x);
         prof.toc("solve");
     }
 
-    // Check the real error
-    double error = (rhs - A * Eigen::Map<EigenVector>(x.data(), x.size())).norm() / rhs.norm();
-
     if (vm.count("out")) {
         prof.tic("write");
-        Eigen::saveMarketVector(Eigen::Map<EigenVector>(x.data(), x.size()), out_file);
+        amgcl::io::mm_write(out_file, &x[0], x.size());
         prof.toc("write");
     }
 
-    std::cout << "Iterations:     " << iters << std::endl
-              << "Reported Error: " << resid << std::endl
-              << "Real error:     " << error << std::endl
-              << prof                        << std::endl
+    std::cout << "Iterations: " << iters << std::endl
+              << "Error:      " << resid << std::endl
+              << prof << std::endl
               ;
 }

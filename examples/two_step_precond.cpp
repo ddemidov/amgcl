@@ -5,22 +5,14 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
-#include <Eigen/Dense>
-#include <Eigen/Sparse>
-#include <unsupported/Eigen/SparseExtra>
-
 #include <amgcl/make_solver.hpp>
 #include <amgcl/runtime.hpp>
 #include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/preconditioner/cpr.hpp>
 #include <amgcl/preconditioner/simple.hpp>
-#include <amgcl/backend/eigen.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/profiler.hpp>
-
-typedef Eigen::SparseMatrix<double, Eigen::RowMajor, int> EigenMatrix;
-typedef Eigen::Matrix<double, Eigen::Dynamic, 1>          EigenVector;
-typedef Eigen::Matrix<int, Eigen::Dynamic, 1>             IntVector;
+#include <amgcl/io/mm.hpp>
 
 namespace amgcl {
     profiler<> prof;
@@ -106,34 +98,27 @@ int main(int argc, char *argv[]) {
 
     // Read the matrix and the right-hand side.
     prof.tic("read");
-    EigenMatrix A;
-    precondition(
-            Eigen::loadMarket(A, A_file),
-            "Failed to load matrix file (" + A_file + ")"
-            );
+    size_t rows, cols;
+    std::vector<int> ptr, col;
+    std::vector<double> val;
+    boost::tie(rows, cols) = amgcl::io::mm_reader(A_file)(ptr, col, val);
 
     std::vector<char> pm;
     {
-        IntVector ipm;
-        precondition(
-                Eigen::loadMarketVector(ipm, pm_file),
-                "Failed to load pmask file (" + pm_file + ")"
-                );
-        pm.assign(&ipm[0], &ipm[0] + ipm.size());
+        size_t n, m;
+        boost::tie(n, m) = amgcl::io::mm_reader(pm_file)(pm);
     }
 
-    EigenVector rhs;
+    std::vector<double> rhs;
     if (vm.count("rhs")) {
-        precondition(
-                Eigen::loadMarketVector(rhs, rhs_file),
-                "Failed to load RHS file (" + rhs_file + ")"
-                );
+        size_t n, m;
+        boost::tie(n, m) = amgcl::io::mm_reader(rhs_file)(rhs);
     } else {
         std::cout << "RHS was not provided; using default value of 1" << std::endl;
-        rhs = EigenVector::Constant(A.rows(), 1);
+        rhs.resize(rows, 1.0);
     }
 
-    precondition(A.rows() == rhs.size(), "Matrix and RHS sizes differ");
+    precondition(rows == rhs.size(), "Matrix and RHS sizes differ");
 
     boost::property_tree::ptree prm;
     if (vm.count("params")) read_json(parameter_file, prm);
@@ -162,7 +147,7 @@ int main(int argc, char *argv[]) {
         amgcl::runtime::iterative_solver<
             amgcl::backend::builtin<double>
             >
-        > cpr( A, prm );
+        > cpr( boost::tie(rows, ptr, col, val), prm );
     prof.toc("cpr");
 
     prof.tic("simple");
@@ -178,13 +163,12 @@ int main(int argc, char *argv[]) {
         amgcl::runtime::iterative_solver<
             amgcl::backend::builtin<double>
             >
-        > simple( A, prm );
+        > simple( boost::tie(rows, ptr, col, val), prm );
     prof.toc("simple");
     prof.toc("setup");
 
     // Solve the problem
-    std::vector<double> f(&rhs[0], &rhs[0] + rhs.size());
-    std::vector<double> x(rhs.size());
+    std::vector<double> x(rows);
 
     size_t iters;
     double resid;
@@ -193,7 +177,7 @@ int main(int argc, char *argv[]) {
     boost::fill(x, 0);
 
     prof.tic("cpr");
-    boost::tie(iters, resid) = cpr(f, x);
+    boost::tie(iters, resid) = cpr(rhs, x);
     prof.toc("cpr");
 
     std::cout << "CPR:" << std::endl
@@ -204,7 +188,7 @@ int main(int argc, char *argv[]) {
     boost::fill(x, 0);
 
     prof.tic("simple");
-    boost::tie(iters, resid) = simple(f, x);
+    boost::tie(iters, resid) = simple(rhs, x);
     prof.toc("simple");
 
     std::cout << "SIMPLE:" << std::endl
