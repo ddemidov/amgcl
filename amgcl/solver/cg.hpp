@@ -53,11 +53,10 @@ namespace solver {
  */
 
 
-/// Conjugate Gradients iterative solver.
-/**
- * \param Backend Backend for temporary structures allocation.
- * \ingroup solvers
- * \sa \cite Barrett1994
+/** Conjugate Gradients method.
+ * \rst
+ * An effective method for symmetric positive definite systems [Barr94]_.
+ * \endrst
  */
 template <
     class Backend,
@@ -100,12 +99,7 @@ class cg {
             }
         };
 
-        /// Preallocates necessary data structures
-        /**
-         * \param n           The system size.
-         * \param prm         Solver parameters.
-         * \param backend_prm Backend parameters.
-         */
+        /// Preallocates necessary data structures for the system of size \p n.
         cg(
                 size_t n,
                 const params &prm = params(),
@@ -119,19 +113,17 @@ class cg {
               inner_product(inner_product)
         { }
 
-        /// Solves the linear system for the given system matrix.
-        /**
-         * \param A   System matrix.
-         * \param P   Preconditioner.
-         * \param rhs Right-hand side.
-         * \param x   Solution vector.
+        /* Computes the solution for the given system matrix \p A and the
+         * right-hand side \p rhs.  Returns the number of iterations made and
+         * the achieved residual as a ``boost::tuple``. The solution vector
+         * \p x provides initial approximation in input and holds the computed
+         * solution on output.
          *
-         * The system matrix may differ from the matrix used for the AMG
-         * preconditioner construction. This may be used for the solution of
-         * non-stationary problems with slowly changing coefficients. There is
-         * a strong chance that AMG built for one time step will act as a
-         * reasonably good preconditioner for several subsequent time steps
-         * \cite Demidov2012.
+         * The system matrix may differ from the matrix used during
+         * initialization. This may be used for the solution of non-stationary
+         * problems with slowly changing coefficients. There is a strong chance
+         * that a preconditioner built for a time step will act as a reasonably
+         * good preconditioner for several subsequent time steps [DeSh12]_.
          */
         template <class Matrix, class Precond, class Vec1, class Vec2>
         boost::tuple<size_t, scalar_type> operator()(
@@ -190,11 +182,12 @@ class cg {
             return boost::make_tuple(iter, res_norm / norm_rhs);
         }
 
-        /// Solves the linear system for the same matrix that was used for the AMG preconditioner construction.
-        /**
-         * \param P   AMG preconditioner.
-         * \param rhs Right-hand side.
-         * \param x   Solution vector.
+        /* Computes the solution for the given right-hand side \p rhs. The
+         * system matrix is the same that was used for the setup of the
+         * preconditioner \p P.  Returns the number of iterations made and the
+         * achieved residual as a ``boost::tuple``. The solution vector \p x
+         * provides initial approximation in input and holds the computed
+         * solution on output.
          */
         template <class Precond, class Vec1, class Vec2>
         boost::tuple<size_t, scalar_type> operator()(

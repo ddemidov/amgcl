@@ -194,7 +194,7 @@ add_subdirectory(tests)
 set(BUILD_SHARED_LIBS ON)
 add_subdirectory(lib)
 add_subdirectory(examples)
-add_subdirectory(doc)
+add_subdirectory(docs)
 add_subdirectory(pyamgcl)
 
 #----------------------------------------------------------------------------

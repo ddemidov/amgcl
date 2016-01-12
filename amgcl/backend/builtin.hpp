@@ -313,10 +313,13 @@ crs<V, C, P> inverse(const crs<V, C, P> &A) {
     return Ainv;
 }
 
-/// Builtin backend.
 /**
- * \param real Value type.
- * \ingroup backends
+ * The builtin backend does not have any dependencies except for the
+ * <a href="http://www.boost.org">Boost</a> libraries, and uses OpenMP for
+ * parallelization. Matrices are stored in the CRS format, and vectors are
+ * instances of ``std::vector<value_type>``. There is no usual overhead of
+ * moving the constructed hierarchy to the builtin backend, since the backend
+ * is used internally during setup.
  */
 template <typename ValueType>
 struct builtin {
@@ -332,7 +335,7 @@ struct builtin {
     typedef std::vector<value_type>        matrix_diagonal;
     typedef solver::skyline_lu<value_type> direct_solver;
 
-    /// Backend parameters.
+    /// The backend has no parameters.
     struct params {
         params() {}
         params(const boost::property_tree::ptree&) {}
@@ -341,15 +344,14 @@ struct builtin {
 
     static std::string name() { return "builtin"; }
 
-    /// Copy matrix.
-    /** This is a noop for builtin backend. */
+    // Copy matrix. This is a noop for builtin backend.
     static boost::shared_ptr<matrix>
     copy_matrix(boost::shared_ptr<matrix> A, const params&)
     {
         return A;
     }
 
-    /// Copy vector to builtin backend.
+    // Copy vector to builtin backend.
     template <class T>
     static boost::shared_ptr< std::vector<T> >
     copy_vector(const std::vector<T> &x, const params&)
@@ -357,8 +359,7 @@ struct builtin {
         return boost::make_shared< std::vector<T> >(x);
     }
 
-    /// Copy vector to builtin backend.
-    /** This is a noop for builtin backend. */
+    // Copy vector to builtin backend. This is a noop for builtin backend.
     template <class T>
     static boost::shared_ptr< std::vector<T> >
     copy_vector(boost::shared_ptr< std::vector<T> > x, const params&)
@@ -366,7 +367,7 @@ struct builtin {
         return x;
     }
 
-    /// Create vector of the specified size.
+    // Create vector of the specified size.
     static boost::shared_ptr<vector>
     create_vector(size_t size, const params&)
     {
@@ -399,7 +400,7 @@ struct builtin {
         }
     };
 
-    /// Create direct solver for coarse level
+    // Create direct solver for coarse level
     static boost::shared_ptr<direct_solver>
     create_solver(boost::shared_ptr<matrix> A, const params&) {
         return boost::make_shared<direct_solver>(*A);

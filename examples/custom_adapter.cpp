@@ -129,4 +129,7 @@ int main() {
         > solve( A );
 
     std::cout << solve.precond() << std::endl;
+
+    std::vector<double> f(n, 1.0), x(n, 0.0);
+    solve(f, x);
 }

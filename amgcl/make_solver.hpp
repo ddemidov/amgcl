@@ -37,7 +37,7 @@ THE SOFTWARE.
 
 namespace amgcl {
 
-/// Convenience class that wraps a preconditioner and an iterative solver
+/// Convenience class that bundles together a preconditioner and an iterative solver.
 template <
     class Precond,
     class IterativeSolver
@@ -58,9 +58,12 @@ class make_solver {
 
         typedef typename math::scalar_of<value_type>::type scalar_type;
 
+        /** Combined parameters of the bundled preconditioner and the iterative
+         * solver.
+         */
         struct params {
-            typename Precond::params         precond;
-            typename IterativeSolver::params solver;
+            typename Precond::params         precond; ///< Preconditioner parameters.
+            typename IterativeSolver::params solver;  ///< Iterative solver parameters.
 
             params() {}
 
@@ -69,8 +72,7 @@ class make_solver {
                   AMGCL_PARAMS_IMPORT_CHILD(p, solver)
             {}
 
-            void get(
-                    boost::property_tree::ptree &p,
+            void get( boost::property_tree::ptree &p,
                     const std::string &path = ""
                     ) const
             {
@@ -79,7 +81,7 @@ class make_solver {
             }
         } prm;
 
-        /// Constructs the preconditioner and creates iterative solver.
+        /** Sets up the preconditioner and creates the iterative solver. */
         template <class Matrix>
         make_solver(
                 const Matrix &A,
@@ -91,7 +93,8 @@ class make_solver {
             S(backend::rows(A), prm.solver, bprm)
         {}
 
-        /// Constructs the preconditioner and creates iterative solver.
+        // Constructs the preconditioner and creates iterative solver.
+        // Takes shared pointer to the matrix in internal format.
         make_solver(
                 boost::shared_ptr<build_matrix> A,
                 const params &prm = params(),
@@ -102,18 +105,19 @@ class make_solver {
             S(backend::rows(*A), prm.solver, bprm)
         {}
 
-        /// Solves the linear system for the given system matrix.
-        /**
-         * \param A   System matrix.
-         * \param rhs Right-hand side.
-         * \param x   Solution vector.
+        /** Computes the solution for the given system matrix \p A and the
+         * right-hand side \p rhs.  Returns the number of iterations made and
+         * the achieved residual as a ``boost::tuple``. The solution vector
+         * \p x provides initial approximation in input and holds the computed
+         * solution on output.
          *
-         * The system matrix may differ from the matrix used for the AMG
-         * preconditioner construction. This may be used for the solution of
-         * non-stationary problems with slowly changing coefficients. There is
-         * a strong chance that AMG built for one time step will act as a
-         * reasonably good preconditioner for several subsequent time steps
-         * \cite Demidov2012.
+         * \rst
+         * The system matrix may differ from the matrix used during
+         * initialization. This may be used for the solution of non-stationary
+         * problems with slowly changing coefficients. There is a strong chance
+         * that a preconditioner built for a time step will act as a reasonably
+         * good preconditioner for several subsequent time steps [DeSh12]_.
+         * \endrst
          */
         template <class Matrix, class Vec1, class Vec2>
         boost::tuple<size_t, scalar_type> operator()(
@@ -129,10 +133,10 @@ class make_solver {
             return S(A, P, rhs, x);
         }
 
-        /// Solves the linear system for the given right-hand side.
-        /**
-         * \param rhs Right-hand side.
-         * \param x   Solution vector.
+        /** Computes the solution for the given right-hand side \p rhs.
+         * Returns the number of iterations made and the achieved residual as a
+         * ``boost::tuple``. The solution vector \p x provides initial
+         * approximation in input and holds the computed solution on output.
          */
         template <class Vec1, class Vec2>
         boost::tuple<size_t, scalar_type> operator()(
@@ -147,10 +151,29 @@ class make_solver {
             return S(P, rhs, x);
         }
 
-        /// Acts as a preconditioner.
-        /**
-         * \param rhs Right-hand side.
-         * \param x   Solution vector.
+        /** Acts as a preconditioner. That is, applies the solver to the
+         * right-hand side \p rhs to get the solution \p x with zero initial
+         * approximation.  Iterative methods usually use estimated residual for
+         * exit condition.  For some problems the value of the estimated
+         * residual can get too far from the true residual due to round-off
+         * errors.  Nesting iterative solvers in this way may allow to shave
+         * the last bits off the error. The method should not be used directly
+         * but rather allows nesting ``make_solver`` classes as in the
+         * following example:
+         *
+         * \rst
+         * .. code-block:: cpp
+         *
+         *   typedef amgcl::make_solver<
+         *     amgcl::make_solver<
+         *       amgcl::amg<
+         *         Backend, amgcl::coarsening::smoothed_agregation, amgcl::relaxation::spai0
+         *         >,
+         *       amgcl::solver::cg<Backend>
+         *       >,
+         *     amgcl::solver::cg<Backend>
+         *     > NestedSolver;
+         * \endrst
          */
         template <class Vec1, class Vec2>
         void apply(
@@ -166,27 +189,27 @@ class make_solver {
             (*this)(rhs, x);
         }
 
-        /// Reference to the constructed AMG hierarchy.
+        /// Returns reference to the constructed preconditioner.
         const Precond& precond() const {
             return P;
         }
 
-        /// Reference to the iterative solver.
+        /// Returns reference to the constructed iterative solver.
         const IterativeSolver& solver() const {
             return S;
         }
 
-        /// The system matrix in the backend format.
+        /// Returns the system matrix in the backend format.
         typename Precond::matrix const& system_matrix() const {
             return P.system_matrix();
         }
 
-        /// Fills the property tree with the actual parameters used.
+        /// Stores the parameters used during construction into the property tree \p p.
         void get_params(boost::property_tree::ptree &p) const {
             prm.get(p);
         }
 
-        /// Size of the system matrix.
+        /// Returns the size of the system matrix.
         size_t size() const {
             return n;
         }

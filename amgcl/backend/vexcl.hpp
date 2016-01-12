@@ -45,13 +45,13 @@ THE SOFTWARE.
 namespace amgcl {
 namespace backend {
 
-/// VexCL backend
 /**
- * This is a backend that uses types defined in the VexCL GPGPU library
- * (https://github.com/ddemidov/vexcl).
- *
- * \param real Value type.
- * \ingroup backends
+ * The backend uses the <a href="https://github.com/ddemidov/vexcl">VexCL</a>
+ * library for accelerating solution on the modern GPUs and multicore
+ * processors with the help of OpenCL or CUDA technologies.
+ * The VexCL backend stores the system matrix as ``vex::SpMat<real>`` and
+ * expects the right hand side and the solution vectors to be instances of the
+ * ``vex::vector<real>`` type.
  */
 template <typename real>
 struct vexcl {
@@ -65,10 +65,10 @@ struct vexcl {
 
     struct provides_row_iterator : boost::false_type {};
 
-    /// Backend parameters.
+    /// The VexCL backend parameters.
     struct params {
-        /// Command queues that identify compute devices to use with VexCL.
-        std::vector< vex::backend::command_queue > q;
+
+        std::vector< vex::backend::command_queue > q; ///< Command queues that identify compute devices to use with VexCL.
 
         params() {}
 
@@ -93,7 +93,7 @@ struct vexcl {
 
     static std::string name() { return "vexcl"; }
 
-    /// Copy matrix from builtin backend.
+    // Copy matrix from builtin backend.
     static boost::shared_ptr<matrix>
     copy_matrix(boost::shared_ptr< typename builtin<real>::matrix > A, const params &prm)
     {
@@ -108,7 +108,7 @@ struct vexcl {
         return boost::make_shared<matrix>(prm.context(), rows(*A), cols(*A), Aptr, Acol, Aval);
     }
 
-    /// Copy vector from builtin backend.
+    // Copy vector from builtin backend.
     static boost::shared_ptr<vector>
     copy_vector(typename builtin<real>::vector const &x, const params &prm)
     {
@@ -117,14 +117,14 @@ struct vexcl {
         return boost::make_shared<vector>(prm.context(), x);
     }
 
-    /// Copy vector from builtin backend.
+    // Copy vector from builtin backend.
     static boost::shared_ptr<vector>
     copy_vector(boost::shared_ptr< typename builtin<real>::vector > x, const params &prm)
     {
         return copy_vector(*x, prm);
     }
 
-    /// Create vector of the specified size.
+    // Create vector of the specified size.
     static boost::shared_ptr<vector>
     create_vector(size_t size, const params &prm)
     {
@@ -166,7 +166,7 @@ struct vexcl {
     };
 
 
-    /// Create direct solver for coarse level
+    // Create direct solver for coarse level
     static boost::shared_ptr<direct_solver>
     create_solver(boost::shared_ptr< typename builtin<real>::matrix > A, const params &prm)
     {
