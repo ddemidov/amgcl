@@ -36,6 +36,9 @@ target_link_libraries(nonscalar ${Boost_LIBRARIES})
 add_executable(two_step_precond two_step_precond.cpp)
 target_link_libraries(two_step_precond ${Boost_LIBRARIES})
 
+add_executable(custom_adapter custom_adapter.cpp)
+target_link_libraries(custom_adapter ${Boost_LIBRARIES})
+
 if (HPX_FOUND)
     add_hpx_executable(hpx
         ESSENTIAL
