@@ -38,7 +38,7 @@ THE SOFTWARE.
 #include <boost/property_tree/ptree.hpp>
 #include <boost/noncopyable.hpp>
 
-#include <amgcl/amgcl.hpp>
+#include <amgcl/amg.hpp>
 
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/coarsening/ruge_stuben.hpp>

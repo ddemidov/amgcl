@@ -5,7 +5,7 @@
 #include <boost/numeric/ublas/vector.hpp>
 #include <boost/numeric/ublas/matrix_sparse.hpp>
 
-#include <amgcl/amgcl.hpp>
+#include <amgcl/amg.hpp>
 #include <amgcl/make_solver.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/adapter/ublas.hpp>

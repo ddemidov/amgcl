@@ -39,10 +39,10 @@ THE SOFTWARE.
 #include <boost/make_shared.hpp>
 #include <boost/range/numeric.hpp>
 #include <boost/multi_array.hpp>
+#include <boost/foreach.hpp>
 
 #include <mpi.h>
 
-#include <amgcl/amgcl.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/mpi/util.hpp>

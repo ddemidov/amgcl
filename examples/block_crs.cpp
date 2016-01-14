@@ -3,7 +3,7 @@
 #include <iterator>
 #include <algorithm>
 
-#include <amgcl/amgcl.hpp>
+#include <amgcl/amg.hpp>
 
 #include <amgcl/backend/block_crs.hpp>
 #include <amgcl/coarsening/aggregation.hpp>

@@ -3,7 +3,7 @@
 
 #include <boost/program_options.hpp>
 
-#include <amgcl/amgcl.hpp>
+#include <amgcl/amg.hpp>
 #include <amgcl/make_solver.hpp>
 
 #include <amgcl/backend/builtin.hpp>

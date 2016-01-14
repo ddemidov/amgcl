@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include <amgcl/amgcl.hpp>
+#include <amgcl/amg.hpp>
 #include <amgcl/make_solver.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/adapter/crs_builder.hpp>

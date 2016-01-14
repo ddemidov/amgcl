@@ -4,7 +4,7 @@
 #include <complex>
 
 #include <amgcl/backend/builtin.hpp>
-#include <amgcl/amgcl.hpp>
+#include <amgcl/amg.hpp>
 #include <amgcl/make_solver.hpp>
 
 #include <amgcl/coarsening/aggregation.hpp>

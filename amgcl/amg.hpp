@@ -1,5 +1,5 @@
-#ifndef AMGCL_AMGCL_HPP
-#define AMGCL_AMGCL_HPP
+#ifndef AMGCL_AMG_HPP
+#define AMGCL_AMG_HPP
 
 /*
 The MIT License
@@ -26,9 +26,9 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/amgcl.hpp
+ * \file   amgcl/amg.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
- * \brief  Generic algebraic multigrid framework.
+ * \brief  An AMG preconditioner.
  */
 
 #include <iostream>

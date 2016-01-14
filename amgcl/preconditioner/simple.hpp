@@ -42,7 +42,7 @@ THE SOFTWARE.
 #include <boost/function.hpp>
 #include <boost/range/irange.hpp>
 #include <boost/range/algorithm.hpp>
-#include <amgcl/amgcl.hpp>
+#include <amgcl/amg.hpp>
 #include <amgcl/util.hpp>
 
 namespace amgcl {

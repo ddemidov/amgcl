@@ -1,7 +1,7 @@
 #include <iostream>
 #include <thrust/device_vector.h>
 
-#include <amgcl/amgcl.hpp>
+#include <amgcl/amg.hpp>
 #include <amgcl/make_solver.hpp>
 
 #include <amgcl/coarsening/smoothed_aggregation.hpp>

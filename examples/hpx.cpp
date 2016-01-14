@@ -1,7 +1,7 @@
 #include <iostream>
 #include <hpx/hpx_init.hpp>
 
-#include <amgcl/amgcl.hpp>
+#include <amgcl/amg.hpp>
 #include <amgcl/make_solver.hpp>
 #include <amgcl/backend/hpx.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
