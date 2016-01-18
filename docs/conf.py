@@ -130,7 +130,12 @@ todo_include_todos = False
 # a list of builtin themes.
 html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
 html_theme = 'bootstrap'
-html_theme_options = { 'bootswatch_theme': 'yeti' }
+html_theme_options = {
+        'bootswatch_theme': 'yeti',
+        'navbar_links' : [
+            ("GitHub", "https://github.com/ddemidov/amgcl", True)
+            ]
+        }
 
 # Add any paths that contain custom themes here, relative to this directory.
 #html_theme_path = []
