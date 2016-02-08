@@ -131,9 +131,10 @@ class mm_reader {
             // Read sizes
             size_t n, m, nnz;
             std::string line;
+            std::istringstream is;
             {
                 precondition(std::getline(f, line), format_error("unexpected eof"));
-                std::istringstream is(line);
+                is.clear(); is.str(line);
                 precondition(is >> n >> m >> nnz, format_error());
             }
 
@@ -144,7 +145,7 @@ class mm_reader {
             Idx last_i = 0;
             for(size_t k = 0; k < nnz; ++k) {
                 precondition(std::getline(f, line), format_error("unexpected eof"));
-                std::istringstream is(line);
+                is.clear(); is.str(line);
 
                 Idx i, j;
                 Val v;
@@ -192,9 +193,10 @@ class mm_reader {
             // Read sizes
             size_t n, m;
             std::string line;
+            std::istringstream is;
             {
                 precondition(std::getline(f, line), format_error("unexpected eof"));
-                std::istringstream is(line);
+                is.clear(); is.str(line);
                 precondition(is >> n >> m, format_error());
             }
 
@@ -203,7 +205,7 @@ class mm_reader {
             for(size_t j = 0; j < m; ++j) {
                 for(size_t i = 0; i < n; ++i) {
                     precondition(std::getline(f, line), format_error("unexpected eof"));
-                    std::istringstream is(line);
+                    is.clear(); is.str(line);
                     val[i * m + j] = read_value<Val>(is);
                 }
             }
