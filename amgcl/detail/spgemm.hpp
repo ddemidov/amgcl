@@ -48,7 +48,9 @@ THE SOFTWARE.
 #include <algorithm>
 #include <boost/range/algorithm.hpp>
 #include <boost/range/numeric.hpp>
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 
 #include <amgcl/value_type/interface.hpp>
 #include <amgcl/detail/sort_row.hpp>
