@@ -41,16 +41,17 @@ int hpx_main(boost::program_options::variables_map &vm) {
         amgcl::solver::bicgstab< Backend >
         > Solver;
 
-    Solver::params prm;
-    prm.precond.backend.grain_size = vm["grain"].as<int>();
+    Solver::params  sprm;
+    Backend::params bprm;
+    bprm.grain_size = vm["grain"].as<int>();
 
-    Solver solve( boost::tie(n, ptr, col, val), prm );
+    Solver solve( boost::tie(n, ptr, col, val), sprm, bprm );
     prof.toc("setup");
 
     std::cout << solve.precond() << std::endl;
 
-    auto f = Backend::copy_vector(rhs, prm.precond.backend);
-    auto x = Backend::create_vector(n, prm.precond.backend);
+    auto f = Backend::copy_vector(rhs, bprm);
+    auto x = Backend::create_vector(n, bprm);
 
     amgcl::backend::clear(*x);
 
