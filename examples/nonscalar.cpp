@@ -54,19 +54,12 @@ void solve(const std::string &matrix_file, const std::string &rhs_file) {
     int n = rows / B;
 
     // Read RHS (if any).
-    std::vector<rhs_type> rhs(n, amgcl::math::constant<rhs_type>(1.0));
+    std::vector<double> b;
     if (!rhs_file.empty()) {
         int nn, mm;
-        std::vector<double> b;
         boost::tie(nn, mm) = amgcl::io::mm_reader(rhs_file)(b);
 
         precondition(nn == rows && mm == 1, "RHS has incorrect size");
-
-        for(int ip = 0, ia = 0; ip < n; ++ip) {
-            for(int k = 0; k < B; ++k, ++ia) {
-                rhs[ip](k) = b[ia];
-            }
-        }
     }
 
     prof.toc("read problem");
@@ -95,7 +88,11 @@ void solve(const std::string &matrix_file, const std::string &rhs_file) {
     double resid;
 
     prof.tic("solve");
-    boost::tie(iters, resid) = solve(rhs, x);
+
+    const rhs_type* b_begin = reinterpret_cast<const rhs_type*>(&b[0]);
+    boost::iterator_range<const rhs_type*> b_range = boost::make_iterator_range(b_begin, b_begin + n);
+
+    boost::tie(iters, resid) = solve(b_range, x);
     prof.toc("solve");
 
     std::cout << "Iterations: " << iters << std::endl
