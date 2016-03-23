@@ -25,6 +25,7 @@
 
 namespace amgcl { profiler<> prof; }
 using amgcl::prof;
+using amgcl::precondition;
 
 typedef amgcl::scoped_tic< amgcl::profiler<> > scoped_tic;
 
@@ -100,10 +101,40 @@ boost::tuple<size_t, double> scalar_solve(
     }
 }
 
+//---------------------------------------------------------------------------
+template <template <class> class Precond>
+boost::tuple<size_t, double> solve(
+        const boost::property_tree::ptree &prm,
+        size_t rows,
+        std::vector<ptrdiff_t> const &ptr,
+        std::vector<ptrdiff_t> const &col,
+        std::vector<double>    const &val,
+        std::vector<double>    const &rhs,
+        std::vector<double>          &x,
+        int block_size
+        )
+{
+    switch (block_size) {
+        case 1:
+            return scalar_solve<Precond>(prm, rows, ptr, col, val, rhs, x);
+        case 2:
+            return block_solve<2, Precond>(prm, rows, ptr, col, val, rhs, x);
+        case 3:
+            return block_solve<3, Precond>(prm, rows, ptr, col, val, rhs, x);
+        case 4:
+            return block_solve<4, Precond>(prm, rows, ptr, col, val, rhs, x);
+        case 6:
+            return block_solve<6, Precond>(prm, rows, ptr, col, val, rhs, x);
+        default:
+            precondition(false, "Unsupported block size");
+            return boost::make_tuple(0, 0.0);
+    }
+}
+
+//---------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
     namespace po = boost::program_options;
     using amgcl::prof;
-    using amgcl::precondition;
     using std::vector;
     using std::string;
 
@@ -254,55 +285,11 @@ int main(int argc, char *argv[]) {
     bool single_level = vm["single-level"].as<bool>();
 
     if (single_level) {
-        switch (block_size) {
-            case 1:
-                boost::tie(iters, error) = scalar_solve<amgcl::runtime::relaxation::as_preconditioner>(
-                        prm, rows, ptr, col, val, rhs, x);
-                break;
-            case 2:
-                boost::tie(iters, error) = block_solve<2, amgcl::runtime::relaxation::as_preconditioner>(
-                        prm, rows, ptr, col, val, rhs, x);
-                break;
-            case 3:
-                boost::tie(iters, error) = block_solve<3, amgcl::runtime::relaxation::as_preconditioner>(
-                        prm, rows, ptr, col, val, rhs, x);
-                break;
-            case 4:
-                boost::tie(iters, error) = block_solve<4, amgcl::runtime::relaxation::as_preconditioner>(
-                        prm, rows, ptr, col, val, rhs, x);
-                break;
-            case 6:
-                boost::tie(iters, error) = block_solve<6, amgcl::runtime::relaxation::as_preconditioner>(
-                        prm, rows, ptr, col, val, rhs, x);
-                break;
-            default:
-                precondition(false, "Unsupported block size");
-        }
+        boost::tie(iters, error) = solve<amgcl::runtime::relaxation::as_preconditioner>(
+                prm, rows, ptr, col, val, rhs, x, block_size);
     } else {
-        switch (block_size) {
-            case 1:
-                boost::tie(iters, error) = scalar_solve<amgcl::runtime::amg>(
-                        prm, rows, ptr, col, val, rhs, x);
-                break;
-            case 2:
-                boost::tie(iters, error) = block_solve<2, amgcl::runtime::amg>(
-                        prm, rows, ptr, col, val, rhs, x);
-                break;
-            case 3:
-                boost::tie(iters, error) = block_solve<3, amgcl::runtime::amg>(
-                        prm, rows, ptr, col, val, rhs, x);
-                break;
-            case 4:
-                boost::tie(iters, error) = block_solve<4, amgcl::runtime::amg>(
-                        prm, rows, ptr, col, val, rhs, x);
-                break;
-            case 6:
-                boost::tie(iters, error) = block_solve<6, amgcl::runtime::amg>(
-                        prm, rows, ptr, col, val, rhs, x);
-                break;
-            default:
-                precondition(false, "Unsupported block size");
-        }
+        boost::tie(iters, error) = solve<amgcl::runtime::amg>(
+                prm, rows, ptr, col, val, rhs, x, block_size);
     }
 
     if (vm.count("output")) {
