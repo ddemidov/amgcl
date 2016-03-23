@@ -15,23 +15,17 @@ configure_file(
 add_executable(solver solver.cpp)
 target_link_libraries(solver ${Boost_LIBRARIES})
 
+add_executable(crs_builder crs_builder.cpp)
+target_link_libraries(crs_builder ${Boost_LIBRARIES})
+
 add_executable(ublas ublas.cpp)
 target_link_libraries(ublas ${Boost_LIBRARIES})
-
-add_executable(runtime runtime.cpp)
-target_link_libraries(runtime ${Boost_LIBRARIES})
 
 add_executable(block_crs block_crs.cpp)
 target_link_libraries(block_crs ${Boost_LIBRARIES})
 
 add_executable(call_lib call_lib.cpp)
 target_link_libraries(call_lib ${Boost_LIBRARIES} amgcl)
-
-add_executable(solve_mm solve_mm.cpp)
-target_link_libraries(solve_mm ${Boost_LIBRARIES})
-
-add_executable(nonscalar nonscalar.cpp)
-target_link_libraries(nonscalar ${Boost_LIBRARIES})
 
 add_executable(two_step_precond two_step_precond.cpp)
 target_link_libraries(two_step_precond ${Boost_LIBRARIES})
