@@ -478,7 +478,7 @@ class amg : boost::noncopyable {
          * \rst
          * ``prm`` is an instance of ``boost::property_tree::ptree`` class.
          * The property tree may contain parameters "coarsening.type" and
-         * "relaxation.type". Default values are
+         * "relax.type". Default values are
          * ``amgcl::runtime::coarsening::smoothed_aggregation`` and
          * ``runtime::relaxation::spai0``.
          * The rest of the property tree should copy the structure of
@@ -502,7 +502,7 @@ class amg : boost::noncopyable {
                 const backend_params &backend_prm = backend_params()
            )
           : coarsening(prm.get("coarsening.type", runtime::coarsening::smoothed_aggregation)),
-            relaxation(prm.get("relaxation.type", runtime::relaxation::spai0)),
+            relaxation(prm.get("relax.type", runtime::relaxation::spai0)),
             handle(0)
         {
             runtime::detail::process_amg<Backend>(
