@@ -41,6 +41,7 @@ THE SOFTWARE.
 
 #include <amgcl/util.hpp>
 #include <amgcl/value_type/interface.hpp>
+#include <amgcl/detail/sort_row.hpp>
 
 namespace amgcl {
 namespace io {
@@ -48,8 +49,8 @@ namespace io {
 /// Matrix market reader.
 class mm_reader {
     public:
-        /// Open the file, read the banner.
-        mm_reader(const std::string &fname) : fname(fname), f(fname.c_str()) {
+        /// Open the file by name
+        mm_reader(const std::string &fname) : f(fname.c_str()) {
             precondition(f, "Failed to open file \"" + fname + "\"");
 
             // Read banner.
@@ -65,7 +66,14 @@ class mm_reader {
 
             precondition(banner  == "%%MatrixMarket", format_error("no banner"));
             precondition(mtx     == "matrix",         format_error("not a matrix"));
-            precondition(storage == "general",        format_error("not general"));
+
+            if (storage == "general") {
+                _symmetric = false;
+            } else if (storage == "symmetric") {
+                _symmetric = true;
+            } else {
+                precondition(false, "unsupported storage type");
+            }
 
             if (coord == "coordinate") {
                 _sparse = true;
@@ -98,6 +106,9 @@ class mm_reader {
             // Get back to the first non-comment line.
             f.seekg(pos);
         }
+
+        /// Matrix in the file is symmetric.
+        bool is_symmetric()  const { return _symmetric; }
 
         /// Matrix in the file is sparse.
         bool is_sparse()  const { return _sparse; }
@@ -138,11 +149,10 @@ class mm_reader {
                 precondition(is >> n >> m >> nnz, format_error());
             }
 
-            ptr.clear(); ptr.reserve(n+1);
-            col.clear(); col.reserve(nnz);
-            val.clear(); val.reserve(nnz);
+            std::vector<Idx> _row; _row.reserve(nnz);
+            std::vector<Idx> _col; _col.reserve(nnz);
+            std::vector<Val> _val; _val.reserve(nnz);
 
-            Idx last_i = 0;
             for(size_t k = 0; k < nnz; ++k) {
                 precondition(std::getline(f, line), format_error("unexpected eof"));
                 is.clear(); is.str(line);
@@ -151,26 +161,58 @@ class mm_reader {
                 Val v;
 
                 precondition(is >> i >> j, format_error());
+
                 v = read_value<Val>(is);
 
-                while(last_i < i) {
-                    ptr.push_back(col.size());
-                    last_i++;
-                }
-
-                precondition(
-                        static_cast<size_t>(i) == ptr.size(),
-                        format_error("inconsistent data"));
-
-                col.push_back(j-1);
-                val.push_back(v);
+                _row.push_back(i-1);
+                _col.push_back(j-1);
+                _val.push_back(v);
             }
 
-            ptr.push_back(col.size());
+            precondition(_val.size() == nnz, format_error("inconsistent data"));
 
-            precondition(
-                    ptr.size() == n + 1 && col.size() == nnz,
-                    format_error("inconsistent data"));
+            ptr.resize(n+1); std::fill(ptr.begin(), ptr.end(), 0);
+
+            for(size_t k = 0; k < nnz; ++k) {
+                Idx i = _row[k];
+                Idx j = _col[k];
+
+                ++ptr[i+1];
+
+                if (_symmetric && j != i) ++ptr[j+1];
+            }
+
+            std::partial_sum(ptr.begin(), ptr.end(), ptr.begin());
+
+            col.resize(ptr.back());
+            val.resize(ptr.back());
+
+            for(size_t k = 0; k < nnz; ++k) {
+                Idx i = _row[k];
+                Idx j = _col[k];
+                Val v = _val[k];
+
+                Idx head = ptr[i]++;
+                col[head] = j;
+                val[head] = v;
+
+                if (_symmetric && j != i) {
+                    Idx head = ptr[j]++;
+                    col[head] = i;
+                    val[head] = v;
+                }
+            }
+
+            std::rotate(ptr.begin(), ptr.end() - 1, ptr.end());
+            ptr.front() = 0;
+
+#pragma omp parallel for
+            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
+                Idx beg = ptr[i];
+                Idx end = ptr[i+1];
+
+                amgcl::detail::sort_row(&col[0] + beg, &val[0] + beg, end - beg);
+            }
 
             return boost::make_tuple(n, m);
         }
@@ -213,15 +255,15 @@ class mm_reader {
             return boost::make_tuple(n, m);
         }
     private:
-        std::string   fname;
         std::ifstream f;
 
         bool _sparse;
+        bool _symmetric;
         bool _complex;
         bool _integer;
 
         std::string format_error(const std::string &msg = "") const {
-            std::string err_string = "MatrixMarket format error in \"" + fname + "\"";
+            std::string err_string = "MatrixMarket format error";
             if (!msg.empty())
                 err_string += " (" + msg + ")";
             return err_string;
@@ -242,6 +284,7 @@ class mm_reader {
             precondition(s >> x, format_error());
             return x;
         }
+
 };
 
 namespace detail {
