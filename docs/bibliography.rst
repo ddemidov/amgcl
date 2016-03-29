@@ -6,5 +6,6 @@ Bibliography
 .. [Saad03] Saad, Yousef. Iterative methods for sparse linear systems. Siam, 2003.
 .. [SlDi93] Sleijpen, Gerard LG, and Diederik R. Fokkema. "BiCGstab (l) for linear equations involving unsymmetric matrices with complex spectrum." Electronic Transactions on Numerical Analysis 1.11 (1993): 2000.
 .. [Stue99] Stüben, Klaus. Algebraic multigrid (AMG): an introduction with applications. GMD-Forschungszentrum Informationstechnik, 1999.
+.. [Stue07] Stüben, Klaus, et al. Algebraic multigrid methods (AMG) for the efficient solution of fully implicit formulations in reservoir simulation. SPE Reservoir Simulation Symposium. Society of Petroleum Engineers, 2007.
 .. [TrOS01] Trottenberg, U., Oosterlee, C., and Schüller, A. Multigrid. Academic Press, London, 2001.
 
