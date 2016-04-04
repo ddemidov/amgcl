@@ -12,6 +12,9 @@ configure_file(
     COPYONLY
     )
 
+add_executable(mm2bin mm2bin.cpp)
+target_link_libraries(mm2bin ${Boost_LIBRARIES})
+
 add_executable(solver solver.cpp)
 target_link_libraries(solver ${Boost_LIBRARIES})
 

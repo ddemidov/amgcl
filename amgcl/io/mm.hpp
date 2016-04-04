@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <numeric>
 
 #include <boost/type_traits.hpp>
 #include <boost/tuple/tuple.hpp>
