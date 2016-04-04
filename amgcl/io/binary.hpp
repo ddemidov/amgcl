@@ -40,25 +40,25 @@ namespace io {
 /// Read single value from a binary file.
 template <class T>
 bool read(std::ifstream &f, T &val) {
-    return f.read((char*)&val, sizeof(T));
+    return static_cast<bool>(f.read((char*)&val, sizeof(T)));
 }
 
 /// Read vector from a binary file.
 template <class T>
 bool read(std::ifstream &f, std::vector<T> &vec) {
-    return f.read((char*)&vec[0], sizeof(T) * vec.size());
+    return static_cast<bool>(f.read((char*)&vec[0], sizeof(T) * vec.size()));
 }
 
 /// Write single value to a binary file.
 template <class T>
 bool write(std::ofstream &f, const T &val) {
-    return f.write((char*)&val, sizeof(T));
+    return static_cast<bool>(f.write((char*)&val, sizeof(T)));
 }
 
 /// Write vector to a binary file.
 template <class T>
 bool write(std::ofstream &f, const std::vector<T> &vec) {
-    return f.write((char*)&vec[0], sizeof(T) * vec.size());
+    return static_cast<bool>(f.write((char*)&vec[0], sizeof(T) * vec.size()));
 }
 
 } // namespace io
