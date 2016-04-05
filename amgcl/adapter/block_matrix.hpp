@@ -32,6 +32,8 @@ THE SOFTWARE.
 \ingroup adapters
 */
 
+#include <boost/container/static_vector.hpp>
+
 #include <amgcl/util.hpp>
 #include <amgcl/backend/detail/matrix_ops.hpp>
 
@@ -70,16 +72,16 @@ struct block_matrix_adapter {
         typedef ptrdiff_t col_type;
         typedef BlockType val_type;
 
-        boost::array<boost::shared_ptr<Base>, BlockSize> base;
+        boost::container::static_vector<Base, BlockSize> base;
 
         row_iterator(const Matrix &A, col_type row) {
             for(int i = 0; i < BlockSize; ++i)
-                base[i] = boost::make_shared<Base>(backend::row_begin(A, row * BlockSize + i));
+                base.push_back(backend::row_begin(A, row * BlockSize + i));
         }
 
         operator bool() const {
             for(int i = 0; i < BlockSize; ++i)
-                if (*base[i]) return true;
+                if (base[i]) return true;
             return false;
         }
 
@@ -87,8 +89,8 @@ struct block_matrix_adapter {
             col_type cur_col = col();
 
             for(int i = 0; i < BlockSize; ++i) {
-                while (*base[i] && base[i]->col() / BlockSize == cur_col) {
-                    ++(*base[i]);
+                while (base[i] && base[i].col() / BlockSize == cur_col) {
+                    ++base[i];
                 }
             }
 
@@ -99,12 +101,12 @@ struct block_matrix_adapter {
             col_type cur_col = 0;
             bool first = true;
             for(int i = 0; i < BlockSize; ++i) {
-                if (*base[i]) {
+                if (base[i]) {
                     if (first) {
-                        cur_col = base[i]->col() / BlockSize;
+                        cur_col = base[i].col() / BlockSize;
                         first = false;
                     } else {
-                        cur_col = std::min<col_type>(cur_col, base[i]->col() / BlockSize);
+                        cur_col = std::min<col_type>(cur_col, base[i].col() / BlockSize);
                     }
                 }
             }
@@ -116,8 +118,8 @@ struct block_matrix_adapter {
             val_type val = math::zero<val_type>();
 
             for(int i = 0; i < BlockSize; ++i) {
-                for(Base a = *base[i]; a && a.col() / BlockSize == cur_col; ++a) {
-                    val(i,a.col() % BlockSize) = a.value();
+                for(Base a = base[i]; a && a.col() / BlockSize == cur_col; ++a) {
+                    val(i, a.col() % BlockSize) = a.value();
                 }
             }
 
