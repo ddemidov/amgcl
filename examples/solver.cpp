@@ -124,6 +124,8 @@ boost::tuple<size_t, double> solve(
             return block_solve<3, Precond>(prm, rows, ptr, col, val, rhs, x);
         case 4:
             return block_solve<4, Precond>(prm, rows, ptr, col, val, rhs, x);
+        case 5:
+            return block_solve<5, Precond>(prm, rows, ptr, col, val, rhs, x);
         case 6:
             return block_solve<6, Precond>(prm, rows, ptr, col, val, rhs, x);
         default:
