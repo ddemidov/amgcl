@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
          "pmask,m",
          po::value<std::string>(&pm_file)->required(),
          "The pressure mask in MatrixMarket format. Or, if the parameter has "
-         "the form '%n', then each n-th variable is treated as pressure."
+         "the form '%n:m', then each (n+i*m)-th variable is treated as pressure."
         )
         (
          "rhs,b",
@@ -106,9 +106,10 @@ int main(int argc, char *argv[]) {
 
     std::vector<char> pm;
     if (pm_file[0] == '%') {
-        int stride = std::atoi(pm_file.substr(1).c_str());
+        int start  = std::atoi(pm_file.substr(1).c_str());
+        int stride = std::atoi(pm_file.substr(3).c_str());
         pm.resize(rows, 0);
-        for(size_t i = 0; i < rows; i += stride) pm[i] = 1;
+        for(size_t i = start; i < rows; i += stride) pm[i] = 1;
     } else {
         size_t n, m;
         boost::tie(n, m) = amgcl::io::mm_reader(pm_file)(pm);
