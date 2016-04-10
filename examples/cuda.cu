@@ -18,6 +18,7 @@
 #include <amgcl/adapter/block_matrix.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/io/mm.hpp>
+#include <amgcl/io/binary.hpp>
 #include <amgcl/profiler.hpp>
 
 #include "sample_problem.hpp"
@@ -34,8 +35,8 @@ boost::tuple<size_t, double> solve(
         const boost::property_tree::ptree &prm,
         amgcl::backend::cuda<double>::params bprm,
         size_t rows,
-        std::vector<int>    const &ptr,
-        std::vector<int>    const &col,
+        std::vector<ptrdiff_t> const &ptr,
+        std::vector<ptrdiff_t> const &col,
         std::vector<double> const &val,
         std::vector<double> const &rhs,
         std::vector<double>       &x
@@ -72,6 +73,8 @@ boost::tuple<size_t, double> solve(
 //---------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
     namespace po = boost::program_options;
+    namespace io = amgcl::io;
+
     using amgcl::prof;
     using std::vector;
     using std::string;
@@ -111,6 +114,12 @@ int main(int argc, char *argv[]) {
          "Should be a dense matrix of size N*M, where N is the number of "
          "unknowns, and M is the number of null-space vectors. "
          "Should only be provided together with a system matrix. "
+        )
+        (
+         "binary,B",
+         po::bool_switch()->default_value(false),
+         "When specified, treat input files as binary instead of as MatrixMarket. "
+         "It is assumed the files were converted to binary format with mm2bin utility. "
         )
         (
          "size,n",
@@ -168,33 +177,77 @@ int main(int argc, char *argv[]) {
     }
 
     size_t rows;
-    vector<int>    ptr, col;
+    vector<ptrdiff_t> ptr, col;
     vector<double> val, rhs, null, x;
 
     if (vm.count("matrix")) {
         scoped_tic t(prof, "reading");
 
-        using namespace amgcl::io;
+        bool binary = vm["binary"].as<bool>();
 
-        size_t cols;
-        boost::tie(rows, cols) = mm_reader(vm["matrix"].as<string>())(
-                ptr, col, val);
+        if (binary) {
+            std::ifstream f(vm["matrix"].as<string>().c_str(), std::ios::binary);
+            precondition(f, "Failed to open matrix file for reading");
 
-        precondition(rows == cols, "Non-square system matrix");
+            precondition(io::read(f, rows), "File I/O error.");
+
+            ptr.resize(rows + 1);
+            precondition(io::read(f, ptr), "File I/O error.");
+
+            col.resize(ptr.back());
+            val.resize(ptr.back());
+
+            precondition(io::read(f, col), "File I/O error.");
+            precondition(io::read(f, val), "File I/O error.");
+        } else {
+            size_t cols;
+            boost::tie(rows, cols) = io::mm_reader(vm["matrix"].as<string>())(
+                    ptr, col, val);
+
+            precondition(rows == cols, "Non-square system matrix");
+        }
 
         if (vm.count("rhs")) {
-            precondition(
-                    boost::make_tuple(rows, 1) == mm_reader(vm["rhs"].as<string>())(rhs),
-                    "The RHS vector has wrong size"
-                    );
+            if (binary) {
+                std::ifstream f(vm["rhs"].as<string>().c_str(), std::ios::binary);
+                precondition(f, "Failed to open RHS file for reading");
+
+                size_t n, m;
+                precondition(io::read(f, n), "File I/O error.");
+                precondition(io::read(f, m), "File I/O error.");
+
+                precondition(n == rows && m == 1, "The RHS vector has wrong size");
+
+                rhs.resize(rows);
+                precondition(io::read(f, rhs), "File I/O error.");
+            } else {
+                precondition(
+                        boost::make_tuple(rows, 1) == io::mm_reader(vm["rhs"].as<string>())(rhs),
+                        "The RHS vector has wrong size"
+                        );
+            }
         } else {
             rhs.resize(rows, 1.0);
         }
 
         if (vm.count("null")) {
             size_t m, nv;
-            boost::tie(m, nv) = mm_reader(vm["null"].as<string>())(null);
-            precondition(m == rows, "Near null-space vectors have wrong size");
+
+            if (binary) {
+                std::ifstream f(vm["null"].as<string>().c_str(), std::ios::binary);
+                precondition(f, "Failed to open null-space file for reading");
+
+                precondition(io::read(f, m),  "File I/O error.");
+                precondition(io::read(f, nv), "File I/O error.");
+
+                precondition(m == rows, "Near null-space vectors have wrong size");
+
+                null.resize(m * nv);
+                precondition(io::read(f, null), "File I/O error.");
+            } else {
+                boost::tie(m, nv) = io::mm_reader(vm["null"].as<string>())(null);
+                precondition(m == rows, "Near null-space vectors have wrong size");
+            }
 
             prm.put("precond.coarsening.nullspace.cols", nv);
             prm.put("precond.coarsening.nullspace.rows", rows);
