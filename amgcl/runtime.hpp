@@ -567,6 +567,9 @@ class amg : boost::noncopyable {
         /// Prints some info about the AMG hierarchy to the output stream.
         friend std::ostream& operator<<(std::ostream &os, const amg &a)
         {
+            os << "coarsening:          " << a.coarsening << std::endl;
+            os << "relaxation:          " << a.relaxation << std::endl;
+
             runtime::detail::process_amg<Backend>(
                     a.coarsening, a.relaxation,
                     runtime::detail::amg_print(a.handle, os)
