@@ -12,16 +12,21 @@
 #include <amgcl/preconditioner/simple.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/io/mm.hpp>
+#include <amgcl/io/binary.hpp>
 #include <amgcl/profiler.hpp>
 
-namespace amgcl {
-    profiler<> prof;
-} // namespace amgcl
+namespace amgcl { profiler<> prof; }
+
+using amgcl::prof;
+using amgcl::precondition;
+
+typedef amgcl::scoped_tic< amgcl::profiler<> > scoped_tic;
 
 //---------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
     using amgcl::prof;
     using amgcl::precondition;
+    namespace io = amgcl::io;
 
     // Read configuration from command line
     std::string parameter_file;
@@ -43,6 +48,12 @@ int main(int argc, char *argv[]) {
          "params,p",
          po::value<std::string>(&parameter_file),
          "parameter file in json format"
+        )
+        (
+         "binary,B",
+         po::bool_switch()->default_value(false),
+         "When specified, treat input files as binary instead of as MatrixMarket. "
+         "It is assumed the files were converted to binary format with mm2bin utility. "
         )
         (
          "matrix,A",
@@ -97,12 +108,32 @@ int main(int argc, char *argv[]) {
 
     po::notify(vm);
 
+    bool binary = vm["binary"].as<bool>();
+
     // Read the matrix and the right-hand side.
     prof.tic("read");
     size_t rows, cols;
-    std::vector<int> ptr, col;
+    std::vector<ptrdiff_t> ptr, col;
     std::vector<double> val;
-    boost::tie(rows, cols) = amgcl::io::mm_reader(A_file)(ptr, col, val);
+
+    if (binary) {
+        std::ifstream f(A_file.c_str(), std::ios::binary);
+        precondition(f, "Failed to open matrix file for reading");
+
+        precondition(io::read(f, rows), "File I/O error.");
+        cols = rows;
+
+        ptr.resize(rows + 1);
+        precondition(io::read(f, ptr), "File I/O error.");
+
+        col.resize(ptr.back());
+        val.resize(ptr.back());
+
+        precondition(io::read(f, col), "File I/O error.");
+        precondition(io::read(f, val), "File I/O error.");
+    } else {
+        boost::tie(rows, cols) = amgcl::io::mm_reader(A_file)(ptr, col, val);
+    }
 
     std::vector<char> pm;
     if (pm_file[0] == '%') {
@@ -110,6 +141,16 @@ int main(int argc, char *argv[]) {
         int stride = std::atoi(pm_file.substr(3).c_str());
         pm.resize(rows, 0);
         for(size_t i = start; i < rows; i += stride) pm[i] = 1;
+    } else if (binary) {
+        std::ifstream f(pm_file.c_str(), std::ios::binary);
+        precondition(f, "Failed to open mask file for reading");
+
+        size_t n;
+        precondition(io::read(f, n), "File I/O error.");
+        precondition(n == rows, "Pressure mask has wrong size");
+
+        pm.resize(rows);
+        precondition(io::read(f, pm), "File I/O error.");
     } else {
         size_t n, m;
         boost::tie(n, m) = amgcl::io::mm_reader(pm_file)(pm);
@@ -117,8 +158,22 @@ int main(int argc, char *argv[]) {
 
     std::vector<double> rhs;
     if (vm.count("rhs")) {
-        size_t n, m;
-        boost::tie(n, m) = amgcl::io::mm_reader(rhs_file)(rhs);
+        if (binary) {
+            std::ifstream f(rhs_file.c_str(), std::ios::binary);
+            precondition(f, "Failed to open RHS file for reading");
+
+            size_t n, m;
+            precondition(io::read(f, n), "File I/O error.");
+            precondition(io::read(f, m), "File I/O error.");
+
+            precondition(n == rows && m == 1, "The RHS vector has wrong size");
+
+            rhs.resize(rows);
+            precondition(io::read(f, rhs), "File I/O error.");
+        } else {
+            size_t n, m;
+            boost::tie(n, m) = amgcl::io::mm_reader(rhs_file)(rhs);
+        }
     } else {
         std::cout << "RHS was not provided; using default value of 1" << std::endl;
         rhs.resize(rows, 1.0);
