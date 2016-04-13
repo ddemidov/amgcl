@@ -24,16 +24,18 @@ typedef amgcl::scoped_tic< amgcl::profiler<> > scoped_tic;
 
 //---------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
+    using std::string;
     using amgcl::prof;
     using amgcl::precondition;
+
     namespace io = amgcl::io;
 
     // Read configuration from command line
-    std::string parameter_file;
-    std::string A_file;
-    std::string pm_file;
-    std::string rhs_file;
-    std::string out_file = "out.mtx";
+    string parameter_file;
+    string A_file;
+    string pm_file;
+    string rhs_file;
+    string out_file = "out.mtx";
     amgcl::runtime::coarsening::type coarsening = amgcl::runtime::coarsening::smoothed_aggregation;
     amgcl::runtime::relaxation::type prelax     = amgcl::runtime::relaxation::spai0;
     amgcl::runtime::relaxation::type frelax     = amgcl::runtime::relaxation::ilu0;
@@ -46,7 +48,7 @@ int main(int argc, char *argv[]) {
         ("help,h", "show help")
         (
          "params,p",
-         po::value<std::string>(&parameter_file),
+         po::value<string>(&parameter_file),
          "parameter file in json format"
         )
         (
@@ -57,18 +59,18 @@ int main(int argc, char *argv[]) {
         )
         (
          "matrix,A",
-         po::value<std::string>(&A_file)->required(),
+         po::value<string>(&A_file)->required(),
          "The system matrix in MatrixMarket format"
         )
         (
          "pmask,m",
-         po::value<std::string>(&pm_file)->required(),
+         po::value<string>(&pm_file)->required(),
          "The pressure mask in MatrixMarket format. Or, if the parameter has "
          "the form '%n:m', then each (n+i*m)-th variable is treated as pressure."
         )
         (
          "rhs,b",
-         po::value<std::string>(&rhs_file),
+         po::value<string>(&rhs_file),
          "The right-hand side in MatrixMarket format"
         )
         (
@@ -93,7 +95,7 @@ int main(int argc, char *argv[]) {
         )
         (
          "output,o",
-         po::value<std::string>(&out_file),
+         po::value<string>(&out_file),
          "The output file (saved in MatrixMarket format)"
         )
         ;
@@ -112,27 +114,14 @@ int main(int argc, char *argv[]) {
 
     // Read the matrix and the right-hand side.
     prof.tic("read");
-    size_t rows, cols;
+    size_t rows;
     std::vector<ptrdiff_t> ptr, col;
     std::vector<double> val;
 
     if (binary) {
-        std::ifstream f(A_file.c_str(), std::ios::binary);
-        precondition(f, "Failed to open matrix file for reading");
-
-        precondition(io::read(f, rows), "File I/O error.");
-        cols = rows;
-
-        ptr.resize(rows + 1);
-        precondition(io::read(f, ptr), "File I/O error.");
-
-        col.resize(ptr.back());
-        val.resize(ptr.back());
-
-        precondition(io::read(f, col), "File I/O error.");
-        precondition(io::read(f, val), "File I/O error.");
+        io::read_crs(A_file, rows, ptr, col, val);
     } else {
-        boost::tie(rows, cols) = amgcl::io::mm_reader(A_file)(ptr, col, val);
+        boost::tie(rows, boost::tuples::ignore) = amgcl::io::mm_reader(A_file)(ptr, col, val);
     }
 
     std::vector<char> pm;
@@ -141,45 +130,33 @@ int main(int argc, char *argv[]) {
         int stride = std::atoi(pm_file.substr(3).c_str());
         pm.resize(rows, 0);
         for(size_t i = start; i < rows; i += stride) pm[i] = 1;
-    } else if (binary) {
-        std::ifstream f(pm_file.c_str(), std::ios::binary);
-        precondition(f, "Failed to open mask file for reading");
-
-        size_t n;
-        precondition(io::read(f, n), "File I/O error.");
-        precondition(n == rows, "Pressure mask has wrong size");
-
-        pm.resize(rows);
-        precondition(io::read(f, pm), "File I/O error.");
     } else {
         size_t n, m;
-        boost::tie(n, m) = amgcl::io::mm_reader(pm_file)(pm);
+
+        if (binary) {
+            io::read_dense(pm_file, n, m, pm);
+        } else {
+            boost::tie(n, m) = amgcl::io::mm_reader(pm_file)(pm);
+        }
+
+        precondition(n == rows && m == 1, "Mask file has wrong size");
     }
 
     std::vector<double> rhs;
     if (vm.count("rhs")) {
+        size_t n, m;
+
         if (binary) {
-            std::ifstream f(rhs_file.c_str(), std::ios::binary);
-            precondition(f, "Failed to open RHS file for reading");
-
-            size_t n, m;
-            precondition(io::read(f, n), "File I/O error.");
-            precondition(io::read(f, m), "File I/O error.");
-
-            precondition(n == rows && m == 1, "The RHS vector has wrong size");
-
-            rhs.resize(rows);
-            precondition(io::read(f, rhs), "File I/O error.");
+            io::read_dense(rhs_file, n, m, rhs);
         } else {
-            size_t n, m;
             boost::tie(n, m) = amgcl::io::mm_reader(rhs_file)(rhs);
         }
+
+        precondition(n == rows && m == 1, "The RHS vector has wrong size");
     } else {
         std::cout << "RHS was not provided; using default value of 1" << std::endl;
         rhs.resize(rows, 1.0);
     }
-
-    precondition(rows == rhs.size(), "Matrix and RHS sizes differ");
 
     boost::property_tree::ptree prm;
     if (vm.count("params")) read_json(parameter_file, prm);

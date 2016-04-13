@@ -32,7 +32,10 @@ THE SOFTWARE.
  */
 
 #include <vector>
+#include <string>
 #include <fstream>
+
+#include <amgcl/util.hpp>
 
 namespace amgcl {
 namespace io {
@@ -47,6 +50,46 @@ bool read(std::ifstream &f, T &val) {
 template <class T>
 bool read(std::ifstream &f, std::vector<T> &vec) {
     return static_cast<bool>(f.read((char*)&vec[0], sizeof(T) * vec.size()));
+}
+
+/// Read CRS matrix from a binary file.
+template <typename SizeT, typename Ptr, typename Col, typename Val>
+void read_crs(
+        const std::string &fname,
+        SizeT &n,
+        std::vector<Ptr> &ptr,
+        std::vector<Col> &col,
+        std::vector<Val> &val
+        )
+{
+    std::ifstream f(fname.c_str(), std::ios::binary);
+    precondition(f, "Failed to open matrix file");
+
+    precondition(read(f, n), "File I/O error");
+
+    ptr.resize(n + 1);
+
+    precondition(read(f, ptr), "File I/O error");
+
+    col.resize(ptr.back());
+    val.resize(ptr.back());
+
+    precondition(read(f, col), "File I/O error");
+    precondition(read(f, val), "File I/O error");
+}
+
+template <typename SizeT, typename Val>
+void read_dense(const std::string &fname, SizeT &n, SizeT &m, std::vector<Val> &v)
+{
+    std::ifstream f(fname.c_str(), std::ios::binary);
+    precondition(f, "Failed to open matrix file");
+
+    precondition(read(f, n), "File I/O error");
+    precondition(read(f, m), "File I/O error");
+
+    v.resize(n * m);
+
+    precondition(read(f, v), "File I/O error");
 }
 
 /// Write single value to a binary file.

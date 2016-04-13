@@ -7,7 +7,6 @@
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/foreach.hpp>
-#include <boost/tuple/tuple_comparison.hpp>
 #include <boost/range/iterator_range.hpp>
 
 #include <amgcl/backend/builtin.hpp>
@@ -255,71 +254,45 @@ int main(int argc, char *argv[]) {
     if (vm.count("matrix")) {
         scoped_tic t(prof, "reading");
 
-        bool binary = vm["binary"].as<bool>();
+        string Afile  = vm["matrix"].as<string>();
+        bool   binary = vm["binary"].as<bool>();
 
         if (binary) {
-            std::ifstream f(vm["matrix"].as<string>().c_str(), std::ios::binary);
-            precondition(f, "Failed to open matrix file for reading");
-
-            precondition(io::read(f, rows), "File I/O error.");
-
-            ptr.resize(rows + 1);
-            precondition(io::read(f, ptr), "File I/O error.");
-
-            col.resize(ptr.back());
-            val.resize(ptr.back());
-
-            precondition(io::read(f, col), "File I/O error.");
-            precondition(io::read(f, val), "File I/O error.");
+            io::read_crs(Afile, rows, ptr, col, val);
         } else {
             size_t cols;
-            boost::tie(rows, cols) = io::mm_reader(vm["matrix"].as<string>())(
-                    ptr, col, val);
-
+            boost::tie(rows, cols) = io::mm_reader(Afile)(ptr, col, val);
             precondition(rows == cols, "Non-square system matrix");
         }
 
         if (vm.count("rhs")) {
+            string bfile = vm["rhs"].as<string>();
+
+            size_t n, m;
+
             if (binary) {
-                std::ifstream f(vm["rhs"].as<string>().c_str(), std::ios::binary);
-                precondition(f, "Failed to open RHS file for reading");
-
-                size_t n, m;
-                precondition(io::read(f, n), "File I/O error.");
-                precondition(io::read(f, m), "File I/O error.");
-
-                precondition(n == rows && m == 1, "The RHS vector has wrong size");
-
-                rhs.resize(rows);
-                precondition(io::read(f, rhs), "File I/O error.");
+                io::read_dense(bfile, n, m, rhs);
             } else {
-                precondition(
-                        boost::make_tuple(rows, 1) == io::mm_reader(vm["rhs"].as<string>())(rhs),
-                        "The RHS vector has wrong size"
-                        );
+                boost::tie(n, m) = io::mm_reader(bfile)(rhs);
             }
+
+            precondition(n == rows && m == 1, "The RHS vector has wrong size");
         } else {
             rhs.resize(rows, 1.0);
         }
 
         if (vm.count("null")) {
+            string nfile = vm["null"].as<string>();
+
             size_t m, nv;
 
             if (binary) {
-                std::ifstream f(vm["null"].as<string>().c_str(), std::ios::binary);
-                precondition(f, "Failed to open null-space file for reading");
-
-                precondition(io::read(f, m),  "File I/O error.");
-                precondition(io::read(f, nv), "File I/O error.");
-
-                precondition(m == rows, "Near null-space vectors have wrong size");
-
-                null.resize(m * nv);
-                precondition(io::read(f, null), "File I/O error.");
+                io::read_dense(nfile, m, nv, null);
             } else {
-                boost::tie(m, nv) = io::mm_reader(vm["null"].as<string>())(null);
-                precondition(m == rows, "Near null-space vectors have wrong size");
+                boost::tie(m, nv) = io::mm_reader(nfile)(null);
             }
+
+            precondition(m == rows, "Near null-space vectors have wrong size");
 
             prm.put("precond.coarsening.nullspace.cols", nv);
             prm.put("precond.coarsening.nullspace.rows", rows);
@@ -327,7 +300,6 @@ int main(int argc, char *argv[]) {
         }
     } else {
         scoped_tic t(prof, "assembling");
-
         rows = sample_problem(vm["size"].as<int>(), val, col, ptr, rhs);
     }
 
