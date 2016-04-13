@@ -36,6 +36,9 @@ target_link_libraries(schur_complement ${Boost_LIBRARIES})
 add_executable(cpr cpr.cpp)
 target_link_libraries(cpr ${Boost_LIBRARIES})
 
+add_executable(cpr_drs cpr_drs.cpp)
+target_link_libraries(cpr_drs ${Boost_LIBRARIES})
+
 add_executable(custom_adapter custom_adapter.cpp)
 target_link_libraries(custom_adapter ${Boost_LIBRARIES})
 
