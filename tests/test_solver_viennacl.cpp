@@ -6,7 +6,7 @@
 
 BOOST_AUTO_TEST_SUITE( test_solvers )
 
-BOOST_AUTO_TEST_CASE(test_blaze_backend)
+BOOST_AUTO_TEST_CASE(test_viennacl_backend)
 {
     test_backend< amgcl::backend::viennacl< viennacl::compressed_matrix<double> > >();
     test_backend< amgcl::backend::viennacl< viennacl::ell_matrix<double> > >();
