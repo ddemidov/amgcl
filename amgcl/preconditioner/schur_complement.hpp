@@ -216,8 +216,8 @@ class schur_complement {
                 }
             }
 
-            U = boost::make_shared<USolver>(*A, prm.usolver);
-            P = boost::make_shared<PSolver>(*C, prm.psolver);
+            U = boost::make_shared<USolver>(*A, prm.usolver, bprm);
+            P = boost::make_shared<PSolver>(*C, prm.psolver, bprm);
 
             _B  = backend_type::copy_matrix(B,  bprm);
             _BT = backend_type::copy_matrix(BT, bprm);
