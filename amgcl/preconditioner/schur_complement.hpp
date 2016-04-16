@@ -329,8 +329,8 @@ class schur_complement {
             return *_K;
         }
 
-        template <class Vec1, class Vec2>
-        void spmv(double alpha, const Vec1 &x, double beta, Vec2 &y) const {
+        template <class Alpha, class Vec1, class Beta, class Vec2>
+        void spmv(Alpha alpha, const Vec1 &x, Beta beta, Vec2 &y) const {
             backend::spmv(1, *_BT, x, 0, *tmp1);
             backend::clear(*tmp2);
             (*U)(*tmp1, *tmp2);
