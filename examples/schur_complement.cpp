@@ -10,7 +10,7 @@
 
 #include <amgcl/make_solver.hpp>
 #include <amgcl/runtime.hpp>
-#include <amgcl/relaxation/as_preconditioner.hpp>
+#include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/preconditioner/schur_complement.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/io/mm.hpp>
@@ -32,24 +32,18 @@ void solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::propert
     typedef amgcl::backend::builtin<double> Backend;
 
     typedef amgcl::make_solver<
-        amgcl::relaxation::as_preconditioner<
-            Backend, amgcl::relaxation::ilu0
-            >,
-        amgcl::solver::bicgstab<Backend>
+        amgcl::runtime::relaxation::as_preconditioner<Backend>,
+        amgcl::runtime::iterative_solver<Backend>
         > USolver;
 
     typedef amgcl::make_solver<
-        amgcl::amg<
-            Backend,
-            amgcl::coarsening::smoothed_aggregation,
-            amgcl::relaxation::ilu0
-            >,
-        amgcl::solver::bicgstab<Backend>
+        amgcl::runtime::amg<Backend>,
+        amgcl::runtime::iterative_solver<Backend>
         > PSolver;
 
     amgcl::make_solver<
         amgcl::preconditioner::schur_complement<USolver, PSolver>,
-        amgcl::solver::bicgstab<Backend>
+        amgcl::runtime::iterative_solver<Backend>
         > solve(K, prm);
 
     tic t2(prof, "solve");
