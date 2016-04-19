@@ -108,10 +108,91 @@ class schur_complement {
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
                 )
-            : prm(prm), n(backend::rows(K)), np(0), nu(0),
-              _K(backend_type::copy_matrix(boost::make_shared<build_matrix>(K), bprm)), idx(n)
+            : prm(prm), n(backend::rows(K)), np(0), nu(0), idx(n)
         {
-            typedef typename backend::row_iterator<Matrix>::type row_iterator;
+            init(boost::make_shared<build_matrix>(K), bprm);
+        }
+
+        schur_complement(
+                const boost::shared_ptr<build_matrix> &K,
+                const params &prm = params(),
+                const backend_params &bprm = backend_params()
+                )
+            : prm(prm), n(backend::rows(*K)), np(0), nu(0), idx(n)
+        {
+            init(K, bprm);
+        }
+
+        template <class Vec1, class Vec2>
+        void apply(
+                const Vec1 &rhs,
+#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
+                Vec2       &x
+#else
+                Vec2       &&x
+#endif
+                ) const
+        {
+            backend::spmv( 1, *x2u, rhs, 0, *rhs_u);
+            backend::spmv(-1, *x2p, rhs, 0, *rhs_p);
+
+            size_t iters;
+            double error;
+
+            // Ai u = rhs_u
+            backend::clear(*u);
+            boost::tie(iters, error) = (*U)(*rhs_u, *u);
+            std::cout << "rhs(p): (" << iters << ", " << error << ")" << std::endl;
+
+            // rhs_p += B u
+            backend::spmv(1, *_B, *u, 1, *rhs_p);
+
+            // S p = rhs_p
+            backend::clear(*p);
+            boost::tie(iters, error) = (*P)(*this, *rhs_p, *p);
+            std::cout << "S(p)=r: (" << iters << ", " << error << ")" << std::endl;
+
+            // rhs_u -= BT p
+            backend::spmv(-1, *_BT, *p, 1, *rhs_u);
+
+            // Ai u = rhs_u
+            backend::clear(*u);
+            boost::tie(iters, error) = (*U)(*rhs_u, *u);
+            std::cout << "A(u)=f: (" << iters << ", " << error << ")" << std::endl;
+
+            backend::clear(x);
+            backend::spmv(1, *u2x, *u, 1, x);
+            backend::spmv(1, *p2x, *p, 1, x);
+        }
+
+        const matrix& system_matrix() const {
+            return *_K;
+        }
+
+        template <class Alpha, class Vec1, class Beta, class Vec2>
+        void spmv(Alpha alpha, const Vec1 &x, Beta beta, Vec2 &y) const {
+            backend::spmv(1, *_BT, x, 0, *tmp1);
+            backend::clear(*tmp2);
+            (*U)(*tmp1, *tmp2);
+            backend::spmv(alpha, *_B, *tmp2, beta, y);
+            backend::spmv(alpha, *_C, x, 1, y);
+        }
+    private:
+        size_t n, np, nu;
+
+        boost::shared_ptr<matrix> _K, _B, _BT, _C, x2u, x2p, u2x, p2x;
+        boost::shared_ptr<vector> rhs_u, rhs_p, u, p, tmp1, tmp2;
+
+        std::vector<ptrdiff_t> idx;
+
+        boost::shared_ptr<USolver> U;
+        boost::shared_ptr<PSolver> P;
+
+        void init(const boost::shared_ptr<build_matrix> &K, const backend_params &bprm)
+        {
+            typedef typename backend::row_iterator<build_matrix>::type row_iterator;
+
+            _K = backend_type::copy_matrix(K, bprm);
 
             // Extract matrix subblocks.
             boost::shared_ptr<build_matrix> A  = boost::make_shared<build_matrix>();
@@ -136,7 +217,7 @@ class schur_complement {
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
                 ptrdiff_t ci = idx[i];
                 char      pi = prm.pmask[i];
-                for(row_iterator k = backend::row_begin(K, i); k; ++k) {
+                for(row_iterator k = backend::row_begin(*K, i); k; ++k) {
                     char pj = prm.pmask[k.col()];
 
                     if (pi) {
@@ -186,7 +267,7 @@ class schur_complement {
                     BT_head = BT->ptr[ci];
                 }
 
-                for(row_iterator k = backend::row_begin(K, i); k; ++k) {
+                for(row_iterator k = backend::row_begin(*K, i); k; ++k) {
                     ptrdiff_t  j = k.col();
                     value_type v = k.value();
                     ptrdiff_t cj = idx[j];
@@ -283,70 +364,6 @@ class schur_complement {
             p2x = backend_type::copy_matrix(P2X, bprm);
         }
 
-        template <class Vec1, class Vec2>
-        void apply(
-                const Vec1 &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-                Vec2       &x
-#else
-                Vec2       &&x
-#endif
-                ) const
-        {
-            backend::spmv( 1, *x2u, rhs, 0, *rhs_u);
-            backend::spmv(-1, *x2p, rhs, 0, *rhs_p);
-
-            size_t iters;
-            double error;
-
-            // Ai u = rhs_u
-            backend::clear(*u);
-            boost::tie(iters, error) = (*U)(*rhs_u, *u);
-            std::cout << "rhs(p): (" << iters << ", " << error << ")" << std::endl;
-
-            // rhs_p += B u
-            backend::spmv(1, *_B, *u, 1, *rhs_p);
-
-            // S p = rhs_p
-            backend::clear(*p);
-            boost::tie(iters, error) = (*P)(*this, *rhs_p, *p);
-            std::cout << "S(p)=r: (" << iters << ", " << error << ")" << std::endl;
-
-            // rhs_u -= BT p
-            backend::spmv(-1, *_BT, *p, 1, *rhs_u);
-
-            // Ai u = rhs_u
-            backend::clear(*u);
-            boost::tie(iters, error) = (*U)(*rhs_u, *u);
-            std::cout << "A(u)=f: (" << iters << ", " << error << ")" << std::endl;
-
-            backend::clear(x);
-            backend::spmv(1, *u2x, *u, 1, x);
-            backend::spmv(1, *p2x, *p, 1, x);
-        }
-
-        const matrix& system_matrix() const {
-            return *_K;
-        }
-
-        template <class Alpha, class Vec1, class Beta, class Vec2>
-        void spmv(Alpha alpha, const Vec1 &x, Beta beta, Vec2 &y) const {
-            backend::spmv(1, *_BT, x, 0, *tmp1);
-            backend::clear(*tmp2);
-            (*U)(*tmp1, *tmp2);
-            backend::spmv(alpha, *_B, *tmp2, beta, y);
-            backend::spmv(alpha, *_C, x, 1, y);
-        }
-    private:
-        size_t n, np, nu;
-
-        boost::shared_ptr<matrix> _K, _B, _BT, _C, x2u, x2p, u2x, p2x;
-        boost::shared_ptr<vector> rhs_u, rhs_p, u, p, tmp1, tmp2;
-
-        std::vector<ptrdiff_t> idx;
-
-        boost::shared_ptr<USolver> U;
-        boost::shared_ptr<PSolver> P;
 };
 
 } // namespace preconditioner
