@@ -30,11 +30,11 @@ target_link_libraries(block_crs ${Boost_LIBRARIES})
 add_executable(call_lib call_lib.cpp)
 target_link_libraries(call_lib ${Boost_LIBRARIES} amgcl)
 
-add_executable(two_step_precond two_step_precond.cpp)
-target_link_libraries(two_step_precond ${Boost_LIBRARIES})
-
 add_executable(schur_complement schur_complement.cpp)
 target_link_libraries(schur_complement ${Boost_LIBRARIES})
+
+add_executable(cpr cpr.cpp)
+target_link_libraries(cpr ${Boost_LIBRARIES})
 
 add_executable(custom_adapter custom_adapter.cpp)
 target_link_libraries(custom_adapter ${Boost_LIBRARIES})

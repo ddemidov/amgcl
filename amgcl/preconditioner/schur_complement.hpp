@@ -34,6 +34,8 @@ THE SOFTWARE.
 
 #include <vector>
 
+#include <boost/shared_ptr.hpp>
+
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
 
@@ -114,7 +116,7 @@ class schur_complement {
         }
 
         schur_complement(
-                const boost::shared_ptr<build_matrix> &K,
+                boost::shared_ptr<build_matrix> K,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
                 )

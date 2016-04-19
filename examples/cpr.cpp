@@ -10,7 +10,7 @@
 
 #include <amgcl/make_solver.hpp>
 #include <amgcl/runtime.hpp>
-#include <amgcl/preconditioner/schur_complement.hpp>
+#include <amgcl/preconditioner/cpr.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/io/mm.hpp>
 #include <amgcl/io/binary.hpp>
@@ -24,24 +24,22 @@ typedef amgcl::scoped_tic< amgcl::profiler<> > tic;
 
 //---------------------------------------------------------------------------
 template <class Matrix>
-void solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
+void solve_cpr(const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
 {
-    tic t1(prof, "schur_complement");
+    tic t1(prof, "CPR");
 
     typedef amgcl::backend::builtin<double> Backend;
 
-    typedef amgcl::make_solver<
-        amgcl::runtime::relaxation::as_preconditioner<Backend>,
-        amgcl::runtime::iterative_solver<Backend>
-        > USolver;
+    typedef
+        amgcl::runtime::amg<Backend>
+        PPrecond;
 
-    typedef amgcl::make_solver<
-        amgcl::runtime::amg<Backend>,
-        amgcl::runtime::iterative_solver<Backend>
-        > PSolver;
+    typedef
+        amgcl::runtime::relaxation::as_preconditioner<Backend>
+        SPrecond;
 
     amgcl::make_solver<
-        amgcl::preconditioner::schur_complement<USolver, PSolver>,
+        amgcl::preconditioner::cpr<PPrecond, SPrecond>,
         amgcl::runtime::iterative_solver<Backend>
         > solve(K, prm);
 
@@ -88,10 +86,9 @@ int main(int argc, char *argv[]) {
          "The right-hand side in MatrixMarket format"
         )
         (
-         "pmask,m",
-         po::value<string>()->required(),
-         "The pressure mask in MatrixMarket format. Or, if the parameter has "
-         "the form '%n:m', then each (n+i*m)-th variable is treated as pressure."
+         "block-size,b",
+         po::value<int>(),
+         "The block size of the system matrix"
         )
         (
          "params,P",
@@ -135,6 +132,9 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    if (vm.count("block-size"))
+        prm.put("precond.block_size", vm["block-size"].as<int>());
+
     size_t rows;
     vector<ptrdiff_t> ptr, col;
     vector<double> val, rhs;
@@ -145,7 +145,6 @@ int main(int argc, char *argv[]) {
 
         string Afile  = vm["matrix"].as<string>();
         bool   binary = vm["binary"].as<bool>();
-        string mfile  = vm["pmask"].as<string>();
 
         if (binary) {
             io::read_crs(Afile, rows, ptr, col, val);
@@ -170,29 +169,9 @@ int main(int argc, char *argv[]) {
         } else {
             rhs.resize(rows, 1.0);
         }
-
-        if (mfile[0] == '%') {
-            int start  = std::atoi(mfile.substr(1).c_str());
-            int stride = std::atoi(mfile.substr(3).c_str());
-            pm.resize(rows, 0);
-            for(size_t i = start; i < rows; i += stride) pm[i] = 1;
-        } else {
-            size_t n, m;
-
-            if (binary) {
-                io::read_dense(mfile, n, m, pm);
-            } else {
-                boost::tie(n, m) = amgcl::io::mm_reader(mfile)(pm);
-            }
-
-            precondition(n == rows && m == 1, "Mask file has wrong size");
-        }
     }
 
-    prm.put("precond.pmask", static_cast<void*>(&pm[0]));
-    prm.put("precond.pmask_size", pm.size());
-
-    solve_schur(boost::tie(rows, ptr, col, val), rhs, prm);
+    solve_cpr(boost::tie(rows, ptr, col, val), rhs, prm);
 
     std::cout << prof << std::endl;
 }
