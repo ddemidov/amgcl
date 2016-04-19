@@ -19,7 +19,6 @@
 #include <boost/multi_array.hpp>
 
 #include <amgcl/make_solver.hpp>
-#include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/mpi/runtime.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/adapter/zero_copy.hpp>

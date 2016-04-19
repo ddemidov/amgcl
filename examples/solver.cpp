@@ -13,7 +13,6 @@
 #include <amgcl/value_type/static_matrix.hpp>
 #include <amgcl/runtime.hpp>
 #include <amgcl/make_solver.hpp>
-#include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/adapter/zero_copy.hpp>
 #include <amgcl/adapter/block_matrix.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>

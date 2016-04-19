@@ -13,7 +13,6 @@
 #include <amgcl/relaxation/cusparse_ilu0.hpp>
 #include <amgcl/runtime.hpp>
 #include <amgcl/make_solver.hpp>
-#include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/adapter/block_matrix.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/io/mm.hpp>

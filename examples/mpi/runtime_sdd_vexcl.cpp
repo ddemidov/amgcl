@@ -15,7 +15,6 @@
 #include <boost/property_tree/json_parser.hpp>
 
 #include <amgcl/backend/vexcl.hpp>
-#include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/mpi/runtime.hpp>
 #include <amgcl/profiler.hpp>
 

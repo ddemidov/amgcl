@@ -2,7 +2,6 @@
 #define TESTS_TEST_SOLVER_HPP
 
 #include <amgcl/runtime.hpp>
-#include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/make_solver.hpp>
 #include <amgcl/adapter/zero_copy.hpp>
 #include <amgcl/profiler.hpp>

@@ -7,7 +7,6 @@
 
 #include <amgcl/make_solver.hpp>
 #include <amgcl/runtime.hpp>
-#include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/preconditioner/cpr.hpp>
 #include <amgcl/preconditioner/simple.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>

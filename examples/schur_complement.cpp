@@ -10,7 +10,6 @@
 
 #include <amgcl/make_solver.hpp>
 #include <amgcl/runtime.hpp>
-#include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/preconditioner/schur_complement.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/io/mm.hpp>
