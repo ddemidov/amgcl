@@ -69,16 +69,18 @@ class cpr_drs {
             pprecond_params pprecond;
             sprecond_params sprecond;
 
-            int block_size;
+            int    block_size;
+            size_t active_rows;
             double eps_dd;
             double eps_ps;
 
-            params() : block_size(2), eps_dd(0.2), eps_ps(0.02) {}
+            params() : block_size(2), active_rows(0), eps_dd(0.2), eps_ps(0.02) {}
 
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, pprecond),
                   AMGCL_PARAMS_IMPORT_CHILD(p, sprecond),
                   AMGCL_PARAMS_IMPORT_VALUE(p, block_size),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, active_rows),
                   AMGCL_PARAMS_IMPORT_VALUE(p, eps_dd),
                   AMGCL_PARAMS_IMPORT_VALUE(p, eps_ps)
             { }
@@ -88,6 +90,7 @@ class cpr_drs {
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, pprecond);
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, sprecond);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, block_size);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, active_rows);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, eps_dd);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, eps_ps);
             }
@@ -136,7 +139,7 @@ class cpr_drs {
         }
 
     private:
-        size_t n, np, ns;
+        size_t n, np;
 
         boost::shared_ptr<PPrecond> P;
         boost::shared_ptr<SPrecond> S;
@@ -147,10 +150,10 @@ class cpr_drs {
         void init(boost::shared_ptr<build_matrix> K, const backend_params bprm)
         {
             typedef typename backend::row_iterator<build_matrix>::type row_iterator;
-            const int B = prm.block_size;
+            const int       B = prm.block_size;
+            const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
 
-            np = n / B;
-            ns = n - np;
+            np = N / B;
 
             boost::shared_ptr<build_matrix> fpp = boost::make_shared<build_matrix>();
             fpp->nrows = np;
@@ -184,7 +187,7 @@ class cpr_drs {
                     for(int i = 0; i < B; ++i) {
                         k.push_back(backend::row_begin(*K, ik + i));
 
-                        if (k.back()) {
+                        if (k.back() && k.back().col() < N) {
                             ptrdiff_t col = k.back().col() / B;
                             if (done) {
                                 cur_col = col;
@@ -222,7 +225,7 @@ class cpr_drs {
                         // Get next column number.
                         done = true;
                         for(int i = 0; i < B; ++i) {
-                            if (k[i]) {
+                            if (k[i] && k[i].col() < N) {
                                 ptrdiff_t col = k[i].col() / B;
                                 if (done) {
                                     cur_col = col;
@@ -278,7 +281,7 @@ class cpr_drs {
                     for(int i = 0; i < B; ++i) {
                         k.push_back(backend::row_begin(*K, ik + i));
 
-                        if (k.back()) {
+                        if (k.back() && k.back().col() < N) {
                             ptrdiff_t col = k.back().col() / B;
                             if (done) {
                                 cur_col = col;
@@ -308,7 +311,7 @@ class cpr_drs {
                         // Get next column number.
                         done = true;
                         for(int i = 0; i < B; ++i) {
-                            if (k[i]) {
+                            if (k[i] && k[i].col() < N) {
                                 ptrdiff_t col = k[i].col() / B;
                                 if (done) {
                                     cur_col = col;
@@ -328,6 +331,9 @@ class cpr_drs {
                     }
                 }
             }
+
+            for(size_t i = N; i < n; ++i)
+                scatter->ptr[i+1] = scatter->ptr[i];
 
             P = boost::make_shared<PPrecond>(App, prm.pprecond, bprm);
             S = boost::make_shared<SPrecond>(K, prm.sprecond, bprm);
