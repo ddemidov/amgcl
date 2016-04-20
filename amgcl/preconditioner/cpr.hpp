@@ -169,7 +169,7 @@ class cpr {
             // extract and invert block diagonals.
 #pragma omp parallel
             {
-                std::vector<row_iterator> k;
+                std::vector<row_iterator> k; k.reserve(B);
                 boost::multi_array<value_type, 2> v(boost::extents[B][B]);
 
 #pragma omp for
@@ -205,12 +205,12 @@ class cpr {
                             // This is diagonal block.
                             // Capture its (transposed) value,
                             // invert it and put the relevant row into fpp.
-                            for(int i = 0; i < B; ++i) {
+                            for(int i = 0; i < B; ++i)
                                 for(int j = 0; j < B; ++j) v[i][j] = 0;
 
+                            for(int i = 0; i < B; ++i)
                                 for(; k[i] && k[i].col() < end; ++k[i])
                                     v[k[i].col() % B][i] = k[i].value();
-                            }
 
                             invert(v, &fpp->val[ik]);
                         } else {
@@ -251,35 +251,71 @@ class cpr {
             scatter->col.resize(np);
             scatter->val.resize(np, 1);
 
-#pragma omp parallel for
-            for(ptrdiff_t ip = 0; ip < static_cast<ptrdiff_t>(np); ++ip) {
-                ptrdiff_t ik = ip * B;
-                ptrdiff_t head = App->ptr[ip];
+#pragma omp parallel
+            {
+                std::vector<row_iterator> k; k.reserve(B);
 
-                value_type *d = &fpp->val[ik];
+#pragma omp for
+                for(ptrdiff_t ip = 0; ip < static_cast<ptrdiff_t>(np); ++ip) {
+                    ptrdiff_t ik = ip * B;
+                    ptrdiff_t head = App->ptr[ip];
+                    bool      done = true;
+                    ptrdiff_t cur_col;
 
-                row_iterator k = backend::row_begin(*K, ik + prm.pressure_pos);
+                    value_type *d = &fpp->val[ik];
 
-                while(k) {
-                    ptrdiff_t cur_col = k.col() / B;
-                    ptrdiff_t end = (cur_col + 1) * B;
+                    k.clear();
+                    for(int i = 0; i < B; ++i) {
+                        k.push_back(backend::row_begin(*K, ik + i));
 
-                    value_type app = 0;
-                    for(; k && k.col() < end; ++k) {
-                        ptrdiff_t j = k.col() % B;
-                        app += d[j] * k.value();
+                        if (k.back()) {
+                            ptrdiff_t col = k.back().col() / B;
+                            if (done) {
+                                cur_col = col;
+                                done = false;
+                            } else {
+                                cur_col = std::min(cur_col, col);
+                            }
+                        }
                     }
 
-                    App->col[head] = cur_col;
-                    App->val[head] = app;
-                    ++head;
-                }
+                    while (!done) {
+                        ptrdiff_t  end = (cur_col + 1) * B;
+                        value_type app = 0;
 
-                scatter->col[ip] = ip;
-                ptrdiff_t nnz = ip;
-                for(int i = 0; i < B; ++i) {
-                    if (i == prm.pressure_pos) ++nnz;
-                    scatter->ptr[ik + i + 1] = nnz;
+                        for(int i = 0; i < B; ++i) {
+                            for(; k[i] && k[i].col() < end; ++k[i]) {
+                                if (k[i].col() % B == prm.pressure_pos) {
+                                    app += d[i] * k[i].value();
+                                }
+                            }
+                        }
+
+                        App->col[head] = cur_col;
+                        App->val[head] = app;
+                        ++head;
+
+                        // Get next column number.
+                        done = true;
+                        for(int i = 0; i < B; ++i) {
+                            if (k[i]) {
+                                ptrdiff_t col = k[i].col() / B;
+                                if (done) {
+                                    cur_col = col;
+                                    done = false;
+                                } else {
+                                    cur_col = std::min(cur_col, col);
+                                }
+                            }
+                        }
+                    }
+
+                    scatter->col[ip] = ip;
+                    ptrdiff_t nnz = ip;
+                    for(int i = 0; i < B; ++i) {
+                        if (i == prm.pressure_pos) ++nnz;
+                        scatter->ptr[ik + i + 1] = nnz;
+                    }
                 }
             }
 
