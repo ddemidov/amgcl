@@ -70,16 +70,16 @@ class cpr {
             pprecond_params pprecond;
             sprecond_params sprecond;
 
-            int block_size;
-            int pressure_pos;
+            int    block_size;
+            size_t active_rows;
 
-            params() : block_size(2), pressure_pos(0) {}
+            params() : block_size(2), active_rows(0) {}
 
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, pprecond),
                   AMGCL_PARAMS_IMPORT_CHILD(p, sprecond),
                   AMGCL_PARAMS_IMPORT_VALUE(p, block_size),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, pressure_pos)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, active_rows)
             { }
 
             void get(boost::property_tree::ptree &p, const std::string &path = "") const
@@ -87,7 +87,7 @@ class cpr {
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, pprecond);
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, sprecond);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, block_size);
-                AMGCL_PARAMS_EXPORT_VALUE(p, path, pressure_pos);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, active_rows);
             }
         } prm;
 
@@ -134,7 +134,7 @@ class cpr {
         }
 
     private:
-        size_t n, np, ns;
+        size_t n, np;
 
         boost::shared_ptr<PPrecond> P;
         boost::shared_ptr<SPrecond> S;
@@ -142,15 +142,13 @@ class cpr {
         boost::shared_ptr<matrix> Fpp, Scatter;
         boost::shared_ptr<vector> rp, xp, rs;
 
-
         void init(boost::shared_ptr<build_matrix> K, const backend_params bprm)
         {
             typedef typename backend::row_iterator<build_matrix>::type row_iterator;
+            const int       B = prm.block_size;
+            const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
 
-            const int B = prm.block_size;
-
-            np = n / B;
-            ns = n - np;
+            np = N / B;
 
             boost::shared_ptr<build_matrix> fpp = boost::make_shared<build_matrix>();
             fpp->nrows = np;
@@ -182,7 +180,7 @@ class cpr {
                     for(int i = 0; i < B; ++i) {
                         k.push_back(backend::row_begin(*K, ik + i));
 
-                        if (k.back()) {
+                        if (k.back() && k.back().col() < N) {
                             ptrdiff_t col = k.back().col() / B;
                             if (done) {
                                 cur_col = col;
@@ -223,7 +221,7 @@ class cpr {
                         // Get next column number.
                         done = true;
                         for(int i = 0; i < B; ++i) {
-                            if (k[i]) {
+                            if (k[i] && k[i].col() < N) {
                                 ptrdiff_t col = k[i].col() / B;
                                 if (done) {
                                     cur_col = col;
@@ -268,7 +266,7 @@ class cpr {
                     for(int i = 0; i < B; ++i) {
                         k.push_back(backend::row_begin(*K, ik + i));
 
-                        if (k.back()) {
+                        if (k.back() && k.back().col() < N) {
                             ptrdiff_t col = k.back().col() / B;
                             if (done) {
                                 cur_col = col;
@@ -285,7 +283,7 @@ class cpr {
 
                         for(int i = 0; i < B; ++i) {
                             for(; k[i] && k[i].col() < end; ++k[i]) {
-                                if (k[i].col() % B == prm.pressure_pos) {
+                                if (k[i].col() % B == 0) {
                                     app += d[i] * k[i].value();
                                 }
                             }
@@ -298,7 +296,7 @@ class cpr {
                         // Get next column number.
                         done = true;
                         for(int i = 0; i < B; ++i) {
-                            if (k[i]) {
+                            if (k[i] && k[i].col() < N) {
                                 ptrdiff_t col = k[i].col() / B;
                                 if (done) {
                                     cur_col = col;
@@ -313,11 +311,14 @@ class cpr {
                     scatter->col[ip] = ip;
                     ptrdiff_t nnz = ip;
                     for(int i = 0; i < B; ++i) {
-                        if (i == prm.pressure_pos) ++nnz;
+                        if (i == 0) ++nnz;
                         scatter->ptr[ik + i + 1] = nnz;
                     }
                 }
             }
+
+            for(size_t i = N; i < n; ++i)
+                scatter->ptr[i+1] = scatter->ptr[i];
 
             P = boost::make_shared<PPrecond>(App, prm.pprecond, bprm);
             S = boost::make_shared<SPrecond>(K,   prm.sprecond, bprm);
@@ -331,11 +332,10 @@ class cpr {
         }
 
         // Inverts dense matrix A;
-        // Returns the column of the inverted matrix corresponding to pressure in y.
+        // Returns the first column of the inverted matrix.
         void invert(boost::multi_array<value_type, 2> &A, value_type *y)
         {
             const int B = prm.block_size;
-            const int P = prm.pressure_pos;
 
             // Perform LU-factorization of A in-place
             for(int k = 0; k < B; ++k) {
@@ -351,7 +351,7 @@ class cpr {
             // Invert unit vector in-place.
             // Lower triangular solve:
             for(int i = 0; i < B; ++i) {
-                value_type b = static_cast<value_type>(i == P);
+                value_type b = static_cast<value_type>(i == 0);
                 for(int j = 0; j < i; ++j)
                     b -= A[i][j] * y[j];
                 y[i] = b;

@@ -298,8 +298,8 @@ class cpr_drs {
 
                         for(int i = 0; i < B; ++i) {
                             for(; k[i] && k[i].col() < end; ++k[i]) {
-                                if (d[i] != 0 && k[i].col() % B == 0) {
-                                    app += k[i].value();
+                                if (k[i].col() % B == 0) {
+                                    app += d[i] * k[i].value();
                                 }
                             }
                         }
@@ -336,7 +336,7 @@ class cpr_drs {
                 scatter->ptr[i+1] = scatter->ptr[i];
 
             P = boost::make_shared<PPrecond>(App, prm.pprecond, bprm);
-            S = boost::make_shared<SPrecond>(K, prm.sprecond, bprm);
+            S = boost::make_shared<SPrecond>(K,   prm.sprecond, bprm);
 
             Fpp     = backend_type::copy_matrix(fpp, bprm);
             Scatter = backend_type::copy_matrix(scatter, bprm);
