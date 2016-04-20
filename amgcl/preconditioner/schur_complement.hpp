@@ -367,7 +367,12 @@ class schur_complement {
         }
 
         friend std::ostream& operator<<(std::ostream &os, const schur_complement &p) {
-            return os << "Schur complement (two-stage preconditioner)\n";
+            os << "Schur complement (two-stage preconditioner)" << std::endl;
+            os << "  unknowns:          " << p.n << std::endl;
+            os << "  pressure unknowns: " << p.np << std::endl;
+            os << "  nonzeros:          " << backend::nonzeros(p.system_matrix()) << std::endl;
+
+            return os;
         }
 };
 

@@ -105,7 +105,11 @@ class as_preconditioner {
         }
 
         friend std::ostream& operator<<(std::ostream &os, const as_preconditioner &p) {
-            return os << "Relaxation as preconditioner";
+            os << "Relaxation as preconditioner" << std::endl;
+            os << "  unknowns: " << backend::rows(p.system_matrix()) << std::endl;
+            os << "  nonzeros: " << backend::nonzeros(p.system_matrix()) << std::endl;
+
+            return os;
         }
 };
 
