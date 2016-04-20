@@ -110,7 +110,7 @@ class schur_complement {
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
                 )
-            : prm(prm), n(backend::rows(K)), np(0), nu(0), idx(n)
+            : prm(prm), n(backend::rows(K)), np(0), nu(0)
         {
             init(boost::make_shared<build_matrix>(K), bprm);
         }
@@ -120,7 +120,7 @@ class schur_complement {
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
                 )
-            : prm(prm), n(backend::rows(*K)), np(0), nu(0), idx(n)
+            : prm(prm), n(backend::rows(*K)), np(0), nu(0)
         {
             init(K, bprm);
         }
@@ -185,8 +185,6 @@ class schur_complement {
         boost::shared_ptr<matrix> _K, _B, _BT, _C, x2u, x2p, u2x, p2x;
         boost::shared_ptr<vector> rhs_u, rhs_p, u, p, tmp1, tmp2;
 
-        std::vector<ptrdiff_t> idx;
-
         boost::shared_ptr<USolver> U;
         boost::shared_ptr<PSolver> P;
 
@@ -201,6 +199,8 @@ class schur_complement {
             boost::shared_ptr<build_matrix> B  = boost::make_shared<build_matrix>();
             boost::shared_ptr<build_matrix> BT = boost::make_shared<build_matrix>();
             boost::shared_ptr<build_matrix> C  = boost::make_shared<build_matrix>();
+
+            std::vector<ptrdiff_t> idx(n);
 
             for(size_t i = 0; i < n; ++i)
                 idx[i] = (prm.pmask[i] ? np++ : nu++);
