@@ -1,5 +1,5 @@
-#ifndef AMGCL_PRECONDITIONER_CPR_HPP
-#define AMGCL_PRECONDITIONER_CPR_HPP
+#ifndef AMGCL_PRECONDITIONER_CPR_DRS_HPP
+#define AMGCL_PRECONDITIONER_CPR_DRS_HPP
 
 /*
 The MIT License
@@ -26,9 +26,9 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/preconditioner/cpr.hpp
+ * \file   amgcl/preconditioner/cpr_drs.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
- * \brief  Two stage preconditioner of the Constrained Pressure Residual type.
+ * \brief  CPR preconditioner with Dynamic Row Sum modification.
  */
 
 #include <vector>
