@@ -346,6 +346,14 @@ class cpr_drs {
             rs = backend_type::create_vector(n, bprm);
         }
 
+        friend std::ostream& operator<<(std::ostream &os, const cpr_drs &p) {
+            os << "CPR_DRS (two-stage preconditioner)\n"
+                  "### Pressure preconditioner:\n"
+               << *p.P << "\n"
+                  "### Global preconditioner:\n"
+               << *p.S << std::endl;
+            return os;
+        }
 };
 
 } // namespace preconditioner

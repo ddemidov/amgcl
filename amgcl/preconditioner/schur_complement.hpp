@@ -366,6 +366,9 @@ class schur_complement {
             p2x = backend_type::copy_matrix(P2X, bprm);
         }
 
+        friend std::ostream& operator<<(std::ostream &os, const schur_complement &p) {
+            return os << "Schur complement (two-stage preconditioner)\n";
+        }
 };
 
 } // namespace preconditioner

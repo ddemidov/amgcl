@@ -43,6 +43,8 @@ void solve_cpr(const Matrix &K, const std::vector<double> &rhs, boost::property_
         amgcl::runtime::iterative_solver<Backend>
         > solve(K, prm);
 
+    std::cout << solve.precond() << std::endl;
+
     tic t2(prof, "solve");
     std::vector<double> x(rhs.size(), 1.0);
 

@@ -364,6 +364,15 @@ class cpr {
                 y[i] /= A[i][i];
             }
         }
+
+        friend std::ostream& operator<<(std::ostream &os, const cpr &p) {
+            os << "CPR (two-stage preconditioner)\n"
+                  "### Pressure preconditioner:\n"
+               << *p.P << "\n"
+                  "### Global preconditioner:\n"
+               << *p.S << std::endl;
+            return os;
+        }
 };
 
 } // namespace preconditioner

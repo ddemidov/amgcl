@@ -103,6 +103,10 @@ class as_preconditioner {
             S = boost::make_shared<smoother>(*M, prm, bprm);
             tmp = Backend::create_vector(backend::rows(*M), bprm);
         }
+
+        friend std::ostream& operator<<(std::ostream &os, const as_preconditioner &p) {
+            return os << "Relaxation as preconditioner";
+        }
 };
 
 } // namespace relaxation
