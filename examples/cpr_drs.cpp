@@ -88,6 +88,11 @@ int main(int argc, char *argv[]) {
          "The right-hand side in MatrixMarket format"
         )
         (
+         "weights,w",
+         po::value<string>(),
+         "Equation weights in MatrixMarket format"
+        )
+        (
          "block-size,b",
          po::value<int>(),
          "The block size of the system matrix"
@@ -139,7 +144,7 @@ int main(int argc, char *argv[]) {
 
     size_t rows;
     vector<ptrdiff_t> ptr, col;
-    vector<double> val, rhs;
+    vector<double> val, rhs, wgt;
     std::vector<char> pm;
 
     {
@@ -170,6 +175,21 @@ int main(int argc, char *argv[]) {
             precondition(n == rows && m == 1, "The RHS vector has wrong size");
         } else {
             rhs.resize(rows, 1.0);
+        }
+
+        if (vm.count("weights")) {
+            string wfile = vm["weights"].as<string>();
+
+            size_t n, m;
+
+            if (binary) {
+                io::read_dense(wfile, n, m, wgt);
+            } else {
+                boost::tie(n, m) = io::mm_reader(wfile)(wgt);
+            }
+
+            prm.put("precond.weights",      &wgt[0]);
+            prm.put("precond.weights_size", wgt.size());
         }
     }
 

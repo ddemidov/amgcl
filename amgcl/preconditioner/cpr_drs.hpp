@@ -74,6 +74,8 @@ class cpr_drs {
             double eps_dd;
             double eps_ps;
 
+            std::vector<double> weights;
+
             params() : block_size(2), active_rows(0), eps_dd(0.2), eps_ps(0.02) {}
 
             params(const boost::property_tree::ptree &p)
@@ -83,7 +85,24 @@ class cpr_drs {
                   AMGCL_PARAMS_IMPORT_VALUE(p, active_rows),
                   AMGCL_PARAMS_IMPORT_VALUE(p, eps_dd),
                   AMGCL_PARAMS_IMPORT_VALUE(p, eps_ps)
-            { }
+            {
+                void  *ptr = 0;
+                size_t n   = 0;
+
+                ptr = p.get("weights",      ptr);
+                n   = p.get("weights_size", n);
+
+                if (ptr) {
+                    precondition(n > 0,
+                            "Error in cpr_wdrs parameters: "
+                            "weights is set, but weights_size is not"
+                            );
+
+                    weights.assign(
+                            static_cast<double*>(ptr),
+                            static_cast<double*>(ptr) + n);
+                }
+            }
 
             void get(boost::property_tree::ptree &p, const std::string &path = "") const
             {
@@ -152,6 +171,10 @@ class cpr_drs {
             typedef typename backend::row_iterator<build_matrix>::type row_iterator;
             const int       B = prm.block_size;
             const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
+
+            precondition(
+                    prm.weights.empty() || prm.weights.size() == static_cast<size_t>(N),
+                    "CPR: weights size is not equal to number of active rows.");
 
             np = N / B;
 
@@ -239,13 +262,22 @@ class cpr_drs {
 
                     for(int i = 0; i < B; ++i) {
                         fpp->col[ik+i] = ik+i;
-                        if (a_dia[i] < prm.eps_dd * a_off[i])
-                            fpp->val[ik+i] = 0;
-                        if (a_top[i] < prm.eps_ps * std::abs(a_dia[0]))
-                            fpp->val[ik+i] = 0;
+                        double delta = 1;
+
+                        if (!prm.weights.empty())
+                            delta *= prm.weights[ik+i];
+
+                        if (i > 0) {
+                            if (a_dia[i] < prm.eps_dd * a_off[i])
+                                delta = 0;
+
+                            if (a_top[i] < prm.eps_ps * std::abs(a_dia[0]))
+                                delta = 0;
+                        }
+
+                        fpp->val[ik+i] = delta;
                     }
 
-                    fpp->val[ik] = 1; // Keep delta[0] = 1
                     fpp->ptr[ip+1] = ik + B;
                 }
             }
