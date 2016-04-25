@@ -111,6 +111,7 @@ void test_problem(
         amgcl::runtime::relaxation::multicolor_gauss_seidel,
         amgcl::runtime::relaxation::ilu0,
         amgcl::runtime::relaxation::parallel_ilu0,
+        amgcl::runtime::relaxation::iluk,
         amgcl::runtime::relaxation::ilut,
         amgcl::runtime::relaxation::chebyshev
     };
