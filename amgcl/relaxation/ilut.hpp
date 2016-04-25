@@ -65,8 +65,8 @@ struct ilut {
 
     /// Relaxation parameters.
     struct params {
-        /// Maximum fill-in.
-        int p;
+        /// Fill factor.
+        scalar_type p;
 
         /// Minimum magnitude of non-zero elements relative to the current row norm.
         scalar_type tau;
@@ -111,13 +111,17 @@ struct ilut {
             ptrdiff_t row_beg = Aptr[i];
             ptrdiff_t row_end = Aptr[i + 1];
 
+            int lenL = 0, lenU = 0;
             for(ptrdiff_t j = row_beg; j < row_end; ++j) {
                 ptrdiff_t c = Acol[j];
                 if (c < i)
-                    ++Lnz;
+                    ++lenL;
                 else if (c > i)
-                    ++Unz;
+                    ++lenU;
             }
+
+            Lnz += lenL * prm.p;
+            Unz += lenU * prm.p;
         }
 
         boost::shared_ptr<build_matrix> L = boost::make_shared<build_matrix>();
@@ -125,13 +129,13 @@ struct ilut {
 
         L->nrows = L->ncols = n;
         L->ptr.reserve(n+1); L->ptr.push_back(0);
-        L->col.reserve(Lnz + n * prm.p);
-        L->val.reserve(Lnz + n * prm.p);
+        L->col.reserve(Lnz);
+        L->val.reserve(Lnz);
 
         U->nrows = U->ncols = n;
         U->ptr.reserve(n+1); U->ptr.push_back(0);
-        U->col.reserve(Unz + n * prm.p);
-        U->val.reserve(Unz + n * prm.p);
+        U->col.reserve(Unz);
+        U->val.reserve(Unz);
 
         std::vector<value_type> D;
         D.reserve(n);
@@ -166,7 +170,7 @@ struct ilut {
                 }
             }
 
-            w.move_to(lenL + prm.p, lenU + prm.p, tol, *L, *U, D);
+            w.move_to(lenL * prm.p, lenU * prm.p, tol, *L, *U, D);
         }
 
         this->D = Backend::copy_vector(D, bprm);
