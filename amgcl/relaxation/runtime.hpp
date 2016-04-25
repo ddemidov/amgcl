@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include <amgcl/relaxation/multicolor_gauss_seidel.hpp>
 #include <amgcl/relaxation/ilu0.hpp>
 #include <amgcl/relaxation/parallel_ilu0.hpp>
+#include <amgcl/relaxation/iluk.hpp>
 #include <amgcl/relaxation/ilut.hpp>
 #include <amgcl/relaxation/damped_jacobi.hpp>
 #include <amgcl/relaxation/spai0.hpp>
@@ -50,8 +51,9 @@ namespace relaxation {
 enum type {
     gauss_seidel,               ///< Gauss-Seidel smoothing
     multicolor_gauss_seidel,    ///< Multicolor Gauss-seidel
-    ilu0,                       ///< Incoplete LU with zero fill-in
+    ilu0,                       ///< Incomplete LU with zero fill-in
     parallel_ilu0,              ///< Parallel version of ILU(0)
+    iluk,                       ///< Level-based incomplete LU
     ilut,                       ///< Incomplete LU with thresholding
     damped_jacobi,              ///< Damped Jacobi
     spai0,                      ///< Sparse approximate inverse of 0th order
@@ -70,6 +72,8 @@ inline std::ostream& operator<<(std::ostream &os, type r)
             return os << "ilu0";
         case parallel_ilu0:
             return os << "parallel_ilu0";
+        case iluk:
+            return os << "iluk";
         case ilut:
             return os << "ilut";
         case damped_jacobi:
@@ -98,6 +102,8 @@ inline std::istream& operator>>(std::istream &in, type &r)
         r = ilu0;
     else if (val == "parallel_ilu0")
         r = parallel_ilu0;
+    else if (val == "iluk")
+        r = iluk;
     else if (val == "ilut")
         r = ilut;
     else if (val == "damped_jacobi")
@@ -159,6 +165,9 @@ void process_rap(runtime::relaxation::type relaxation, const Func &func) {
             break;
         case runtime::relaxation::parallel_ilu0:
             process_rap<Backend, amgcl::relaxation::parallel_ilu0>(func);
+            break;
+        case runtime::relaxation::iluk:
+            process_rap<Backend, amgcl::relaxation::iluk>(func);
             break;
         case runtime::relaxation::ilut:
             process_rap<Backend, amgcl::relaxation::ilut>(func);

@@ -202,6 +202,13 @@ process_amg(
                 amgcl::relaxation::parallel_ilu0
                 >(func);
             break;
+        case runtime::relaxation::iluk:
+            process_amg<
+                Backend,
+                Coarsening,
+                amgcl::relaxation::iluk
+                >(func);
+            break;
         case runtime::relaxation::ilut:
             process_amg<
                 Backend,

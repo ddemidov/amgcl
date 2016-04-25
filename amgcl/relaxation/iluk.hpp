@@ -1,5 +1,5 @@
-#ifndef AMGCL_RELAXATION_ILU0_HPP
-#define AMGCL_RELAXATION_ILU0_HPP
+#ifndef AMGCL_RELAXATION_ILUK_HPP
+#define AMGCL_RELAXATION_ILUK_HPP
 
 /*
 The MIT License
@@ -26,12 +26,18 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/relaxation/ilu0.hpp
+ * \file   amgcl/relaxation/iluk.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
- * \brief  Incomplete LU with zero fill-in relaxation scheme.
+ * \brief  Incomplete LU with fill-in level.
  */
 
+#include <vector>
+#include <deque>
+#include <queue>
+#include <cmath>
+
 #include <boost/typeof/typeof.hpp>
+#include <boost/foreach.hpp>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
@@ -40,26 +46,21 @@ THE SOFTWARE.
 namespace amgcl {
 namespace relaxation {
 
-/// ILU(0) smoother.
-/**
- * \note ILU(0) is a serial algorithm and is only applicable to backends that
- * support matrix row iteration (e.g. amgcl::backend::builtin or
- * amgcl::backend::eigen).
- *
- * \param Backend Backend for temporary structures allocation.
- * \ingroup relaxation
- */
+/// ILU(k) smoother.
 template <class Backend>
-struct ilu0 {
+struct iluk {
     typedef typename Backend::value_type      value_type;
-    typedef typename Backend::vector          vector;
     typedef typename Backend::matrix          matrix;
     typedef typename Backend::matrix_diagonal matrix_diagonal;
+    typedef typename Backend::vector          vector;
 
     typedef typename math::scalar_of<value_type>::type scalar_type;
 
     /// Relaxation parameters.
     struct params {
+        /// Level of fill-in.
+        int k;
+
         /// Damping factor.
         scalar_type damping;
 
@@ -67,14 +68,16 @@ struct ilu0 {
         /** \note Used for approximate solution of triangular systems on parallel backends */
         unsigned jacobi_iters;
 
-        params() : damping(1), jacobi_iters(2) {}
+        params() : k(1), damping(1), jacobi_iters(2) {}
 
         params(const boost::property_tree::ptree &p)
-            : AMGCL_PARAMS_IMPORT_VALUE(p, damping)
+            : AMGCL_PARAMS_IMPORT_VALUE(p, k)
+            , AMGCL_PARAMS_IMPORT_VALUE(p, damping)
             , AMGCL_PARAMS_IMPORT_VALUE(p, jacobi_iters)
         {}
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {
+            AMGCL_PARAMS_EXPORT_VALUE(p, path, k);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, damping);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, jacobi_iters);
         }
@@ -82,98 +85,67 @@ struct ilu0 {
 
     /// \copydoc amgcl::relaxation::damped_jacobi::damped_jacobi
     template <class Matrix>
-    ilu0( const Matrix &A, const params &, const typename Backend::params &bprm)
+    iluk( const Matrix &A, const params &prm, const typename Backend::params &bprm)
     {
-        typedef typename backend::builtin<value_type>::matrix build_matrix;
+        typedef typename backend::row_iterator<Matrix>::type row_iterator;
         const size_t n = backend::rows(A);
-        BOOST_AUTO(Aptr, A.ptr_data());
-        BOOST_AUTO(Acol, A.col_data());
-        BOOST_AUTO(Aval, A.val_data());
-
-        size_t Lnz = 0, Unz = 0;
-
-        for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-            ptrdiff_t row_beg = Aptr[i];
-            ptrdiff_t row_end = Aptr[i + 1];
-
-            for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                ptrdiff_t c = Acol[j];
-                if (c < i)
-                    ++Lnz;
-                else if (c > i)
-                    ++Unz;
-            }
-        }
 
         boost::shared_ptr<build_matrix> L = boost::make_shared<build_matrix>();
         boost::shared_ptr<build_matrix> U = boost::make_shared<build_matrix>();
 
         L->nrows = L->ncols = n;
         L->ptr.reserve(n+1); L->ptr.push_back(0);
-        L->col.reserve(Lnz);
-        L->val.reserve(Lnz);
+
+        L->col.reserve(backend::nonzeros(A) / 3);
+        L->val.reserve(backend::nonzeros(A) / 3);
 
         U->nrows = U->ncols = n;
         U->ptr.reserve(n+1); U->ptr.push_back(0);
-        U->col.reserve(Unz);
-        U->val.reserve(Unz);
+
+        U->col.reserve(backend::nonzeros(A) / 3);
+        U->val.reserve(backend::nonzeros(A) / 3);
+
+        std::vector<int> Ulev; Ulev.reserve(backend::nonzeros(A) / 3);
 
         std::vector<value_type> D;
         D.reserve(n);
 
-        std::vector<value_type*> work(n, NULL);
+        sparse_vector w(n, prm.k);
 
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-            ptrdiff_t row_beg = Aptr[i];
-            ptrdiff_t row_end = Aptr[i + 1];
+            w.reset(i);
 
-            for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                ptrdiff_t  c = Acol[j];
-                value_type v = Aval[j];
+            for(row_iterator a = backend::row_begin(A, i); a; ++a) {
+                w.add(a.col(), a.value(), 0);
+            }
 
-                if (c < i) {
-                    L->col.push_back(c);
-                    L->val.push_back(v);
-                    work[c] = &L->val.back();
-                } else if (c == i) {
-                    D.push_back(v);
-                    work[c] = &D.back();
+            while(!w.q.empty()) {
+                nonzero &a = w.next_nonzero();
+                a.val = D[a.col] * a.val;
+
+                for(ptrdiff_t j = U->ptr[a.col], e = U->ptr[a.col+1]; j < e; ++j) {
+                    int lev = std::max(a.lev, Ulev[j]) + 1;
+                    w.add(U->col[j], -a.val * U->val[j], lev);
+                }
+            }
+
+            w.sort();
+
+            BOOST_FOREACH(const nonzero &e, w.nz) {
+                if (e.col < i) {
+                    L->col.push_back(e.col);
+                    L->val.push_back(e.val);
+                } else if (e.col == i) {
+                    D.push_back(math::inverse(e.val));
                 } else {
-                    U->col.push_back(c);
-                    U->val.push_back(v);
-                    work[c] = &U->val.back();
+                    U->col.push_back(e.col);
+                    U->val.push_back(e.val);
+                    Ulev.push_back(e.lev);
                 }
             }
 
-            L->ptr.push_back(L->val.size());
-            U->ptr.push_back(U->val.size());
-
-            for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                ptrdiff_t c = Acol[j];
-
-                // Exit if diagonal is reached
-                if (c >= i) {
-                    precondition(c == i, "No diagonal value in system matrix");
-                    precondition(!math::is_zero(D[i]), "Zero pivot in ILU");
-
-                    D[i] = math::inverse(D[i]);
-                    break;
-                }
-
-                // Compute the multiplier for jrow
-                value_type tl = D[c] * (*work[c]);
-                *work[c] = tl;
-
-                // Perform linear combination
-                for(ptrdiff_t k = U->ptr[c]; k < U->ptr[c+1]; ++k) {
-                    value_type *w = work[U->col[k]];
-                    if (w) *w -= tl * U->val[k];
-                }
-            }
-
-            // Refresh work
-            for(ptrdiff_t j = row_beg; j < row_end; ++j)
-                work[Acol[j]] = NULL;
+            L->ptr.push_back(L->col.size());
+            U->ptr.push_back(U->col.size());
         }
 
         this->D = Backend::copy_vector(D, bprm);
@@ -210,7 +182,6 @@ struct ilu0 {
         backend::axpby(prm.damping, tmp, math::identity<scalar_type>(), x);
     }
 
-    /// \copydoc amgcl::relaxation::damped_jacobi::apply_post
     template <class Matrix, class VectorRHS, class VectorX>
     void apply(const Matrix &A, const VectorRHS &rhs, VectorX &x, const params &prm) const
     {
@@ -223,9 +194,95 @@ struct ilu0 {
                 Backend, backend::builtin<value_type>
             >::type serial_backend;
 
+        typedef typename backend::builtin<value_type>::matrix build_matrix;
+
         boost::shared_ptr<matrix> L, U;
         boost::shared_ptr<matrix_diagonal> D;
         boost::shared_ptr<vector> t1, t2;
+
+        struct nonzero {
+            ptrdiff_t  col;
+            value_type val;
+            int        lev;
+
+            nonzero() : col(-1) {}
+
+            nonzero(ptrdiff_t col, value_type val, int lev)
+                : col(col), val(val), lev(lev) {}
+
+            friend bool operator<(const nonzero &a, const nonzero &b) {
+                return a.col < b.col;
+            }
+        };
+
+        struct sparse_vector {
+            struct comp_indices {
+                const std::vector<nonzero> &nz;
+
+                comp_indices(const std::vector<nonzero> &nz) : nz(nz) {}
+
+                bool operator()(int a, int b) const {
+                    return nz[a].col > nz[b].col;
+                }
+            };
+
+            typedef
+                std::priority_queue<int, std::vector<int>, comp_indices>
+                priority_queue;
+
+            int lfil;
+
+            std::vector<nonzero>   nz;
+            std::vector<ptrdiff_t> idx;
+            priority_queue q;
+
+            ptrdiff_t dia;
+
+            sparse_vector(size_t n, int lfil)
+                : lfil(lfil), idx(n, -1), q(comp_indices(nz)), dia(0)
+            {
+                nz.reserve(16);
+            }
+
+            void add(ptrdiff_t col, value_type val, int lev) {
+                if (idx[col] < 0) {
+                    if (lev <= lfil) {
+                        int p = nz.size();
+                        idx[col] = p;
+                        nz.push_back(nonzero(col, val, lev));
+                        if (col < dia) q.push(p);
+                    }
+                } else {
+                    nonzero &a = nz[idx[col]];
+                    a.val += val;
+                    a.lev = std::min(a.lev, lev);
+                }
+            }
+
+            typename std::vector<nonzero>::iterator begin() {
+                return nz.begin();
+            }
+
+            typename std::vector<nonzero>::iterator end() {
+                return nz.end();
+            }
+
+            nonzero& next_nonzero() {
+                int p = q.top();
+                q.pop();
+                return nz[p];
+            }
+
+            void sort() {
+                std::sort(nz.begin(), nz.end());
+            }
+
+            void reset(ptrdiff_t d) {
+                BOOST_FOREACH(const nonzero &e, nz) idx[e.col] = -1;
+                nz.clear();
+                dia = d;
+            }
+        };
 
         template <class VectorX>
         void solve(VectorX &x, const params &prm, boost::true_type) const
@@ -237,14 +294,12 @@ struct ilu0 {
         void solve(VectorX &x, const params &prm, boost::false_type) const
         {
             relaxation::detail::parallel_ilu_solve(
-                    *L, *U, *D, x, *t1, *t2, prm.jacobi_iters);
+                    *L, *U, *D, x, *t1, *t2, prm.jacobi_iters
+                    );
         }
-
 };
 
 } // namespace relaxation
 } // namespace amgcl
-
-
 
 #endif
