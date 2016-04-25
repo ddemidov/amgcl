@@ -138,29 +138,23 @@ class schur_complement {
             backend::spmv( 1, *x2u, rhs, 0, *rhs_u);
             backend::spmv(-1, *x2p, rhs, 0, *rhs_p);
 
-            size_t iters;
-            double error;
-
             // Ai u = rhs_u
             backend::clear(*u);
-            boost::tie(iters, error) = (*U)(*rhs_u, *u);
-            std::cout << "rhs(p): (" << iters << ", " << error << ")" << std::endl;
+            (*U)(*rhs_u, *u);
 
             // rhs_p += B u
             backend::spmv(1, *_B, *u, 1, *rhs_p);
 
             // S p = rhs_p
             backend::clear(*p);
-            boost::tie(iters, error) = (*P)(*this, *rhs_p, *p);
-            std::cout << "S(p)=r: (" << iters << ", " << error << ")" << std::endl;
+            (*P)(*this, *rhs_p, *p);
 
             // rhs_u -= BT p
             backend::spmv(-1, *_BT, *p, 1, *rhs_u);
 
             // Ai u = rhs_u
             backend::clear(*u);
-            boost::tie(iters, error) = (*U)(*rhs_u, *u);
-            std::cout << "A(u)=f: (" << iters << ", " << error << ")" << std::endl;
+            (*U)(*rhs_u, *u);
 
             backend::clear(x);
             backend::spmv(1, *u2x, *u, 1, x);
