@@ -366,12 +366,15 @@ struct ilut {
 
                 // Store inverted diagonal.
                 D.push_back(math::inverse(m->val));
-                ++m;
 
-                // copy U to the output matrix.
-                for(ptr a = m; a != uend; ++a) {
-                    U.col.push_back(a->col);
-                    U.val.push_back(a->val);
+                if (m != uend) {
+                    ++m;
+
+                    // copy U to the output matrix.
+                    for(ptr a = m; a != uend; ++a) {
+                        U.col.push_back(a->col);
+                        U.val.push_back(a->val);
+                    }
                 }
                 U.ptr.push_back(U.val.size());
 
