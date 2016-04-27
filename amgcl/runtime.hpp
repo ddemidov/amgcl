@@ -216,6 +216,13 @@ process_amg(
                 amgcl::relaxation::ilut
                 >(func);
             break;
+        case runtime::relaxation::pastix_ilu:
+            process_amg<
+                Backend,
+                Coarsening,
+                amgcl::relaxation::pastix_ilu
+                >(func);
+            break;
         case runtime::relaxation::damped_jacobi:
             process_amg<
                 Backend,

@@ -41,6 +41,7 @@ THE SOFTWARE.
 #include <amgcl/relaxation/spai0.hpp>
 #include <amgcl/relaxation/spai1.hpp>
 #include <amgcl/relaxation/chebyshev.hpp>
+#include <amgcl/relaxation/pastix_ilu.hpp>
 #include <amgcl/relaxation/as_preconditioner.hpp>
 
 namespace amgcl {
@@ -55,6 +56,7 @@ enum type {
     parallel_ilu0,              ///< Parallel version of ILU(0)
     iluk,                       ///< Level-based incomplete LU
     ilut,                       ///< Incomplete LU with thresholding
+    pastix_ilu,                 ///< Incomplete LU implementation from PaStiX
     damped_jacobi,              ///< Damped Jacobi
     spai0,                      ///< Sparse approximate inverse of 0th order
     spai1,                      ///< Sparse approximate inverse of 1st order
@@ -76,6 +78,8 @@ inline std::ostream& operator<<(std::ostream &os, type r)
             return os << "iluk";
         case ilut:
             return os << "ilut";
+        case pastix_ilu:
+            return os << "pastix_ilu";
         case damped_jacobi:
             return os << "damped_jacobi";
         case spai0:
@@ -106,6 +110,8 @@ inline std::istream& operator>>(std::istream &in, type &r)
         r = iluk;
     else if (val == "ilut")
         r = ilut;
+    else if (val == "pastix_ilu")
+        r = pastix_ilu;
     else if (val == "damped_jacobi")
         r = damped_jacobi;
     else if (val == "spai0")
@@ -171,6 +177,9 @@ void process_rap(runtime::relaxation::type relaxation, const Func &func) {
             break;
         case runtime::relaxation::ilut:
             process_rap<Backend, amgcl::relaxation::ilut>(func);
+            break;
+        case runtime::relaxation::pastix_ilu:
+            process_rap<Backend, amgcl::relaxation::pastix_ilu>(func);
             break;
         case runtime::relaxation::damped_jacobi:
             process_rap<Backend, amgcl::relaxation::damped_jacobi>(func);
