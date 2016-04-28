@@ -40,39 +40,44 @@ namespace mpi {
 
 /// Converts C type to MPI datatype.
 template <class T, class Enable = void>
-struct datatype;
+struct datatype_impl;
 
 template <>
-struct datatype<float> {
+struct datatype_impl<float> {
     static MPI_Datatype get() { return MPI_FLOAT; }
 };
 
 template <>
-struct datatype<double> {
+struct datatype_impl<double> {
     static MPI_Datatype get() { return MPI_DOUBLE; }
 };
 
 template <>
-struct datatype<long double> {
+struct datatype_impl<long double> {
     static MPI_Datatype get() { return MPI_LONG_DOUBLE; }
 };
 
 template <>
-struct datatype<int> {
+struct datatype_impl<int> {
     static MPI_Datatype get() { return MPI_INT; }
 };
 
 template <>
-struct datatype<long long> {
+struct datatype_impl<long long> {
     static MPI_Datatype get() { return MPI_LONG_LONG_INT; }
 };
 
 template <>
-struct datatype<ptrdiff_t>
+struct datatype_impl<ptrdiff_t>
     : boost::conditional<
-        sizeof(ptrdiff_t) == sizeof(int), datatype<int>, datatype<long long>
+        sizeof(ptrdiff_t) == sizeof(int), datatype_impl<int>, datatype_impl<long long>
         >::type
 {};
+
+template <typename T>
+MPI_Datatype datatype() {
+    return datatype_impl<T>::get();
+}
 
 /// Convenience wrapper around MPI_Comm.
 struct communicator {

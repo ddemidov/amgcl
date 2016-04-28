@@ -122,12 +122,10 @@ class subdomain_deflation {
                 )
         : comm(mpi_comm),
           nrows(backend::rows(Astrip)), ndv(def_vec.dim()),
-          dtype( datatype<value_type>::get() ), dv_start(comm.size + 1, 0),
+          dtype( datatype<value_type>() ), dv_start(comm.size + 1, 0),
           Z( ndv ), master_rank(0),
           q( Backend::create_vector(nrows, prm.backend) )
         {
-            MPI_Datatype mpi_ptrdiff_t = mpi::datatype<ptrdiff_t>::get();
-
             TIC("setup deflation");
             typedef backend::crs<value_type, ptrdiff_t>                build_matrix;
             typedef typename backend::row_iterator<Matrix>::type       row_iterator1;
@@ -135,7 +133,7 @@ class subdomain_deflation {
 
             // Lets see how many deflation vectors are there.
             std::vector<ptrdiff_t> dv_size(comm.size);
-            MPI_Allgather(&ndv, 1, mpi_ptrdiff_t, &dv_size[0], 1, mpi_ptrdiff_t, comm);
+            MPI_Allgather(&ndv, 1, datatype<ptrdiff_t>(), &dv_size[0], 1, datatype<ptrdiff_t>(), comm);
             boost::partial_sum(dv_size, dv_start.begin() + 1);
             nz = dv_start.back();
 
@@ -149,7 +147,7 @@ class subdomain_deflation {
 
             // Get sizes of each domain in comm.
             std::vector<ptrdiff_t> domain(comm.size + 1, 0);
-            MPI_Allgather(&nrows, 1, mpi_ptrdiff_t, &domain[1], 1, mpi_ptrdiff_t, comm);
+            MPI_Allgather(&nrows, 1, datatype<ptrdiff_t>(), &domain[1], 1, datatype<ptrdiff_t>(), comm);
             boost::partial_sum(domain, domain.begin());
             ptrdiff_t chunk_start = domain[comm.rank];
 
@@ -238,8 +236,8 @@ class subdomain_deflation {
                     );
 
             MPI_Allgather(
-                    &num_recv[0],    comm.size, mpi_ptrdiff_t,
-                    comm_matrix.data(), comm.size, mpi_ptrdiff_t,
+                    &num_recv[0],    comm.size, datatype<ptrdiff_t>(),
+                    comm_matrix.data(), comm.size, datatype<ptrdiff_t>(),
                     comm
                     );
 
@@ -287,12 +285,12 @@ class subdomain_deflation {
             // What columns do you need from me?
             for(size_t i = 0; i < send.nbr.size(); ++i)
                 MPI_Irecv(&send_col[send.ptr[i]], comm_matrix[send.nbr[i]][comm.rank],
-                        mpi_ptrdiff_t, send.nbr[i], tag_exc_cols, comm, &send.req[i]);
+                        datatype<ptrdiff_t>(), send.nbr[i], tag_exc_cols, comm, &send.req[i]);
 
             // Here is what I need from you:
             for(size_t i = 0; i < recv.nbr.size(); ++i)
                 MPI_Isend(&recv_cols[recv.ptr[i]], comm_matrix[comm.rank][recv.nbr[i]],
-                        mpi_ptrdiff_t, recv.nbr[i], tag_exc_cols, comm, &recv.req[i]);
+                        datatype<ptrdiff_t>(), recv.nbr[i], tag_exc_cols, comm, &recv.req[i]);
 
             TOC("setup communication");
             /* While messages are in flight, */

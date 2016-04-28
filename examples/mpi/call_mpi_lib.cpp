@@ -42,8 +42,8 @@ int main(int argc, char *argv[]) {
 
     std::vector<ptrdiff_t> domain(size + 1);
     MPI_Allgather(
-            &chunk, 1, amgcl::mpi::datatype<ptrdiff_t>::get(),
-            &domain[1], 1, amgcl::mpi::datatype<ptrdiff_t>::get(),
+            &chunk, 1, amgcl::mpi::datatype<ptrdiff_t>(),
+            &domain[1], 1, amgcl::mpi::datatype<ptrdiff_t>(),
             MPI_COMM_WORLD);
     boost::partial_sum(domain, domain.begin());
 
