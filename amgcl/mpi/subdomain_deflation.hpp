@@ -47,35 +47,12 @@ THE SOFTWARE.
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/mpi/util.hpp>
 #include <amgcl/mpi/skyline_lu.hpp>
+#include <amgcl/mpi/inner_product.hpp>
 
 namespace amgcl {
 
 /// Distributed algorithms and structures.
 namespace mpi {
-
-namespace detail {
-struct mpi_inner_product {
-    communicator comm;
-
-    mpi_inner_product(MPI_Comm comm) : comm(comm) {}
-
-    template <class Vec1, class Vec2>
-    typename backend::value_type<Vec1>::type
-    operator()(const Vec1 &x, const Vec2 &y) const {
-        TIC("inner product");
-        typedef typename backend::value_type<Vec1>::type value_type;
-
-        value_type lsum = backend::inner_product(x, y);
-        value_type gsum;
-
-        MPI_Allreduce(&lsum, &gsum, 1, datatype<value_type>::get(), MPI_SUM, comm);
-
-        TOC("inner product");
-        return gsum;
-    }
-};
-
-} // namespace detail
 
 /// Pointwise constant deflation vectors.
 struct constant_deflation {
@@ -107,9 +84,7 @@ template <
 class subdomain_deflation {
     public:
         typedef typename LocalPrecond::backend_type Backend;
-        typedef IterativeSolver<
-            Backend, detail::mpi_inner_product
-            > Solver;
+        typedef IterativeSolver<Backend, mpi::inner_product> Solver;
 
         struct params {
             typename Backend::params      backend;
@@ -604,7 +579,7 @@ class subdomain_deflation {
             // Create iterative solver instance.
             solve = boost::make_shared<Solver>(
                     nrows, prm.solver, prm.backend,
-                    detail::mpi_inner_product(mpi_comm)
+                    mpi::inner_product(mpi_comm)
                     );
 
             // Move matrices to backend.
