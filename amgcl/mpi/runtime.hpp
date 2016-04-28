@@ -165,9 +165,10 @@ inline void process_sdd(
     }
 }
 
-template <class Matrix, class DefVec>
+template <class Backend, class Matrix, class DefVec>
 struct sdd_create {
     typedef boost::property_tree::ptree params;
+    typedef typename Backend::params backend_params;
 
     void * &handle;
 
@@ -176,17 +177,18 @@ struct sdd_create {
     const Matrix &A;
     const DefVec &def_vec;
     const params &prm;
+    const backend_params &bprm;
 
     sdd_create(
             void * &handle, MPI_Comm comm, const Matrix &A,
-            const DefVec &def_vec, const params &prm
+            const DefVec &def_vec, const params &prm, const backend_params &bprm
             )
-        : handle(handle), comm(comm), A(A), def_vec(def_vec), prm(prm)
+        : handle(handle), comm(comm), A(A), def_vec(def_vec), prm(prm), bprm(bprm)
     {}
 
     template <class SDD>
     void process() const {
-        handle = static_cast<void*>( new SDD(comm, A, def_vec, prm) );
+        handle = static_cast<void*>( new SDD(comm, A, def_vec, prm, bprm) );
     }
 };
 
@@ -245,11 +247,14 @@ template <class LocalPrecond>
 class subdomain_deflation : boost::noncopyable {
     public:
         typedef typename LocalPrecond::backend_type Backend;
+        typedef typename Backend::params backend_params;
         typedef typename Backend::value_type value_type;
         typedef boost::property_tree::ptree params;
 
         template <class Matrix, class DefVec>
-        subdomain_deflation(MPI_Comm comm, const Matrix &A, const DefVec &def_vec, const params &prm)
+        subdomain_deflation(MPI_Comm comm, const Matrix &A, const DefVec &def_vec,
+                const params &prm = params(), const backend_params &bprm = backend_params()
+                )
             : iterative_solver(prm.get("solver.type", amgcl::runtime::solver::bicgstabl)),
               direct_solver(prm.get("direct_solver.type",
 #ifdef AMGCL_HAVE_PASTIX
@@ -263,8 +268,8 @@ class subdomain_deflation : boost::noncopyable {
             runtime::mpi::detail::process_sdd<LocalPrecond>(
                     iterative_solver,
                     direct_solver,
-                    runtime::mpi::detail::sdd_create<Matrix, DefVec>(
-                        handle, comm, A, def_vec, prm
+                    runtime::mpi::detail::sdd_create<Backend, Matrix, DefVec>(
+                        handle, comm, A, def_vec, prm, bprm
                         )
                     );
         }

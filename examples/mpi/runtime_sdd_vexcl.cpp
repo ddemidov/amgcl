@@ -283,7 +283,10 @@ int main(int argc, char *argv[]) {
             vex::Filter::DoublePrecision &&
             vex::Filter::Count(1)
             );
-    prm.put("precond.backend.q", &ctx.queue());
+
+    typedef amgcl::backend::vexcl<double> Backend;
+    Backend::params bprm;
+    bprm.q = ctx.queue();
 
     vex::vector<double> f(ctx, rhs);
     vex::vector<double> x(ctx, chunk);
@@ -302,7 +305,7 @@ int main(int argc, char *argv[]) {
                 >
             SDD;
 
-        SDD solve(world, boost::tie(chunk, ptr, col, val), lindef, prm);
+        SDD solve(world, boost::tie(chunk, ptr, col, val), lindef, prm, bprm);
         tm_setup = prof.toc("setup");
 
         prof.tic("solve");
@@ -319,7 +322,7 @@ int main(int argc, char *argv[]) {
                 >
             SDD;
 
-        SDD solve(world, boost::tie(chunk, ptr, col, val), lindef, prm);
+        SDD solve(world, boost::tie(chunk, ptr, col, val), lindef, prm, bprm);
         tm_setup = prof.toc("setup");
 
         prof.tic("solve");
