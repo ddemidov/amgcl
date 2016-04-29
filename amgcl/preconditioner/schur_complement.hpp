@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include <vector>
 
 #include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
@@ -135,22 +136,22 @@ class schur_complement {
 #endif
                 ) const
         {
-            backend::spmv( 1, *x2u, rhs, 0, *rhs_u);
-            backend::spmv(-1, *x2p, rhs, 0, *rhs_p);
+            backend::spmv(1, *x2u, rhs, 0, *rhs_u);
+            backend::spmv(1, *x2p, rhs, 0, *rhs_p);
 
             // Ai u = rhs_u
             backend::clear(*u);
             (*U)(*rhs_u, *u);
 
-            // rhs_p += B u
-            backend::spmv(1, *_B, *u, 1, *rhs_p);
+            // rhs_p -= Kpu u
+            backend::spmv(-1, *Kpu, *u, 1, *rhs_p);
 
             // S p = rhs_p
             backend::clear(*p);
             (*P)(*this, *rhs_p, *p);
 
-            // rhs_u -= BT p
-            backend::spmv(-1, *_BT, *p, 1, *rhs_u);
+            // rhs_u -= Kup p
+            backend::spmv(-1, *Kup, *p, 1, *rhs_u);
 
             // Ai u = rhs_u
             backend::clear(*u);
@@ -162,21 +163,23 @@ class schur_complement {
         }
 
         const matrix& system_matrix() const {
-            return *_K;
+            return *K;
         }
 
         template <class Alpha, class Vec1, class Beta, class Vec2>
         void spmv(Alpha alpha, const Vec1 &x, Beta beta, Vec2 &y) const {
-            backend::spmv(1, *_BT, x, 0, *tmp1);
+            // y = beta y + alpha S x, where S = Kpp - Kup Kuu^-1 Kpu
+            backend::spmv( alpha, *Kpp, x, beta, y);
+
+            backend::spmv(1, *Kup, x, 0, *tmp1);
             backend::clear(*tmp2);
             (*U)(*tmp1, *tmp2);
-            backend::spmv(alpha, *_B, *tmp2, beta, y);
-            backend::spmv(alpha, *_C, x, 1, y);
+            backend::spmv(-alpha, *Kpu, *tmp2, 1, y);
         }
     private:
         size_t n, np, nu;
 
-        boost::shared_ptr<matrix> _K, _B, _BT, _C, x2u, x2p, u2x, p2x;
+        boost::shared_ptr<matrix> K, Kup, Kpu, Kpp, x2u, x2p, u2x, p2x;
         boost::shared_ptr<vector> rhs_u, rhs_p, u, p, tmp1, tmp2;
 
         boost::shared_ptr<USolver> U;
@@ -186,28 +189,28 @@ class schur_complement {
         {
             typedef typename backend::row_iterator<build_matrix>::type row_iterator;
 
-            _K = backend_type::copy_matrix(K, bprm);
+            this->K = backend_type::copy_matrix(K, bprm);
 
             // Extract matrix subblocks.
-            boost::shared_ptr<build_matrix> A  = boost::make_shared<build_matrix>();
-            boost::shared_ptr<build_matrix> B  = boost::make_shared<build_matrix>();
-            boost::shared_ptr<build_matrix> BT = boost::make_shared<build_matrix>();
-            boost::shared_ptr<build_matrix> C  = boost::make_shared<build_matrix>();
+            boost::shared_ptr<build_matrix> Kuu = boost::make_shared<build_matrix>();
+            boost::shared_ptr<build_matrix> Kpu = boost::make_shared<build_matrix>();
+            boost::shared_ptr<build_matrix> Kup = boost::make_shared<build_matrix>();
+            boost::shared_ptr<build_matrix> Kpp = boost::make_shared<build_matrix>();
 
             std::vector<ptrdiff_t> idx(n);
 
             for(size_t i = 0; i < n; ++i)
                 idx[i] = (prm.pmask[i] ? np++ : nu++);
 
-            boost::tie(A->nrows,  A->ncols ) = boost::make_tuple(nu, nu);
-            boost::tie(BT->nrows, BT->ncols) = boost::make_tuple(nu, np);
-            boost::tie(B->nrows,  B->ncols ) = boost::make_tuple(np, nu);
-            boost::tie(C->nrows,  C->ncols ) = boost::make_tuple(np, np);
+            boost::tie(Kuu->nrows, Kuu->ncols) = boost::make_tuple(nu, nu);
+            boost::tie(Kup->nrows, Kup->ncols) = boost::make_tuple(nu, np);
+            boost::tie(Kpu->nrows, Kpu->ncols) = boost::make_tuple(np, nu);
+            boost::tie(Kpp->nrows, Kpp->ncols) = boost::make_tuple(np, np);
 
-            A->ptr.resize(nu + 1, 0);
-            BT->ptr.resize(nu + 1, 0);
-            B->ptr.resize(np + 1, 0);
-            C->ptr.resize(np + 1, 0);
+            Kuu->ptr.resize(nu + 1, 0);
+            Kup->ptr.resize(nu + 1, 0);
+            Kpu->ptr.resize(np + 1, 0);
+            Kpp->ptr.resize(np + 1, 0);
 
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
@@ -218,49 +221,50 @@ class schur_complement {
 
                     if (pi) {
                         if (pj) {
-                            ++C->ptr[ci+1];
+                            ++Kpp->ptr[ci+1];
                         } else {
-                            ++B->ptr[ci+1];
+                            ++Kpu->ptr[ci+1];
                         }
                     } else {
                         if (pj) {
-                            ++BT->ptr[ci+1];
+                            ++Kup->ptr[ci+1];
                         } else {
-                            ++A->ptr[ci+1];
+                            ++Kuu->ptr[ci+1];
                         }
                     }
                 }
             }
 
-            boost::partial_sum(A->ptr,  A->ptr.begin());
-            boost::partial_sum(BT->ptr, BT->ptr.begin());
-            boost::partial_sum(B->ptr,  B->ptr.begin());
-            boost::partial_sum(C->ptr,  C->ptr.begin());
+            boost::partial_sum(Kuu->ptr, Kuu->ptr.begin());
+            boost::partial_sum(Kup->ptr, Kup->ptr.begin());
+            boost::partial_sum(Kpu->ptr, Kpu->ptr.begin());
+            boost::partial_sum(Kpp->ptr, Kpp->ptr.begin());
 
-            A->col.resize(A->ptr.back());
-            A->val.resize(A->ptr.back());
+            Kuu->col.resize(Kuu->ptr.back());
+            Kuu->val.resize(Kuu->ptr.back());
 
-            BT->col.resize(BT->ptr.back());
-            BT->val.resize(BT->ptr.back());
+            Kup->col.resize(Kup->ptr.back());
+            Kup->val.resize(Kup->ptr.back());
 
-            B->col.resize(B->ptr.back());
-            B->val.resize(B->ptr.back());
+            Kpu->col.resize(Kpu->ptr.back());
+            Kpu->val.resize(Kpu->ptr.back());
 
-            C->col.resize(C->ptr.back());
-            C->val.resize(C->ptr.back());
+            Kpp->col.resize(Kpp->ptr.back());
+            Kpp->val.resize(Kpp->ptr.back());
 
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
                 ptrdiff_t ci = idx[i];
                 char      pi = prm.pmask[i];
 
-                ptrdiff_t A_head = 0, BT_head = 0, B_head = 0, C_head = 0;
+                ptrdiff_t uu_head = 0, up_head = 0, pu_head = 0, pp_head = 0;
+
                 if(pi) {
-                    B_head = B->ptr[ci];
-                    C_head = C->ptr[ci];
+                    pu_head = Kpu->ptr[ci];
+                    pp_head = Kpp->ptr[ci];
                 } else {
-                    A_head  = A->ptr[ci];
-                    BT_head = BT->ptr[ci];
+                    uu_head = Kuu->ptr[ci];
+                    up_head = Kup->ptr[ci];
                 }
 
                 for(row_iterator k = backend::row_begin(*K, i); k; ++k) {
@@ -271,34 +275,34 @@ class schur_complement {
 
                     if (pi) {
                         if (pj) {
-                            C->col[C_head] = cj;
-                            C->val[C_head] = -v;
-                            ++C_head;
+                            Kpp->col[pp_head] = cj;
+                            Kpp->val[pp_head] = v;
+                            ++pp_head;
                         } else {
-                            B->col[B_head] = cj;
-                            B->val[B_head] = v;
-                            ++B_head;
+                            Kpu->col[pu_head] = cj;
+                            Kpu->val[pu_head] = v;
+                            ++pu_head;
                         }
                     } else {
                         if (pj) {
-                            BT->col[BT_head] = cj;
-                            BT->val[BT_head] = v;
-                            ++BT_head;
+                            Kup->col[up_head] = cj;
+                            Kup->val[up_head] = v;
+                            ++up_head;
                         } else {
-                            A->col[A_head] = cj;
-                            A->val[A_head] = v;
-                            ++A_head;
+                            Kuu->col[uu_head] = cj;
+                            Kuu->val[uu_head] = v;
+                            ++uu_head;
                         }
                     }
                 }
             }
 
-            U = boost::make_shared<USolver>(*A, prm.usolver, bprm);
-            P = boost::make_shared<PSolver>(*C, prm.psolver, bprm);
+            U = boost::make_shared<USolver>(*Kuu, prm.usolver, bprm);
+            P = boost::make_shared<PSolver>(*Kpp, prm.psolver, bprm);
 
-            _B  = backend_type::copy_matrix(B,  bprm);
-            _BT = backend_type::copy_matrix(BT, bprm);
-            _C  = backend_type::copy_matrix(C,  bprm);
+            this->Kup = backend_type::copy_matrix(Kup, bprm);
+            this->Kpu = backend_type::copy_matrix(Kpu, bprm);
+            this->Kpp = backend_type::copy_matrix(Kpp, bprm);
 
             rhs_u = backend_type::create_vector(nu, bprm);
             rhs_p = backend_type::create_vector(np, bprm);
@@ -362,9 +366,8 @@ class schur_complement {
 
         friend std::ostream& operator<<(std::ostream &os, const schur_complement &p) {
             os << "Schur complement (two-stage preconditioner)" << std::endl;
-            os << "  unknowns:          " << p.n << std::endl;
-            os << "  pressure unknowns: " << p.np << std::endl;
-            os << "  nonzeros:          " << backend::nonzeros(p.system_matrix()) << std::endl;
+            os << "  unknowns: " << p.n << "(" << p.np << ")" << std::endl;
+            os << "  nonzeros: " << backend::nonzeros(p.system_matrix()) << std::endl;
 
             return os;
         }
