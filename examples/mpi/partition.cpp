@@ -10,6 +10,7 @@
 #include <boost/program_options.hpp>
 
 #include <amgcl/io/mm.hpp>
+#include <amgcl/io/binary.hpp>
 
 extern "C" {
 #include <metis.h>
@@ -229,6 +230,11 @@ int main(int argc, char *argv[]) {
             ("help,h", "show help")
             ("input,i",      po::value<std::string>(&ifile)->required(), "Input matrix")
             ("output,o",     po::value<std::string>(&ofile)->default_value(ofile), "Output file")
+            (
+             "binary,B",
+             po::bool_switch()->default_value(false),
+             "When specified, treat input files as binary instead of as MatrixMarket. "
+            )
             ("nparts,n",     po::value<int>(&nparts)->required(), "Number of parts")
             ("block_size,b", po::value<int>(&block_size)->default_value(1), "Block size")
             ;
@@ -246,15 +252,31 @@ int main(int argc, char *argv[]) {
 
         po::notify(vm);
 
-        size_t rows, cols;
+        size_t rows;
         std::vector<int> ptr, col;
         std::vector<double> val;
 
-        boost::tie(rows, cols) = amgcl::io::mm_reader(ifile)(ptr, col, val);
+        bool binary = vm["binary"].as<bool>();
+
+        if (binary) {
+            amgcl::io::read_crs(ifile, rows, ptr, col, val);
+        } else {
+            size_t cols;
+            boost::tie(rows, cols) = amgcl::io::mm_reader(ifile)(ptr, col, val);
+            precondition(rows == cols, "Non-square system matrix");
+        }
 
         std::vector<int> part = partition(rows, nparts, block_size, ptr, col);
 
-        amgcl::io::mm_write(ofile, &part[0], part.size());
+        if (binary) {
+            std::ofstream p(ofile.c_str(), std::ios::binary);
+
+            amgcl::io::write(p, rows);
+            amgcl::io::write(p, size_t(1));
+            amgcl::io::write(p, part);
+        } else {
+            amgcl::io::mm_write(ofile, &part[0], part.size());
+        }
     } catch (const std::exception &e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;
