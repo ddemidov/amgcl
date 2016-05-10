@@ -109,13 +109,15 @@ int main(int argc, char *argv[]) {
     // Setup
     amgclHandle prm    = amgcl_params_create();
 
-    amgcl_params_sets(prm, "precond.coarsening.type", "smoothed_aggregation");
-    amgcl_params_sets(prm, "precond.relaxation.type", "spai0");
+    amgcl_params_sets(prm, "precond.local.coarsening.type", "smoothed_aggregation");
+    amgcl_params_sets(prm, "precond.local.relax.type", "spai0");
     amgcl_params_sets(prm, "solver.type", "bicgstabl");
+#if 0
 #ifdef AMGCL_HAVE_PASTIX
     amgcl_params_sets(prm, "direct_solver.type", "pastix");
 #else
     amgcl_params_sets(prm, "direct_solver.type", "skyline_lu");
+#endif
 #endif
 
     amgclHandle solver = amgcl_mpi_create(

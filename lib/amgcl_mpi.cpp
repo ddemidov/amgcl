@@ -4,7 +4,8 @@
 #include <boost/static_assert.hpp>
 
 #include <amgcl/runtime.hpp>
-#include <amgcl/mpi/runtime.hpp>
+#include <amgcl/mpi/make_solver.hpp>
+#include <amgcl/mpi/subdomain_deflation.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 
@@ -14,8 +15,9 @@
 typedef amgcl::backend::builtin<double>                   Backend;
 typedef boost::property_tree::ptree                       Params;
 
-typedef amgcl::runtime::mpi::subdomain_deflation<
-    amgcl::runtime::amg<Backend>
+typedef amgcl::mpi::make_solver<
+    amgcl::mpi::subdomain_deflation< amgcl::runtime::amg<Backend> >,
+    amgcl::runtime::iterative_solver
     > Solver;
 
 //---------------------------------------------------------------------------
@@ -50,8 +52,8 @@ amgclHandle STDCALL amgcl_mpi_create(
 {
     boost::function<double(ptrdiff_t, unsigned)> dv = deflation_vectors(n_def_vec, def_vec_func, def_vec_data);
     boost::property_tree::ptree prm = *static_cast<Params*>(params);
-    prm.put("num_def_vec", n_def_vec);
-    prm.put("def_vec",     &dv);
+    prm.put("precond.num_def_vec", n_def_vec);
+    prm.put("precond.def_vec",     &dv);
 
     return static_cast<amgclHandle>(
             new Solver(
@@ -76,7 +78,7 @@ conv_info STDCALL amgcl_mpi_solve(
 {
     Solver *solver = static_cast<Solver*>(handle);
 
-    size_t n = solver->local_size();
+    size_t n = solver->size();
 
     boost::iterator_range<double*> x_range =
         boost::make_iterator_range(x, x + n);

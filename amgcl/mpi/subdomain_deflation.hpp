@@ -76,18 +76,15 @@ struct constant_deflation {
  */
 template <
     class LocalPrecond,
-    template <class, class> class IterativeSolver,
     class DirectSolver = mpi::skyline_lu<typename LocalPrecond::backend_type::value_type>
     >
 class subdomain_deflation {
     public:
-        typedef typename LocalPrecond::backend_type Backend;
-        typedef IterativeSolver<Backend, mpi::inner_product> Solver;
-        typedef typename Backend::params backend_params;
+        typedef typename LocalPrecond::backend_type backend_type;
+        typedef typename backend_type::params backend_params;
 
         struct params {
-            typename LocalPrecond::params precond;
-            typename Solver::params       solver;
+            typename LocalPrecond::params local;
             typename DirectSolver::params direct_solver;
 
             // Number of deflation vectors.
@@ -99,9 +96,8 @@ class subdomain_deflation {
             params() {}
 
             params(const boost::property_tree::ptree &p)
-                : AMGCL_PARAMS_IMPORT_CHILD(p, precond),
-                  AMGCL_PARAMS_IMPORT_CHILD(p, solver),
-                  AMGCL_PARAMS_IMPORT_CHILD(p, direct_solver)
+                : AMGCL_PARAMS_IMPORT_CHILD(p, local),
+                  AMGCL_PARAMS_IMPORT_CHILD(p, direct_solver),
                   AMGCL_PARAMS_IMPORT_VALUE(p, num_def_vec)
             {
                 void *ptr = 0;
@@ -113,20 +109,19 @@ class subdomain_deflation {
 
                 def_vec = *static_cast<boost::function<double(ptrdiff_t, unsigned)>*>(ptr);
 
-                AMGCL_PARAMS_CHECK(p, (precond)(solver)(direct_solver)(num_def_vec)(def_vec));
+                AMGCL_PARAMS_CHECK(p, (local)(direct_solver)(num_def_vec)(def_vec));
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
-                AMGCL_PARAMS_EXPORT_CHILD(p, path, precond);
-                AMGCL_PARAMS_EXPORT_CHILD(p, path, solver);
+                AMGCL_PARAMS_EXPORT_CHILD(p, path, local);
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, direct_solver);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, num_def_vec);
             }
         };
 
-        typedef typename Backend::value_type value_type;
-        typedef typename Backend::matrix     matrix;
-        typedef typename Backend::vector     vector;
+        typedef typename backend_type::value_type value_type;
+        typedef typename backend_type::matrix     matrix;
+        typedef typename backend_type::vector     vector;
 
         template <class Matrix>
         subdomain_deflation(
@@ -139,7 +134,7 @@ class subdomain_deflation {
           nrows(backend::rows(Astrip)), ndv(prm.num_def_vec),
           dtype( datatype<value_type>() ), dv_start(comm.size + 1, 0),
           Z( ndv ), master_rank(0),
-          q( Backend::create_vector(nrows, bprm) )
+          q( backend_type::create_vector(nrows, bprm) )
         {
             TIC("setup deflation");
             typedef backend::crs<value_type, ptrdiff_t>                build_matrix;
@@ -154,7 +149,7 @@ class subdomain_deflation {
 
             df.resize(ndv);
             dx.resize(nz);
-            dd = Backend::create_vector(nz, bprm);
+            dd = backend_type::create_vector(nz, bprm);
 
             boost::shared_ptr<build_matrix> aloc = boost::make_shared<build_matrix>();
             boost::shared_ptr<build_matrix> arem = boost::make_shared<build_matrix>();
@@ -174,7 +169,7 @@ class subdomain_deflation {
                 for(int j = 0; j < ndv; ++j) {
                     for(ptrdiff_t i = 0; i < nrows; ++i)
                         z[i] = prm.def_vec(i, j);
-                    Z[j] = Backend::copy_vector(z, bprm);
+                    Z[j] = backend_type::copy_vector(z, bprm);
                 }
             }
             TOC("copy deflation vectors");
@@ -281,16 +276,10 @@ class subdomain_deflation {
             TOC("second pass");
 
             // Create local preconditioner.
-            P = boost::make_shared<LocalPrecond>( *aloc, prm.precond, bprm );
-
-            // Create iterative solver instance.
-            solve = boost::make_shared<Solver>(
-                    nrows, prm.solver, bprm,
-                    mpi::inner_product(mpi_comm)
-                    );
+            P = boost::make_shared<LocalPrecond>( *aloc, prm.local, bprm );
 
             // Create distributed matrix
-            A = boost::make_shared< distributed_matrix<Backend> >(mpi_comm, P->system_matrix(), arem, bprm);
+            A = boost::make_shared< distributed_matrix<backend_type> >(mpi_comm, P->system_matrix(), arem, bprm);
 
             TIC("A*Z");
             /* Finish construction of AZ */
@@ -496,7 +485,7 @@ class subdomain_deflation {
             TOC("setup deflation");
 
             // Move matrices to backend.
-            AZ = Backend::copy_matrix(az, bprm);
+            AZ = backend_type::copy_matrix(az, bprm);
 
             // Prepare Gatherv configuration for coarse solve
             for(int p = cgroup_beg, i = 0, offset = dv_start[p]; p < cgroup_end; ++p, ++i) {
@@ -519,11 +508,20 @@ class subdomain_deflation {
         }
 
         template <class Vec1, class Vec2>
-        boost::tuple<size_t, value_type>
-        operator()(const Vec1 &rhs, Vec2 &x) const {
-            boost::tuple<size_t, value_type> cnv = (*solve)(*this, *P, rhs, x);
-            postprocess(rhs, x);
-            return cnv;
+        void apply(
+                const Vec1 &rhs,
+#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
+                Vec2       &x
+#else
+                Vec2       &&x
+#endif
+                ) const
+        {
+            P->apply(rhs, x);
+        }
+
+        const subdomain_deflation& system_matrix() const {
+            return *this;
         }
 
         template <class Vec1, class Vec2>
@@ -543,6 +541,35 @@ class subdomain_deflation {
 
             project(r);
         }
+
+        template <class Vec1, class Vec2>
+        void postprocess(const Vec1 &rhs, Vec2 &x) const {
+            TIC("postprocess");
+
+            // q = Ax
+            mul(1, x, 0, *q);
+
+            // df = transp(Z) * (rhs - Ax)
+            TIC("local inner product");
+            for(ptrdiff_t j = 0; j < ndv; ++j)
+                df[j] = backend::inner_product(rhs, *Z[j])
+                      - backend::inner_product(*q,  *Z[j]);
+            TOC("local inner product");
+
+            // dx = inv(E) * df
+            coarse_solve(df, dx);
+
+            // x += Z * dx
+            ptrdiff_t j = 0, k = dv_start[comm.rank];
+            for(; j + 1 < ndv; j += 2, k += 2)
+                backend::axpbypcz(dx[k], *Z[j], dx[k+1], *Z[j+1], 1, x);
+
+            for(; j < ndv; ++j, ++k)
+                backend::axpby(dx[k], *Z[j], 1, x);
+
+            TOC("postprocess");
+        }
+
     private:
         static const int tag_exc_vals = 2011;
         static const int tag_exc_dmat = 3011;
@@ -554,9 +581,8 @@ class subdomain_deflation {
 
         MPI_Datatype dtype;
 
-        boost::shared_ptr< distributed_matrix<Backend> > A;
+        boost::shared_ptr< distributed_matrix<backend_type> > A;
         boost::shared_ptr<LocalPrecond> P;
-        boost::shared_ptr<Solver>       solve;
 
         mutable std::vector<value_type> df, dx, cf, cx;
         std::vector<ptrdiff_t> dv_start;
@@ -589,34 +615,6 @@ class subdomain_deflation {
             TOC("spmv");
 
             TOC("project");
-        }
-
-        template <class Vec1, class Vec2>
-        void postprocess(const Vec1 &rhs, Vec2 &x) const {
-            TIC("postprocess");
-
-            // q = Ax
-            mul(1, x, 0, *q);
-
-            // df = transp(Z) * (rhs - Ax)
-            TIC("local inner product");
-            for(ptrdiff_t j = 0; j < ndv; ++j)
-                df[j] = backend::inner_product(rhs, *Z[j])
-                      - backend::inner_product(*q,  *Z[j]);
-            TOC("local inner product");
-
-            // dx = inv(E) * df
-            coarse_solve(df, dx);
-
-            // x += Z * dx
-            ptrdiff_t j = 0, k = dv_start[comm.rank];
-            for(; j + 1 < ndv; j += 2, k += 2)
-                backend::axpbypcz(dx[k], *Z[j], dx[k+1], *Z[j+1], 1, x);
-
-            for(; j < ndv; ++j, ++k)
-                backend::axpby(dx[k], *Z[j], 1, x);
-
-            TOC("postprocess");
         }
 
         void coarse_solve(std::vector<value_type> &f, std::vector<value_type> &x) const
@@ -657,7 +655,6 @@ namespace backend {
 
 template <
     class LocalPrecond,
-    template <class, class> class IterativeSolver,
     class DirectSolver,
     class Alpha, class Beta,
     class Vec1,
@@ -667,7 +664,6 @@ struct spmv_impl<
     Alpha,
     mpi::subdomain_deflation<
         LocalPrecond,
-        IterativeSolver,
         DirectSolver
         >,
     Vec1, Beta, Vec2
@@ -676,7 +672,6 @@ struct spmv_impl<
     typedef
         mpi::subdomain_deflation<
             LocalPrecond,
-            IterativeSolver,
             DirectSolver
             >
         M;
@@ -689,7 +684,6 @@ struct spmv_impl<
 
 template <
     class LocalPrecond,
-    template <class, class> class IterativeSolver,
     class DirectSolver,
     class Vec1,
     class Vec2,
@@ -698,7 +692,6 @@ template <
 struct residual_impl<
     mpi::subdomain_deflation<
         LocalPrecond,
-        IterativeSolver,
         DirectSolver
         >,
     Vec1, Vec2, Vec3
@@ -707,7 +700,6 @@ struct residual_impl<
     typedef
         mpi::subdomain_deflation<
             LocalPrecond,
-            IterativeSolver,
             DirectSolver
             >
         M;

@@ -91,7 +91,6 @@ namespace detail {
 
 template <
     class LocalPrecond,
-    template <class, class> class IterativeSolver,
     class Func
     >
 inline void process_sdd(
@@ -106,7 +105,6 @@ inline void process_sdd(
             {
                 typedef amgcl::mpi::subdomain_deflation<
                     LocalPrecond,
-                    IterativeSolver,
                     amgcl::mpi::skyline_lu<value_type>
                     > SDD;
                 func.template process<SDD>();
@@ -117,51 +115,12 @@ inline void process_sdd(
             {
                 typedef amgcl::mpi::subdomain_deflation<
                     LocalPrecond,
-                    IterativeSolver,
                     amgcl::mpi::PaStiX<value_type>
                     > SDD;
                 func.template process<SDD>();
             }
             break;
 #endif
-    }
-}
-
-template <
-    class LocalPrecond,
-    class Func
-    >
-inline void process_sdd(
-        runtime::solver::type        iterative_solver,
-        runtime::direct_solver::type direct_solver,
-        const Func &func
-        )
-{
-    switch (iterative_solver) {
-        case runtime::solver::cg:
-            process_sdd<
-                LocalPrecond,
-                amgcl::solver::cg
-                >(direct_solver, func);
-            break;
-        case runtime::solver::bicgstab:
-            process_sdd<
-                LocalPrecond,
-                amgcl::solver::bicgstab
-                >(direct_solver, func);
-            break;
-        case runtime::solver::bicgstabl:
-            process_sdd<
-                LocalPrecond,
-                amgcl::solver::bicgstabl
-                >(direct_solver, func);
-            break;
-        case runtime::solver::gmres:
-            process_sdd<
-                LocalPrecond,
-                amgcl::solver::gmres
-                >(direct_solver, func);
-            break;
     }
 }
 
@@ -245,9 +204,9 @@ struct sdd_solve {
 template <class LocalPrecond>
 class subdomain_deflation : boost::noncopyable {
     public:
-        typedef typename LocalPrecond::backend_type Backend;
-        typedef typename Backend::params backend_params;
-        typedef typename Backend::value_type value_type;
+        typedef typename LocalPrecond::backend_type backend_type;
+        typedef typename backend_type::params backend_params;
+        typedef typename backend_type::value_type value_type;
         typedef boost::property_tree::ptree params;
 
         template <class Matrix>
@@ -266,9 +225,8 @@ class subdomain_deflation : boost::noncopyable {
               n( backend::rows(A) ), handle(0)
         {
             runtime::mpi::detail::process_sdd<LocalPrecond>(
-                    iterative_solver,
                     direct_solver,
-                    runtime::mpi::detail::sdd_create<Backend, Matrix>(
+                    runtime::mpi::detail::sdd_create<backend_type, Matrix>(
                         handle, comm, A, prm, bprm
                         )
                     );
@@ -276,7 +234,6 @@ class subdomain_deflation : boost::noncopyable {
 
         ~subdomain_deflation() {
             runtime::mpi::detail::process_sdd<LocalPrecond>(
-                    iterative_solver,
                     direct_solver,
                     runtime::mpi::detail::sdd_destroy(handle)
                     );
@@ -284,7 +241,6 @@ class subdomain_deflation : boost::noncopyable {
 
         void get_params(boost::property_tree::ptree &p) const {
             runtime::mpi::detail::process_sdd<LocalPrecond>(
-                    iterative_solver,
                     direct_solver,
                     runtime::mpi::detail::sdd_get_params(handle, p)
                     );

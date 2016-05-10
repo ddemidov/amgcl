@@ -15,7 +15,9 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
-#include <amgcl/mpi/runtime.hpp>
+#include <amgcl/runtime.hpp>
+#include <amgcl/mpi/make_solver.hpp>
+#include <amgcl/mpi/subdomain_deflation.hpp>
 #include <amgcl/profiler.hpp>
 
 namespace amgcl {
@@ -203,7 +205,7 @@ int main(int argc, char *argv[]) {
     amgcl::runtime::coarsening::type    coarsening       = amgcl::runtime::coarsening::smoothed_aggregation;
     amgcl::runtime::relaxation::type    relaxation       = amgcl::runtime::relaxation::spai0;
     amgcl::runtime::solver::type        iterative_solver = amgcl::runtime::solver::bicgstabl;
-    amgcl::runtime::direct_solver::type direct_solver    = amgcl::runtime::direct_solver::skyline_lu;
+    //amgcl::runtime::direct_solver::type direct_solver    = amgcl::runtime::direct_solver::skyline_lu;
     std::string parameter_file;
     std::string A_file    = "A.mtx";
     std::string rhs_file  = "b.mtx";
@@ -230,6 +232,7 @@ int main(int argc, char *argv[]) {
          po::value<amgcl::runtime::solver::type>(&iterative_solver)->default_value(iterative_solver),
          "cg, bicgstab, bicgstabl, gmres"
         )
+#if 0
         (
          "dir_solver,d",
          po::value<amgcl::runtime::direct_solver::type>(&direct_solver)->default_value(direct_solver),
@@ -238,6 +241,7 @@ int main(int argc, char *argv[]) {
          ", pastix"
 #endif
         )
+#endif
         (
          "params,p",
          po::value<std::string>(&parameter_file),
@@ -278,10 +282,10 @@ int main(int argc, char *argv[]) {
     boost::property_tree::ptree prm;
     if (vm.count("params")) read_json(parameter_file, prm);
 
-    prm.put("precond.coarsening.type", coarsening);
-    prm.put("precond.relaxation.type", relaxation);
+    prm.put("precond.local.coarsening.type", coarsening);
+    prm.put("precond.local.relax.type", relaxation);
     prm.put("solver.type",         iterative_solver);
-    prm.put("direct_solver.type",  direct_solver);
+    //prm.put("direct_solver.type",  direct_solver);
 
     using amgcl::prof;
 
@@ -302,8 +306,11 @@ int main(int argc, char *argv[]) {
 
     prof.tic("setup");
     typedef
-        amgcl::runtime::mpi::subdomain_deflation<
-            amgcl::runtime::amg< amgcl::backend::builtin<double> >
+        amgcl::mpi::make_solver<
+            amgcl::mpi::subdomain_deflation<
+                amgcl::runtime::amg< amgcl::backend::builtin<double> >
+                >,
+            amgcl::runtime::iterative_solver
             >
         SDD;
 

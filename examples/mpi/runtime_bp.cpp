@@ -13,6 +13,7 @@
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/runtime.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
+#include <amgcl/mpi/make_solver.hpp>
 #include <amgcl/mpi/block_preconditioner.hpp>
 #include <amgcl/profiler.hpp>
 
@@ -52,8 +53,8 @@ boost::tuple<size_t, double> solve(
 {
     typedef amgcl::backend::builtin<double> Backend;
 
-    typedef amgcl::mpi::block_preconditioner<
-        Precond<Backend>,
+    typedef amgcl::mpi::make_solver<
+        amgcl::mpi::block_preconditioner< Precond<Backend> >,
         amgcl::runtime::iterative_solver
         > Solver;
 

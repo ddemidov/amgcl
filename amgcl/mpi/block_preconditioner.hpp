@@ -33,11 +33,11 @@ THE SOFTWARE.
 
 #include <vector>
 
-#include <mpi.h>
-
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/range/numeric.hpp>
+
+#include <mpi.h>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/mpi/util.hpp>
@@ -47,46 +47,28 @@ THE SOFTWARE.
 namespace amgcl {
 namespace mpi {
 
-template <class Precond, template <class, class> class IterativeSolver>
+template <class Precond>
 class block_preconditioner {
     public:
-        typedef typename Precond::backend_type Backend;
-        typedef IterativeSolver<Backend, mpi::inner_product> Solver;
-        typedef typename Backend::params backend_params;
+        typedef typename Precond::params       params;
+        typedef typename Precond::backend_type backend_type;
+        typedef typename backend_type::params  backend_params;
 
-        struct params {
-            typename Precond::params precond;
-            typename Solver::params  solver;
-
-            params() {}
-
-            params(const boost::property_tree::ptree &p)
-                : AMGCL_PARAMS_IMPORT_CHILD(p, precond),
-                  AMGCL_PARAMS_IMPORT_CHILD(p, solver)
-            {}
-
-            void get(boost::property_tree::ptree &p, const std::string &path) const {
-                AMGCL_PARAMS_EXPORT_CHILD(p, path, precond);
-                AMGCL_PARAMS_EXPORT_CHILD(p, path, solver);
-            }
-        };
-
-        typedef typename Backend::value_type value_type;
-        typedef typename Backend::matrix     matrix;
-        typedef typename Backend::vector     vector;
+        typedef typename backend_type::value_type value_type;
+        typedef distributed_matrix<backend_type>  matrix;
 
         template <class Matrix>
         block_preconditioner(
-                MPI_Comm mpi_comm,
+                communicator comm,
                 const Matrix &Astrip,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
                 )
-          : comm(mpi_comm), n(backend::rows(Astrip)),
-            S(boost::make_shared<Solver>(n, prm.solver, bprm, mpi::inner_product(mpi_comm)))
         {
             typedef backend::crs<value_type> build_matrix;
             typedef typename backend::row_iterator<Matrix>::type row_iterator;
+
+            const ptrdiff_t n = backend::rows(Astrip);
 
             // Get sizes of each domain in comm.
             std::vector<ptrdiff_t> domain(comm.size + 1, 0);
@@ -149,22 +131,33 @@ class block_preconditioner {
                 }
             }
 
-            P = boost::make_shared<Precond>(Aloc, prm.precond, bprm);
-            A = boost::make_shared< distributed_matrix<Backend> >(mpi_comm, P->system_matrix(), Arem, bprm);
+            P = boost::make_shared<Precond>(Aloc, prm, bprm);
+            A = boost::make_shared<matrix>(comm, P->system_matrix(), Arem, bprm);
+        }
+
+        const matrix& system_matrix() const {
+            return *A;
         }
 
         template <class Vec1, class Vec2>
-        boost::tuple<size_t, value_type>
-        operator()(const Vec1 &rhs, Vec2 &x) const {
-            return (*S)(*A, *P, rhs, x);
+        void apply(
+                const Vec1 &rhs,
+#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
+                Vec2       &x
+#else
+                Vec2       &&x
+#endif
+                ) const
+        {
+            P->apply(rhs, x);
         }
 
+        template <class Vec1, class Vec2>
+        void postprocess(const Vec1&, Vec2&) const { }
     private:
-        communicator comm;
         ptrdiff_t n;
-        boost::shared_ptr<Solver>  S;
         boost::shared_ptr<Precond> P;
-        boost::shared_ptr< distributed_matrix<Backend> > A;
+        boost::shared_ptr<matrix>  A;
 };
 
 } // namespace mpi
