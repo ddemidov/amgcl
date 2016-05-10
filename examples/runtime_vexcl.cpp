@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
         prof.toc("solve");
     } else {
         prm.put("precond.coarsening.type", coarsening);
-        prm.put("precond.relaxation.type", relaxation);
+        prm.put("precond.relax.type", relaxation);
 
         prof.tic("setup");
         amgcl::make_solver<

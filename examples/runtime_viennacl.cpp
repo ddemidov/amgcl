@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
     if (vm.count("params")) read_json(parameter_file, prm);
 
     prm.put("precond.coarsening.type", coarsening);
-    prm.put("precond.relaxation.type", relaxation);
+    prm.put("precond.relax.type", relaxation);
     prm.put("solver.type",             solver);
 
 #ifdef VIENNACL_WITH_OPENCL

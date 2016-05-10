@@ -28,7 +28,7 @@ void test_solver(
 {
     boost::property_tree::ptree prm;
     prm.put("precond.coarsening.type", coarsening);
-    prm.put("precond.relaxation.type", relaxation);
+    prm.put("precond.relax.type", relaxation);
     prm.put("solver.type",             solver);
 
     amgcl::make_solver<
