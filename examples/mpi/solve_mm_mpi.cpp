@@ -307,10 +307,11 @@ int main(int argc, char *argv[]) {
             >
         SDD;
 
-    SDD solve(
-            world, boost::tie(chunk, ptr, col, val),
-            amgcl::mpi::constant_deflation(block_size), prm
-            );
+    boost::function<double(ptrdiff_t,unsigned)> dv = amgcl::mpi::constant_deflation(block_size);
+    prm.put("num_def_vec", block_size);
+    prm.put("def_vec", &dv);
+
+    SDD solve(world, boost::tie(chunk, ptr, col, val), prm);
     double tm_setup = prof.toc("setup");
 
     std::vector<double> x(chunk, 0);

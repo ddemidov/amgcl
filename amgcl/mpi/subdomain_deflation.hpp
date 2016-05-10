@@ -38,6 +38,7 @@ THE SOFTWARE.
 #include <boost/make_shared.hpp>
 #include <boost/range/numeric.hpp>
 #include <boost/multi_array.hpp>
+#include <boost/function.hpp>
 
 #include <mpi.h>
 
@@ -49,8 +50,6 @@ THE SOFTWARE.
 #include <amgcl/mpi/distributed_matrix.hpp>
 
 namespace amgcl {
-
-/// Distributed algorithms and structures.
 namespace mpi {
 
 /// Pointwise constant deflation vectors.
@@ -91,20 +90,37 @@ class subdomain_deflation {
             typename Solver::params       solver;
             typename DirectSolver::params direct_solver;
 
+            // Number of deflation vectors.
+            unsigned num_def_vec;
+
+            // Value of deflation vector at the given row and column.
+            boost::function<double(ptrdiff_t, unsigned)> def_vec;
+
             params() {}
 
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, precond),
                   AMGCL_PARAMS_IMPORT_CHILD(p, solver),
                   AMGCL_PARAMS_IMPORT_CHILD(p, direct_solver)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, num_def_vec)
             {
-                AMGCL_PARAMS_CHECK(p, (precond)(solver)(direct_solver));
+                void *ptr = 0;
+                ptr = p.get("def_vec", ptr);
+
+                amgcl::precondition(ptr,
+                        "Error in subdomain_deflation parameters: "
+                        "def_vec is not set");
+
+                def_vec = *static_cast<boost::function<double(ptrdiff_t, unsigned)>*>(ptr);
+
+                AMGCL_PARAMS_CHECK(p, (precond)(solver)(direct_solver)(num_def_vec)(def_vec));
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, precond);
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, solver);
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, direct_solver);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, num_def_vec);
             }
         };
 
@@ -112,16 +128,15 @@ class subdomain_deflation {
         typedef typename Backend::matrix     matrix;
         typedef typename Backend::vector     vector;
 
-        template <class Matrix, class DeflationVectors>
+        template <class Matrix>
         subdomain_deflation(
                 MPI_Comm mpi_comm,
                 const Matrix &Astrip,
-                const DeflationVectors &def_vec,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
                 )
         : comm(mpi_comm),
-          nrows(backend::rows(Astrip)), ndv(def_vec.dim()),
+          nrows(backend::rows(Astrip)), ndv(prm.num_def_vec),
           dtype( datatype<value_type>() ), dv_start(comm.size + 1, 0),
           Z( ndv ), master_rank(0),
           q( Backend::create_vector(nrows, bprm) )
@@ -158,7 +173,7 @@ class subdomain_deflation {
                 std::vector<value_type> z(nrows);
                 for(int j = 0; j < ndv; ++j) {
                     for(ptrdiff_t i = 0; i < nrows; ++i)
-                        z[i] = def_vec(i, j);
+                        z[i] = prm.def_vec(i, j);
                     Z[j] = Backend::copy_vector(z, bprm);
                 }
             }
@@ -246,10 +261,10 @@ class subdomain_deflation {
                             if (marker[k] < az_row_beg) {
                                 marker[k] = az_row_end;
                                 az->col[az_row_end] = k;
-                                az->val[az_row_end] = v * def_vec(loc_c, j);
+                                az->val[az_row_end] = v * prm.def_vec(loc_c, j);
                                 ++az_row_end;
                             } else {
-                                az->val[marker[k]] += v * def_vec(loc_c, j);
+                                az->val[marker[k]] += v * prm.def_vec(loc_c, j);
                             }
                         }
                     } else {
@@ -308,7 +323,7 @@ class subdomain_deflation {
 
             for(size_t i = 0, k = 0; i < A->send.col.size(); ++i)
                 for(ptrdiff_t j = 0; j < ndv; ++j, ++k)
-                    zsend[k] = def_vec(A->send.col[i], j);
+                    zsend[k] = prm.def_vec(A->send.col[i], j);
 
             for(size_t i = 0; i < A->send.nbr.size(); ++i)
                 MPI_Isend(
@@ -420,7 +435,7 @@ class subdomain_deflation {
                     value_type v = a.value();
 
                     for(ptrdiff_t j = 0; j < ndv; ++j)
-                        erow[j][c] += v * def_vec(i, j);
+                        erow[j][c] += v * prm.def_vec(i, j);
                 }
             }
 

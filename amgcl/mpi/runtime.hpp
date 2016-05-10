@@ -165,7 +165,7 @@ inline void process_sdd(
     }
 }
 
-template <class Backend, class Matrix, class DefVec>
+template <class Backend, class Matrix>
 struct sdd_create {
     typedef boost::property_tree::ptree params;
     typedef typename Backend::params backend_params;
@@ -175,20 +175,19 @@ struct sdd_create {
     MPI_Comm comm;
 
     const Matrix &A;
-    const DefVec &def_vec;
     const params &prm;
     const backend_params &bprm;
 
     sdd_create(
             void * &handle, MPI_Comm comm, const Matrix &A,
-            const DefVec &def_vec, const params &prm, const backend_params &bprm
+            const params &prm, const backend_params &bprm
             )
-        : handle(handle), comm(comm), A(A), def_vec(def_vec), prm(prm), bprm(bprm)
+        : handle(handle), comm(comm), A(A), prm(prm), bprm(bprm)
     {}
 
     template <class SDD>
     void process() const {
-        handle = static_cast<void*>( new SDD(comm, A, def_vec, prm, bprm) );
+        handle = static_cast<void*>( new SDD(comm, A, prm, bprm) );
     }
 };
 
@@ -251,9 +250,10 @@ class subdomain_deflation : boost::noncopyable {
         typedef typename Backend::value_type value_type;
         typedef boost::property_tree::ptree params;
 
-        template <class Matrix, class DefVec>
-        subdomain_deflation(MPI_Comm comm, const Matrix &A, const DefVec &def_vec,
-                const params &prm = params(), const backend_params &bprm = backend_params()
+        template <class Matrix>
+        subdomain_deflation(MPI_Comm comm, const Matrix &A,
+                const params &prm = params(),
+                const backend_params &bprm = backend_params()
                 )
             : iterative_solver(prm.get("solver.type", amgcl::runtime::solver::bicgstabl)),
               direct_solver(prm.get("direct_solver.type",
@@ -268,8 +268,8 @@ class subdomain_deflation : boost::noncopyable {
             runtime::mpi::detail::process_sdd<LocalPrecond>(
                     iterative_solver,
                     direct_solver,
-                    runtime::mpi::detail::sdd_create<Backend, Matrix, DefVec>(
-                        handle, comm, A, def_vec, prm, bprm
+                    runtime::mpi::detail::sdd_create<Backend, Matrix>(
+                        handle, comm, A, prm, bprm
                         )
                     );
         }

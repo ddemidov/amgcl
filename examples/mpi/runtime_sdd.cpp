@@ -31,18 +31,12 @@ namespace amgcl {
     profiler<> prof;
 }
 
-struct deflation {
-    virtual size_t dim() const = 0;
-    virtual double operator()(ptrdiff_t i, unsigned j) const = 0;
-    virtual ~deflation() {}
-};
-
-struct constant_deflation : public deflation {
+struct constant_deflation {
     size_t dim() const { return 1; }
     double operator()(ptrdiff_t i, unsigned j) const { return 1.0; }
 };
 
-struct linear_deflation : public deflation {
+struct linear_deflation {
     std::vector<double> x;
     std::vector<double> y;
 
@@ -84,7 +78,7 @@ struct linear_deflation : public deflation {
     }
 };
 
-struct bilinear_deflation : public deflation {
+struct bilinear_deflation {
     size_t nv, chunk;
     std::vector<double> v;
 
@@ -151,7 +145,7 @@ struct bilinear_deflation : public deflation {
     }
 };
 
-struct mba_deflation : public deflation {
+struct mba_deflation {
     size_t chunk, nv;
     std::vector<double> v;
 
@@ -231,7 +225,7 @@ struct mba_deflation : public deflation {
     }
 };
 
-struct harmonic_deflation : public deflation {
+struct harmonic_deflation {
     size_t nv, chunk;
     std::vector<double> v;
 
@@ -512,20 +506,30 @@ int main(int argc, char *argv[]) {
     renumbering renum(part, domain);
 
     prof.tic("deflation");
-    boost::shared_ptr<deflation> def;
+    boost::function<double(ptrdiff_t,unsigned)> def_vec;
 
-    if (deflation_type == "constant")
-        def.reset(new constant_deflation());
-    else if (deflation_type == "linear")
-        def.reset(new linear_deflation(chunk, lo, hi));
-    else if (deflation_type == "bilinear")
-        def.reset(new bilinear_deflation(n, chunk, lo, hi));
-    else if (deflation_type == "mba")
-        def.reset(new mba_deflation(n, chunk, lo, hi));
-    else if (deflation_type == "harmonic")
-        def.reset(new harmonic_deflation(n, chunk, lo, hi));
-    else
+    if (deflation_type == "constant") {
+        prm.put("num_def_vec", 1);
+        def_vec = constant_deflation();
+    } else if (deflation_type == "linear") {
+        prm.put("num_def_vec", 3);
+        def_vec = linear_deflation(chunk, lo, hi);
+    } else if (deflation_type == "bilinear") {
+        bilinear_deflation bld(n, chunk, lo, hi);
+        prm.put("num_def_vec", bld.dim());
+        def_vec = bld;
+    } else if (deflation_type == "mba") {
+        mba_deflation mba(n, chunk, lo, hi);
+        prm.put("num_def_vec", mba.dim());
+        def_vec = mba;
+    } else if (deflation_type == "harmonic") {
+        harmonic_deflation hd(n, chunk, lo, hi);
+        prm.put("num_def_vec", hd.dim());
+        def_vec = hd;
+    } else {
         throw std::runtime_error("Unsupported deflation type");
+    }
+    prm.put("def_vec", &def_vec);
     prof.toc("deflation");
 
     prof.tic("assemble");
@@ -641,7 +645,7 @@ int main(int argc, char *argv[]) {
                 >
             SDD;
 
-        SDD solve(world, boost::tie(chunk, ptr, col, val), *def, prm);
+        SDD solve(world, boost::tie(chunk, ptr, col, val), prm);
         tm_setup = prof.toc("setup");
 
         prof.tic("solve");
@@ -658,7 +662,7 @@ int main(int argc, char *argv[]) {
                 >
             SDD;
 
-        SDD solve(world, boost::tie(chunk, ptr, col, val), *def, prm);
+        SDD solve(world, boost::tie(chunk, ptr, col, val), prm);
         tm_setup = prof.toc("setup");
 
         prof.tic("solve");

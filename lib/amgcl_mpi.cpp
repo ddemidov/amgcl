@@ -48,6 +48,11 @@ amgclHandle STDCALL amgcl_mpi_create(
         amgclHandle          params
         )
 {
+    boost::function<double(ptrdiff_t, unsigned)> dv = deflation_vectors(n_def_vec, def_vec_func, def_vec_data);
+    boost::property_tree::ptree prm = *static_cast<Params*>(params);
+    prm.put("num_def_vec", n_def_vec);
+    prm.put("def_vec",     &dv);
+
     return static_cast<amgclHandle>(
             new Solver(
                 comm,
@@ -57,8 +62,7 @@ amgclHandle STDCALL amgcl_mpi_create(
                     boost::make_iterator_range(col, col + ptr[n]),
                     boost::make_iterator_range(val, val + ptr[n])
                     ),
-                deflation_vectors(n_def_vec, def_vec_func, def_vec_data),
-                *static_cast<Params*>(params)
+                prm
                 )
             );
 }

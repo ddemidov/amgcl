@@ -266,6 +266,10 @@ int main(int argc, char *argv[]) {
     size_t iters;
     double resid, tm_setup, tm_solve;
 
+    boost::function<double(ptrdiff_t, unsigned)> def_vec = boost::cref(def);
+    prm.put("num_def_vec", def.dim());
+    prm.put("def_vec",     &def_vec);
+
     if (just_relax) {
         prm.put("precond.type", relaxation);
 
@@ -276,7 +280,7 @@ int main(int argc, char *argv[]) {
                 >
             SDD;
 
-        SDD solve(world, boost::tie(chunk, ptr, col, val), def, prm);
+        SDD solve(world, boost::tie(chunk, ptr, col, val), prm);
         tm_setup = prof.toc("setup");
 
         prof.tic("solve");
@@ -293,7 +297,7 @@ int main(int argc, char *argv[]) {
                 >
             SDD;
 
-        SDD solve(world, boost::tie(chunk, ptr, col, val), def, prm);
+        SDD solve(world, boost::tie(chunk, ptr, col, val), prm);
         tm_setup = prof.toc("setup");
 
         prof.tic("solve");
