@@ -5,6 +5,7 @@
 
 #include <amgcl/runtime.hpp>
 #include <amgcl/mpi/make_solver.hpp>
+#include <amgcl/mpi/direct_solver.hpp>
 #include <amgcl/mpi/subdomain_deflation.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
@@ -16,7 +17,10 @@ typedef amgcl::backend::builtin<double>                   Backend;
 typedef boost::property_tree::ptree                       Params;
 
 typedef amgcl::mpi::make_solver<
-    amgcl::mpi::subdomain_deflation< amgcl::runtime::amg<Backend> >,
+    amgcl::mpi::subdomain_deflation<
+        amgcl::runtime::amg<Backend>,
+        amgcl::runtime::mpi::direct_solver<double>
+        >,
     amgcl::runtime::iterative_solver
     > Solver;
 

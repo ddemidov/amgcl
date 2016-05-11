@@ -67,12 +67,27 @@ class PaStiX {
                 ), "Unsupported value type for PaStiX solver"
                 );
 
-        typedef amgcl::detail::empty_params params;
+        struct params {
+            int max_rows_per_process;
+
+            params()
+                : max_rows_per_process(50000)
+            {}
+
+            params(const boost::property_tree::ptree &p)
+                : AMGCL_PARAMS_IMPORT_VALUE(p, max_rows_per_process)
+            {
+                AMGCL_PARAMS_CHECK(p, (max_rows_per_process))
+            }
+
+            void get(boost::property_tree::ptree &p, const std::string &path) const {
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, max_rows_per_process);
+            }
+        };
 
         /// The number of processes optimal for the given problem size.
-        static int comm_size(int n_global_rows) {
-            const int dofs_per_process = 50000;
-            return (n_global_rows + dofs_per_process - 1) / dofs_per_process;
+        static int comm_size(int n_global_rows, const params &prm = params()) {
+            return (n_global_rows + prm.max_rows_per_process - 1) / prm.max_rows_per_process;
         }
 
         /// Constructor.

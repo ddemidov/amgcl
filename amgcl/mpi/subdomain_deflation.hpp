@@ -360,7 +360,7 @@ class subdomain_deflation {
             /* Build deflated matrix E. */
             TIC("assemble E");
             // Who is responsible for solution of coarse problem
-            int nmasters = std::min(comm.size, DirectSolver::comm_size(nz));
+            int nmasters = std::min(comm.size, DirectSolver::comm_size(nz, prm.direct_solver));
             int nslaves  = (comm.size + nmasters - 1) / nmasters;
             int cgroup_beg = 0, cgroup_end = 0;
             std::vector<int> slaves(nmasters + 1, 0);
