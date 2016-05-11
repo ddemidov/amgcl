@@ -68,11 +68,7 @@ struct eigen {
     struct provides_row_iterator : boost::true_type {};
 
     /// Backend parameters.
-    struct params {
-        params() {}
-        params(const boost::property_tree::ptree&) {}
-        void get(boost::property_tree::ptree&, const std::string&) const {}
-    };
+    typedef amgcl::detail::empty_params params;
 
     static std::string name() { return "eigen"; }
 

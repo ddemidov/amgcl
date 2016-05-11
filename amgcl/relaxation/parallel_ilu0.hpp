@@ -77,7 +77,9 @@ struct parallel_ilu0 {
             : AMGCL_PARAMS_IMPORT_VALUE(p, factor_sweeps)
             , AMGCL_PARAMS_IMPORT_VALUE(p, jacobi_iters)
             , AMGCL_PARAMS_IMPORT_VALUE(p, damping)
-        {}
+        {
+            AMGCL_PARAMS_CHECK(p, (factor_sweeps)(jacobi_iters)(damping));
+        }
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {
             AMGCL_PARAMS_EXPORT_VALUE(p, path, factor_sweeps);

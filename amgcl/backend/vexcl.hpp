@@ -104,6 +104,7 @@ struct vexcl {
             std::vector<vex::backend::command_queue> *ptr = 0;
             ptr = p.get("q", ptr);
             if (ptr) q = *ptr;
+            AMGCL_PARAMS_CHECK(p, (q));
         }
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {

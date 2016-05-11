@@ -96,6 +96,8 @@ class schur_complement {
                         );
 
                 pmask.assign(static_cast<char*>(pm), static_cast<char*>(pm) + n);
+
+                AMGCL_PARAMS_CHECK(p, (usolver)(psolver)(pmask)(pmask_size));
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path = "") const

@@ -53,11 +53,7 @@ struct spai0 {
 
     typedef typename math::scalar_of<value_type>::type scalar_type;
     /// Relaxation parameters.
-    struct params {
-        params() {}
-        params(const boost::property_tree::ptree&) {}
-        void get(boost::property_tree::ptree&, const std::string&) const {}
-    };
+    typedef amgcl::detail::empty_params params;
 
     /// \copydoc amgcl::relaxation::damped_jacobi::damped_jacobi
     template <class Matrix>

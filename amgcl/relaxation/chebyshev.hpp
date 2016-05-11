@@ -70,7 +70,9 @@ class chebyshev {
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_VALUE(p, degree),
                   AMGCL_PARAMS_IMPORT_VALUE(p, lower)
-            {}
+            {
+                AMGCL_PARAMS_CHECK(p, (degree)(lower));
+            }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, degree);

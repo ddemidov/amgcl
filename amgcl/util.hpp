@@ -31,10 +31,14 @@ THE SOFTWARE.
  * \brief  Various utilities.
  */
 
+#include <iostream>
+#include <set>
 #include <limits>
 #include <stdexcept>
 #include <boost/io/ios_state.hpp>
 #include <boost/property_tree/ptree.hpp>
+#include <boost/preprocessor/stringize.hpp>
+#include <boost/preprocessor/seq/for_each.hpp>
 
 /* Performance measurement macros
  *
@@ -74,6 +78,34 @@ namespace amgcl { extern profiler<> prof; }
 #define AMGCL_PARAMS_EXPORT_CHILD(p, path, name)                               \
     name.get(p, std::string(path) + #name + ".")
 
+#define AMGCL_PARAMS_CHECK_LOOP(z, data, name)                                 \
+    defprm.insert(BOOST_PP_STRINGIZE(name));
+
+#if defined(AMGCL_CHECK_PARAMS_STRICT)
+
+#define AMGCL_PARAMS_CHECK(p, names)                                           \
+    std::set<std::string> defprm;                                              \
+    BOOST_PP_SEQ_FOR_EACH(AMGCL_PARAMS_CHECK_LOOP, ~, names)                   \
+    for(boost::property_tree::ptree::const_iterator v = p.begin(), e = p.end(); v != e; ++v) \
+        if (!defprm.count(v->first))                                           \
+            amgcl::precondition(false, "AMGCL: unused parameter " + v->first);
+
+#elif defined(AMGCL_CHECK_PARAMS_ENABLE)
+
+#define AMGCL_PARAMS_CHECK(p, names)                                           \
+    std::set<std::string> defprm;                                              \
+    BOOST_PP_SEQ_FOR_EACH(AMGCL_PARAMS_CHECK_LOOP, ~, names)                   \
+    for(boost::property_tree::ptree::const_iterator v = p.begin(), e = p.end(); v != e; ++v) \
+        if (!defprm.count(v->first))                                           \
+            std::cerr << "AMGCL WARNING: unused parameter "                    \
+                      << v->first << std::endl
+
+#else
+
+#define AMGCL_PARAMS_CHECK(p, names)
+
+#endif
+
 namespace amgcl {
 
 namespace detail {
@@ -82,6 +114,14 @@ inline const boost::property_tree::ptree& empty_ptree() {
     static const boost::property_tree::ptree p;
     return p;
 }
+
+struct empty_params {
+    empty_params() {}
+    empty_params(const boost::property_tree::ptree &p) {
+        AMGCL_PARAMS_CHECK(p, );
+    }
+    void get(boost::property_tree::ptree&, const std::string&) const {}
+};
 
 template <class T>
 T eps(size_t n) {

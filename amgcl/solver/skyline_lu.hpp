@@ -200,11 +200,7 @@ class skyline_lu {
         typedef typename math::scalar_of<value_type>::type scalar_type;
         typedef typename math::rhs_of<value_type>::type    rhs_type;
 
-        struct params {
-            params() {}
-            params(const boost::property_tree::ptree&) {}
-            void get(boost::property_tree::ptree&, const std::string&) const {}
-        };
+        typedef amgcl::detail::empty_params params;
 
         static size_t coarse_enough() { return 5000; }
 

@@ -102,6 +102,8 @@ class cpr_drs {
                             static_cast<double*>(ptr),
                             static_cast<double*>(ptr) + n);
                 }
+
+                AMGCL_PARAMS_CHECK(p, (pprecond)(sprecond)(block_size)(active_rows)(eps_dd)(eps_ps)(weights)(weights_size));
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path = "") const

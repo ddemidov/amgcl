@@ -336,11 +336,7 @@ struct builtin {
     typedef solver::skyline_lu<value_type> direct_solver;
 
     /// The backend has no parameters.
-    struct params {
-        params() {}
-        params(const boost::property_tree::ptree&) {}
-        void get(boost::property_tree::ptree&, const std::string&) const {}
-    };
+    typedef amgcl::detail::empty_params params;
 
     static std::string name() { return "builtin"; }
 

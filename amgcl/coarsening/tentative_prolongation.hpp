@@ -103,6 +103,8 @@ struct nullspace_params {
                     "cols > 0, but B is empty"
                     );
         }
+
+        AMGCL_PARAMS_CHECK(p, (cols)(rows)(B));
     }
 
     void get(boost::property_tree::ptree&, const std::string&) const {}

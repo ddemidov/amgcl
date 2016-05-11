@@ -55,7 +55,9 @@ struct ilu0< backend::cuda<real> > {
 
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, damping)
-        {}
+        {
+            AMGCL_PARAMS_CHECK(p, (damping));
+        }
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {
             AMGCL_PARAMS_EXPORT_VALUE(p, path, damping);

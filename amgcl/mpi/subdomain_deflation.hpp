@@ -123,7 +123,9 @@ class subdomain_deflation {
                 : AMGCL_PARAMS_IMPORT_CHILD(p, precond),
                   AMGCL_PARAMS_IMPORT_CHILD(p, solver),
                   AMGCL_PARAMS_IMPORT_CHILD(p, direct_solver)
-            {}
+            {
+                AMGCL_PARAMS_CHECK(p, (precond)(solver)(direct_solver));
+            }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, precond);

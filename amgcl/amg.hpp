@@ -122,10 +122,7 @@ class amg {
 
             params() :
                 coarse_enough( Backend::direct_solver::coarse_enough() ),
-                npre         (   1 ),
-                npost        (   1 ),
-                ncycle       (   1 ),
-                pre_cycles   (   1 )
+                npre(1), npost(1), ncycle(1), pre_cycles(1)
             {}
 
             params(const boost::property_tree::ptree &p)
@@ -136,7 +133,9 @@ class amg {
                   AMGCL_PARAMS_IMPORT_VALUE(p, npost),
                   AMGCL_PARAMS_IMPORT_VALUE(p, ncycle),
                   AMGCL_PARAMS_IMPORT_VALUE(p, pre_cycles)
-            {}
+            {
+                AMGCL_PARAMS_CHECK(p, (coarsening)(relax)(coarse_enough)(npre)(npost)(ncycle)(pre_cycles));
+            }
 
             void get(
                     boost::property_tree::ptree &p,

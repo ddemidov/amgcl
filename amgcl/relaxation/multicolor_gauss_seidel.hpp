@@ -120,11 +120,7 @@ namespace relaxation {
 
 template <class Backend>
 struct multicolor_gauss_seidel {
-    struct params {
-        params() {}
-        params(const boost::property_tree::ptree&) {}
-        void get(boost::property_tree::ptree&, const std::string&) const {}
-    };
+    typedef amgcl::detail::empty_params params;
 
     template <class Matrix>
     multicolor_gauss_seidel(
