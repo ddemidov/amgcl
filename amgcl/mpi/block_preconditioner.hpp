@@ -68,7 +68,7 @@ class block_preconditioner {
             typedef backend::crs<value_type> build_matrix;
             typedef typename backend::row_iterator<Matrix>::type row_iterator;
 
-            const ptrdiff_t n = backend::rows(Astrip);
+            ptrdiff_t n = backend::rows(Astrip);
 
             // Get sizes of each domain in comm.
             std::vector<ptrdiff_t> domain(comm.size + 1, 0);

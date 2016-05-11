@@ -176,7 +176,7 @@ class cpr {
                 for(ptrdiff_t ip = 0; ip < static_cast<ptrdiff_t>(np); ++ip) {
                     ptrdiff_t ik = ip * B;
                     bool      done = true;
-                    ptrdiff_t cur_col;
+                    ptrdiff_t cur_col = 0;
 
                     k.clear();
                     for(int i = 0; i < B; ++i) {
