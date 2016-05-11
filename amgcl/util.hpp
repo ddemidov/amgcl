@@ -66,6 +66,15 @@ namespace amgcl { extern profiler<> prof; }
               << std::setw(15) << std::setprecision(8) << std::scientific      \
               << (x) << std::endl
 
+namespace amgcl {
+
+/// Throws \p message if \p condition is not true.
+template <class Condition, class Message>
+void precondition(const Condition &condition, const Message &message) {
+    if ( !static_cast<bool>(condition) )
+        throw std::runtime_error(message);
+}
+
 #define AMGCL_PARAMS_IMPORT_VALUE(p, name)                                     \
     name( p.get(#name, params().name) )
 
@@ -78,35 +87,27 @@ namespace amgcl { extern profiler<> prof; }
 #define AMGCL_PARAMS_EXPORT_CHILD(p, path, name)                               \
     name.get(p, std::string(path) + #name + ".")
 
-#define AMGCL_PARAMS_CHECK_LOOP(z, data, name)                                 \
-    defprm.insert(BOOST_PP_STRINGIZE(name));
-
-#if defined(AMGCL_CHECK_PARAMS_STRICT)
-
-#define AMGCL_PARAMS_CHECK(p, names)                                           \
-    std::set<std::string> defprm;                                              \
-    BOOST_PP_SEQ_FOR_EACH(AMGCL_PARAMS_CHECK_LOOP, ~, names)                   \
-    for(boost::property_tree::ptree::const_iterator v = p.begin(), e = p.end(); v != e; ++v) \
-        if (!defprm.count(v->first))                                           \
-            amgcl::precondition(false, "AMGCL: unused parameter " + v->first);
-
-#elif defined(AMGCL_CHECK_PARAMS_ENABLE)
-
-#define AMGCL_PARAMS_CHECK(p, names)                                           \
-    std::set<std::string> defprm;                                              \
-    BOOST_PP_SEQ_FOR_EACH(AMGCL_PARAMS_CHECK_LOOP, ~, names)                   \
-    for(boost::property_tree::ptree::const_iterator v = p.begin(), e = p.end(); v != e; ++v) \
-        if (!defprm.count(v->first))                                           \
-            std::cerr << "AMGCL WARNING: unused parameter "                    \
-                      << v->first << std::endl
-
-#else
-
-#define AMGCL_PARAMS_CHECK(p, names)
-
+// Missing parameter action
+#ifndef AMGCL_PARAM_MISSING
+#  define AMGCL_PARAM_MISSING(name) (void)0
 #endif
 
-namespace amgcl {
+// Unknown parameter action
+#ifndef AMGCL_PARAM_UNKNOWN
+#  define AMGCL_PARAM_UNKNOWN(name)                                            \
+      std::cerr << "AMGCL WARNING: unknown parameter " << name << std::endl
+#endif
+
+# define AMGCL_PARAMS_CHECK_LOOP(z, p, name)                                   \
+    defprm.insert(BOOST_PP_STRINGIZE(name));                                   \
+    if (!p.count(BOOST_PP_STRINGIZE(name)))                                    \
+        AMGCL_PARAM_MISSING(BOOST_PP_STRINGIZE(name));
+
+# define AMGCL_PARAMS_CHECK(p, names)                                          \
+    std::set<std::string> defprm;                                              \
+    BOOST_PP_SEQ_FOR_EACH(AMGCL_PARAMS_CHECK_LOOP, p, names)                   \
+    for(boost::property_tree::ptree::const_iterator v = p.begin(), e = p.end(); v != e; ++v) \
+        if (!defprm.count(v->first)) AMGCL_PARAM_UNKNOWN(v->first);
 
 namespace detail {
 
@@ -129,13 +130,6 @@ T eps(size_t n) {
 }
 
 } // namespace detail
-
-/// Throws \p message if \p condition is not true.
-template <class Condition, class Message>
-void precondition(const Condition &condition, const Message &message) {
-    if ( !static_cast<bool>(condition) )
-        throw std::runtime_error(message);
-}
 
 } // namespace amgcl
 
