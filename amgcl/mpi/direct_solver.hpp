@@ -31,6 +31,7 @@ THE SOFTWARE.
  * \brief  Runtime wrapper for distributed direct solvers.
  */
 
+#include <amgcl/util.hpp>
 #include <amgcl/mpi/skyline_lu.hpp>
 #ifdef AMGCL_HAVE_PASTIX
 #  include <amgcl/mpi/pastix.hpp>
@@ -120,7 +121,7 @@ class direct_solver {
                 )
             : solver(prm.get("type", dsolver::skyline_lu))
         {
-            if (!prm.erase("type")) AMGCL_PARAMS_MISSING("type");
+            if (!prm.erase("type")) AMGCL_PARAM_MISSING("type");
 
             switch (solver) {
                 case dsolver::skyline_lu:
