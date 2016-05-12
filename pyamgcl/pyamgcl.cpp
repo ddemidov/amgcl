@@ -63,8 +63,8 @@ struct make_solver {
         : n(ptr.num_elements() - 1)
     {
         boost::property_tree::ptree pt = make_ptree(prm);
-        pt.put("amg.coarsening.type", coarsening);
-        pt.put("amg.relaxation.type", relaxation);
+        pt.put("precond.coarsening.type", coarsening);
+        pt.put("precond.relax.type", relaxation);
         pt.put("solver.type",         solver);
 
         S = boost::make_shared<Solver>(boost::tie(n, ptr, col, val), pt);
@@ -142,7 +142,7 @@ struct make_preconditioner {
     {
         boost::property_tree::ptree pt = make_ptree(prm);
         pt.put("coarsening.type", coarsening);
-        pt.put("relaxation.type", relaxation);
+        pt.put("relax.type", relaxation);
 
         P = boost::make_shared<Preconditioner>(boost::tie(n, ptr, col, val), pt);
     }
