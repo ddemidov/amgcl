@@ -265,12 +265,14 @@ class as_preconditioner {
         template <class Matrix>
         as_preconditioner(
                 const Matrix &A,
-                const params &prm = params(),
+                params prm = params(),
                 const backend_params &bprm = backend_params()
                 )
             : relaxation(prm.get("type", runtime::relaxation::spai0)),
               handle(0)
         {
+            if (!prm.erase("type")) AMGCL_PARAM_MISSING("type");
+
             runtime::relaxation::detail::process_rap<Backend>(
                     relaxation,
                     runtime::relaxation::detail::rap_create<Backend, Matrix>(

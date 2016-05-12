@@ -116,10 +116,12 @@ class direct_solver {
                 const PRng &p_ptr,
                 const CRng &p_col,
                 const VRng &p_val,
-                const params &prm = params()
+                params prm = params()
                 )
             : solver(prm.get("type", dsolver::skyline_lu))
         {
+            if (!prm.erase("type")) AMGCL_PARAMS_MISSING("type");
+
             switch (solver) {
                 case dsolver::skyline_lu:
                     {

@@ -426,13 +426,25 @@ class amg : boost::noncopyable {
         template <class Matrix>
         amg(
                 const Matrix &A,
-                const params &prm = params(),
+                params prm = params(),
                 const backend_params &backend_prm = backend_params()
            )
           : coarsening(prm.get("coarsening.type", runtime::coarsening::smoothed_aggregation)),
-            relaxation(prm.get("relax.type", runtime::relaxation::spai0)),
+            relaxation(prm.get("relax.type",      runtime::relaxation::spai0)),
             handle(0)
         {
+            {
+                boost::property_tree::ptree::assoc_iterator c = prm.find("coarsening");
+                if (c != prm.not_found() && !c->second.erase("type"))
+                    AMGCL_PARAM_MISSING("coarsening.type");
+            }
+
+            {
+                boost::property_tree::ptree::assoc_iterator r = prm.find("relax");
+                if (r != prm.not_found() && !r->second.erase("type"))
+                    AMGCL_PARAM_MISSING("relax.type");
+            }
+
             runtime::detail::process_amg<Backend>(
                     coarsening, relaxation,
                     runtime::detail::amg_create<Backend, Matrix>(handle, A, prm, backend_prm)
@@ -712,17 +724,19 @@ class iterative_solver {
          */
         iterative_solver(
                 size_t n,
-                const params &solver_prm = params(),
-                const backend_params &backend_prm = backend_params(),
+                params prm = params(),
+                const backend_params &bprm = backend_params(),
                 const InnerProduct &inner_product = InnerProduct()
                 )
-            : solver(solver_prm.get("type", runtime::solver::bicgstab)),
+            : solver(prm.get("type", runtime::solver::bicgstab)),
               handle(0)
         {
+            if (!prm.erase("type")) AMGCL_PARAM_MISSING("type");
+
             runtime::detail::process_solver<Backend, InnerProduct>(
                     solver,
                     runtime::detail::solver_create<Backend, InnerProduct>(
-                        handle, n, solver_prm, backend_prm, inner_product
+                        handle, n, prm, bprm, inner_product
                         )
                     );
         }
