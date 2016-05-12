@@ -279,7 +279,7 @@ class subdomain_deflation {
             P = boost::make_shared<LocalPrecond>( *aloc, prm.local, bprm );
 
             // Create distributed matrix
-            A = boost::make_shared< distributed_matrix<backend_type> >(mpi_comm, P->system_matrix(), arem, bprm);
+            A = boost::make_shared<dmatrix>(mpi_comm, P->system_matrix(), arem, bprm);
 
             TIC("A*Z");
             /* Finish construction of AZ */
@@ -571,6 +571,8 @@ class subdomain_deflation {
         }
 
     private:
+        typedef distributed_matrix<matrix, backend_type> dmatrix;
+
         static const int tag_exc_vals = 2011;
         static const int tag_exc_dmat = 3011;
         static const int tag_exc_dvec = 4011;
@@ -581,7 +583,7 @@ class subdomain_deflation {
 
         MPI_Datatype dtype;
 
-        boost::shared_ptr< distributed_matrix<backend_type> > A;
+        boost::shared_ptr<dmatrix> A;
         boost::shared_ptr<LocalPrecond> P;
 
         mutable std::vector<value_type> df, dx, cf, cx;

@@ -55,7 +55,7 @@ class block_preconditioner {
         typedef typename backend_type::params  backend_params;
 
         typedef typename backend_type::value_type value_type;
-        typedef distributed_matrix<backend_type>  matrix;
+        typedef distributed_matrix<typename Precond::matrix, backend_type>  dmatrix;
 
         template <class Matrix>
         block_preconditioner(
@@ -132,10 +132,10 @@ class block_preconditioner {
             }
 
             P = boost::make_shared<Precond>(Aloc, prm, bprm);
-            A = boost::make_shared<matrix>(comm, P->system_matrix(), Arem, bprm);
+            A = boost::make_shared<dmatrix>(comm, P->system_matrix(), Arem, bprm);
         }
 
-        const matrix& system_matrix() const {
+        const dmatrix& system_matrix() const {
             return *A;
         }
 
@@ -157,7 +157,7 @@ class block_preconditioner {
     private:
         ptrdiff_t n;
         boost::shared_ptr<Precond> P;
-        boost::shared_ptr<matrix>  A;
+        boost::shared_ptr<dmatrix> A;
 };
 
 } // namespace mpi

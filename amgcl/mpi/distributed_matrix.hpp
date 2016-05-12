@@ -49,7 +49,7 @@ THE SOFTWARE.
 namespace amgcl {
 namespace mpi {
 
-template <class Backend>
+template <class LocalMatrix, class Backend>
 class distributed_matrix {
     public:
         typedef typename Backend::value_type value_type;
@@ -61,11 +61,11 @@ class distributed_matrix {
 
         distributed_matrix(
                 MPI_Comm mpi_comm,
-                const matrix &A_loc,
+                const LocalMatrix &A_loc,
                 boost::shared_ptr<build_matrix> a_rem,
                 const backend_params &bprm = backend_params()
                 )
-            : comm(mpi_comm), n(backend::rows(A_loc)), A_loc(A_loc),
+            : comm(mpi_comm), n(backend::rows(*a_rem)), A_loc(A_loc),
               comm_matrix(boost::extents[comm.size][comm.size])
         {
             // Get domain boundaries
@@ -219,7 +219,7 @@ class distributed_matrix {
 
         communicator comm;
         ptrdiff_t n;
-        const matrix &A_loc;
+        const LocalMatrix &A_loc;
 
         boost::multi_array<ptrdiff_t, 2> comm_matrix;
 
@@ -254,16 +254,16 @@ class distributed_matrix {
 
 namespace backend {
 
-template <class Backend, class Alpha, class Vec1, class Beta,  class Vec2>
-struct spmv_impl<Alpha, mpi::distributed_matrix<Backend>, Vec1, Beta, Vec2> {
-    static void apply(Alpha alpha, const mpi::distributed_matrix<Backend> &A, const Vec1 &x, Beta beta, Vec2 &y) {
+template <class LocalMatrix, class Backend, class Alpha, class Vec1, class Beta,  class Vec2>
+struct spmv_impl<Alpha, mpi::distributed_matrix<LocalMatrix, Backend>, Vec1, Beta, Vec2> {
+    static void apply(Alpha alpha, const mpi::distributed_matrix<LocalMatrix, Backend> &A, const Vec1 &x, Beta beta, Vec2 &y) {
         A.mul(alpha, x, beta, y);
     }
 };
 
-template <class Backend, class Vec1, class Vec2, class Vec3>
-struct residual_impl<mpi::distributed_matrix<Backend>, Vec1, Vec2, Vec3> {
-    static void apply(const Vec1 &rhs, const mpi::distributed_matrix<Backend> &A, const Vec2 &x, Vec3 &r) {
+template <class LocalMatrix, class Backend, class Vec1, class Vec2, class Vec3>
+struct residual_impl<mpi::distributed_matrix<LocalMatrix, Backend>, Vec1, Vec2, Vec3> {
+    static void apply(const Vec1 &rhs, const mpi::distributed_matrix<LocalMatrix, Backend> &A, const Vec2 &x, Vec3 &r) {
         A.residual(rhs, x, r);
     }
 };
