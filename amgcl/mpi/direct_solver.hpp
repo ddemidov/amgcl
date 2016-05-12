@@ -87,8 +87,9 @@ class direct_solver {
     public:
         typedef boost::property_tree::ptree params;
 
-        static int comm_size(int n_global_rows, const params &prm = params()) {
+        static int comm_size(int n_global_rows, params prm = params()) {
             dsolver::type s = prm.get("type", dsolver::skyline_lu);
+            if (!prm.erase("type")) AMGCL_PARAM_MISSING("type");
 
             switch (s) {
                 case dsolver::skyline_lu:
