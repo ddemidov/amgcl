@@ -100,14 +100,17 @@ void precondition(const Condition &condition, const Message &message) {
 
 # define AMGCL_PARAMS_CHECK_LOOP(z, p, name)                                   \
     defprm.insert(BOOST_PP_STRINGIZE(name));                                   \
-    if (!p.count(BOOST_PP_STRINGIZE(name)))                                    \
-        AMGCL_PARAM_MISSING(BOOST_PP_STRINGIZE(name));
+    if (!p.count(BOOST_PP_STRINGIZE(name))) {                                  \
+        AMGCL_PARAM_MISSING(BOOST_PP_STRINGIZE(name));                         \
+    }
 
 # define AMGCL_PARAMS_CHECK(p, names)                                          \
     std::set<std::string> defprm;                                              \
     BOOST_PP_SEQ_FOR_EACH(AMGCL_PARAMS_CHECK_LOOP, p, names)                   \
     for(boost::property_tree::ptree::const_iterator v = p.begin(), e = p.end(); v != e; ++v) \
-        if (!defprm.count(v->first)) AMGCL_PARAM_UNKNOWN(v->first);
+        if (!defprm.count(v->first)) {                                         \
+            AMGCL_PARAM_UNKNOWN(v->first);                                     \
+        }
 
 namespace detail {
 
