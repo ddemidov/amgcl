@@ -170,19 +170,19 @@ class schur_complement {
 
         template <class Alpha, class Vec1, class Beta, class Vec2>
         void spmv(Alpha alpha, const Vec1 &x, Beta beta, Vec2 &y) const {
-            // y = beta y + alpha S x, where S = Kpp - Kup Kuu^-1 Kpu
+            // y = beta y + alpha S x, where S = Kpp - Kpu Kuu^-1 Kup
             backend::spmv( alpha, *Kpp, x, beta, y);
 
-            backend::spmv(1, *Kup, x, 0, *tmp1);
-            backend::clear(*tmp2);
-            (*U)(*tmp1, *tmp2);
-            backend::spmv(-alpha, *Kpu, *tmp2, 1, y);
+            backend::spmv(1, *Kup, x, 0, *tmp);
+            backend::clear(*u);
+            (*U)(*tmp, *u);
+            backend::spmv(-alpha, *Kpu, *u, 1, y);
         }
     private:
         size_t n, np, nu;
 
         boost::shared_ptr<matrix> K, Kup, Kpu, Kpp, x2u, x2p, u2x, p2x;
-        boost::shared_ptr<vector> rhs_u, rhs_p, u, p, tmp1, tmp2;
+        boost::shared_ptr<vector> rhs_u, rhs_p, u, p, tmp;
 
         boost::shared_ptr<USolver> U;
         boost::shared_ptr<PSolver> P;
@@ -312,8 +312,7 @@ class schur_complement {
             u = backend_type::create_vector(nu, bprm);
             p = backend_type::create_vector(np, bprm);
 
-            tmp1 = backend_type::create_vector(nu, bprm);
-            tmp2 = backend_type::create_vector(nu, bprm);
+            tmp = backend_type::create_vector(nu, bprm);
 
             // Scatter/Gather matrices
             boost::shared_ptr<build_matrix> X2U = boost::make_shared<build_matrix>();
