@@ -28,7 +28,7 @@ THE SOFTWARE.
 /**
  * \file   amgcl/mpi/block_preconditioner.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
- * \brief  Distributed solver based on block preconditioning.
+ * \brief  Distributed block preconditioner.
  */
 
 #include <vector>
@@ -55,7 +55,8 @@ class block_preconditioner {
         typedef typename backend_type::params  backend_params;
 
         typedef typename backend_type::value_type value_type;
-        typedef distributed_matrix<typename Precond::matrix, backend_type>  dmatrix;
+        typedef typename backend_type::matrix     matrix;
+        typedef distributed_matrix<backend_type>  dmatrix;
 
         template <class Matrix>
         block_preconditioner(
@@ -131,12 +132,16 @@ class block_preconditioner {
                 }
             }
 
+            C = boost::make_shared< comm_pattern<backend_type> >(comm, n, Arem->col, bprm);
+            Arem->ncols = C->renumber(Arem->col);
+
+            this->Arem = backend_type::copy_matrix(Arem, bprm);
+
             P = boost::make_shared<Precond>(Aloc, prm, bprm);
-            A = boost::make_shared<dmatrix>(comm, P->system_matrix(), Arem, bprm);
         }
 
-        const dmatrix& system_matrix() const {
-            return *A;
+        const dmatrix system_matrix() const {
+            return dmatrix(*C, P->system_matrix(), *Arem);
         }
 
         template <class Vec1, class Vec2>
@@ -156,8 +161,9 @@ class block_preconditioner {
         void postprocess(const Vec1&, Vec2&) const { }
     private:
         ptrdiff_t n;
+        boost::shared_ptr< comm_pattern<backend_type> > C;
+        boost::shared_ptr<matrix> Arem;
         boost::shared_ptr<Precond> P;
-        boost::shared_ptr<dmatrix> A;
 };
 
 } // namespace mpi

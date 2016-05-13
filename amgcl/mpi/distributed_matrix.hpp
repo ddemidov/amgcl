@@ -49,24 +49,39 @@ THE SOFTWARE.
 namespace amgcl {
 namespace mpi {
 
-template <class LocalMatrix, class Backend>
-class distributed_matrix {
+template <class Backend>
+class comm_pattern {
     public:
         typedef typename Backend::value_type value_type;
         typedef typename Backend::matrix matrix;
         typedef typename Backend::vector vector;
         typedef typename Backend::params backend_params;
 
-        typedef backend::crs<value_type> build_matrix;
+        struct {
+            std::vector<ptrdiff_t> nbr;
+            std::vector<ptrdiff_t> ptr;
+            std::vector<ptrdiff_t> col;
 
-        distributed_matrix(
+            mutable std::vector<value_type>  val;
+            mutable std::vector<MPI_Request> req;
+        } send;
+
+        struct {
+            std::vector<ptrdiff_t> nbr;
+            std::vector<ptrdiff_t> ptr;
+
+            mutable std::vector<value_type>  val;
+            mutable std::vector<MPI_Request> req;
+        } recv;
+
+        boost::shared_ptr<vector> x_rem;
+
+        comm_pattern(
                 MPI_Comm mpi_comm,
-                const LocalMatrix &A_loc,
-                boost::shared_ptr<build_matrix> a_rem,
+                ptrdiff_t n,
+                const std::vector<ptrdiff_t> cols,
                 const backend_params &bprm = backend_params()
-                )
-            : comm(mpi_comm), n(backend::rows(*a_rem)), A_loc(A_loc),
-              comm_matrix(boost::extents[comm.size][comm.size])
+                ) : comm(mpi_comm)
         {
             // Get domain boundaries
             std::vector<ptrdiff_t> domain(comm.size + 1, 0);
@@ -77,28 +92,26 @@ class distributed_matrix {
 
             // Renumber remote columns,
             // find out how many remote values we need from each process.
-            std::vector<ptrdiff_t> rem_cols = a_rem->col;  // Unique ids of remote columns
+            std::vector<ptrdiff_t> rem_cols = cols;        // Unique ids of remote columns
             std::vector<ptrdiff_t> num_recv(comm.size, 0); // Number of columns to receive from each process
-            {
-                std::sort(rem_cols.begin(), rem_cols.end());
-                rem_cols.erase(std::unique(rem_cols.begin(), rem_cols.end()), rem_cols.end());
-                ptrdiff_t ncols = a_rem->ncols = rem_cols.size();
 
-                boost::unordered_map<ptrdiff_t, ptrdiff_t> r2l(2 * a_rem->ncols);
-                ptrdiff_t cur_domain = 0;
-                for(ptrdiff_t i = 0; i < ncols; ++i) {
-                    r2l.insert(r2l.end(), std::make_pair(rem_cols[i], i));
+            std::sort(rem_cols.begin(), rem_cols.end());
+            rem_cols.erase(std::unique(rem_cols.begin(), rem_cols.end()), rem_cols.end());
 
-                    while(rem_cols[i] >= domain[cur_domain + 1]) ++cur_domain;
-                    ++num_recv[cur_domain];
-                }
+            ptrdiff_t ncols = rem_cols.size();
 
-                for(ptrdiff_t i = 0, nnz = a_rem->ptr.back(); i < nnz; ++i)
-                    a_rem->col[i] = r2l[a_rem->col[i]];
+            idx.reserve(2 * ncols);
+
+            for(ptrdiff_t i = 0, cur_domain = 0; i < ncols; ++i) {
+                idx.insert(idx.end(), std::make_pair(rem_cols[i], i));
+
+                while(rem_cols[i] >= domain[cur_domain + 1]) ++cur_domain;
+                ++num_recv[cur_domain];
             }
 
             // Setup communication pattern.
             // Find out who sends to whom and how many.
+            boost::multi_array<ptrdiff_t, 2> comm_matrix(boost::extents[comm.size][comm.size]);
             MPI_Allgather(&num_recv[0], comm.size, datatype<ptrdiff_t>(),
                     comm_matrix.data(), comm.size, datatype<ptrdiff_t>(), comm);
 
@@ -122,7 +135,7 @@ class distributed_matrix {
             send.ptr.push_back(0);
 
             recv.nbr.reserve(rnbr);
-            recv.val.resize(a_rem->ncols);
+            recv.val.resize(ncols);
             recv.req.resize(rnbr);
             recv.ptr.reserve(rnbr + 1);
             recv.ptr.push_back(0);
@@ -158,74 +171,24 @@ class distributed_matrix {
             BOOST_FOREACH(ptrdiff_t &c, send.col) c -= loc_beg;
 
             // Create backend structures
-            A_rem    = Backend::copy_matrix(a_rem, bprm);
-            rem_vals = Backend::create_vector(a_rem->ncols, bprm);
-            gather   = boost::make_shared<typename Backend::gather>(n, send.col, bprm);
+            x_rem  = Backend::create_vector(ncols, bprm);
+            gather = boost::make_shared<Gather>(n, send.col, bprm);
         }
 
-        template <class Vec1, class Vec2>
-        void mul(value_type alpha, const Vec1 &x, value_type beta, Vec2 &y) const {
-            start_exchange(x);
-
-            // Compute local part of the product.
-            backend::spmv(alpha, A_loc, x, beta, y);
-
-            // Compute remote part of the product.
-            finish_exchange();
-
-            if (!recv.val.empty()) {
-                backend::copy_to_backend(recv.val, *rem_vals);
-                backend::spmv(alpha, *A_rem, *rem_vals, 1, y);
-            }
-        }
-
-        template <class Vec1, class Vec2, class Vec3>
-        void residual(const Vec1 &f, const Vec2 &x, Vec3 &r) const {
-            start_exchange(x);
-            backend::residual(f, A_loc, x, r);
-
-            finish_exchange();
-
-            if (!recv.val.empty()) {
-                backend::copy_to_backend(recv.val, *rem_vals);
-                backend::spmv(-1, *A_rem, *rem_vals, 1, r);
-            }
+        size_t renumber(std::vector<ptrdiff_t> &col) {
+            BOOST_FOREACH(ptrdiff_t &c, col) c = idx[c];
+            return recv.val.size();
         }
 
         bool talks_to(int rank) const {
-            return comm_matrix[comm.rank][rank] || comm_matrix[rank][comm.rank];
+            return
+                std::binary_search(send.nbr.begin(), send.nbr.end(), rank) ||
+                std::binary_search(recv.nbr.begin(), recv.nbr.end(), rank);
         }
 
-        struct {
-            std::vector<ptrdiff_t> nbr;
-            std::vector<ptrdiff_t> ptr;
-            std::vector<ptrdiff_t> col;
-
-            mutable std::vector<value_type>  val;
-            mutable std::vector<MPI_Request> req;
-        } send;
-
-        struct {
-            std::vector<ptrdiff_t> nbr;
-            std::vector<ptrdiff_t> ptr;
-
-            mutable std::vector<value_type>  val;
-            mutable std::vector<MPI_Request> req;
-        } recv;
-
-    private:
-        static const int tag_exc_cols = 1001;
-        static const int tag_exc_vals = 2001;
-
-        communicator comm;
-        ptrdiff_t n;
-        const LocalMatrix &A_loc;
-
-        boost::multi_array<ptrdiff_t, 2> comm_matrix;
-
-        boost::shared_ptr<matrix> A_rem;
-        boost::shared_ptr<vector> rem_vals;
-        boost::shared_ptr<typename Backend::gather> gather;
+        bool needs_remote() const {
+            return !recv.val.empty();
+        }
 
         template <class Vector>
         void start_exchange(const Vector &x) const {
@@ -247,6 +210,65 @@ class distributed_matrix {
         void finish_exchange() const {
             MPI_Waitall(recv.req.size(), &recv.req[0], MPI_STATUSES_IGNORE);
             MPI_Waitall(send.req.size(), &send.req[0], MPI_STATUSES_IGNORE);
+
+            if (!recv.val.empty())
+                backend::copy_to_backend(recv.val, *x_rem);
+        }
+
+    private:
+        typedef typename Backend::gather Gather;
+
+        static const int tag_exc_cols = 1001;
+        static const int tag_exc_vals = 2001;
+
+        communicator comm;
+
+        boost::unordered_map<ptrdiff_t, ptrdiff_t> idx;
+
+        boost::shared_ptr<Gather> gather;
+};
+
+template <class Backend, class LocalMatrix = typename Backend::matrix, class RemoteMatrix = LocalMatrix>
+class distributed_matrix {
+    private:
+        const comm_pattern<Backend> &comm;
+        const LocalMatrix  &A_loc;
+        const RemoteMatrix &A_rem;
+
+    public:
+        typedef typename Backend::value_type value_type;
+
+        distributed_matrix(
+                const comm_pattern<Backend> &comm,
+                const LocalMatrix           &A_loc,
+                const RemoteMatrix          &A_rem
+                )
+            : comm(comm), A_loc(A_loc), A_rem(A_rem)
+        {}
+
+        template <class Vec1, class Vec2>
+        void mul(value_type alpha, const Vec1 &x, value_type beta, Vec2 &y) const {
+            comm.start_exchange(x);
+
+            // Compute local part of the product.
+            backend::spmv(alpha, A_loc, x, beta, y);
+
+            // Compute remote part of the product.
+            comm.finish_exchange();
+
+            if (comm.needs_remote())
+                backend::spmv(alpha, A_rem, *comm.x_rem, 1, y);
+        }
+
+        template <class Vec1, class Vec2, class Vec3>
+        void residual(const Vec1 &f, const Vec2 &x, Vec3 &r) const {
+            comm.start_exchange(x);
+            backend::residual(f, A_loc, x, r);
+
+            comm.finish_exchange();
+
+            if (comm.needs_remote())
+                backend::spmv(-1, A_rem, *comm.x_rem, 1, r);
         }
 };
 
@@ -254,16 +276,32 @@ class distributed_matrix {
 
 namespace backend {
 
-template <class LocalMatrix, class Backend, class Alpha, class Vec1, class Beta,  class Vec2>
-struct spmv_impl<Alpha, mpi::distributed_matrix<LocalMatrix, Backend>, Vec1, Beta, Vec2> {
-    static void apply(Alpha alpha, const mpi::distributed_matrix<LocalMatrix, Backend> &A, const Vec1 &x, Beta beta, Vec2 &y) {
+template <
+    class Backend, class LocalMatrix, class RemoteMatrix,
+    class Alpha, class Vec1, class Beta,  class Vec2
+    >
+struct spmv_impl<Alpha, mpi::distributed_matrix<Backend, LocalMatrix, RemoteMatrix>, Vec1, Beta, Vec2>
+{
+    static void apply(
+            Alpha alpha,
+            const mpi::distributed_matrix<Backend, LocalMatrix, RemoteMatrix> &A,
+            const Vec1 &x, Beta beta, Vec2 &y)
+    {
         A.mul(alpha, x, beta, y);
     }
 };
 
-template <class LocalMatrix, class Backend, class Vec1, class Vec2, class Vec3>
-struct residual_impl<mpi::distributed_matrix<LocalMatrix, Backend>, Vec1, Vec2, Vec3> {
-    static void apply(const Vec1 &rhs, const mpi::distributed_matrix<LocalMatrix, Backend> &A, const Vec2 &x, Vec3 &r) {
+template <
+    class Backend, class LocalMatrix, class RemoteMatrix,
+    class Vec1, class Vec2, class Vec3
+    >
+struct residual_impl<mpi::distributed_matrix<Backend, LocalMatrix, RemoteMatrix>, Vec1, Vec2, Vec3>
+{
+    static void apply(
+            const Vec1 &rhs,
+            const mpi::distributed_matrix<Backend, LocalMatrix, RemoteMatrix> &A,
+            const Vec2 &x, Vec3 &r)
+    {
         A.residual(rhs, x, r);
     }
 };
