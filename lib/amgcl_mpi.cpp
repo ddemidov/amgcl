@@ -4,7 +4,6 @@
 #include <boost/static_assert.hpp>
 
 #include <amgcl/runtime.hpp>
-#include <amgcl/mpi/make_solver.hpp>
 #include <amgcl/mpi/direct_solver.hpp>
 #include <amgcl/mpi/subdomain_deflation.hpp>
 #include <amgcl/backend/builtin.hpp>
@@ -16,12 +15,11 @@
 typedef amgcl::backend::builtin<double>                   Backend;
 typedef boost::property_tree::ptree                       Params;
 
-typedef amgcl::mpi::make_solver<
+typedef
     amgcl::mpi::subdomain_deflation<
         amgcl::runtime::amg<Backend>,
+        amgcl::runtime::iterative_solver,
         amgcl::runtime::mpi::direct_solver<double>
-        >,
-    amgcl::runtime::iterative_solver
     > Solver;
 
 //---------------------------------------------------------------------------
@@ -56,8 +54,8 @@ amgclHandle STDCALL amgcl_mpi_create(
 {
     boost::function<double(ptrdiff_t, unsigned)> dv = deflation_vectors(n_def_vec, def_vec_func, def_vec_data);
     boost::property_tree::ptree prm = *static_cast<Params*>(params);
-    prm.put("precond.num_def_vec", n_def_vec);
-    prm.put("precond.def_vec",     &dv);
+    prm.put("num_def_vec", n_def_vec);
+    prm.put("def_vec",     &dv);
 
     return static_cast<amgclHandle>(
             new Solver(

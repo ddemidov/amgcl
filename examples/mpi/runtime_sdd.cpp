@@ -20,7 +20,6 @@
 
 #include <amgcl/make_solver.hpp>
 #include <amgcl/runtime.hpp>
-#include <amgcl/mpi/make_solver.hpp>
 #include <amgcl/mpi/direct_solver.hpp>
 #include <amgcl/mpi/subdomain_deflation.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
@@ -478,8 +477,8 @@ int main(int argc, char *argv[]) {
     boost::property_tree::ptree prm;
     if (vm.count("params")) read_json(parameter_file, prm);
 
-    prm.put("solver.type", iterative_solver);
-    prm.put("precond.direct_solver.type", direct_solver);
+    prm.put("isolver.type", iterative_solver);
+    prm.put("dsolver.type", direct_solver);
 
     const ptrdiff_t n2 = n * n;
     const double hinv  = (n - 1);
@@ -533,8 +532,8 @@ int main(int argc, char *argv[]) {
         throw std::runtime_error("Unsupported deflation type");
     }
 
-    prm.put("precond.num_def_vec", ndv);
-    prm.put("precond.def_vec", &dv);
+    prm.put("num_def_vec", ndv);
+    prm.put("def_vec", &dv);
     prof.toc("deflation");
 
     prof.tic("assemble");
@@ -641,17 +640,15 @@ int main(int argc, char *argv[]) {
     double resid, tm_setup, tm_solve;
 
     if (just_relax) {
-        prm.put("precond.local.type", relaxation);
+        prm.put("local.type", relaxation);
 
         prof.tic("setup");
         typedef
-            amgcl::mpi::make_solver<
-                amgcl::mpi::subdomain_deflation<
-                    amgcl::runtime::relaxation::as_preconditioner< amgcl::backend::builtin<double> >,
-                    amgcl::runtime::mpi::direct_solver<double>
-                    >,
-                amgcl::runtime::iterative_solver
-                > SDD;
+            amgcl::mpi::subdomain_deflation<
+                amgcl::runtime::relaxation::as_preconditioner< amgcl::backend::builtin<double> >,
+                amgcl::runtime::iterative_solver,
+                amgcl::runtime::mpi::direct_solver<double>
+            > SDD;
 
         SDD solve(world, boost::tie(chunk, ptr, col, val), prm);
         tm_setup = prof.toc("setup");
@@ -660,18 +657,16 @@ int main(int argc, char *argv[]) {
         boost::tie(iters, resid) = solve(rhs, x);
         tm_solve = prof.toc("solve");
     } else {
-        prm.put("precond.local.coarsening.type", coarsening);
-        prm.put("precond.local.relax.type", relaxation);
+        prm.put("local.coarsening.type", coarsening);
+        prm.put("local.relax.type", relaxation);
 
         prof.tic("setup");
         typedef
-            amgcl::mpi::make_solver<
-                amgcl::mpi::subdomain_deflation<
-                    amgcl::runtime::amg< amgcl::backend::builtin<double> >,
-                    amgcl::runtime::mpi::direct_solver<double>
-                    >,
-                amgcl::runtime::iterative_solver
-                > SDD;
+            amgcl::mpi::subdomain_deflation<
+                amgcl::runtime::amg< amgcl::backend::builtin<double> >,
+                amgcl::runtime::iterative_solver,
+                amgcl::runtime::mpi::direct_solver<double>
+            > SDD;
 
         SDD solve(world, boost::tie(chunk, ptr, col, val), prm);
         tm_setup = prof.toc("setup");

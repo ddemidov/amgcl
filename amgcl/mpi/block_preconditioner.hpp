@@ -156,9 +156,6 @@ class block_preconditioner {
         {
             P->apply(rhs, x);
         }
-
-        template <class Vec1, class Vec2>
-        void postprocess(const Vec1&, Vec2&) const { }
     private:
         ptrdiff_t n;
         boost::shared_ptr< comm_pattern<backend_type> > C;

@@ -108,9 +108,7 @@ class make_solver {
 #endif
                 ) const
         {
-            boost::tuple<size_t, scalar_type> res = S(A, P, rhs, x);
-            P.postprocess(rhs, x);
-            return res;
+            return S(A, P, rhs, x);
         }
 
         template <class Vec1, class Vec2>
@@ -123,9 +121,7 @@ class make_solver {
 #endif
                 ) const
         {
-            boost::tuple<size_t, scalar_type> res = S(P, rhs, x);
-            P.postprocess(rhs, x);
-            return res;
+            return S(P, rhs, x);
         }
 
         template <class Vec1, class Vec2>

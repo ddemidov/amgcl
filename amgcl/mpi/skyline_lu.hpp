@@ -34,6 +34,8 @@ This is a wrapper around Skyline LU factorization solver that provides a
 distributed direct solver interface but always works sequentially.
 */
 
+#include <mpi.h>
+
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/solver/skyline_lu.hpp>
 
