@@ -54,7 +54,7 @@ class schur_complement {
                  typename PSolver::backend_type
                  >::value
             ),
-            "Backends for pressure and flow preconditioners should coinside!"
+            "Backends for pressure and flow preconditioners should coincide!"
             );
     public:
         typedef typename USolver::backend_type backend_type;
