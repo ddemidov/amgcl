@@ -72,10 +72,7 @@ class block_preconditioner {
             ptrdiff_t n = backend::rows(Astrip);
 
             // Get sizes of each domain in comm.
-            std::vector<ptrdiff_t> domain(comm.size + 1, 0);
-            MPI_Allgather(&n, 1, datatype<ptrdiff_t>(), &domain[1], 1, datatype<ptrdiff_t>(), comm);
-            boost::partial_sum(domain, domain.begin());
-
+            std::vector<ptrdiff_t> domain = mpi::exclusive_sum(comm, n);
             ptrdiff_t loc_beg = domain[comm.rank];
             ptrdiff_t loc_end = domain[comm.rank + 1];
 

@@ -32,8 +32,12 @@ THE SOFTWARE.
  * \brief  MPI utilities.
  */
 
-#include <mpi.h>
+#include <vector>
+#include <numeric>
+
 #include <boost/type_traits.hpp>
+
+#include <mpi.h>
 
 namespace amgcl {
 namespace mpi {
@@ -94,6 +98,15 @@ struct communicator {
         return comm;
     }
 };
+
+/// Exclusive sum over mpi communicator
+template <typename T>
+std::vector<T> exclusive_sum(communicator comm, T n) {
+    std::vector<T> v(comm.size + 1); v[0] = 0;
+    MPI_Allgather(&n, 1, datatype<T>(), &v[1], 1, datatype<T>(), comm);
+    std::partial_sum(v.begin(), v.end(), v.begin());
+    return v;
+}
 
 /// Communicator-wise condition checking.
 /**

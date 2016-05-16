@@ -118,9 +118,7 @@ class PaStiX {
               val(boost::begin(p_val), boost::end(p_val)),
               row(nrows), perm(nrows)
         {
-            std::vector<int> domain(comm.size + 1, 0);
-            MPI_Allgather(&nrows, 1, MPI_INT, &domain[1], 1, MPI_INT, comm);
-            boost::partial_sum(domain, domain.begin());
+            std::vector<int> domain = mpi::exclusive_sum(comm, nrows);
 
             boost::copy(
                     boost::irange(domain[comm.rank], domain[comm.rank + 1]),
