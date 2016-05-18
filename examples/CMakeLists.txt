@@ -30,8 +30,8 @@ target_link_libraries(block_crs ${Boost_LIBRARIES})
 add_executable(call_lib call_lib.cpp)
 target_link_libraries(call_lib ${Boost_LIBRARIES} amgcl)
 
-add_executable(schur_complement schur_complement.cpp)
-target_link_libraries(schur_complement ${Boost_LIBRARIES})
+add_executable(schur_pressure_correction schur_pressure_correction.cpp)
+target_link_libraries(schur_pressure_correction ${Boost_LIBRARIES})
 
 add_executable(cpr cpr.cpp)
 target_link_libraries(cpr ${Boost_LIBRARIES})

@@ -10,7 +10,7 @@
 
 #include <amgcl/make_solver.hpp>
 #include <amgcl/runtime.hpp>
-#include <amgcl/preconditioner/schur_complement.hpp>
+#include <amgcl/preconditioner/schur_pressure_correction.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/io/mm.hpp>
 #include <amgcl/io/binary.hpp>
@@ -41,7 +41,7 @@ void solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::propert
         > PSolver;
 
     amgcl::make_solver<
-        amgcl::preconditioner::schur_complement<USolver, PSolver>,
+        amgcl::preconditioner::schur_pressure_correction<USolver, PSolver>,
         amgcl::runtime::iterative_solver<Backend>
         > solve(K, prm);
 
