@@ -69,7 +69,7 @@ class pointwise_aggregates {
                 : plain_aggregates::params(p),
                   AMGCL_PARAMS_IMPORT_VALUE(p, block_size)
             {
-                AMGCL_PARAMS_CHECK(p, (block_size));
+                AMGCL_PARAMS_CHECK(p, (eps_strong)(block_size));
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
