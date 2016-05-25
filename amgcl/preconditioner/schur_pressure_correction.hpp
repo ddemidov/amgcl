@@ -172,7 +172,7 @@ class schur_pressure_correction {
         template <class Alpha, class Vec1, class Beta, class Vec2>
         void spmv(Alpha alpha, const Vec1 &x, Beta beta, Vec2 &y) const {
             // y = beta y + alpha S x, where S = Kpp - Kpu Kuu^-1 Kup
-            backend::spmv( alpha, *Kpp, x, beta, y);
+            backend::spmv( alpha, P->system_matrix(), x, beta, y);
 
             backend::spmv(1, *Kup, x, 0, *tmp);
             backend::clear(*u);
@@ -182,7 +182,7 @@ class schur_pressure_correction {
     private:
         size_t n, np, nu;
 
-        boost::shared_ptr<matrix> K, Kup, Kpu, Kpp, x2u, x2p, u2x, p2x;
+        boost::shared_ptr<matrix> K, Kup, Kpu, x2u, x2p, u2x, p2x;
         boost::shared_ptr<vector> rhs_u, rhs_p, u, p, tmp;
 
         boost::shared_ptr<USolver> U;
@@ -305,7 +305,6 @@ class schur_pressure_correction {
 
             this->Kup = backend_type::copy_matrix(Kup, bprm);
             this->Kpu = backend_type::copy_matrix(Kpu, bprm);
-            this->Kpp = backend_type::copy_matrix(Kpp, bprm);
 
             rhs_u = backend_type::create_vector(nu, bprm);
             rhs_p = backend_type::create_vector(np, bprm);
