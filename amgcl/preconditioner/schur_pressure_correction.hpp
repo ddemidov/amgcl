@@ -316,54 +316,54 @@ class schur_pressure_correction {
             tmp = backend_type::create_vector(nu, bprm);
 
             // Scatter/Gather matrices
-            boost::shared_ptr<build_matrix> X2U = boost::make_shared<build_matrix>();
-            boost::shared_ptr<build_matrix> X2P = boost::make_shared<build_matrix>();
-            boost::shared_ptr<build_matrix> U2X = boost::make_shared<build_matrix>();
-            boost::shared_ptr<build_matrix> P2X = boost::make_shared<build_matrix>();
+            boost::shared_ptr<build_matrix> x2u = boost::make_shared<build_matrix>();
+            boost::shared_ptr<build_matrix> x2p = boost::make_shared<build_matrix>();
+            boost::shared_ptr<build_matrix> u2x = boost::make_shared<build_matrix>();
+            boost::shared_ptr<build_matrix> p2x = boost::make_shared<build_matrix>();
 
-            boost::tie(X2U->nrows, X2U->ncols) = boost::make_tuple(nu, n);
-            boost::tie(X2P->nrows, X2P->ncols) = boost::make_tuple(np, n);
-            boost::tie(U2X->nrows, U2X->ncols) = boost::make_tuple(n, nu);
-            boost::tie(P2X->nrows, P2X->ncols) = boost::make_tuple(n, np);
+            boost::tie(x2u->nrows, x2u->ncols) = boost::make_tuple(nu, n);
+            boost::tie(x2p->nrows, x2p->ncols) = boost::make_tuple(np, n);
+            boost::tie(u2x->nrows, u2x->ncols) = boost::make_tuple(n, nu);
+            boost::tie(p2x->nrows, p2x->ncols) = boost::make_tuple(n, np);
 
-            X2U->ptr.reserve(nu+1); X2U->ptr.push_back(0);
-            X2P->ptr.reserve(np+1); X2P->ptr.push_back(0);
-            U2X->ptr.reserve(n +1); U2X->ptr.push_back(0);
-            P2X->ptr.reserve(n +1); P2X->ptr.push_back(0);
+            x2u->ptr.reserve(nu+1); x2u->ptr.push_back(0);
+            x2p->ptr.reserve(np+1); x2p->ptr.push_back(0);
+            u2x->ptr.reserve(n +1); u2x->ptr.push_back(0);
+            p2x->ptr.reserve(n +1); p2x->ptr.push_back(0);
 
-            X2U->col.reserve(nu);
-            X2P->col.reserve(np);
-            U2X->col.reserve(nu);
-            P2X->col.reserve(np);
+            x2u->col.reserve(nu);
+            x2p->col.reserve(np);
+            u2x->col.reserve(nu);
+            p2x->col.reserve(np);
 
-            X2U->val.resize(nu, 1.0);
-            X2P->val.resize(np, 1.0);
-            U2X->val.resize(nu, 1.0);
-            P2X->val.resize(np, 1.0);
+            x2u->val.resize(nu, 1.0);
+            x2p->val.resize(np, 1.0);
+            u2x->val.resize(nu, 1.0);
+            p2x->val.resize(np, 1.0);
 
             for(size_t i = 0; i < n; ++i) {
                 ptrdiff_t j = idx[i];
 
                 if (prm.pmask[i]) {
-                    X2P->col.push_back(i);
-                    X2P->ptr.push_back(X2P->col.size());
+                    x2p->col.push_back(i);
+                    x2p->ptr.push_back(x2p->col.size());
 
-                    P2X->col.push_back(j);
+                    p2x->col.push_back(j);
                 } else {
-                    X2U->col.push_back(i);
-                    X2U->ptr.push_back(X2U->col.size());
+                    x2u->col.push_back(i);
+                    x2u->ptr.push_back(x2u->col.size());
 
-                    U2X->col.push_back(j);
+                    u2x->col.push_back(j);
                 }
 
-                P2X->ptr.push_back(P2X->col.size());
-                U2X->ptr.push_back(U2X->col.size());
+                p2x->ptr.push_back(p2x->col.size());
+                u2x->ptr.push_back(u2x->col.size());
             }
 
-            x2u = backend_type::copy_matrix(X2U, bprm);
-            x2p = backend_type::copy_matrix(X2P, bprm);
-            u2x = backend_type::copy_matrix(U2X, bprm);
-            p2x = backend_type::copy_matrix(P2X, bprm);
+            this->x2u = backend_type::copy_matrix(x2u, bprm);
+            this->x2p = backend_type::copy_matrix(x2p, bprm);
+            this->u2x = backend_type::copy_matrix(u2x, bprm);
+            this->p2x = backend_type::copy_matrix(p2x, bprm);
         }
 
         friend std::ostream& operator<<(std::ostream &os, const schur_pressure_correction &p) {
