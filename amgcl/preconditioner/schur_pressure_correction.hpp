@@ -44,6 +44,11 @@ THE SOFTWARE.
 namespace amgcl {
 namespace preconditioner {
 
+template <typename I, typename E>
+void report(const std::string &name, const boost::tuple<I, E> &c) {
+    std::cout << name << " (" << boost::get<0>(c) << ", " << boost::get<1>(c) << ")\n";
+}
+
 /// Schur-complement pressure correction preconditioner
 template <class USolver, class PSolver>
 class schur_pressure_correction {
@@ -144,21 +149,21 @@ class schur_pressure_correction {
 
             // Ai u = rhs_u
             backend::clear(*u);
-            (*U)(*rhs_u, *u);
+            report("U1", (*U)(*rhs_u, *u));
 
             // rhs_p -= Kpu u
             backend::spmv(-1, *Kpu, *u, 1, *rhs_p);
 
             // S p = rhs_p
             backend::clear(*p);
-            (*P)(*this, *rhs_p, *p);
+            report("P1", (*P)(*this, *rhs_p, *p));
 
             // rhs_u -= Kup p
             backend::spmv(-1, *Kup, *p, 1, *rhs_u);
 
             // Ai u = rhs_u
             backend::clear(*u);
-            (*U)(*rhs_u, *u);
+            report("U2", (*U)(*rhs_u, *u));
 
             backend::clear(x);
             backend::spmv(1, *u2x, *u, 1, x);
@@ -176,7 +181,7 @@ class schur_pressure_correction {
 
             backend::spmv(1, *Kup, x, 0, *tmp);
             backend::clear(*u);
-            (*U)(*tmp, *u);
+            report("Up", (*U)(*tmp, *u));
             backend::spmv(-alpha, *Kpu, *u, 1, y);
         }
     private:
