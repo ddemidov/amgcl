@@ -40,7 +40,7 @@ void solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::propert
         amgcl::runtime::iterative_solver<Backend>
         > PSolver;
 
-    amgcl::make_solver<
+    amgcl::make_scaling_solver<
         amgcl::preconditioner::schur_pressure_correction<USolver, PSolver>,
         amgcl::runtime::iterative_solver<Backend>
         > solve(K, prm);
