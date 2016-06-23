@@ -679,9 +679,20 @@ int main(int argc, char *argv[]) {
     if (world.rank == 0) {
         std::cout
             << "Iterations: " << iters << std::endl
-            << "Error:      " << resid << std::endl
-            << std::endl
-            << prof << std::endl;
+            << "Error:      " << resid << std::endl;
+
+        if (world.size == 1) {
+            double res = 0;
+            for(int i = 0; i < chunk; ++i) {
+                double sum = rhs[i];
+                for(int j = ptr[i]; j < ptr[i+1]; ++j)
+                    sum -= val[j] * x[col[j]];
+                res += sum * sum;
+            }
+            std::cout << "True error: " << sqrt(res) << std::endl;
+        }
+
+        std::cout << std::endl << prof << std::endl;
 
 #ifdef _OPENMP
         int nt = omp_get_max_threads();
@@ -695,6 +706,7 @@ int main(int argc, char *argv[]) {
             << "\t" << tm_setup << "\t" << tm_solve
             << "\t" << iters << "\t" << std::endl;
     }
+
 
     if (!out_file.empty()) {
         if (world.rank == 0) {

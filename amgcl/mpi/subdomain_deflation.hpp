@@ -649,7 +649,7 @@ class subdomain_deflation {
             TIC("postprocess");
 
             // q = Ax
-            mul(1, x, 0, *q);
+            backend::spmv(1, *A, x, 0, *q);
 
             // df = transp(Z) * (rhs - Ax)
             TIC("local inner product");
