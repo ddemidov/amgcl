@@ -499,41 +499,53 @@ class schur_pressure_correction {
 #endif
                 ) const
         {
+            TIC("split variables");
             backend::spmv(1, *x2u, rhs, 0, *rhs_u);
             backend::spmv(1, *x2p, rhs, 0, *rhs_p);
+            TOC("split variables");
 
             // Ai u = rhs_u
+            TIC("solve U");
             backend::clear(*u);
             report("U1", (*U)(*rhs_u, *u));
+            TOC("solve U");
 
             // rhs_p -= Kpu u
+            TIC("solve P");
             backend::spmv(-1, *Kpu, *u, 1, *rhs_p);
 
             // S p = rhs_p
             backend::clear(*p);
             report("P", (*P)(*this, *rhs_p, *p));
+            TOC("solve P");
 
             // rhs_u -= Kup p
+            TIC("Update U");
             backend::spmv(-1, *Kup, *p, 1, *rhs_u);
 
             // Ai u = rhs_u
             backend::clear(*u);
             report("U2", (*U)(*rhs_u, *u));
+            TOC("Update U");
 
+            TIC("merge variables");
             backend::clear(x);
             backend::spmv(1, *u2x, *u, 1, x);
             backend::spmv(1, *p2x, *p, 1, x);
+            TOC("merge variables");
         }
 
         template <class Alpha, class Vec1, class Beta, class Vec2>
         void spmv(Alpha alpha, const Vec1 &x, Beta beta, Vec2 &y) const {
             // y = beta y + alpha S x, where S = Kpp - Kpu Kuu^-1 Kup
+            TIC("matrix-free spmv");
             backend::spmv(alpha, P->system_matrix(), x, beta, y);
 
             backend::spmv(1, *Kup, x, 0, *tmp);
             backend::clear(*u);
             (*U)(*tmp, *u);
             backend::spmv(-alpha, *Kpu, *u, 1, y);
+            TOC("matrix-free spmv");
         }
     private:
         typedef comm_pattern<backend_type> CommPattern;
