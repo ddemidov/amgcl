@@ -8,10 +8,7 @@
 #include <amgcl/detail/qr.hpp>
 #include <amgcl/value_type/interface.hpp>
 #include <amgcl/value_type/complex.hpp>
-
-#ifdef AMGCL_HAVE_EIGEN
-#  include <amgcl/value_type/eigen.hpp>
-#endif
+#include <amgcl/value_type/static_matrix.hpp>
 
 template <class T>
 struct make_random {
@@ -37,9 +34,14 @@ struct make_random< std::complex<T> > {
 
 #ifdef AMGCL_HAVE_EIGEN
 template <class T, int N, int M>
-struct make_random< Eigen::Matrix<T,N,M> > {
-    static Eigen::Matrix<T,N,M> get() {
-        return Eigen::Matrix<T,N,M>::Random();
+struct make_random< amgcl::static_matrix<T,N,M> > {
+    typedef amgcl::static_matrix<T,N,M> matrix;
+    static matrix get() {
+        matrix A = amgcl::math::zero<matrix>();
+        for(int i = 0; i < N; ++i)
+            for(int j = 0; j < M; ++j)
+                A(i,j) = make_random<T>::get();
+        return A;
     }
 };
 #endif
@@ -112,7 +114,7 @@ BOOST_AUTO_TEST_SUITE( test_qr )
 BOOST_AUTO_TEST_CASE( test_qr ) {
     run_qr_test<double>();
     run_qr_test< std::complex<double> >();
-    //run_qr_test< Eigen::Matrix<double, 2, 2> >();
+    //run_qr_test< amgcl::static_matrix<double, 2, 2> >();
 }
 
 BOOST_AUTO_TEST_SUITE_END()
