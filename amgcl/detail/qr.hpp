@@ -143,7 +143,7 @@ class QR {
 
             r = A;
 
-            if (tau.size() < k) tau.resize(k);
+            tau.resize(k);
 
             for(unsigned i = 0, ia = 0; i < k; ++i, ia += n) {
                 // Generate elementary reflector H(i) to annihilate A[i+1:m)[i]
@@ -337,7 +337,7 @@ class QR {
              *
              *  ==============================================================
              */
-            if (q.size() < n * m) q.resize(n * m);
+            q.resize(n * m);
 
             // Initialise columns k+1:n to zero.
             // [In the original code these were initialized to the columns of

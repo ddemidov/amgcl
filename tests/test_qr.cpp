@@ -32,7 +32,6 @@ struct make_random< std::complex<T> > {
     }
 };
 
-#ifdef AMGCL_HAVE_EIGEN
 template <class T, int N, int M>
 struct make_random< amgcl::static_matrix<T,N,M> > {
     typedef amgcl::static_matrix<T,N,M> matrix;
@@ -44,7 +43,6 @@ struct make_random< amgcl::static_matrix<T,N,M> > {
         return A;
     }
 };
-#endif
 
 template <class value_type>
 void run_qr_test() {
