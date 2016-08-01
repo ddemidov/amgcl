@@ -243,14 +243,13 @@ class QR {
             if (order <= 1) return tau;
             int n = order - 1;
 
-            scalar_type xnorm = 0;
+            scalar_type xnorm2 = 0;
             for(int i = 0, ix = 0; i < n; ++i, ix += stride)
-                xnorm += sqr(math::norm(x[ix]));
+                xnorm2 += sqr(math::norm(x[ix]));
 
-            if (math::is_zero(xnorm)) return tau;
+            if (math::is_zero(xnorm2)) return tau;
 
-            scalar_type beta = sqrt(sqr(math::norm(alpha)) + xnorm);
-            xnorm = sqrt(xnorm);
+            scalar_type beta = sqrt(sqr(math::norm(alpha)) + xnorm2);
 
             tau = math::identity<value_type>() - math::inverse(beta) * alpha;
             alpha = math::inverse(alpha - beta * math::identity<value_type>());
@@ -274,7 +273,7 @@ class QR {
              *  Applies an elementary reflector H to an m-by-n matrix C from
              *  the left. H is represented in the form
              *
-             *        H = I - tau * v * v'
+             *        H = I - v * tau * v'
              *
              *  where tau is a value_type scalar and v is a value_type vector.
              *
@@ -315,9 +314,10 @@ class QR {
                     s += math::adjoint(C[jc + i]) * v[jv];
                 }
 
-                C[i] -= tau * math::adjoint(s);
+                s = tau * math::adjoint(s);
+                C[i] -= s;
                 for(int j = 1, jc = c_stride, jv = v_stride; j < m; ++j, jc += c_stride, jv += v_stride) {
-                    C[jc + i] -= tau * v[jv] * math::adjoint(s);
+                    C[jc + i] -= v[jv] * s;
                 }
             }
         }
