@@ -343,10 +343,9 @@ class QR {
             // [In the original code these were initialized to the columns of
             // the unit matrix, but since k = min(n,m), the main diagonal is
             // never seen here].
-            for(unsigned j = k; j < n; ++j) {
-                for(unsigned i = 0, iq = 0; i < m; ++i, iq += n)
+            for(unsigned i = 0, iq = 0; i < m; ++i, iq += n)
+                for(unsigned j = k; j < n; ++j)
                     q[iq + j] = math::zero<value_type>();
-            }
 
             for(unsigned i = k; i --> 0;) {
                 // Apply H(i) to A[i:m)[i+1:n) from the left
