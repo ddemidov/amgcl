@@ -9,6 +9,7 @@
 #include <amgcl/coarsening/aggregation.hpp>
 #include <amgcl/relaxation/spai0.hpp>
 #include <amgcl/solver/cg.hpp>
+#include <amgcl/profiler.hpp>
 
 class sparse_matrix {
     public:
