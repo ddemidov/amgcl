@@ -184,6 +184,18 @@ struct rhs_of< static_matrix<T, N, N> > {
     typedef static_matrix<T, N, 1> type;
 };
 
+/// Whether the value type is a statically sized matrix.
+template <class T, int N, int M>
+struct is_static_matrix< static_matrix<T, N, M> > : boost::true_type {};
+
+/// Number of rows for statically sized matrix types.
+template <class T, int N, int M>
+struct static_rows< static_matrix<T, N, M> > : boost::integral_constant<int, N> {};
+
+/// Number of columns for statically sized matrix types.
+template <class T, int N, int M>
+struct static_cols< static_matrix<T, N, M> > : boost::integral_constant<int, M> {};
+
 /// Specialization of conjugate transpose for static matrices.
 template <typename T, int N, int M>
 struct adjoint_impl< static_matrix<T, N, M> >

@@ -76,16 +76,17 @@ void run_qr_test() {
     }
 
     // Check that solution works (A^t A x == A^t f).
-    std::vector<value_type> f0(n, amgcl::math::identity<value_type>());
-    std::vector<value_type> f = f0;
+    typedef typename amgcl::math::rhs_of<value_type>::type rhs_type;
+    std::vector<rhs_type> f0(n, amgcl::math::constant<rhs_type>(1));
+    std::vector<rhs_type> f = f0;
 
-    std::vector<value_type> x(m);
+    std::vector<rhs_type> x(m);
 
     qr.solve(f.data(), x.data());
 
-    std::vector<value_type> Ax(n);
+    std::vector<rhs_type> Ax(n);
     for(size_t i = 0; i < n; ++i) {
-        value_type sum = amgcl::math::zero<value_type>();
+        rhs_type sum = amgcl::math::zero<rhs_type>();
         for(size_t j = 0; j < m; ++j)
             sum += A0[i][j] * x[j];
 
@@ -93,15 +94,15 @@ void run_qr_test() {
     }
 
     for(size_t i = 0; i < m; ++i) {
-        value_type sumx = amgcl::math::zero<value_type>();
-        value_type sumf = amgcl::math::zero<value_type>();
+        rhs_type sumx = amgcl::math::zero<rhs_type>();
+        rhs_type sumf = amgcl::math::zero<rhs_type>();
 
         for(size_t j = 0; j < n; ++j) {
             sumx += amgcl::math::adjoint(A0[j][i]) * Ax[j];
             sumf += amgcl::math::adjoint(A0[j][i]) * f0[j];
         }
 
-        value_type delta = sumx - sumf;
+        rhs_type delta = sumx - sumf;
 
         BOOST_CHECK_SMALL(amgcl::math::norm(delta), 1e-8);
     }
@@ -112,7 +113,7 @@ BOOST_AUTO_TEST_SUITE( test_qr )
 BOOST_AUTO_TEST_CASE( test_qr ) {
     run_qr_test<double>();
     run_qr_test< std::complex<double> >();
-    //run_qr_test< amgcl::static_matrix<double, 2, 2> >();
+    run_qr_test< amgcl::static_matrix<double, 2, 2> >();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

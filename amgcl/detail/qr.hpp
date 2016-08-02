@@ -94,7 +94,7 @@ namespace amgcl {
 namespace detail {
 
 /// In-place QR factorization.
-template <typename value_type>
+template <typename value_type, class Enable = void>
 class QR {
     public:
         QR() : m(0), n(0) {}
@@ -365,6 +365,75 @@ class QR {
                     q[ja+i] = -tau[i] * r[ja+i];
             }
         }
+};
+
+template <class value_type>
+class QR<value_type, typename boost::enable_if< math::is_static_matrix<value_type> >::type>
+{
+    public:
+        typedef typename amgcl::math::rhs_of<value_type>::type rhs_type;
+
+        QR() {}
+
+        void compute(unsigned rows, unsigned cols, value_type *A, bool needQ = true) {
+            const int N = math::static_rows<value_type>::value;
+            const int M = math::static_cols<value_type>::value;
+
+            buf.resize(rows * cols * N * M);
+
+            for(unsigned i = 0, ix=0; i < rows; ++i)
+                for(int ii = 0; ii < N; ++ii)
+                    for(unsigned j = 0; j < cols; ++j)
+                        for(int jj = 0; jj < M; ++jj, ++ix)
+                            buf[ix] = A[i * cols + j](ii, jj);
+
+            base.compute(rows * N, cols * M, buf.data(), needQ);
+        }
+
+        value_type R(unsigned i, unsigned j) const {
+            const int N = math::static_rows<value_type>::value;
+            const int M = math::static_cols<value_type>::value;
+
+            value_type v;
+
+            if (j < i) {
+                v = math::zero<value_type>();
+            } else {
+                for(int ii = 0; ii < N; ++ii)
+                    for(int jj = 0; jj < M; ++jj)
+                        v(ii,jj) = base.R(i * N + ii, j * M + jj);
+            }
+
+            return v;
+        }
+
+        // Returns element of the matrix Q.
+        value_type Q(unsigned i, unsigned j) const {
+            const int N = math::static_rows<value_type>::value;
+            const int M = math::static_cols<value_type>::value;
+
+            value_type v;
+
+            for(int ii = 0; ii < N; ++ii)
+                for(int jj = 0; jj < M; ++jj)
+                    v(ii,jj) = base.Q(i * N + ii, j * M + jj);
+
+            return v;
+        }
+
+        // Solves the system Q R x = f
+        void solve(rhs_type *f, rhs_type *x) const {
+            base.solve(
+                    reinterpret_cast<scalar_type*>(f),
+                    reinterpret_cast<scalar_type*>(x)
+                    );
+        }
+
+    private:
+        typedef typename amgcl::math::scalar_of<value_type>::type scalar_type;
+
+        QR<scalar_type> base;
+        std::vector<scalar_type> buf;
 };
 
 } // namespace detail
