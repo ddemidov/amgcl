@@ -98,12 +98,19 @@ template<> struct row_begin_impl<sparse_matrix> {
 };
 
 } // namespace backend
+
+
+profiler<> prof;
 } // namespace amgcl
+
+using amgcl::prof;
+typedef amgcl::scoped_tic< amgcl::profiler<> > scoped_tic;
 
 int main() {
     // Discretize a 1D Poisson problem
     const int n = 10000;
 
+    scoped_tic(prof, "total");
     sparse_matrix A(n, n);
     for(int i = 0; i < n; ++i) {
         if (i == 0 || i == n - 1) {
@@ -130,6 +137,9 @@ int main() {
 
     std::cout << solve.precond() << std::endl;
 
+    scoped_tic(prof, "solve");
     std::vector<double> f(n, 1.0), x(n, 0.0);
     solve(f, x);
+
+    std::cout << prof << std::endl;
 }
