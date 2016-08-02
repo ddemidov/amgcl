@@ -93,13 +93,78 @@ THE SOFTWARE.
 namespace amgcl {
 namespace detail {
 
+template <class T, class Enable = void> struct dense_vector_ref;
+template <class T, class Enable = void> struct dense_matrix_ref;
+
+template <class T>
+struct dense_vector_ref<T, typename boost::disable_if< math::is_static_matrix<T> >::type >
+{
+    dense_vector_ref(T *ptr, int size, int stride = 1)
+        : ptr(ptr), n(size), stride(stride) {}
+
+    int size() const { return n; }
+
+    T& operator[](int i) {
+        return ptr[i * stride];
+    }
+
+    T operator[](int i) const {
+        return ptr[i * stride];
+    }
+
+    private:
+        T *ptr;
+        int n, stride;
+};
+
+template <class T>
+struct dense_matrix_ref<T, typename boost::disable_if< math::is_static_matrix<T> >::type >
+{
+    dense_matrix_ref()
+        : ptr(0), n(0), m(0), stride(0) {}
+
+    dense_matrix_ref(T *ptr, int rows, int cols, int stride)
+        : ptr(ptr), n(rows), m(cols), stride(stride) {}
+
+    dense_matrix_ref(T *ptr, int rows, int cols)
+        : ptr(ptr), n(rows), m(cols), stride(cols) {}
+
+    int rows() const { return n; }
+    int cols() const { return m; }
+
+    T& operator()(int i, int j) {
+        return ptr[i * stride + j];
+    }
+
+    T operator()(int i, int j) const {
+        return ptr[i * stride + j];
+    }
+
+    dense_matrix_ref submatrix(int i, int j, int rows = -1, int cols = -1) const {
+        if (rows < 0) rows = n - i;
+        if (cols < 0) cols = m - j;
+
+        return dense_matrix_ref(ptr + i * stride + j, rows, cols, stride);
+    }
+
+    dense_vector_ref<T> column(int i, int j, int rows = -1) const {
+        if (rows < 0) rows = n - i;
+        return dense_vector_ref<T>(ptr + i * stride + j, rows, stride);
+    }
+
+    private:
+        T *ptr;
+        int n, m, stride;
+};
+
 /// In-place QR factorization.
 template <typename value_type>
 class QR {
     public:
         QR() : m(0), n(0) {}
 
-        void compute(unsigned rows, unsigned cols, value_type *A, bool needQ = true) {
+        void compute(unsigned rows, unsigned cols, value_type *a, bool needQ = true)
+        {
             /*
              *  Ported from ZGEQR2
              *  ==================
@@ -141,17 +206,19 @@ class QR {
             n = cols;
             k = std::min(m, n);
 
-            r = A;
+            r = a;
+
+            dense_matrix_ref<value_type> A(a, m, n);
 
             tau.resize(k);
 
-            for(unsigned i = 0, ia = 0; i < k; ++i, ia += n) {
+            for(unsigned i = 0; i < k; ++i) {
                 // Generate elementary reflector H(i) to annihilate A[i+1:m)[i]
-                tau[i] = gen_reflector(m-i, A[ia+i], A+ia+n+i, n);
+                tau[i] = gen_reflector(m-i, A(i,i), A.column(i+1, i));
 
                 if (i+1 < n) {
                     // Apply H(i)' to A[i:m)[i+1:n) from the left
-                    apply_reflector(m-i, n-i-1, A+ia+i, n, math::adjoint(tau[i]), A+ia+i+1, n);
+                    apply_reflector(A.column(i,i), math::adjoint(tau[i]), A.submatrix(i,i+1));
                 }
             }
 
@@ -171,18 +238,21 @@ class QR {
 
         // Solves the system Q R x = f
         void solve(value_type *f, value_type *x) const {
-            for(unsigned i = 0, ia = 0; i < n; ++i, ia += n)
-                apply_reflector(m-i, 1, r+ia+i, n, math::adjoint(tau[i]), f+i, 1);
+            dense_matrix_ref<value_type> R(r, m, n);
+            dense_matrix_ref<value_type> F(f, m, 1);
+
+            for(unsigned i = 0; i < n; ++i)
+                apply_reflector(R.column(i,i), math::adjoint(tau[i]), F.submatrix(i,0));
 
             std::copy(f, f+n, x);
 
             for(unsigned i = n; i --> 0;) {
-                value_type rii = r[i*n+i];
+                value_type rii = R(i,i);
                 if (math::is_zero(rii)) continue;
                 x[i] = math::inverse(rii) * x[i];
 
-                for(unsigned j = 0, ja = 0; j < i; ++j, ja += n)
-                    x[j] -= r[ja+i] * x[i];
+                for(unsigned j = 0; j < i; ++j)
+                    x[j] -= R(j,i) * x[i];
             }
         }
     private:
@@ -196,7 +266,8 @@ class QR {
         std::vector<value_type> tau;
         std::vector<value_type> q;
 
-        static value_type gen_reflector(int order, value_type &alpha, value_type *x, int stride) {
+        template <class Vector>
+        static value_type gen_reflector(int order, value_type &alpha, Vector &&x) {
             /*
              *  Ported from ZLARFG
              *  ==================
@@ -244,8 +315,8 @@ class QR {
             int n = order - 1;
 
             scalar_type xnorm2 = 0;
-            for(int i = 0, ix = 0; i < n; ++i, ix += stride)
-                xnorm2 += sqr(math::norm(x[ix]));
+            for(int i = 0; i < n; ++i)
+                xnorm2 += sqr(math::norm(x[i]));
 
             if (math::is_zero(xnorm2)) return tau;
 
@@ -254,17 +325,15 @@ class QR {
             tau = math::identity<value_type>() - math::inverse(beta) * alpha;
             alpha = math::inverse(alpha - beta * math::identity<value_type>());
 
-            for(int i = 0, ii = 0; i < n; ++i, ii += stride)
-                x[ii] = alpha * x[ii];
+            for(int i = 0; i < n; ++i)
+                x[i] = alpha * x[i];
 
             alpha = beta * math::identity<value_type>();
             return tau;
         }
 
-        static void apply_reflector(
-                int m, int n, const value_type *v, int v_stride, value_type tau,
-                value_type *C, int c_stride
-                )
+        template <class Vector, class Matrix>
+        static void apply_reflector(const Vector &v, value_type tau, Matrix &&C)
         {
             /*
              *  Ported from ZLARF
@@ -285,15 +354,9 @@ class QR {
              *  Arguments
              *  =========
              *
-             *  m        The number of rows of the matrix C.
-             *
-             *  n        The number of columns of the matrix C.
-             *
              *  v        The vector v in the representation of H.
              *           v is not used if tau = 0.
              *           The value of v[0] is ignored and assumed to be 1.
-             *
-             *  v_stride The increment between elements of v.
              *
              *  tau      The value tau in the representation of H.
              *
@@ -307,18 +370,20 @@ class QR {
 
             if (math::is_zero(tau)) return;
 
+            int m = C.rows();
+            int n = C.cols();
+
             // w = C` * v; C -= tau * v * w`
             for(int i = 0; i < n; ++i) {
-                value_type s = math::adjoint(C[i]);
-                for(int j = 1, jc = c_stride, jv = v_stride; j < m; ++j, jc += c_stride, jv += v_stride) {
-                    s += math::adjoint(C[jc + i]) * v[jv];
-                }
+                value_type s = math::adjoint(C(0,i));
+                for(int j = 1; j < m; ++j)
+                    s += math::adjoint(C(j,i)) * v[j];
 
                 s = tau * math::adjoint(s);
-                C[i] -= s;
-                for(int j = 1, jc = c_stride, jv = v_stride; j < m; ++j, jc += c_stride, jv += v_stride) {
-                    C[jc + i] -= v[jv] * s;
-                }
+
+                C(0,i) -= s;
+                for(int j = 1; j < m; ++j)
+                    C(j,i) -= v[j] * s;
             }
         }
 
@@ -337,32 +402,32 @@ class QR {
              *
              *  ==============================================================
              */
-            q.resize(n * m);
+            q.resize(m * n);
+            dense_matrix_ref<value_type> Q(q.data(), m, n);
+            dense_matrix_ref<value_type> R(r, m, n);
 
             // Initialise columns k+1:n to zero.
             // [In the original code these were initialized to the columns of
             // the unit matrix, but since k = min(n,m), the main diagonal is
             // never seen here].
-            for(unsigned i = 0, iq = 0; i < m; ++i, iq += n)
+            for(unsigned i = 0; i < m; ++i)
                 for(unsigned j = k; j < n; ++j)
-                    q[iq + j] = math::zero<value_type>();
+                    Q(i,j) = math::zero<value_type>();
 
-            for(unsigned i = k; i --> 0;) {
+            for(unsigned i = k; i --> 0; ) {
                 // Apply H(i) to A[i:m)[i+1:n) from the left
                 if (i+1 < n)
-                    apply_reflector(m-i, n-i-1, r+i*n+i, n, tau[i], &q[i*n+i+1], n);
+                    apply_reflector(R.column(i,i), tau[i], Q.submatrix(i,i+1));
 
                 // Copy i-th reflector (including zeros and unit diagonal)
                 // to the column of Q to be processed next
-                unsigned ja = 0;
-                for(unsigned j = 0; j < i; ++j, ja += n)
-                    q[ja+i] = math::zero<value_type>();
+                for(unsigned j = 0; j < i; ++j)
+                    Q(j,i) = math::zero<value_type>();
 
-                q[ja+i] = math::identity<value_type>() - tau[i];
-                ja += n;
+                Q(i,i) = math::identity<value_type>() - tau[i];
 
-                for(unsigned j = i + 1; j < m; ++j, ja += n)
-                    q[ja+i] = -tau[i] * r[ja+i];
+                for(unsigned j = i + 1; j < m; ++j)
+                    Q(j,i) = -tau[i] * R(j,i);
             }
         }
 };
