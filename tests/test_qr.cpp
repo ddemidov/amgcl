@@ -44,12 +44,17 @@ struct make_random< amgcl::static_matrix<T,N,M> > {
     }
 };
 
-template <class value_type>
+template <class value_type, amgcl::detail::storage_order order>
 void run_qr_test() {
     const size_t n = 5;
     const size_t m = 3;
 
-    boost::multi_array<value_type, 2> A0(boost::extents[n][m]);
+    typedef typename boost::conditional<order == amgcl::detail::row_major,
+            boost::c_storage_order,
+            boost::fortran_storage_order
+            >::type ma_storage_order;
+
+    boost::multi_array<value_type, 2> A0(boost::extents[n][m], ma_storage_order());
 
     for(size_t i = 0; i < n; ++i)
         for(size_t j = 0; j < m; ++j)
@@ -57,9 +62,10 @@ void run_qr_test() {
 
     boost::multi_array<value_type, 2> A = A0;
 
-    amgcl::detail::QR<value_type> qr;
+    amgcl::detail::QR<value_type, order> qr;
 
     qr.compute(n, m, A.data());
+    qr.compute_q();
 
     // Check that A = QR
     for(size_t i = 0; i < n; ++i) {
@@ -111,9 +117,12 @@ void run_qr_test() {
 BOOST_AUTO_TEST_SUITE( test_qr )
 
 BOOST_AUTO_TEST_CASE( test_qr ) {
-    run_qr_test<double>();
-    run_qr_test< std::complex<double> >();
-    run_qr_test< amgcl::static_matrix<double, 2, 2> >();
+    run_qr_test< double,                             amgcl::detail::row_major>();
+    run_qr_test< double,                             amgcl::detail::col_major>();
+    run_qr_test< std::complex<double>,               amgcl::detail::row_major>();
+    run_qr_test< std::complex<double>,               amgcl::detail::col_major>();
+    run_qr_test< amgcl::static_matrix<double, 2, 2>, amgcl::detail::row_major>();
+    run_qr_test< amgcl::static_matrix<double, 2, 2>, amgcl::detail::col_major>();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

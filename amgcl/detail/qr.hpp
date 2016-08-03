@@ -31,7 +31,7 @@ THE SOFTWARE.
  * \brief  QR decomposition.
  *
  * This is a port of ZGEQR2 procedure from LAPACK and its dependencies.
- * The original code included the following copyright notice.
+ * The original code included the following copyright notice:
  * \verbatim
    Copyright (c) 1992-2013 The University of Tennessee and The University
                            of Tennessee Research Foundation.  All rights
@@ -93,13 +93,22 @@ THE SOFTWARE.
 namespace amgcl {
 namespace detail {
 
+enum storage_order {
+    row_major,
+    col_major
+};
+
 /// In-place QR factorization.
-template <typename value_type, class Enable = void>
+/**
+ * \tparam Order Storage order of the input matrix. Should be col_major for
+ *               the best performance.
+ */
+template <typename value_type, storage_order Order, class Enable = void>
 class QR {
     public:
         QR() : m(0), n(0) {}
 
-        void compute(unsigned rows, unsigned cols, value_type *A, bool needQ = true) {
+        void compute(int rows, int cols, value_type *A) {
             /*
              *  Ported from ZGEQR2
              *  ==================
@@ -141,48 +150,108 @@ class QR {
             n = cols;
             k = std::min(m, n);
 
+            const int row_stride = (Order == row_major ? n : 1);
+            const int col_stride = (Order == row_major ? 1 : m);
+
             r = A;
 
             tau.resize(k);
 
-            for(unsigned i = 0, ia = 0; i < k; ++i, ia += n) {
+            for(int i = 0, ii = 0; i < k; ++i, ii += row_stride + col_stride) {
                 // Generate elementary reflector H(i) to annihilate A[i+1:m)[i]
-                tau[i] = gen_reflector(m-i, A[ia+i], A+ia+n+i, n);
+                tau[i] = gen_reflector(m-i, A[ii], A + ii + row_stride, row_stride);
 
                 if (i+1 < n) {
                     // Apply H(i)' to A[i:m)[i+1:n) from the left
-                    apply_reflector(m-i, n-i-1, A+ia+i, n, math::adjoint(tau[i]), A+ia+i+1, n);
+                    apply_reflector(m-i, n-i-1, A + ii, row_stride, math::adjoint(tau[i]),
+                            A + ii + col_stride, row_stride, col_stride);
                 }
             }
-
-            if (needQ) generate_q();
         }
 
         // Returns element of the matrix R.
-        value_type R(unsigned i, unsigned j) const {
+        value_type R(int i, int j) const {
             if (j < i) return math::zero<value_type>();
-            return r[i*n + j];
+
+            const int row_stride = (Order == row_major ? n : 1);
+            const int col_stride = (Order == row_major ? 1 : m);
+
+            return r[i*row_stride + j*col_stride];
         }
 
         // Returns element of the matrix Q.
-        value_type Q(unsigned i, unsigned j) const {
-            return q[i*n + j];
+        value_type Q(int i, int j) const {
+            const int row_stride = (Order == row_major ? n : 1);
+            const int col_stride = (Order == row_major ? 1 : m);
+
+            return q[i*row_stride + j*col_stride];
         }
 
         // Solves the system Q R x = f
         void solve(value_type *f, value_type *x) const {
-            for(unsigned i = 0, ia = 0; i < n; ++i, ia += n)
-                apply_reflector(m-i, 1, r+ia+i, n, math::adjoint(tau[i]), f+i, 1);
+            const int row_stride = (Order == row_major ? n : 1);
+            const int col_stride = (Order == row_major ? 1 : m);
+
+            for(int i = 0, ii = 0; i < n; ++i, ii += row_stride + col_stride)
+                apply_reflector(m-i, 1, r+ii, row_stride, math::adjoint(tau[i]), f+i, 1, 1);
 
             std::copy(f, f+n, x);
 
-            for(unsigned i = n; i --> 0;) {
-                value_type rii = r[i*n+i];
+            for(int i = n; i --> 0; ) {
+                value_type rii = r[i*(row_stride+col_stride)];
                 if (math::is_zero(rii)) continue;
                 x[i] = math::inverse(rii) * x[i];
 
-                for(unsigned j = 0, ja = 0; j < i; ++j, ja += n)
-                    x[j] -= r[ja+i] * x[i];
+                for(int j = 0, ja = 0; j < i; ++j, ja += row_stride)
+                    x[j] -= r[ja+i*col_stride] * x[i];
+            }
+        }
+
+        // Computes Q explicitly.
+        void compute_q() {
+            /*
+             *  Ported from ZUNG2R
+             *  ==================
+             *
+             *  Generates an m by n matrix Q with orthonormal columns, which is
+             *  defined as the first n columns of a product of k elementary
+             *  reflectors of order m
+             *
+             *        Q  =  H(1) H(2) . . . H(k)
+             *
+             *  as returned by compute() [ZGEQR2].
+             *
+             *  ==============================================================
+             */
+            q.resize(n * m);
+
+            const int row_stride = (Order == row_major ? n : 1);
+            const int col_stride = (Order == row_major ? 1 : m);
+
+            // Initialise columns k+1:n to zero.
+            // [In the original code these were initialized to the columns of
+            // the unit matrix, but since k = min(n,m), the main diagonal is
+            // never seen here].
+            for(int i = 0, ia = 0; i < m; ++i, ia += row_stride)
+                for(int j = k, ja = k * col_stride; j < n; ++j, ja += col_stride)
+                    q[ia + ja] = math::zero<value_type>();
+
+            for(int i = k-1, ic = i * col_stride, ii = i*(row_stride + col_stride);
+                    i >= 0; --i, ic -= col_stride, ii -= row_stride + col_stride)
+            {
+                // Apply H(i) to A[i:m)[i+1:n) from the left
+                if (i < n-1)
+                    apply_reflector(m-i, n-i-1, r+ii, row_stride, tau[i], &q[ii+col_stride], row_stride, col_stride);
+
+                // Copy i-th reflector (including zeros and unit diagonal)
+                // to the column of Q to be processed next
+                for(int j = 0, jr = 0; j < i; ++j, jr += row_stride)
+                    q[jr+ic] = math::zero<value_type>();
+
+                q[ii] = math::identity<value_type>() - tau[i];
+
+                for(int j = i + 1, jr=j*row_stride; j < m; ++j, jr += row_stride)
+                    q[jr + ic] = -tau[i] * r[jr + ic];
             }
         }
     private:
@@ -190,7 +259,7 @@ class QR {
 
         static scalar_type sqr(scalar_type x) { return x * x; }
 
-        unsigned m, n, k;
+        int m, n, k;
 
         value_type *r;
         std::vector<value_type> tau;
@@ -244,8 +313,8 @@ class QR {
             int n = order - 1;
 
             scalar_type xnorm2 = 0;
-            for(int i = 0, ix = 0; i < n; ++i, ix += stride)
-                xnorm2 += sqr(math::norm(x[ix]));
+            for(int i = 0, ii = 0; i < n; ++i, ii += stride)
+                xnorm2 += sqr(math::norm(x[ii]));
 
             if (math::is_zero(xnorm2)) return tau;
 
@@ -263,7 +332,7 @@ class QR {
 
         static void apply_reflector(
                 int m, int n, const value_type *v, int v_stride, value_type tau,
-                value_type *C, int c_stride
+                value_type *C, int row_stride, int col_stride
                 )
         {
             /*
@@ -285,22 +354,23 @@ class QR {
              *  Arguments
              *  =========
              *
-             *  m        The number of rows of the matrix C.
+             *  m          The number of rows of the matrix C.
              *
-             *  n        The number of columns of the matrix C.
+             *  n          The number of columns of the matrix C.
              *
-             *  v        The vector v in the representation of H.
-             *           v is not used if tau = 0.
-             *           The value of v[0] is ignored and assumed to be 1.
+             *  v          The vector v in the representation of H.
+             *             v is not used if tau = 0.
+             *             The value of v[0] is ignored and assumed to be 1.
              *
-             *  v_stride The increment between elements of v.
+             *  v_stride   The increment between elements of v.
              *
-             *  tau      The value tau in the representation of H.
+             *  tau        The value tau in the representation of H.
              *
-             *  C        On entry, the m-by-n matrix C.
-             *           On exit, C is overwritten by the matrix H * C.
+             *  C          On entry, the m-by-n matrix C.
+             *             On exit, C is overwritten by the matrix H * C.
              *
-             *  c_stride The increment between the rows of C.
+             *  row_stride The increment between the rows of C.
+             *  col_stride The increment between the columns of C.
              *
              *  ==============================================================
              */
@@ -308,89 +378,50 @@ class QR {
             if (math::is_zero(tau)) return;
 
             // w = C` * v; C -= tau * v * w`
-            for(int i = 0; i < n; ++i) {
-                value_type s = math::adjoint(C[i]);
-                for(int j = 1, jc = c_stride, jv = v_stride; j < m; ++j, jc += c_stride, jv += v_stride) {
-                    s += math::adjoint(C[jc + i]) * v[jv];
+            for(int i = 0, ia=0; i < n; ++i, ia += col_stride) {
+                value_type s = math::adjoint(C[ia]);
+                for(int j = 1, jv = v_stride, ja=row_stride; j < m; ++j, jv += v_stride, ja += row_stride) {
+                    s += math::adjoint(C[ja+ia]) * v[jv];
                 }
 
                 s = tau * math::adjoint(s);
-                C[i] -= s;
-                for(int j = 1, jc = c_stride, jv = v_stride; j < m; ++j, jc += c_stride, jv += v_stride) {
-                    C[jc + i] -= v[jv] * s;
+                C[ia] -= s;
+                for(int j = 1, jv = v_stride, ja=row_stride; j < m; ++j, jv += v_stride, ja += row_stride) {
+                    C[ja+ia] -= v[jv] * s;
                 }
             }
         }
 
-        void generate_q() {
-            /*
-             *  Ported from ZUNG2R
-             *  ==================
-             *
-             *  Generates an m by n matrix Q with orthonormal columns, which is
-             *  defined as the first n columns of a product of k elementary
-             *  reflectors of order m
-             *
-             *        Q  =  H(1) H(2) . . . H(k)
-             *
-             *  as returned by compute() [ZGEQR2].
-             *
-             *  ==============================================================
-             */
-            q.resize(n * m);
-
-            // Initialise columns k+1:n to zero.
-            // [In the original code these were initialized to the columns of
-            // the unit matrix, but since k = min(n,m), the main diagonal is
-            // never seen here].
-            for(unsigned i = 0, iq = 0; i < m; ++i, iq += n)
-                for(unsigned j = k; j < n; ++j)
-                    q[iq + j] = math::zero<value_type>();
-
-            for(unsigned i = k; i --> 0;) {
-                // Apply H(i) to A[i:m)[i+1:n) from the left
-                if (i+1 < n)
-                    apply_reflector(m-i, n-i-1, r+i*n+i, n, tau[i], &q[i*n+i+1], n);
-
-                // Copy i-th reflector (including zeros and unit diagonal)
-                // to the column of Q to be processed next
-                unsigned ja = 0;
-                for(unsigned j = 0; j < i; ++j, ja += n)
-                    q[ja+i] = math::zero<value_type>();
-
-                q[ja+i] = math::identity<value_type>() - tau[i];
-                ja += n;
-
-                for(unsigned j = i + 1; j < m; ++j, ja += n)
-                    q[ja+i] = -tau[i] * r[ja+i];
-            }
-        }
 };
 
-template <class value_type>
-class QR<value_type, typename boost::enable_if< math::is_static_matrix<value_type> >::type>
+template <class value_type, storage_order Order>
+class QR<value_type, Order, typename boost::enable_if< math::is_static_matrix<value_type> >::type>
 {
     public:
         typedef typename amgcl::math::rhs_of<value_type>::type rhs_type;
 
         QR() {}
 
-        void compute(unsigned rows, unsigned cols, value_type *A, bool needQ = true) {
+        void compute(int rows, int cols, value_type *A) {
             const int N = math::static_rows<value_type>::value;
             const int M = math::static_cols<value_type>::value;
 
             buf.resize(rows * cols * N * M);
 
-            for(unsigned i = 0, ix=0; i < rows; ++i)
-                for(int ii = 0; ii < N; ++ii)
-                    for(unsigned j = 0; j < cols; ++j)
-                        for(int jj = 0; jj < M; ++jj, ++ix)
-                            buf[ix] = A[i * cols + j](ii, jj);
+            const int brows = M * rows;
+            const int row_stride = (Order == row_major ? cols : 1);
+            const int col_stride = (Order == row_major ? 1 : rows);
 
-            base.compute(rows * N, cols * M, buf.data(), needQ);
+            for(int i = 0, ib = 0; i < rows; ++i)
+                for(int ii = 0; ii < N; ++ii, ++ib)
+                    for(int j = 0, jb = 0; j < cols; ++j)
+                        for(int jj = 0; jj < M; ++jj, jb += brows)
+                            buf[ib + jb] = A[i * row_stride + j * col_stride](ii, jj);
+
+            base.compute(rows * N, cols * M, buf.data());
         }
 
-        value_type R(unsigned i, unsigned j) const {
+        value_type R(int i, int j) const {
             const int N = math::static_rows<value_type>::value;
             const int M = math::static_cols<value_type>::value;
 
@@ -408,7 +439,7 @@ class QR<value_type, typename boost::enable_if< math::is_static_matrix<value_typ
         }
 
         // Returns element of the matrix Q.
-        value_type Q(unsigned i, unsigned j) const {
+        value_type Q(int i, int j) const {
             const int N = math::static_rows<value_type>::value;
             const int M = math::static_cols<value_type>::value;
 
@@ -429,10 +460,12 @@ class QR<value_type, typename boost::enable_if< math::is_static_matrix<value_typ
                     );
         }
 
+        void compute_q() { base.compute_q(); }
+
     private:
         typedef typename amgcl::math::scalar_of<value_type>::type scalar_type;
 
-        QR<scalar_type> base;
+        QR<scalar_type, col_major> base;
         std::vector<scalar_type> buf;
 };
 
