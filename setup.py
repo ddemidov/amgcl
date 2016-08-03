@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from setuptools import setup, Extension
 import os, sys
 import numpy
