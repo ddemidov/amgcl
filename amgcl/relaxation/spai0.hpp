@@ -72,11 +72,11 @@ struct spai0 {
 
             for(row_iterator a = backend::row_begin(A, i); a; ++a) {
                 value_type v = a.value();
-                den += v * v;
+                den += math::adjoint(v) * v;
                 if (a.col() == i) num += v;
             }
 
-            (*m)[i] = math::inverse(den) * num;
+            (*m)[i] = math::inverse(math::norm(den)) * num;
         }
 
         M = Backend::copy_vector(m, backend_prm);
