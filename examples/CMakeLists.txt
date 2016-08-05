@@ -82,4 +82,9 @@ if (VIENNACL_INCLUDE)
     target_link_libraries(runtime_viennacl ${Boost_LIBRARIES} ${OPENCL_LIBRARIES})
 endif()
 
+if (EIGEN_INCLUDE)
+    add_executable(eigen eigen.cpp)
+    target_link_libraries(eigen ${Boost_LIBRARIES})
+endif()
+
 add_subdirectory(mpi)
