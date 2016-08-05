@@ -30,7 +30,8 @@ print(solve)
 # Solve the system for the RHS
 x = solve(f)
 
-print("{0.iters}: {0.error:.6e}".format(solve))
+error = np.linalg.norm(f - A * x) / np.linalg.norm(f)
+print("{0.iters}: {0.error:.6e} / {1:.6e}".format(solve, error))
 
 # Save the solution
 if args.x: mmwrite(args.x, x.reshape((-1,1)))

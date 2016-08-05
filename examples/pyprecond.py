@@ -37,5 +37,7 @@ def cb(xi):
 # Solve the system for the RHS
 x,info = lgmres(A, f, M=P, maxiter=100, tol=1e-8, callback=cb)
 
+print('error: {0:.6e}'.format(np.linalg.norm(f - A * x) / np.linalg.norm(f)))
+
 # Save the solution
 if args.x: mmwrite(args.x, x.reshape((-1,1)))
