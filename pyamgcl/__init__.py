@@ -1,7 +1,6 @@
 import numpy
 import scipy
 from . import pyamgcl_ext
-from .pyamgcl_ext import coarsening, relaxation, solver_type
 from scipy.sparse.linalg import LinearOperator
 
 class make_solver:
@@ -12,13 +11,7 @@ class make_solver:
     uses the hierarchy as a preconditioner for the specified iterative solver.
     """
 
-    def __init__(self,
-            A,
-            coarsening=pyamgcl_ext.coarsening.smoothed_aggregation,
-            relaxation=pyamgcl_ext.relaxation.spai0,
-            solver=pyamgcl_ext.solver_type.bicgstabl,
-            prm={}
-            ):
+    def __init__(self, A, prm={}):
         """
         Class constructor.
 
@@ -26,20 +19,13 @@ class make_solver:
 
         Parameters
         ----------
-        A : the system matrix in scipy.sparse format
-        coarsening : {ruge_stuben, aggregation, *smoothed_aggregation*, smoothed_aggr_emin}
-            The coarsening type to use for construction of the multigrid
-            hierarchy.
-        relaxation : {damped_jacobi, gauss_seidel, chebyshev, *spai0*, ilu0}
-            The relaxation scheme to use for multigrid cycles.
-        solver : {cg, bicgstab, *bicgstabl*, gmres}
-            The iterative solver to use.
-        prm : dictionary with amgcl parameters
+        A     The system matrix in scipy.sparse format
+        prm   Dictionary with amgcl parameters
         """
         Acsr = A.tocsr()
 
         self.S = pyamgcl_ext.make_solver(
-                coarsening, relaxation, solver, prm,
+                prm,
                 Acsr.indptr.astype(numpy.int32),
                 Acsr.indices.astype(numpy.int32),
                 Acsr.data.astype(numpy.float64)
@@ -86,29 +72,26 @@ class make_solver:
         else:
             raise "Wrong number of arguments"
 
-    def iterations(self):
+    @property
+    def iters(self):
         """
         Returns iterations made during last solve
         """
-        return self.S.iterations()
+        return self.S.iters
 
-    def residual(self):
+    @property
+    def error(self):
         """
         Returns relative error achieved during last solve
         """
-        return self.S.residual()
+        return self.S.error
 
 class make_preconditioner(LinearOperator):
     """
     Algebraic multigrid hierarchy that may be used as a preconditioner with
     scipy iterative solvers.
     """
-    def __init__(self,
-            A,
-            coarsening=pyamgcl_ext.coarsening.smoothed_aggregation,
-            relaxation=pyamgcl_ext.relaxation.spai0,
-            prm={}
-            ):
+    def __init__(self, A, prm={}):
         """
         Class constructor.
 
@@ -117,17 +100,12 @@ class make_preconditioner(LinearOperator):
         Parameters
         ----------
         A : the system matrix in scipy.sparse format
-        coarsening : {ruge_stuben, aggregation, *smoothed_aggregation*, smoothed_aggr_emin}
-            The coarsening type to use for construction of the multigrid
-            hierarchy.
-        relaxation : {damped_jacobi, gauss_seidel, chebyshev, *spai0*, ilu0}
-            The relaxation scheme to use for multigrid cycles.
         prm : dictionary with amgcl parameters
         """
         Acsr = A.tocsr()
 
         self.P = pyamgcl_ext.make_preconditioner(
-                coarsening, relaxation, prm,
+                prm,
                 Acsr.indptr.astype(numpy.int32),
                 Acsr.indices.astype(numpy.int32),
                 Acsr.data.astype(numpy.float64)
