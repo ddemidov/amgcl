@@ -27,7 +27,7 @@ prm = {p[0]: p[1] for p in map(lambda s: s.split('='), args.p)}
 solve = amg.make_solver(A, prm)
 print(solve)
 
-# Solver the system for the RHS
+# Solve the system for the RHS
 x = solve(f)
 
 print("{0.iters}: {0.error:.6e}".format(solve))

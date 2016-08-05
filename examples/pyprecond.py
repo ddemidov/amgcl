@@ -34,6 +34,7 @@ def cb(xi):
     cbinfo['error'] = np.linalg.norm(f - A * xi) / np.linalg.norm(f)
     print('{0}: {1}'.format(cbinfo['iters'], cbinfo['error']))
 
+# Solve the system for the RHS
 x,info = lgmres(A, f, M=P, maxiter=100, tol=1e-8, callback=cb)
 
 # Save the solution
