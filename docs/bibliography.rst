@@ -2,6 +2,7 @@ Bibliography
 ============
 
 .. [Barr94] Barrett, Richard, et al. Templates for the solution of linear systems: building blocks for iterative methods. Vol. 43. Siam, 1994.
+.. [BaJM05] Baker, A. H., Jessup, E. R., & Manteuffel, T. (2005). A technique for accelerating the convergence of restarted GMRES. SIAM Journal on Matrix Analysis and Applications, 26(4), 962-984.
 .. [BrGr02] Bröker, Oliver, and Marcus J. Grote. "Sparse approximate inverse smoothers for geometric and algebraic multigrid." Applied numerical mathematics 41.1 (2002): 61-80.
 .. [CaGP73] Caretto, L. S., et al. "Two calculation procedures for steady, three-dimensional flows with recirculation." Proceedings of the third international conference on numerical methods in fluid mechanics. Springer Berlin Heidelberg, 1973.
 .. [DeSh12] Demidov, D. E., and Shevchenko, D. V. "Modification of algebraic multigrid for effective GPGPU-based solution of nonstationary hydrodynamics problems." Journal of Computational Science 3.6 (2012): 460-462.
