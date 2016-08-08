@@ -445,21 +445,12 @@ class lgmres {
         {
             size_t i = 0;
 
-            if (n < 2) {
-                i = 1;
-                backend::axpby(c[0], *v[0], math::zero<coef_type>(), x);
-            } else {
-                i = 2;
-                backend::axpbypcz(c[0], *v[0], c[1], *v[1], math::zero<coef_type>(), x);
-            }
+            for(; i + 1 < n; i += 2)
+                backend::axpbypcz(c[i], *v[i], c[i+1], *v[i+1],
+                        i == 0 ? math::zero<coef_type>() : math::identity<coef_type>(), x);
 
-            for(; i + 1 < n; i += 2) {
-                backend::axpbypcz(c[i], *v[i], c[i+1], *v[i+1], math::identity<coef_type>(), x);
-            }
-
-            for(; i < n; ++i) {
+            for(; i < n; ++i)
                 backend::axpby(c[i], *v[i], math::identity<coef_type>(), x);
-            }
         }
 };
 
