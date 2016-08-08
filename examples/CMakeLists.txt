@@ -1,17 +1,5 @@
 include_directories(${CMAKE_SOURCE_DIR}/tests)
 
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/make_poisson.py
-    ${CMAKE_BINARY_DIR}/make_poisson.py
-    COPYONLY
-    )
-
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/pyamgcl_example.py
-    ${CMAKE_BINARY_DIR}/pyamgcl_example.py
-    COPYONLY
-    )
-
 add_executable(mm2bin mm2bin.cpp)
 target_link_libraries(mm2bin ${Boost_LIBRARIES})
 
