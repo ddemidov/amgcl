@@ -443,11 +443,12 @@ class lgmres {
                 vector &x
                 )
         {
-            size_t i = 0;
+            backend::axpby(c[0], *v[0], math::zero<coef_type>(), x);
 
+            size_t i = 1;
             for(; i + 1 < n; i += 2)
                 backend::axpbypcz(c[i], *v[i], c[i+1], *v[i+1],
-                        i == 0 ? math::zero<coef_type>() : math::identity<coef_type>(), x);
+                        math::identity<coef_type>(), x);
 
             for(; i < n; ++i)
                 backend::axpby(c[i], *v[i], math::identity<coef_type>(), x);
