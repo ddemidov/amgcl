@@ -177,8 +177,8 @@ class lgmres {
                     outer_Av_data.push_back(Backend::create_vector(n, bprm));
             }
 
-            vs.reserve(prm.M + prm.K);
-            for(int i = 0; i < prm.M + prm.K; ++i)
+            vs.reserve(prm.M + prm.K + 1);
+            for(int i = 0; i <= prm.M + prm.K; ++i)
                 vs.push_back(Backend::create_vector(n, bprm));
         }
 
