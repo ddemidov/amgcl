@@ -365,7 +365,7 @@ class lgmres {
                 // -- Store LGMRES augmented vectors
                 scalar_type nx = norm(*dx);
 
-                if(!math::is_zero(nx)) {
+                if(prm.K > 0 && !math::is_zero(nx)) {
                     size_t outer_slot = n_outer % prm.K;
                     ++n_outer;
 
