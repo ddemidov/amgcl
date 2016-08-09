@@ -53,6 +53,7 @@ THE SOFTWARE.
 #include <amgcl/solver/bicgstabl.hpp>
 #include <amgcl/solver/gmres.hpp>
 #include <amgcl/solver/lgmres.hpp>
+#include <amgcl/solver/fgmres.hpp>
 #include <amgcl/solver/detail/default_inner_product.hpp>
 
 
@@ -532,7 +533,8 @@ enum type {
     bicgstab,   ///< BiConjugate Gradient Stabilized
     bicgstabl,  ///< BiCGStab(ell)
     gmres,      ///< GMRES
-    lgmres      ///< LGMRES
+    lgmres,     ///< LGMRES
+    fgmres      ///< FGMRES
 };
 
 inline std::ostream& operator<<(std::ostream &os, type s)
@@ -548,6 +550,8 @@ inline std::ostream& operator<<(std::ostream &os, type s)
             return os << "gmres";
         case lgmres:
             return os << "lgmres";
+        case fgmres:
+            return os << "fgmres";
         default:
             return os << "???";
     }
@@ -568,6 +572,8 @@ inline std::istream& operator>>(std::istream &in, type &s)
         s = gmres;
     else if (val == "lgmres")
         s = lgmres;
+    else if (val == "fgmres")
+        s = fgmres;
     else
         throw std::invalid_argument("Invalid solver value");
 
@@ -616,6 +622,12 @@ inline void process_solver(
         case runtime::solver::lgmres:
             {
                 typedef amgcl::solver::lgmres<Backend, InnerProduct> Solver;
+                func.template process<Solver>();
+            }
+            break;
+        case runtime::solver::fgmres:
+            {
+                typedef amgcl::solver::fgmres<Backend, InnerProduct> Solver;
                 func.template process<Solver>();
             }
             break;

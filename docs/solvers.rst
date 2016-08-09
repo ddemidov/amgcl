@@ -71,8 +71,17 @@ LGMRES
 .. doxygenclass:: amgcl::solver::lgmres
     :members:
 
+FGMRES
+#####
+
+``#include`` `\<amgcl/solver/fgmres.hpp>`_
+
+.. doxygenclass:: amgcl::solver::fgmres
+    :members:
+
 .. _\<amgcl/solver/cg.hpp>:        https://github.com/ddemidov/amgcl/blob/master/amgcl/solver/cg.hpp
 .. _\<amgcl/solver/bicgstab.hpp>:  https://github.com/ddemidov/amgcl/blob/master/amgcl/solver/bicgstab.hpp
 .. _\<amgcl/solver/bicgstabl.hpp>: https://github.com/ddemidov/amgcl/blob/master/amgcl/solver/bicgstabl.hpp
 .. _\<amgcl/solver/gmres.hpp>:     https://github.com/ddemidov/amgcl/blob/master/amgcl/solver/gmres.hpp
 .. _\<amgcl/solver/lgmres.hpp>:    https://github.com/ddemidov/amgcl/blob/master/amgcl/solver/lgmres.hpp
+.. _\<amgcl/solver/fgmres.hpp>:    https://github.com/ddemidov/amgcl/blob/master/amgcl/solver/fgmres.hpp
