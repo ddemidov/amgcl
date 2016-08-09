@@ -71,6 +71,15 @@ class fgmres {
             /// Number of iterations before restart.
             int M;
 
+            /// Use flexible variant of the method.
+            /**
+             * This doubles the storage requirements of the method but may
+             * improve convergence for unstable preconditioners.
+             * When turned off, the method is just a right-preconditioned
+             * GMRES.
+             */
+            bool flexible;
+
             /// Maximum number of iterations.
             size_t maxiter;
 
@@ -78,21 +87,22 @@ class fgmres {
             scalar_type tol;
 
             params()
-                : M(50), maxiter(100), tol(1e-8)
+                : M(50), flexible(true), maxiter(100), tol(1e-8)
             {
-                precondition(M > 0, "M in GMRES(M) should be >=1");
             }
 
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_VALUE(p, M),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, flexible),
                   AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
                   AMGCL_PARAMS_IMPORT_VALUE(p, tol)
             {
-                AMGCL_PARAMS_CHECK(p, (M)(maxiter)(tol));
+                AMGCL_PARAMS_CHECK(p, (M)(flexible)(maxiter)(tol));
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, M);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, flexible);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, maxiter);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, tol);
             }
@@ -116,9 +126,11 @@ class fgmres {
             for(int i = 0; i <= prm.M; ++i)
                 v.push_back( Backend::create_vector(n, backend_prm) );
 
-            z.reserve(prm.M + 1);
-            for(int i = 0; i <= prm.M; ++i)
-                z.push_back( Backend::create_vector(n, backend_prm) );
+            if (prm.flexible) {
+                z.reserve(prm.M + 1);
+                for(int i = 0; i <= prm.M; ++i)
+                    z.push_back( Backend::create_vector(n, backend_prm) );
+            }
         }
 
         /* Computes the solution for the given system matrix \p A and the
@@ -160,12 +172,12 @@ class fgmres {
                     res_norm = iteration(A, P, i);
 
                     if (res_norm < eps) {
-                        update(x, i);
+                        update(P, x, i);
                         return boost::make_tuple(iter + 1, res_norm / norm_rhs);
                     };
                 }
 
-                update(x, prm.M-1);
+                update(P, x, prm.M-1);
                 res_norm = restart(A, rhs, P, x);
             } while (iter < prm.maxiter && res_norm > eps);
 
@@ -235,8 +247,8 @@ class fgmres {
             }
         }
 
-        template <class Vec>
-        void update(Vec &x, int k) const {
+        template <class Precond, class Vec>
+        void update(const Precond &P, Vec &x, int k) const {
             boost::range::copy(s, y.begin());
 
             for (int i = k; i >= 0; --i) {
@@ -245,12 +257,26 @@ class fgmres {
                     y[j] -= H[j][i] * y[i];
             }
 
-            // Unroll the loop
-            int j = 0;
-            for (; j + 1 <= k; j += 2)
-                backend::axpbypcz(y[j], *z[j], y[j+1], *z[j+1], math::identity<scalar_type>(), x);
-            for (; j <= k; ++j)
-                backend::axpby(y[j], *z[j], math::identity<scalar_type>(), x);
+            if (prm.flexible) {
+                // x += sum_i(y_i z_i)
+                int j = 0;
+                for (; j + 1 <= k; j += 2)
+                    backend::axpbypcz(y[j], *z[j], y[j+1], *z[j+1], math::identity<scalar_type>(), x);
+                for (; j <= k; ++j)
+                    backend::axpby(y[j], *z[j], math::identity<scalar_type>(), x);
+            } else {
+                // x += M^-1 sum_i( y_i v_i)
+                backend::axpby(y[0], *v[0], math::zero<scalar_type>(), *r);
+
+                int j = 1;
+                for (; j + 1 <= k; j += 2)
+                    backend::axpbypcz(y[j], *v[j], y[j+1], *v[j+1], math::identity<scalar_type>(), *r);
+                for (; j <= k; ++j)
+                    backend::axpby(y[j], *v[j], math::identity<scalar_type>(), *r);
+
+                P.apply(*r, *w);
+                backend::axpby(math::identity<scalar_type>(), *w, math::identity<scalar_type>(), x);
+            }
         }
 
         template <class Matrix, class Precond, class Vec1, class Vec2>
@@ -271,8 +297,9 @@ class fgmres {
         template <class Matrix, class Precond>
         scalar_type iteration(const Matrix &A, const Precond &P, int i) const
         {
-            P.apply(*v[i], *z[i]);
-            backend::spmv(math::identity<scalar_type>(), A, *z[i], math::zero<scalar_type>(), *w);
+            boost::shared_ptr<vector> Mv = prm.flexible ? z[i] : r;
+            P.apply(*v[i], *Mv);
+            backend::spmv(math::identity<scalar_type>(), A, *Mv, math::zero<scalar_type>(), *w);
 
             for(int k = 0; k <= i; ++k) {
                 H[k][i] = inner_product(*w, *v[k]);
