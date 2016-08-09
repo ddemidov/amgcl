@@ -243,7 +243,7 @@ class lgmres {
                 bool breakdown = false;
 
                 size_t j = 0;
-                for(; iter < prm.maxiter && j < prm.M + outer_v.size(); ++j, ++iter) {
+                while(true) {
                     // -- Arnoldi process:
                     //
                     // Build an orthonormal basis V and matrices W and H such that
@@ -330,10 +330,12 @@ class lgmres {
                     scalar_type inner_res = std::abs(qr.Q(0,j+1)) * inner_res_0;
 
                     // Check for termination
-                    if (inner_res <= prm.tol * inner_res_0 || breakdown) {
-                        ++j;
+                    ++j, ++iter;
+                    if (iter >= prm.maxiter || j >= prm.M + outer_v.size())
                         break;
-                    }
+
+                    if (inner_res <= prm.tol * inner_res_0 || breakdown)
+                        break;
                 }
 
                 precondition(boost::math::isfinite(qr.R(j-1,j-1)), "NaNs encountered in LGMRES");
