@@ -79,6 +79,41 @@ THE SOFTWARE.
 #include <amgcl/util.hpp>
 
 namespace amgcl {
+
+namespace precond {
+
+enum type {
+    left,
+    right
+};
+
+inline std::ostream& operator<<(std::ostream &os, type p) {
+    switch (p) {
+        case left:
+            return os << "left";
+        case right:
+            return os << "right";
+        default:
+            return os << "???";
+    }
+}
+
+inline std::istream& operator>>(std::istream &in, type &p) {
+    std::string val;
+    in >> val;
+
+    if (val == "left")
+        p = left;
+    else if (val == "right")
+        p = right;
+    else
+        throw std::invalid_argument("Invalid preconditioning kind");
+
+    return in;
+}
+
+} // precond
+
 namespace solver {
 
 /** "Loose" GMRES.
@@ -106,6 +141,9 @@ class lgmres {
 
         /// Solver parameters.
         struct params {
+            /// Preconditioning kind (left/right).
+            precond::type pside;
+
             /// Number of inner GMRES iterations per each outer iteration.
             int M;
 
@@ -128,20 +166,22 @@ class lgmres {
             scalar_type tol;
 
             params()
-                : M(30), K(3), store_Av(true), maxiter(100), tol(1e-8)
+                : pside(precond::left), M(30), K(3), store_Av(true), maxiter(100), tol(1e-8)
             { }
 
             params(const boost::property_tree::ptree &p)
-                : AMGCL_PARAMS_IMPORT_VALUE(p, M),
+                : AMGCL_PARAMS_IMPORT_VALUE(p, pside),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, M),
                   AMGCL_PARAMS_IMPORT_VALUE(p, K),
                   AMGCL_PARAMS_IMPORT_VALUE(p, store_Av),
                   AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
                   AMGCL_PARAMS_IMPORT_VALUE(p, tol)
             {
-                AMGCL_PARAMS_CHECK(p, (M)(K)(store_Av)(maxiter)(tol));
+                AMGCL_PARAMS_CHECK(p, (pside)(M)(K)(store_Av)(maxiter)(tol));
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, pside);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, M);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, K);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, store_Av);
@@ -165,7 +205,8 @@ class lgmres {
               r(Backend::create_vector(n, bprm)),
               ws(prm.M + prm.K)
         {
-            r = Backend::create_vector(n, bprm);
+            if (prm.pside == precond::right)
+                t = Backend::create_vector(n, bprm);
 
             outer_v_data.reserve(prm.K);
             for(int i = 0; i < prm.K; ++i)
@@ -202,37 +243,42 @@ class lgmres {
                 Vec2          &x
                 ) const
         {
-            scalar_type rhs_norm = norm(rhs);
-            if (rhs_norm < amgcl::detail::eps<scalar_type>(n)) {
+            scalar_type norm_rhs = norm(rhs);
+            if (norm_rhs < amgcl::detail::eps<scalar_type>(n)) {
                 backend::clear(x);
-                return boost::make_tuple(0, rhs_norm);
+                return boost::make_tuple(0, norm_rhs);
             }
 
-            scalar_type r_norm = math::zero<scalar_type>(), inner_res_0;
+            scalar_type norm_r = math::zero<scalar_type>(), norm_v0;
             boost::circular_buffer< boost::shared_ptr<vector> > outer_v(prm.K);
             boost::circular_buffer< boost::shared_ptr<vector> > outer_Av(prm.K);
 
             int H_cols = prm.M + prm.K;
-            size_t iter = 0, n_outer = 0;
-            for(; iter < prm.maxiter; ) {
+            unsigned iter = 0, n_outer = 0;
+            while(true) {
                 backend::residual(rhs, A, x, *r);
 
-                // Check stopping condition
-                r_norm = norm(*r);
-                if (r_norm < prm.tol * rhs_norm) break;
+                // -- Check stopping condition
+                if ((norm_r = norm(*r)) < prm.tol * norm_rhs || iter >= prm.maxiter)
+                    break;
 
-                // Inner LGMRES iteration
-                P.apply(*r, *vs[0]);
-                inner_res_0 = norm(*vs[0]);
+                // -- Inner LGMRES iteration
+                if (prm.pside == precond::left) {
+                    P.apply(*r, *vs[0]);
+                    norm_v0 = norm(*vs[0]);
 
-                precondition(!math::is_zero(inner_res_0),
-                        "Preconditioner returned a zero vector");
+                    precondition(!math::is_zero(norm_v0),
+                            "Preconditioner returned a zero vector");
 
-                backend::axpby(math::inverse(inner_res_0), *vs[0],
-                        math::zero<scalar_type>(), *vs[0]);
+                    backend::axpby(math::inverse(norm_v0), *vs[0],
+                            math::zero<scalar_type>(), *vs[0]);
+                } else {
+                    norm_v0 = norm_r;
+                    backend::axpby(math::inverse(norm_r), *r,
+                            math::zero<scalar_type>(), *vs[0]);
+                }
 
                 // H is stored in QR factorized form
-                amgcl::detail::QR<coef_type, amgcl::detail::col_major> qr;
                 for(int j = 0; j <= H_cols; ++j)
                     for(int i = 0; i <= H_cols; ++i)
                         H[i][j] = math::zero<coef_type>();
@@ -242,7 +288,7 @@ class lgmres {
                 const scalar_type eps = std::numeric_limits<scalar_type>::epsilon();
                 bool breakdown = false;
 
-                size_t j = 0;
+                unsigned j = 0;
                 while(true) {
                     // -- Arnoldi process:
                     //
@@ -288,14 +334,21 @@ class lgmres {
                     if (j < outer_Av.size()) {
                         backend::copy(*outer_Av[j], *v_new);
                     } else {
-                        backend::spmv(math::identity<scalar_type>(), A, *z, math::zero<scalar_type>(), *r);
-                        P.apply(*r, *v_new);
+                        if (prm.pside == precond::left) {
+                            backend::spmv(math::identity<scalar_type>(), A, *z,
+                                    math::zero<scalar_type>(), *r);
+                            P.apply(*r, *v_new);
+                        } else {
+                            P.apply(*z, *r);
+                            backend::spmv(math::identity<scalar_type>(), A, *r,
+                                    math::zero<scalar_type>(), *v_new);
+                        }
                     }
 
                     scalar_type v_new_norm = norm(*v_new);
                     coef_type   alpha = math::zero<coef_type>();
 
-                    for(size_t i = 0; i <= j; ++i) {
+                    for(unsigned i = 0; i <= j; ++i) {
                         H[i][j] = alpha = inner_product(*vs[i], *v_new);
                         backend::axpby(-alpha, *vs[i], math::identity<coef_type>(), *v_new);
                     }
@@ -322,85 +375,86 @@ class lgmres {
                     qr.append_cols(1);
 
                     // Transformed least squares problem
-                    // || Q R y - inner_res_0 * e_1 ||_2 = min!
-                    // Since R = [R'; 0], solution is y = inner_res_0 (R')^{-1} (Q^H)[:j,0]
+                    // || Q R y - norm_v0 * e_1 ||_2 = min!
+                    // Since R = [R'; 0], solution is y = norm_v0 (R')^{-1} (Q^H)[:j,0]
                     //
                     // Residual is immediately known
                     qr.compute_q(j+2);
-                    scalar_type inner_res = std::abs(qr.Q(0,j+1)) * inner_res_0;
+                    scalar_type inner_res = std::abs(qr.Q(0,j+1)) * norm_v0;
 
                     // Check for termination
                     ++j, ++iter;
                     if (iter >= prm.maxiter || j >= prm.M + outer_v.size())
                         break;
 
-                    if (inner_res <= prm.tol * inner_res_0 || breakdown)
+                    if (inner_res <= prm.tol * norm_v0 || breakdown)
                         break;
                 }
 
                 precondition(boost::math::isfinite(qr.R(j-1,j-1)), "NaNs encountered in LGMRES");
 
-                // The problem is triangular, but the condition number may be
-                // bad (or in case of breakdown the last diagonal entry may be
-                // zero), so use lstsq instead of triangular solve.
-                //
-                // TODO: This is triangular solve for now.
-                for(size_t i = 0; i < j; ++i) y[i] = math::adjoint(qr.Q(0, i));
-                for(size_t i = j; i --> 0; ) {
+                // TODO: The problem is triangular, but the condition number
+                // may be bad (or in case of breakdown the last diagonal entry
+                // may be zero), so use lstsq instead of triangular solve.
+                for(unsigned i = 0; i < j; ++i) y[i] = math::adjoint(qr.Q(0, i));
+                for(unsigned i = j; i --> 0; ) {
                     coef_type rii = qr.R(i,i);
                     if (math::is_zero(rii)) continue;
                     y[i] = math::inverse(rii) * y[i];
-                    for(size_t k = 0; k < i; ++k)
+                    for(unsigned k = 0; k < i; ++k)
                         y[k] -= qr.R(k, i) * y[i];
 
-                    y[i] *= inner_res_0;
+                    y[i] *= norm_v0;
                     precondition(boost::math::isfinite(y[i]), "NaNs encountered in LGMRES");
                 }
 
                 // -- GMRES terminated: eval solution
-                boost::shared_ptr<vector> dx = r;
-                sum(j, y, ws, *dx);
+                vector &dx = *r;
+                sum(j, y, ws, dx);
 
                 // -- Apply step
-                backend::axpby(math::identity<scalar_type>(), *dx, math::identity<scalar_type>(), x);
+                if (prm.pside == precond::left) {
+                    backend::axpby(math::identity<scalar_type>(), dx, math::identity<scalar_type>(), x);
+                } else {
+                    P.apply(dx, *t);
+                    backend::axpby(math::identity<scalar_type>(), *t, math::identity<scalar_type>(), x);
+                }
 
                 // -- Store LGMRES augmented vectors
-                scalar_type nx = norm(*dx);
+                scalar_type norm_dx = norm(dx);
 
-                if(prm.K > 0 && !math::is_zero(nx)) {
-                    size_t outer_slot = n_outer % prm.K;
+                if(prm.K > 0 && !math::is_zero(norm_dx)) {
+                    unsigned outer_slot = n_outer % prm.K;
                     ++n_outer;
 
-                    nx = math::inverse(nx);
-                    backend::axpby(nx, *dx, math::zero<scalar_type>(), *outer_v_data[outer_slot]);
+                    norm_dx = math::inverse(norm_dx);
+                    backend::axpby(norm_dx, dx, math::zero<scalar_type>(), *outer_v_data[outer_slot]);
                     outer_v.push_back(outer_v_data[outer_slot]);
 
                     if (prm.store_Av) {
-                        // q = Q * R * y
-                        for(size_t k = 0; k < j; ++k) {
+                        // q = H * y = Q * R * y
+                        for(unsigned k = 0; k < j; ++k) {
                             coef_type sum = math::zero<coef_type>();
-                            for(size_t i = k; i < j; ++i)
+                            for(unsigned i = k; i < j; ++i)
                                 sum += qr.R(k,i) * y[i];
                             Ry[k] = sum;
                         }
 
-                        for(size_t k = 0; k <= j; ++k) {
+                        for(unsigned k = 0; k <= j; ++k) {
                             coef_type sum = math::zero<coef_type>();
-                            for(size_t i = 0; i < j; ++i)
+                            for(unsigned i = 0; i < j; ++i)
                                 sum += qr.Q(k,i) * Ry[i];
-                            q[k] = sum;
+                            q[k] = sum * norm_dx;
                         }
 
                         boost::shared_ptr<vector> ax = outer_Av_data[outer_slot];
                         sum(j+1, q, vs, *ax);
-
-                        backend::axpby(nx, *ax, math::zero<scalar_type>(), *ax);
                         outer_Av.push_back(ax);
                     }
                 }
             }
 
-            return boost::make_tuple(iter, r_norm / rhs_norm);
+            return boost::make_tuple(iter, norm_r / norm_rhs);
         }
 
         /* Computes the solution for the given right-hand side \p rhs. The
@@ -425,8 +479,9 @@ class lgmres {
         InnerProduct inner_product;
 
         mutable boost::multi_array<coef_type, 2> H;
+        mutable amgcl::detail::QR<coef_type, amgcl::detail::col_major> qr;
         mutable std::vector<coef_type> y, Ry, q;
-        mutable boost::shared_ptr<vector> r;
+        mutable boost::shared_ptr<vector> r, t;
         mutable std::vector< boost::shared_ptr<vector> > outer_v_data, outer_Av_data;
         mutable std::vector< boost::shared_ptr<vector> > vs, ws;
 
@@ -439,7 +494,7 @@ class lgmres {
 
         // x = sum(c[i] * v[i])
         static void sum(
-                size_t n,
+                unsigned n,
                 const std::vector<coef_type> &c,
                 const std::vector< boost::shared_ptr<vector> > &v,
                 vector &x
@@ -447,7 +502,7 @@ class lgmres {
         {
             backend::axpby(c[0], *v[0], math::zero<coef_type>(), x);
 
-            size_t i = 1;
+            unsigned i = 1;
             for(; i + 1 < n; i += 2)
                 backend::axpbypcz(c[i], *v[i], c[i+1], *v[i+1],
                         math::identity<coef_type>(), x);
