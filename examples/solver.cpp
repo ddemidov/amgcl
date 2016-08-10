@@ -318,12 +318,17 @@ int main(int argc, char *argv[]) {
                 prm, rows, ptr, col, val, rhs, x, block_size);
     }
 
+    double norm_rhs = sqrt(amgcl::backend::inner_product(rhs, rhs));
+    amgcl::backend::spmv(-1, boost::tie(rows, ptr, col, val), x, 1, rhs);
+    double resid = sqrt(amgcl::backend::inner_product(rhs, rhs)) / norm_rhs;
+
     if (vm.count("output")) {
         scoped_tic t(prof, "write");
         amgcl::io::mm_write(vm["output"].as<string>(), &x[0], x.size());
     }
 
-    std::cout << "Iterations: " << iters << std::endl
-              << "Error:      " << error << std::endl
+    std::cout << "Iterations:     " << iters << std::endl
+              << "Reported error: " << error << std::endl
+              << "Real error:     " << resid << std::endl
               << prof << std::endl;
 }
