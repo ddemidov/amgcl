@@ -387,7 +387,7 @@ class lgmres {
                     if (iter >= prm.maxiter || j >= prm.M + outer_v.size())
                         break;
 
-                    if (inner_res <= prm.tol * norm_v0 || breakdown)
+                    if (inner_res <= prm.tol * norm_rhs || breakdown)
                         break;
                 }
 

@@ -215,7 +215,7 @@ class fgmres {
                     if (iter >= prm.maxiter || j >= prm.M)
                         break;
 
-                    if (inner_res <= prm.tol * norm_r || breakdown)
+                    if (inner_res <= prm.tol * norm_rhs || breakdown)
                         break;
                 }
 
