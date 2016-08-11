@@ -166,7 +166,7 @@ class lgmres {
             scalar_type tol;
 
             params()
-                : pside(precond::left), M(30), K(3), store_Av(true), maxiter(100), tol(1e-8)
+                : pside(precond::right), M(30), K(3), store_Av(true), maxiter(100), tol(1e-8)
             { }
 
             params(const boost::property_tree::ptree &p)
