@@ -46,6 +46,7 @@ THE SOFTWARE.
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/solver/detail/default_inner_product.hpp>
 #include <amgcl/util.hpp>
+#include <amgcl/nullspace.hpp>
 
 /// Primary namespace.
 namespace amgcl {
@@ -164,37 +165,12 @@ class amg {
          */
         template <class Matrix>
         amg(
-                const Matrix &M,
+                const Matrix &A,
                 const params &p = params(),
                 const backend_params &bprm = backend_params()
            ) : prm(p)
         {
-            boost::shared_ptr<build_matrix> A = boost::make_shared<build_matrix>(M);
-            sort_rows(*A);
-
-            init(A, bprm);
-        }
-
-        /// Builds the AMG hierarchy for the system matrix.
-        /**
-         * The shared pointer to the input matrix is passed here. The matrix
-         * will not be copied and should out-live the amg instance.
-         * The matrix should be either in amgcl::backend::crs<T> format, or
-         * inherit from the class and override its ptr(), col(), and val()
-         * virtual functions.
-         *
-         * \param A The system matrix.
-         * \param p AMG parameters.
-         *
-         * \sa amgcl/adapter/crs_tuple.hpp
-         */
-        amg(
-                boost::shared_ptr<build_matrix> A,
-                const params &p = params(),
-                const backend_params &bprm = backend_params()
-           ) : prm(p)
-        {
-            init(A, bprm);
+            init(copy_matrix(nullspace::matrix(A)), nullspace::vectors(A), bprm);
         }
 
         /// Performs single V-cycle for the given right-hand side and solution.
@@ -308,21 +284,48 @@ class amg {
 
         std::list<level> levels;
 
+        template <class Matrix>
+        boost::shared_ptr<build_matrix> copy_matrix(const Matrix &A) {
+            boost::shared_ptr<build_matrix> C = boost::make_shared<build_matrix>(A);
+            sort_rows(*C);
+            return C;
+        }
+
+        boost::shared_ptr<build_matrix> copy_matrix(boost::shared_ptr<build_matrix> A) {
+            return A;
+        }
+
+        template <class NullSpace>
         void init(
                 boost::shared_ptr<build_matrix> A,
+                const NullSpace &Null,
                 const backend_params &bprm = backend_params()
            )
         {
+            typedef typename math::rhs_of<value_type>::type rhs_type;
+            typedef boost::multi_array<rhs_type, 2> NS;
+
             precondition(
                     backend::rows(*A) == backend::cols(*A),
                     "Matrix should be square!"
                     );
 
+
             boost::shared_ptr<build_matrix> P, R;
+
+            size_t nvec = nullspace::size(Null);
+            size_t n    = backend::rows(*A);
+
+            boost::shared_ptr<NS> N = boost::make_shared<NS>(
+                    boost::extents[nvec][n], boost::fortran_storage_order());
+
+            for(size_t j = 0; j < n; ++j)
+                for(size_t i = 0; i < nvec; ++i)
+                    (*N)[i][j] = nullspace::value(Null, i, j);
 
             while( backend::rows(*A) > prm.coarse_enough) {
                 TIC("transfer operators");
-                boost::tie(P, R) = Coarsening::transfer_operators(
+                boost::tie(P, R, N) = Coarsening::transfer_operators(
                         *A, prm.coarsening);
                 precondition(
                         backend::cols(*P) > 0,
