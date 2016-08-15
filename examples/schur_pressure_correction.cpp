@@ -9,6 +9,8 @@
 #include <boost/foreach.hpp>
 
 #include <amgcl/make_solver.hpp>
+#include <amgcl/make_block_solver.hpp>
+#include <amgcl/value_type/static_matrix.hpp>
 #include <amgcl/runtime.hpp>
 #include <amgcl/preconditioner/schur_pressure_correction.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
@@ -22,25 +24,40 @@ using amgcl::precondition;
 
 typedef amgcl::scoped_tic< amgcl::profiler<> > tic;
 
+template <class USolver, class PSolver, class Matrix>
+typename boost::enable_if_c<
+    (
+        amgcl::math::static_rows<
+            typename amgcl::preconditioner::detail::common_backend<
+                typename USolver::backend_type,
+                typename PSolver::backend_type
+            >::type::value_type
+        >::value > 1
+    ),
+    void
+    >::type
+solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
+{}
+
 //---------------------------------------------------------------------------
-template <class Matrix>
-void solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
+template <class USolver, class PSolver, class Matrix>
+typename boost::enable_if_c<
+    (
+        amgcl::math::static_rows<
+            typename amgcl::preconditioner::detail::common_backend<
+                typename USolver::backend_type,
+                typename PSolver::backend_type
+            >::type::value_type
+        >::value == 1
+    ),
+    void>::type
+solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
 {
     tic t1(prof, "schur_complement");
 
     typedef amgcl::backend::builtin<double> Backend;
 
-    typedef amgcl::make_solver<
-        amgcl::runtime::relaxation::as_preconditioner<Backend>,
-        amgcl::runtime::iterative_solver<Backend>
-        > USolver;
-
-    typedef amgcl::make_solver<
-        amgcl::runtime::amg<Backend>,
-        amgcl::runtime::iterative_solver<Backend>
-        > PSolver;
-
-    amgcl::make_scaling_solver<
+    amgcl::make_solver<
         amgcl::preconditioner::schur_pressure_correction<USolver, PSolver>,
         amgcl::runtime::iterative_solver<Backend>
         > solve(K, prm);
@@ -60,11 +77,128 @@ void solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::propert
 }
 
 //---------------------------------------------------------------------------
+template <class USolver, class Matrix>
+void solve_schur(int pb, const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
+{
+    switch (pb) {
+        case 1:
+            {
+                typedef amgcl::backend::builtin<double> Backend;
+                typedef
+                    amgcl::make_solver<
+                        amgcl::runtime::amg<Backend>,
+                        amgcl::runtime::iterative_solver<Backend>
+                        >
+                    PSolver;
+                solve_schur<USolver, PSolver>(K, rhs, prm);
+            }
+            break;
+        case 2:
+            {
+                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 2, 2> > Backend;
+                typedef
+                    amgcl::make_block_solver<
+                        amgcl::runtime::amg<Backend>,
+                        amgcl::runtime::iterative_solver<Backend>
+                        >
+                    PSolver;
+                solve_schur<USolver, PSolver>(K, rhs, prm);
+            }
+            break;
+        case 3:
+            {
+                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 2, 2> > Backend;
+                typedef
+                    amgcl::make_block_solver<
+                        amgcl::runtime::amg<Backend>,
+                        amgcl::runtime::iterative_solver<Backend>
+                        >
+                    PSolver;
+                solve_schur<USolver, PSolver>(K, rhs, prm);
+            }
+            break;
+        case 4:
+            {
+                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 2, 2> > Backend;
+                typedef
+                    amgcl::make_block_solver<
+                        amgcl::runtime::amg<Backend>,
+                        amgcl::runtime::iterative_solver<Backend>
+                        >
+                    PSolver;
+                solve_schur<USolver, PSolver>(K, rhs, prm);
+            }
+            break;
+        default:
+            precondition(false, "Unsupported block size for pressure");
+    }
+}
+
+//---------------------------------------------------------------------------
+template <class Matrix>
+void solve_schur(int ub, int pb, const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
+{
+    precondition(ub == 1 || pb == 1,
+            "At least one of the flow/pressure subproblems has to be scalar");
+
+    switch (ub) {
+        case 1:
+            {
+                typedef amgcl::backend::builtin<double> Backend;
+                typedef
+                    amgcl::make_solver<
+                        amgcl::runtime::relaxation::as_preconditioner<Backend>,
+                        amgcl::runtime::iterative_solver<Backend>
+                        >
+                    USolver;
+                solve_schur<USolver>(pb, K, rhs, prm);
+            }
+            break;
+        case 2:
+            {
+                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 2, 2> > Backend;
+                typedef
+                    amgcl::make_block_solver<
+                        amgcl::runtime::relaxation::as_preconditioner<Backend>,
+                        amgcl::runtime::iterative_solver<Backend>
+                        >
+                    USolver;
+                solve_schur<USolver>(pb, K, rhs, prm);
+            }
+            break;
+        case 3:
+            {
+                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 2, 2> > Backend;
+                typedef
+                    amgcl::make_block_solver<
+                        amgcl::runtime::relaxation::as_preconditioner<Backend>,
+                        amgcl::runtime::iterative_solver<Backend>
+                        >
+                    USolver;
+                solve_schur<USolver>(pb, K, rhs, prm);
+            }
+            break;
+        case 4:
+            {
+                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 2, 2> > Backend;
+                typedef
+                    amgcl::make_block_solver<
+                        amgcl::runtime::relaxation::as_preconditioner<Backend>,
+                        amgcl::runtime::iterative_solver<Backend>
+                        >
+                    USolver;
+                solve_schur<USolver>(pb, K, rhs, prm);
+            }
+            break;
+        default:
+            precondition(false, "Unsupported block size for flow");
+    }
+}
+
+//---------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
     using std::string;
     using std::vector;
-    using amgcl::prof;
-    using amgcl::precondition;
 
     namespace po = boost::program_options;
     namespace io = amgcl::io;
@@ -94,6 +228,16 @@ int main(int argc, char *argv[]) {
          po::value<string>()->required(),
          "The pressure mask in MatrixMarket format. Or, if the parameter has "
          "the form '%n:m', then each (n+i*m)-th variable is treated as pressure."
+        )
+        (
+         "ub",
+         po::value<int>()->default_value(1),
+         "Block-size of the 'flow'/'non-pressure' part of the matrix"
+        )
+        (
+         "pb",
+         po::value<int>()->default_value(1),
+         "Block-size of the 'pressure' part of the matrix"
         )
         (
          "params,P",
@@ -194,7 +338,8 @@ int main(int argc, char *argv[]) {
     prm.put("precond.pmask", static_cast<void*>(&pm[0]));
     prm.put("precond.pmask_size", pm.size());
 
-    solve_schur(boost::tie(rows, ptr, col, val), rhs, prm);
+    solve_schur(vm["ub"].as<int>(), vm["pb"].as<int>(),
+            boost::tie(rows, ptr, col, val), rhs, prm);
 
     std::cout << prof << std::endl;
 }
