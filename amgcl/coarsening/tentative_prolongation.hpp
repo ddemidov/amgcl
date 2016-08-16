@@ -38,6 +38,7 @@ THE SOFTWARE.
 #include <boost/make_shared.hpp>
 #include <boost/iterator/counting_iterator.hpp>
 #include <boost/range/algorithm.hpp>
+#include <boost/multi_array.hpp>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/detail/qr.hpp>
@@ -62,54 +63,6 @@ namespace detail {
 } // namespace detail
 
 
-//---------------------------------------------------------------------------
-struct nullspace_params {
-    /// Number of vectors in near nullspace.
-    int cols;
-
-    /// Near nullspace vectors.
-    /**
-     * The vectors are represented as columns of a 2D matrix stored in
-     * row-major order.
-     */
-    std::vector<double> B;
-
-    nullspace_params() : cols(0) {}
-
-    nullspace_params(const boost::property_tree::ptree &p)
-        : cols(p.get("cols", nullspace_params().cols))
-    {
-        double *b = 0;
-        b = p.get("B", b);
-
-        if (b) {
-            size_t rows = 0;
-            rows = p.get("rows", rows);
-
-            precondition(cols > 0,
-                    "Error in nullspace parameters: "
-                    "B is set, but cols is not"
-                    );
-
-            precondition(rows > 0,
-                    "Error in nullspace parameters: "
-                    "B is set, but rows is not"
-                    );
-
-            B.assign(b, b + rows * cols);
-        } else {
-            precondition(cols == 0,
-                    "Error in nullspace parameters: "
-                    "cols > 0, but B is empty"
-                    );
-        }
-
-        AMGCL_PARAMS_CHECK(p, (cols)(rows)(B));
-    }
-
-    void get(boost::property_tree::ptree&, const std::string&) const {}
-};
-
 /// Tentative prolongation operator
 /**
  * If near nullspace vectors are not provided, returns piecewise-constant
@@ -122,7 +75,7 @@ boost::shared_ptr<Matrix> tentative_prolongation(
         size_t n,
         size_t naggr,
         const std::vector<ptrdiff_t> aggr,
-        nullspace_params &nullspace,
+        boost::multi_array<typename backend::value_type<Matrix>::type, 2> &B,
         int block_size
         )
 {
@@ -131,7 +84,7 @@ boost::shared_ptr<Matrix> tentative_prolongation(
     boost::shared_ptr<Matrix> P = boost::make_shared<Matrix>();
 
     TIC("tentative");
-    if (nullspace.cols > 0) {
+    if (int nvec = boost::size(B)) {
         // Sort fine points by aggregate number.
         // Put points not belonging to any aggregate to the end of the list.
         std::vector<ptrdiff_t> order(
@@ -141,10 +94,10 @@ boost::shared_ptr<Matrix> tentative_prolongation(
         boost::stable_sort(order, detail::skip_negative(aggr, block_size));
 
         // Precompute the shape of the prolongation operator.
-        // Each row contains exactly nullspace.cols non-zero entries.
+        // Each row contains exactly nvec non-zero entries.
         // Rows that do not belong to any aggregate are empty.
         P->nrows = n;
-        P->ncols = nullspace.cols * naggr / block_size;
+        P->ncols = nvec * naggr / block_size;
         P->ptr.reserve(n + 1);
 
         P->ptr.push_back(0);
@@ -152,7 +105,7 @@ boost::shared_ptr<Matrix> tentative_prolongation(
             if (aggr[i] < 0)
                 P->ptr.push_back(P->ptr.back());
             else
-                P->ptr.push_back(P->ptr.back() + nullspace.cols);
+                P->ptr.push_back(P->ptr.back() + nvec);
         }
 
         P->col.resize(P->ptr.back());
@@ -160,45 +113,46 @@ boost::shared_ptr<Matrix> tentative_prolongation(
 
         // Compute the tentative prolongation operator and null-space vectors
         // for the coarser level.
-        std::vector<double> Bnew;
-        Bnew.reserve(naggr * nullspace.cols * nullspace.cols / block_size);
+        boost::multi_array<value_type, 2> Bnew(
+                boost::extents[naggr * nvec / block_size][nvec],
+                boost::fortran_storage_order()
+                );
 
-        size_t offset = 0;
+        size_t offset = 0, Bcol = 0;
 
-        amgcl::detail::QR<double, amgcl::detail::col_major> qr;
-        std::vector<double> Bpart;
+        amgcl::detail::QR<value_type, amgcl::detail::col_major> qr;
+        std::vector<value_type> Bpart;
         for(ptrdiff_t i = 0, nb = naggr / block_size; i < nb; ++i) {
             size_t d = 0;
             for(size_t j = offset; j < n && aggr[order[j]] / block_size == i; ++j, ++d);
-            Bpart.resize(d * nullspace.cols);
+            Bpart.resize(d * nvec);
 
             for(size_t j = offset, jj = 0; jj < d; ++j, ++jj) {
-                ptrdiff_t ib = nullspace.cols * order[j];
-                for(int k = 0; k < nullspace.cols; ++k)
-                    Bpart[jj + d * k] = nullspace.B[ib + k];
+                for(int k = 0; k < nvec; ++k)
+                    Bpart[jj + d * k] = B[k][order[j]];
             }
 
-            qr.compute(d, nullspace.cols, &Bpart[0]);
+            qr.compute(d, nvec, &Bpart[0]);
             qr.compute_q();
 
-            for(int ii = 0; ii < nullspace.cols; ++ii)
-                for(int jj = 0; jj < nullspace.cols; ++jj)
-                    Bnew.push_back( qr.R(ii,jj) );
+            for(int ii = 0; ii < nvec; ++ii, ++Bcol)
+                for(int jj = 0; jj < nvec; ++jj)
+                    Bnew[jj][Bcol] = qr.R(ii,jj);
 
             for(size_t ii = 0; ii < d; ++ii, ++offset) {
                 ptrdiff_t  *c = &P->col[P->ptr[order[offset]]];
                 value_type *v = &P->val[P->ptr[order[offset]]];
 
-                for(int jj = 0; jj < nullspace.cols; ++jj) {
-                    c[jj] = i * nullspace.cols + jj;
-                    // TODO: this is just a workaround to make non-scalar value
-                    // types compile. Most probably this won't actually work.
-                    v[jj] = qr.Q(ii,jj) * math::identity<value_type>();
+                for(int jj = 0; jj < nvec; ++jj) {
+                    c[jj] = i * nvec + jj;
+                    v[jj] = qr.Q(ii,jj);
                 }
             }
         }
 
-        std::swap(nullspace.B, Bnew);
+        // TODO: make this more effective
+        B.resize(Bnew.shape());
+        B = Bnew;
     } else {
         P->nrows = n;
         P->ncols = naggr;

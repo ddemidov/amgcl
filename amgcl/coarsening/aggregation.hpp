@@ -76,9 +76,6 @@ struct aggregation {
         /// Aggregation parameters.
         Aggregates::params aggr;
 
-        /// Near nullspace parameters.
-        nullspace_params nullspace;
-
         /// Over-interpolation factor \f$\alpha\f$.
         /**
          * In case of aggregation coarsening, coarse-grid
@@ -98,15 +95,13 @@ struct aggregation {
 
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_CHILD(p, aggr),
-              AMGCL_PARAMS_IMPORT_CHILD(p, nullspace),
               AMGCL_PARAMS_IMPORT_VALUE(p, over_interp)
         {
-            AMGCL_PARAMS_CHECK(p, (aggr)(nullspace)(over_interp));
+            AMGCL_PARAMS_CHECK(p, (aggr)(over_interp));
         }
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {
             AMGCL_PARAMS_EXPORT_CHILD(p, path, aggr);
-            AMGCL_PARAMS_EXPORT_CHILD(p, path, nullspace);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, over_interp);
         }
     };
@@ -122,25 +117,26 @@ struct aggregation {
         boost::shared_ptr<Matrix>,
         boost::shared_ptr<Matrix>
         >
-    transfer_operators(const Matrix &A, params &prm)
+    transfer_operators(const Matrix &A, boost::multi_array<typename backend::value_type<Matrix>::type, 2> &B, params &prm)
     {
-        const size_t n = rows(A);
+        const size_t n    = rows(A);
+        const size_t nvec = boost::size(B);
 
         TIC("aggregates");
-        Aggregates aggr(A, prm.aggr, prm.nullspace.cols);
+        Aggregates aggr(A, prm.aggr, nvec);
         TOC("aggregates");
 
         TIC("interpolation");
         boost::shared_ptr<Matrix> P = tentative_prolongation<Matrix>(
-                n, aggr.count, aggr.id, prm.nullspace, prm.aggr.block_size
+                n, aggr.count, aggr.id, B, prm.aggr.block_size
                 );
         TOC("interpolation");
 
         boost::shared_ptr<Matrix> R = boost::make_shared<Matrix>();
         *R = transpose(*P);
 
-        if (prm.nullspace.cols > 0)
-            prm.aggr.block_size = prm.nullspace.cols;
+        if (nvec > 0)
+            prm.aggr.block_size = nvec;
 
         return boost::make_tuple(P, R);
     }

@@ -63,21 +63,16 @@ struct smoothed_aggr_emin {
         /// Aggregation parameters.
         Aggregates::params aggr;
 
-        /// Near nullspace parameters.
-        nullspace_params nullspace;
-
         params() {}
 
         params(const boost::property_tree::ptree &p)
-            : AMGCL_PARAMS_IMPORT_CHILD(p, aggr),
-              AMGCL_PARAMS_IMPORT_CHILD(p, nullspace)
+            : AMGCL_PARAMS_IMPORT_CHILD(p, aggr)
         {
-            AMGCL_PARAMS_CHECK(p, (aggr)(nullspace));
+            AMGCL_PARAMS_CHECK(p, (aggr));
         }
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {
             AMGCL_PARAMS_EXPORT_CHILD(p, path, aggr);
-            AMGCL_PARAMS_EXPORT_CHILD(p, path, nullspace);
         }
     };
 
@@ -87,19 +82,21 @@ struct smoothed_aggr_emin {
         boost::shared_ptr<Matrix>,
         boost::shared_ptr<Matrix>
         >
-    transfer_operators(const Matrix &A, params &prm)
+    transfer_operators(const Matrix &A, boost::multi_array<typename backend::value_type<Matrix>::type, 2> &B, params &prm)
     {
         typedef typename backend::value_type<Matrix>::type Val;
         typedef ptrdiff_t Idx;
 
+        const size_t nvec = boost::size(B);
+
         TIC("aggregates");
-        Aggregates aggr(A, prm.aggr, prm.nullspace.cols);
+        Aggregates aggr(A, prm.aggr, nvec);
         prm.aggr.eps_strong *= 0.5;
         TOC("aggregates");
 
         TIC("interpolation");
         boost::shared_ptr<Matrix> P_tent = tentative_prolongation<Matrix>(
-                rows(A), aggr.count, aggr.id, prm.nullspace, prm.aggr.block_size
+                rows(A), aggr.count, aggr.id, B, prm.aggr.block_size
                 );
 
         // Filter the system matrix
@@ -170,8 +167,8 @@ struct smoothed_aggr_emin {
         boost::shared_ptr<Matrix> R = restriction  (Af, dia, *P_tent, omega);
         TOC("interpolation");
 
-        if (prm.nullspace.cols > 0)
-            prm.aggr.block_size = prm.nullspace.cols;
+        if (nvec > 0)
+            prm.aggr.block_size = nvec;
 
         return boost::make_tuple(P, R);
     }

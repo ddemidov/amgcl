@@ -170,7 +170,7 @@ class amg {
                 const backend_params &bprm = backend_params()
            ) : prm(p)
         {
-            init(copy_matrix(nullspace::matrix(A)), nullspace::vectors(A), bprm);
+            init(copy_matrix(A), amgcl::nullspace::dummy<value_type>(), bprm);
         }
 
         /// Performs single V-cycle for the given right-hand side and solution.
@@ -325,8 +325,8 @@ class amg {
 
             while( backend::rows(*A) > prm.coarse_enough) {
                 TIC("transfer operators");
-                boost::tie(P, R, N) = Coarsening::transfer_operators(
-                        *A, prm.coarsening);
+                boost::tie(P, R) = Coarsening::transfer_operators(
+                        *A, *N, prm.coarsening);
                 precondition(
                         backend::cols(*P) > 0,
                         "Zero-sized coarse level in amgcl (diagonal matrix?)"

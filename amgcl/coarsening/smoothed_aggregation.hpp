@@ -60,9 +60,6 @@ struct smoothed_aggregation {
         /// Aggregation parameters.
         Aggregates::params aggr;
 
-        /// Near nullspace parameters.
-        nullspace_params nullspace;
-
         /// Relaxation factor \f$\omega\f$.
         /**
          * Piecewise constant prolongation \f$\tilde P\f$ from non-smoothed
@@ -89,15 +86,13 @@ struct smoothed_aggregation {
 
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_CHILD(p, aggr),
-              AMGCL_PARAMS_IMPORT_CHILD(p, nullspace),
               AMGCL_PARAMS_IMPORT_VALUE(p, relax)
         {
-            AMGCL_PARAMS_CHECK(p, (aggr)(nullspace)(relax));
+            AMGCL_PARAMS_CHECK(p, (aggr)(relax));
         }
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {
             AMGCL_PARAMS_EXPORT_CHILD(p, path, aggr);
-            AMGCL_PARAMS_EXPORT_CHILD(p, path, nullspace);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, relax);
         }
     };
@@ -105,25 +100,26 @@ struct smoothed_aggregation {
     /// \copydoc amgcl::coarsening::aggregation::transfer_operators
     template <class Matrix>
     static boost::tuple< boost::shared_ptr<Matrix>, boost::shared_ptr<Matrix> >
-    transfer_operators(const Matrix &A, params &prm)
+    transfer_operators(const Matrix &A, boost::multi_array<typename backend::value_type<Matrix>::type, 2> &B, params &prm)
     {
         typedef typename backend::value_type<Matrix>::type value_type;
         typedef typename math::scalar_of<value_type>::type scalar_type;
 
         const size_t n = rows(A);
+        const size_t nvec = boost::size(B);
 
         BOOST_AUTO(Aptr, A.ptr_data());
         BOOST_AUTO(Acol, A.col_data());
         BOOST_AUTO(Aval, A.val_data());
 
         TIC("aggregates");
-        Aggregates aggr(A, prm.aggr, prm.nullspace.cols);
+        Aggregates aggr(A, prm.aggr, nvec);
         prm.aggr.eps_strong *= 0.5;
         TOC("aggregates");
 
         TIC("interpolation");
         boost::shared_ptr<Matrix> P_tent = tentative_prolongation<Matrix>(
-                n, aggr.count, aggr.id, prm.nullspace, prm.aggr.block_size
+                n, aggr.count, aggr.id, B, prm.aggr.block_size
                 );
 
         boost::shared_ptr<Matrix> P = boost::make_shared<Matrix>();
@@ -225,8 +221,8 @@ struct smoothed_aggregation {
         boost::shared_ptr<Matrix> R = boost::make_shared<Matrix>();
         *R = transpose(*P);
 
-        if (prm.nullspace.cols > 0)
-            prm.aggr.block_size = prm.nullspace.cols;
+        if (nvec > 0)
+            prm.aggr.block_size = nvec;
 
         return boost::make_tuple(P, R);
     }
