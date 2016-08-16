@@ -75,7 +75,7 @@ boost::shared_ptr<Matrix> tentative_prolongation(
         size_t n,
         size_t naggr,
         const std::vector<ptrdiff_t> aggr,
-        boost::multi_array<typename backend::value_type<Matrix>::type, 2> &B,
+        boost::multi_array<typename math::rhs_of<typename backend::value_type<Matrix>::type>::type, 2> &B,
         int block_size
         )
 {
@@ -113,7 +113,7 @@ boost::shared_ptr<Matrix> tentative_prolongation(
 
         // Compute the tentative prolongation operator and null-space vectors
         // for the coarser level.
-        boost::multi_array<value_type, 2> Bnew(
+        boost::multi_array<typename math::rhs_of<value_type>::type, 2> Bnew(
                 boost::extents[naggr * nvec / block_size][nvec],
                 boost::fortran_storage_order()
                 );
@@ -151,8 +151,8 @@ boost::shared_ptr<Matrix> tentative_prolongation(
         }
 
         // TODO: make this more effective
-        B.resize(Bnew.shape());
-        B = Bnew;
+        //B.resize(Bnew.shape());
+        //B = Bnew;
     } else {
         P->nrows = n;
         P->ncols = naggr;

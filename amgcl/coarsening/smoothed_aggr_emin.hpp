@@ -82,7 +82,10 @@ struct smoothed_aggr_emin {
         boost::shared_ptr<Matrix>,
         boost::shared_ptr<Matrix>
         >
-    transfer_operators(const Matrix &A, boost::multi_array<typename backend::value_type<Matrix>::type, 2> &B, params &prm)
+    transfer_operators(
+            const Matrix &A,
+            boost::multi_array<typename math::rhs_of<typename backend::value_type<Matrix>::type>::type, 2> &B,
+            params &prm)
     {
         typedef typename backend::value_type<Matrix>::type Val;
         typedef ptrdiff_t Idx;

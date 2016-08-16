@@ -100,7 +100,10 @@ struct smoothed_aggregation {
     /// \copydoc amgcl::coarsening::aggregation::transfer_operators
     template <class Matrix>
     static boost::tuple< boost::shared_ptr<Matrix>, boost::shared_ptr<Matrix> >
-    transfer_operators(const Matrix &A, boost::multi_array<typename backend::value_type<Matrix>::type, 2> &B, params &prm)
+    transfer_operators(
+            const Matrix &A,
+            boost::multi_array<typename math::rhs_of<typename backend::value_type<Matrix>::type>::type, 2> &B,
+            params &prm)
     {
         typedef typename backend::value_type<Matrix>::type value_type;
         typedef typename math::scalar_of<value_type>::type scalar_type;

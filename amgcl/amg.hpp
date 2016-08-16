@@ -170,7 +170,7 @@ class amg {
                 const backend_params &bprm = backend_params()
            ) : prm(p)
         {
-            init(copy_matrix(A), amgcl::nullspace::dummy<value_type>(), bprm);
+            init(copy_matrix(A), boost::multi_array<value_type, 2>(boost::extents[0][0]), bprm);
         }
 
         /// Performs single V-cycle for the given right-hand side and solution.
