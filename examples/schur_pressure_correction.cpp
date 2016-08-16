@@ -107,7 +107,7 @@ void solve_schur(int pb, const Matrix &K, const std::vector<double> &rhs, boost:
             break;
         case 3:
             {
-                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 2, 2> > Backend;
+                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 3, 3> > Backend;
                 typedef
                     amgcl::make_block_solver<
                         amgcl::runtime::amg<Backend>,
@@ -119,7 +119,7 @@ void solve_schur(int pb, const Matrix &K, const std::vector<double> &rhs, boost:
             break;
         case 4:
             {
-                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 2, 2> > Backend;
+                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 4, 4> > Backend;
                 typedef
                     amgcl::make_block_solver<
                         amgcl::runtime::amg<Backend>,
@@ -168,7 +168,7 @@ void solve_schur(int ub, int pb, const Matrix &K, const std::vector<double> &rhs
             break;
         case 3:
             {
-                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 2, 2> > Backend;
+                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 3, 3> > Backend;
                 typedef
                     amgcl::make_block_solver<
                         amgcl::runtime::relaxation::as_preconditioner<Backend>,
@@ -180,7 +180,7 @@ void solve_schur(int ub, int pb, const Matrix &K, const std::vector<double> &rhs
             break;
         case 4:
             {
-                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 2, 2> > Backend;
+                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 4, 4> > Backend;
                 typedef
                     amgcl::make_block_solver<
                         amgcl::runtime::relaxation::as_preconditioner<Backend>,
