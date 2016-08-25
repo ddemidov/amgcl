@@ -15,6 +15,7 @@ parser.add_argument('-f,--rhs',    dest='f', help='RHS in MatrixMarket format')
 parser.add_argument('-n,--size',   dest='n', type=int, default=64, help='The size of the Poisson problem to solve when no system matrix is given')
 parser.add_argument('-o,--out',    dest='x', help='Output file name')
 parser.add_argument('-p,--prm',    dest='p', help='AMGCL parameters: key1=val1 key2=val2', nargs='+', default=[])
+parser.add_argument('-1,--single-level', dest='single', help='Use single level relaxation as preconditioner', action='store_true', default=False)
 
 args = parser.parse_args(sys.argv[1:])
 
@@ -29,7 +30,7 @@ else:
 prm = {p[0]: p[1] for p in map(lambda s: s.split('='), args.p)}
 
 # Create preconditioner
-P = amg.make_preconditioner(A, prm)
+P = amg.relaxation(A, prm) if args.single else amg.amg(A, prm)
 print(P)
 
 iters = [0]

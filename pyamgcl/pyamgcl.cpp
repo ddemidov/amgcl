@@ -33,10 +33,10 @@ boost::property_tree::ptree make_ptree(const py::dict &args) {
 
 //---------------------------------------------------------------------------
 template <typename T>
-py::array_t<T> make_array(size_t n) {
+py::array_t<T> make_array(size_t n, T *ptr = nullptr) {
     return py::array_t<T>(
             py::buffer_info(
-                nullptr, sizeof(T), py::format_descriptor<T>::value, 1, {n}, {sizeof(T)}
+                ptr, sizeof(T), py::format_descriptor<T>::value, 1, {n}, {sizeof(T)}
                 )
             );
 }
@@ -55,162 +55,129 @@ boost::iterator_range<T*> make_range(py::array_t<T> a) {
 }
 
 //---------------------------------------------------------------------------
-struct make_solver {
-    make_solver(
-            py::array_t<int>    _ptr,
-            py::array_t<int>    _col,
-            py::array_t<double> _val,
-            py::dict prm
-          )
-    {
-        auto ptr = make_range(_ptr);
-        auto col = make_range(_col);
-        auto val = make_range(_val);
+struct precond {
+    typedef amgcl::backend::builtin<double> backend_type;
+    typedef backend_type::matrix matrix;
+    typedef backend_type::vector vector;
+    typedef boost::iterator_range<double*> range;
 
-        n = boost::size(ptr) - 1;
-        S = boost::make_shared<Solver>(boost::make_tuple(n, ptr, col, val), make_ptree(prm));
+    virtual void apply(const vector& rhs, vector &x) const = 0;
+    virtual const matrix& system_matrix() const = 0;
+    virtual std::string repr() const = 0;
+
+    const precond& matvec() const { return *this; }
+
+    py::array_t<double> call(py::array_t<double> rhs) const {
+        auto f = make_range(rhs);
+        std::vector<double> x(boost::size(f), 0.0);
+        this->apply(std::vector<double>(boost::begin(f), boost::end(f)), x);
+        return make_array(x.size(), x.data());
     }
-
-    py::array_t<double> solve(py::array_t<double> rhs) const {
-        auto x_array = make_array<double>(n);
-        auto x = make_range(x_array);
-        boost::fill(x, 0.0);
-
-        boost::tie(iters, error) = (*S)(make_range(rhs), x);
-
-        return x_array;
-    }
-
-    py::array_t<double> solve(
-            py::array_t<int>    ptr,
-            py::array_t<int>    col,
-            py::array_t<double> val,
-            py::array_t<double> rhs
-            ) const
-    {
-        auto x_array = make_array<double>(n);
-        auto x = make_range(x_array);
-        boost::fill(x, 0.0);
-
-        boost::tie(iters, error) = (*S)(
-                boost::make_tuple(n, make_range(ptr), make_range(col), make_range(val)),
-                make_range(rhs), x);
-
-        return x_array;
-    }
-
-    int iterations() const {
-        return iters;
-    }
-
-    double residual() const {
-        return error;
-    }
-
-    std::string repr() const {
-        std::ostringstream s;
-        s << S->precond();
-        return s.str();
-    }
-
-    private:
-        typedef amgcl::make_solver<
-            amgcl::runtime::amg<
-                amgcl::backend::builtin<double>
-                >,
-            amgcl::runtime::iterative_solver<
-                amgcl::backend::builtin<double>
-                >
-            > Solver;
-
-        int n;
-        boost::shared_ptr< Solver > S;
-
-        mutable int    iters;
-        mutable double error;
-
 };
 
 //---------------------------------------------------------------------------
-struct make_preconditioner {
-    make_preconditioner(
+class solver
+    : public amgcl::runtime::iterative_solver<amgcl::backend::builtin<double> >
+{
+    public:
+        solver(const precond &P, py::dict prm)
+            : S(amgcl::backend::rows(P.system_matrix()), make_ptree(prm)), P(P)
+        {}
+
+        py::array_t<double> solve(py::array_t<double> rhs) const {
+            auto f = make_range(rhs);
+            std::vector<double> x(boost::size(f), 0.0);
+            boost::tie(iters, error) = (*this)(P, std::vector<double>(boost::begin(f), boost::end(f)), x);
+            return make_array(x.size(), x.data());
+        }
+
+        int iterations() const {
+            return iters;
+        }
+
+        double residual() const {
+            return error;
+        }
+
+    private:
+        typedef amgcl::runtime::iterative_solver<amgcl::backend::builtin<double> > S;
+
+        const precond &P;
+
+        mutable int    iters;
+        mutable double error;
+};
+
+//---------------------------------------------------------------------------
+template <class Precond>
+class amg_precond: public precond
+{
+    public:
+        amg_precond(
             py::array_t<int>    _ptr,
             py::array_t<int>    _col,
             py::array_t<double> _val,
             py::dict prm
-          )
-    {
-        auto ptr = make_range(_ptr);
-        auto col = make_range(_col);
-        auto val = make_range(_val);
+           )
+        {
+            auto ptr = make_range(_ptr);
+            auto col = make_range(_col);
+            auto val = make_range(_val);
 
-        n = boost::size(ptr) - 1;
-        P = boost::make_shared<Preconditioner>(boost::tie(n, ptr, col, val), make_ptree(prm));
-    }
+            P = boost::make_shared<Precond>(
+                    boost::make_tuple(boost::size(ptr) - 1, ptr, col, val),
+                    make_ptree(prm)
+                    );
+        }
 
-    py::array_t<double> apply(py::array_t<double> rhs) const {
-        auto x_array = make_array<double>(n);
-        auto x = make_range(x_array);
+        void apply(const precond::vector& rhs, precond::vector &x) const {
+            P->apply(rhs, x);
+        }
 
-        P->apply(make_range(rhs), x);
+        const matrix& system_matrix() const {
+            return P->system_matrix();
+        }
 
-        return x_array;
-    }
-
-    std::string repr() const {
-        std::ostringstream s;
-        s << (*P);
-        return s.str();
-    }
+        std::string repr() const {
+            std::ostringstream s;
+            s << *P;
+            return s.str();
+        }
 
     private:
-        typedef amgcl::runtime::amg< amgcl::backend::builtin<double> > Preconditioner;
-
-        int n;
-        boost::shared_ptr<Preconditioner> P;
+        boost::shared_ptr<Precond> P;
 };
 
 //---------------------------------------------------------------------------
 PYBIND11_PLUGIN(pyamgcl_ext) {
     py::module m("pyamgcl_ext");
 
-    py::class_<make_solver>(m, "make_solver")
-        .def(py::init<
-                py::array_t<int>,
-                py::array_t<int>,
-                py::array_t<double>,
-                py::dict
-                >()
-            )
-        .def("__repr__", &make_solver::repr)
-        .def("__call__",
-                (py::array_t<double> (make_solver::*)(py::array_t<double>) const) &make_solver::solve,
-                "Solves the problem for the given RHS",
-                py::arg("rhs")
-            )
-        .def("__call__",
-                (py::array_t<double> (make_solver::*)(
-                        py::array_t<int>, py::array_t<int>, py::array_t<double>, py::array_t<double>
-                        ) const) &make_solver::solve,
-                "Solves the problem for the given RHS",
-                py::arg("ptr"), py::arg("col"), py::arg("val"), py::arg("rhs")
-            )
-        .def_property_readonly("iters", &make_solver::iterations)
-        .def_property_readonly("error", &make_solver::residual)
+    py::class_<precond> Precond(m, "precond");
+    Precond
+        .def("__repr__", &precond::repr)
+        .def("__call__", &precond::call, "Applies preconditioner to the given vector", py::arg("rhs"))
+        .def_property_readonly("matvec", &precond::matvec);
         ;
 
-    py::class_<make_preconditioner>(m, "make_preconditioner")
+    typedef amgcl::backend::builtin<double> Backend;
+
+    typedef amg_precond<amgcl::runtime::amg<Backend>> AMG;
+    py::class_<AMG>(m, "amg", Precond)
+        .def(py::init<py::array_t<int>, py::array_t<int>, py::array_t<double>, py::dict>());
+
+    typedef amg_precond<amgcl::runtime::relaxation::as_preconditioner<Backend>> Relaxation;
+    py::class_<Relaxation>(m, "relaxation", Precond)
+        .def(py::init<py::array_t<int>, py::array_t<int>, py::array_t<double>, py::dict>());
+
+    py::class_<solver>(m, "solver")
         .def(py::init<
-                py::array_t<int>,
-                py::array_t<int>,
-                py::array_t<double>,
+                const precond&,
                 py::dict
                 >()
             )
-        .def("__repr__", &make_preconditioner::repr)
-        .def("__call__", &make_preconditioner::apply, "Applies preconditioner to the given vector",
-                py::arg("rhs")
-            )
+        .def("__call__", &solver::solve)
+        .def_property_readonly("iters", &solver::iterations)
+        .def_property_readonly("error", &solver::residual)
         ;
 
     return m.ptr();
