@@ -1,10 +1,5 @@
 language: cpp
-compiler:
-- g++
-
-env:
-  global:
-      - secure: "Hl9sa1V5YSJDYOSr9wnw109Vvm27FVTIZC5gIEiNOwdsqdzsO2JTtnk/tLmhStUvyPfJ5Vv8lxc52KFBV1DNDLIT88hxdZ8yRdg1FClVY+B30IfSjO9nKfgNtpGBozBJOfUbOZJwMxsGOdjGDq0dn667E8WcljBLeywRyxjRFvY="
+compiler: g++
 
 addons:
   coverity_scan:
@@ -15,15 +10,32 @@ addons:
     build_command_prepend: mkdir build-coverity && cd build-coverity && cmake ..
     build_command: make
     branch_pattern: coverity-scan
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    - boost-latest
+    packages:
+    - gcc-5
+    - g++-5
+    - libboost-chrono1.55-dev
+    - libboost-date-time1.55-dev
+    - libboost-system1.55-dev
+    - libboost-filesystem1.55-dev
+    - libboost-program-options1.55-dev
+    - libboost-test1.55-dev
+    - python-yaml
+    - lcov
+    - openmpi-bin
+    - libopenmpi-dev
+    - python-scipy
 
-before_install:
-- sudo add-apt-repository ppa:boost-latest/ppa -y
-- sudo apt-get update -qq
-- sudo apt-get install -qq libboost-chrono1.55-dev libboost-date-time1.55-dev libboost-system1.55-dev
-  libboost-filesystem1.55-dev libboost-program-options1.55-dev libboost-python1.55-dev
-  libboost-test1.55-dev python-yaml lcov openmpi-bin libopenmpi-dev python-numpy-dev
-  python-scipy
+env:
+  global:
+  - secure: "Hl9sa1V5YSJDYOSr9wnw109Vvm27FVTIZC5gIEiNOwdsqdzsO2JTtnk/tLmhStUvyPfJ5Vv8lxc52KFBV1DNDLIT88hxdZ8yRdg1FClVY+B30IfSjO9nKfgNtpGBozBJOfUbOZJwMxsGOdjGDq0dn667E8WcljBLeywRyxjRFvY="
+
 script:
+- export CC=gcc-5 CXX=g++-5
+- sudo pip install .
 - mkdir -p build && cd build
 - cmake -DTEST_COVERAGE=ON ..
 - make

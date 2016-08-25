@@ -24,12 +24,7 @@ class make_solver:
         """
         Acsr = A.tocsr()
 
-        self.S = pyamgcl_ext.make_solver(
-                prm,
-                Acsr.indptr.astype(numpy.int32),
-                Acsr.indices.astype(numpy.int32),
-                Acsr.data.astype(numpy.float64)
-                )
+        self.S = pyamgcl_ext.make_solver(Acsr.indptr, Acsr.indices, Acsr.data, prm)
 
     def __repr__(self):
         """
@@ -59,16 +54,10 @@ class make_solver:
         rhs : the right-hand side
         """
         if len(args) == 1:
-            return self.S( args[0].astype(numpy.float64) )
+            return self.S(args[0])
         elif len(args) == 2:
             Acsr = args[0].tocsr()
-
-            return self.S(
-                    Acsr.indptr.astype(numpy.int32),
-                    Acsr.indices.astype(numpy.int32),
-                    Acsr.data.astype(numpy.float64),
-                    args[1].astype(numpy.float64)
-                    )
+            return self.S(Acsr.indptr, Acsr.indices, Acsr.data, args[1])
         else:
             raise "Wrong number of arguments"
 
@@ -105,11 +94,7 @@ class make_preconditioner(LinearOperator):
         Acsr = A.tocsr()
 
         self.P = pyamgcl_ext.make_preconditioner(
-                prm,
-                Acsr.indptr.astype(numpy.int32),
-                Acsr.indices.astype(numpy.int32),
-                Acsr.data.astype(numpy.float64)
-                )
+                Acsr.indptr, Acsr.indices, Acsr.data, prm)
 
         if [int(v) for v in scipy.__version__.split('.')] < [0, 16, 0]:
             LinearOperator.__init__(self, A.shape, self.P)
@@ -121,86 +106,6 @@ class make_preconditioner(LinearOperator):
         Provides information about the multigrid hierarchy.
         """
         return self.P.__repr__()
-
-    def __call__(self, x):
-        """
-        Preconditions the given vector.
-        """
-        return self.P(x.astype(numpy.float64))
-
-    def _matvec(self, x):
-        """
-        Preconditions the given vector.
-        """
-        return self.__call__(x)
-
-class make_cpr(LinearOperator):
-    """
-    CPR preconditioner.
-    """
-    def __init__(self, A, pmask, prm={}):
-        """
-        Class constructor.
-
-        Parameters
-        ----------
-        A : the system matrix in scipy.sparse format
-        prm : dictionary with amgcl parameters
-        """
-        Acsr = A.tocsr()
-
-        self.P = pyamgcl_ext.make_cpr(
-                prm,
-                Acsr.indptr.astype(numpy.int32),
-                Acsr.indices.astype(numpy.int32),
-                Acsr.data.astype(numpy.float64),
-                pmask.astype(numpy.int32)
-                )
-
-        if [int(v) for v in scipy.__version__.split('.')] < [0, 16, 0]:
-            LinearOperator.__init__(self, A.shape, self.P)
-        else:
-            LinearOperator.__init__(self, dtype=numpy.float64, shape=A.shape)
-
-    def __call__(self, x):
-        """
-        Preconditions the given vector.
-        """
-        return self.P(x.astype(numpy.float64))
-
-    def _matvec(self, x):
-        """
-        Preconditions the given vector.
-        """
-        return self.__call__(x)
-
-class make_simple(LinearOperator):
-    """
-    SIMPLE preconditioner.
-    """
-    def __init__(self, A, pmask, prm={}):
-        """
-        Class constructor.
-
-        Parameters
-        ----------
-        A : the system matrix in scipy.sparse format
-        prm : dictionary with amgcl parameters
-        """
-        Acsr = A.tocsr()
-
-        self.P = pyamgcl_ext.make_simple(
-                prm,
-                Acsr.indptr.astype(numpy.int32),
-                Acsr.indices.astype(numpy.int32),
-                Acsr.data.astype(numpy.float64),
-                pmask.astype(numpy.int32)
-                )
-
-        if [int(v) for v in scipy.__version__.split('.')] < [0, 16, 0]:
-            LinearOperator.__init__(self, A.shape, self.P)
-        else:
-            LinearOperator.__init__(self, dtype=numpy.float64, shape=A.shape)
 
     def __call__(self, x):
         """

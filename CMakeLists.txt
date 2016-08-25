@@ -195,7 +195,6 @@ set(BUILD_SHARED_LIBS ON)
 add_subdirectory(lib)
 add_subdirectory(examples)
 add_subdirectory(docs)
-add_subdirectory(pyamgcl)
 
 #----------------------------------------------------------------------------
 # Build Fortran example

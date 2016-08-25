@@ -63,3 +63,11 @@ if (EIGEN_INCLUDE)
     add_amgcl_test(test_solver_eigen    test_solver_eigen.cpp)
     add_amgcl_test(test_solver_ns_eigen test_solver_ns_eigen.cpp)
 endif()
+
+
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_pyamgcl.py
+    ${CMAKE_CURRENT_BINARY_DIR}/test_pyamgcl.py
+    COPYONLY
+    )
+add_test(test_pyamgcl test_pyamgcl.py)

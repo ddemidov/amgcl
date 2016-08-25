@@ -2,6 +2,7 @@ build*
 .*.swp
 RELEASE-VERSION
 dist
+tmp
 pyamgcl.egg-info
 __pycache__
 /debug/
