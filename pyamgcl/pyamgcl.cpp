@@ -25,12 +25,9 @@ namespace py = pybind11;
 //---------------------------------------------------------------------------
 boost::property_tree::ptree make_ptree(const py::dict &args) {
     boost::property_tree::ptree prm;
-    for(auto p : args) {
-        std::ostringstream key, val;
-        key << p.first;
-        val << p.second;
-        prm.put(key.str(), val.str());
-    }
+    for(auto p : args)
+        prm.put(static_cast<std::string>(p.first.str()),
+                static_cast<std::string>(p.second.str()));
     return prm;
 }
 
