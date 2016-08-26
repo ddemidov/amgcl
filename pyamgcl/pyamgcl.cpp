@@ -67,10 +67,10 @@ struct precond {
 
     const precond& matvec() const { return *this; }
 
-    py::array_t<double> call(py::array_t<double> rhs) const {
-        auto f = make_range(rhs);
-        std::vector<double> x(boost::size(f), 0.0);
-        this->apply(std::vector<double>(boost::begin(f), boost::end(f)), x);
+    py::array_t<double> call(py::array_t<double> _rhs) const {
+        auto rhs = make_range(_rhs);
+        std::vector<double> x(boost::size(rhs), 0.0);
+        this->apply(std::vector<double>(boost::begin(rhs), boost::end(rhs)), x);
         return make_array(x.size(), x.data());
     }
 };
@@ -84,10 +84,34 @@ class solver
             : S(amgcl::backend::rows(P.system_matrix()), make_ptree(prm)), P(P)
         {}
 
-        py::array_t<double> solve(py::array_t<double> rhs) const {
-            auto f = make_range(rhs);
-            std::vector<double> x(boost::size(f), 0.0);
-            boost::tie(iters, error) = (*this)(P, std::vector<double>(boost::begin(f), boost::end(f)), x);
+        py::array_t<double> solve(
+                py::array_t<int>    _ptr,
+                py::array_t<int>    _col,
+                py::array_t<double> _val,
+                py::array_t<double> _rhs
+                ) const
+        {
+            auto ptr = make_range(_ptr);
+            auto col = make_range(_col);
+            auto val = make_range(_val);
+            auto rhs = make_range(_rhs);
+
+            size_t n = boost::size(rhs);
+            std::vector<double> x(n, 0.0);
+
+            boost::tie(iters, error) = (*this)(
+                    boost::make_tuple(n, ptr, col, val), P,
+                    std::vector<double>(boost::begin(rhs), boost::end(rhs)), x
+                    );
+
+            return make_array(x.size(), x.data());
+        }
+
+        py::array_t<double> solve(py::array_t<double> _rhs) const {
+            auto rhs = make_range(_rhs);
+            std::vector<double> x(boost::size(rhs), 0.0);
+            boost::tie(iters, error) = (*this)(
+                    P, std::vector<double>(boost::begin(rhs), boost::end(rhs)), x);
             return make_array(x.size(), x.data());
         }
 
@@ -175,7 +199,10 @@ PYBIND11_PLUGIN(pyamgcl_ext) {
                 py::dict
                 >()
             )
-        .def("__call__", &solver::solve)
+        .def("__call__", (py::array_t<double> (solver::*)(py::array_t<double>) const) &solver::solve)
+        .def("__call__", (py::array_t<double> (solver::*)(
+                        py::array_t<int>, py::array_t<int>, py::array_t<double>, py::array_t<double>) const
+                    ) &solver::solve)
         .def_property_readonly("iters", &solver::iterations)
         .def_property_readonly("error", &solver::residual)
         ;

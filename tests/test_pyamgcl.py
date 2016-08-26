@@ -2,10 +2,11 @@
 import unittest
 import numpy   as np
 import pyamgcl as amg
+from numpy.linalg import norm
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import bicgstab, LinearOperator
 
-def make_problem(n=256):
+def make_problem(n):
     h   = 1.0 / (n - 1)
     n2  = n * n
     nnz = n2 + 4 * (n - 2) * (n - 2)
@@ -42,41 +43,43 @@ def make_problem(n=256):
 
 class TestPyAMGCL(unittest.TestCase):
     def test_solver(self):
-        (A, rhs) = make_problem(256)
+        A, rhs = make_problem(100)
 
-        # Setup solver
-        solve = amg.make_solver(A, prm={"solver.tol" : "1e-8"})
+        for stype in ('bicgstab', 'lgmres'):
+            for rtype in ('spai0', 'ilu0'):
+                for P in (
+                        amg.amg(A, prm={'relax.type': rtype}),
+                        amg.relaxation(A, prm={'type': rtype})
+                        ):
+                    # Setup solver
+                    solve = amg.solver(P, prm=dict(type=stype, tol=1e-3, maxiter=1000))
 
-        # Solve
-        x = solve(rhs)
+                    # Solve
+                    x = solve(rhs)
 
-        # Check residual
-        self.assertTrue(
-                np.linalg.norm(rhs - A * x) / np.linalg.norm(rhs) < 1e-8
-                )
+                    # Check residual
+                    self.assertTrue(norm(rhs - A * x) / norm(rhs) < 1e-3)
 
-        # Solve again, now provide system matrix explicitly
-        x = solve(A, rhs)
+                    # Solve again, now provide system matrix explicitly
+                    x = solve(A, rhs)
 
-        # Check residual
-        self.assertTrue(
-                np.linalg.norm(rhs - A * x) / np.linalg.norm(rhs) < 1e-8
-                )
+                    # Check residual
+                    self.assertTrue(norm(rhs - A * x) / norm(rhs) < 1e-3)
 
     def test_preconditioner(self):
-        (A, rhs) = make_problem(256)
+        A, rhs = make_problem(100)
 
-        # Setup preconditioner
-        P = amg.make_preconditioner(A)
+        for rtype in ('spai0', 'ilu0'):
+            for P in (
+                    amg.amg(A, prm={'relax.type': rtype}),
+                    amg.relaxation(A, prm={'type': rtype})
+                    ):
+                # Solve
+                x,info = bicgstab(A, rhs, M=P, tol=1e-3)
+                self.assertTrue(info == 0)
 
-        # Solve
-        x,info = bicgstab(A, rhs, M=P, tol = 1e-8)
-        self.assertTrue(info == 0)
-
-        # Check residual
-        self.assertTrue(
-                np.linalg.norm(rhs - A * x) / np.linalg.norm(rhs) < 1e-8
-                )
+                # Check residual
+                self.assertTrue(norm(rhs - A * x) / norm(rhs) < 1e-3)
 
 if __name__ == "__main__":
     unittest.main()
