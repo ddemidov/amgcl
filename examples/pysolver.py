@@ -4,7 +4,31 @@ import sys, argparse
 import numpy   as np
 import pyamgcl as amg
 from scipy.io import mmread, mmwrite
+from time import time
 from make_poisson import *
+
+class timeit:
+    profile = {}
+    def __init__(self, desc):
+        self.desc = desc
+        self.tic  = time()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        toc = time()
+        timeit.profile[self.desc] = timeit.profile.get(self.desc, 0.0) + (toc - self.tic)
+
+    @staticmethod
+    def report():
+        print('\n---------------------------------')
+        total = sum(timeit.profile.values())
+        for k,v in sorted(timeit.profile.items()):
+            total += v
+            print('{0:>22}: {1:>8.3f}s ({2:>5.2f}%)'.format(k, v, 100 * v / total))
+        print('---------------------------------')
+        print('{0:>22}: {1:>8.3f}s'.format('Total', total))
 
 #----------------------------------------------------------------------------
 parser = argparse.ArgumentParser(sys.argv[0])
@@ -21,24 +45,32 @@ args = parser.parse_args(sys.argv[1:])
 
 #----------------------------------------------------------------------------
 if args.A:
-    A = mmread(args.A)
-    f = mmread(args.f).flatten() if args.f else ones(A.rows())
+    with timeit('Read problem'):
+        A = mmread(args.A)
+        f = mmread(args.f).flatten() if args.f else ones(A.rows())
 else:
-    A,f = make_poisson(args.n)
+    with timeit('Generate problem'):
+        A,f = make_poisson(args.n)
 
 # Parse parameters
 p_prm = {p[0]: p[1] for p in map(lambda s: s.split('='), args.p)}
 s_prm = {p[0]: p[1] for p in map(lambda s: s.split('='), args.s)}
 
 # Create solver/preconditioner pair
-S = amg.solver(amg.relaxation(A, p_prm) if args.single else amg.amg(A, p_prm), s_prm)
+with timeit('Setup solver'):
+    S = amg.solver(amg.relaxation(A, p_prm) if args.single else amg.amg(A, p_prm), s_prm)
 print(S)
 
 # Solve the system for the RHS
-x = S(f)
+with timeit('Solve the problem'):
+    x = S(f)
 
 error = np.linalg.norm(f - A * x) / np.linalg.norm(f)
 print("{0.iters}: {0.error:.6e} / {1:.6e}".format(S, error))
 
 # Save the solution
-if args.x: mmwrite(args.x, x.reshape((-1,1)))
+if args.x:
+    with timeit('Save the result'):
+        mmwrite(args.x, x.reshape((-1,1)))
+
+timeit.report()

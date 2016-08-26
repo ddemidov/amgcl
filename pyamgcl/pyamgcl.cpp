@@ -99,10 +99,14 @@ class solver
             size_t n = boost::size(rhs);
             std::vector<double> x(n, 0.0);
 
-            boost::tie(iters, error) = (*this)(
-                    boost::make_tuple(n, ptr, col, val), P,
-                    std::vector<double>(boost::begin(rhs), boost::end(rhs)), x
-                    );
+            {
+                py::gil_scoped_release release;
+
+                boost::tie(iters, error) = (*this)(
+                        boost::make_tuple(n, ptr, col, val), P,
+                        std::vector<double>(boost::begin(rhs), boost::end(rhs)), x
+                        );
+            }
 
             return make_array(x.size(), x.data());
         }
@@ -147,6 +151,8 @@ class amg_precond: public precond
             auto ptr = make_range(_ptr);
             auto col = make_range(_col);
             auto val = make_range(_val);
+
+            py::gil_scoped_release release;
 
             P = boost::make_shared<Precond>(
                     boost::make_tuple(boost::size(ptr) - 1, ptr, col, val),

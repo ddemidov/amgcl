@@ -64,17 +64,27 @@ class BuildExt(build_ext):
     def build_extensions(self):
         ct = self.compiler.compiler_type
         opts = self.c_opts.get(ct, [])
+        link_args = []
+
         if ct == 'unix':
             opts.append('-DVERSION_INFO="%s"' % self.distribution.get_version())
             opts.append(cpp_flag(self.compiler))
             if has_flag(self.compiler, '-fvisibility=hidden'):
                 opts.append('-fvisibility=hidden')
-            if has_flag(self.compiler, '-Wno-unknown-pragmas'):
-                opts.append('-Wno-unknown-pragmas')
         elif ct == 'msvc':
             opts.append('/DVERSION_INFO=\\"%s\\"' % self.distribution.get_version())
+
+        if has_flag(self.compiler, '-fopenmp'):
+            opts.append('-fopenmp')
+            link_args.append('-fopenmp')
+        elif has_flag(self.compiler, '-openmp'):
+            opts.append('-openmp')
+            link_args.append('-openmp')
+
         for ext in self.extensions:
             ext.extra_compile_args = opts
+            ext.extra_link_args = link_args
+
         build_ext.build_extensions(self)
 
 
