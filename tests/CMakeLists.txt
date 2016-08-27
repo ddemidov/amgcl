@@ -65,9 +65,11 @@ if (EIGEN_INCLUDE)
 endif()
 
 
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_pyamgcl.py
-    ${CMAKE_CURRENT_BINARY_DIR}/test_pyamgcl.py
-    COPYONLY
-    )
-add_test(test_pyamgcl test_pyamgcl.py)
+if (NOT WIN32)
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_pyamgcl.py
+        ${CMAKE_CURRENT_BINARY_DIR}/test_pyamgcl.py
+        COPYONLY
+        )
+    add_test(test_pyamgcl test_pyamgcl.py)
+endif()
