@@ -3,9 +3,17 @@
 import numpy as np
 from scipy.sparse import csr_matrix
 
+def numba_jit_if_available():
+    try:
+        from numba import jit
+        return jit
+    except ImportError:
+        return lambda f: f
+
 #----------------------------------------------------------------------------
 # Assemble matrix for Poisson problem in a unit cube
 #----------------------------------------------------------------------------
+@numba_jit_if_available()
 def make_poisson(n=64):
     nnz = 7 * n**3 - 6 * n**2
 
