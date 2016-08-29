@@ -25,7 +25,6 @@ class timeit:
         print('\n---------------------------------')
         total = sum(timeit.profile.values())
         for k,v in sorted(timeit.profile.items()):
-            total += v
             print('{0:>22}: {1:>8.3f}s ({2:>5.2f}%)'.format(k, v, 100 * v / total))
         print('---------------------------------')
         print('{0:>22}: {1:>8.3f}s'.format('Total', total))

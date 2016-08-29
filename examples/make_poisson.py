@@ -14,8 +14,6 @@ def make_poisson(n=64):
     val = np.zeros(nnz,    dtype=np.float64)
     rhs = np.ones (n**3,   dtype=np.float64)
 
-    bnd = (0, n-1)
-
     idx  = 0
     head = 0
 
