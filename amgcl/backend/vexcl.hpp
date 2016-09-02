@@ -86,8 +86,10 @@ struct vexcl {
     typedef real      value_type;
     typedef ptrdiff_t index_type;
 
+    typedef typename math::rhs_of<value_type>::type rhs_type;
+
     typedef vex::SpMat<value_type, index_type, index_type> matrix;
-    typedef vex::vector<value_type>                        vector;
+    typedef vex::vector<rhs_type>                          vector;
     typedef vex::vector<value_type>                        matrix_diagonal;
     typedef DirectSolver                                   direct_solver;
 
@@ -138,17 +140,18 @@ struct vexcl {
     }
 
     // Copy vector from builtin backend.
-    static boost::shared_ptr<vector>
-    copy_vector(typename builtin<real>::vector const &x, const params &prm)
+    template <class T>
+    static boost::shared_ptr< vex::vector<T> >
+    copy_vector(const std::vector<T> &x, const params &prm)
     {
         precondition(!prm.context().empty(), "Empty VexCL context!");
-
-        return boost::make_shared<vector>(prm.context(), x);
+        return boost::make_shared< vex::vector<T> >(prm.context(), x);
     }
 
     // Copy vector from builtin backend.
-    static boost::shared_ptr<vector>
-    copy_vector(boost::shared_ptr< typename builtin<real>::vector > x, const params &prm)
+    template <class T>
+    static boost::shared_ptr< vex::vector<T> >
+    copy_vector(boost::shared_ptr< std::vector<T> > x, const params &prm)
     {
         return copy_vector(*x, prm);
     }
@@ -227,14 +230,14 @@ struct nonzeros_impl< vex::SpMat<V, C, P> > {
     }
 };
 
-template < typename Alpha, typename Beta, typename V, typename C, typename P >
+template < typename Alpha, typename Beta, typename VA, typename C, typename P, typename VX >
 struct spmv_impl<
-    Alpha, vex::SpMat<V, C, P>, vex::vector<V>,
-    Beta,  vex::vector<V>
+    Alpha, vex::SpMat<VA, C, P>, vex::vector<VX>,
+    Beta,  vex::vector<VX>
     >
 {
-    typedef vex::SpMat<V, C, P> matrix;
-    typedef vex::vector<V>      vector;
+    typedef vex::SpMat<VA, C, P> matrix;
+    typedef vex::vector<VX>      vector;
 
     static void apply(Alpha alpha, const matrix &A, const vector &x,
             Beta beta, vector &y)
@@ -246,16 +249,16 @@ struct spmv_impl<
     }
 };
 
-template < typename V, typename C, typename P >
+template < typename VA, typename C, typename P, typename VX >
 struct residual_impl<
-    vex::SpMat<V, C, P>,
-    vex::vector<V>,
-    vex::vector<V>,
-    vex::vector<V>
+    vex::SpMat<VA, C, P>,
+    vex::vector<VX>,
+    vex::vector<VX>,
+    vex::vector<VX>
     >
 {
-    typedef vex::SpMat<V, C, P> matrix;
-    typedef vex::vector<V>      vector;
+    typedef vex::SpMat<VA, C, P> matrix;
+    typedef vex::vector<VX>      vector;
 
     static void apply(const vector &rhs, const matrix &A, const vector &x,
             vector &r)
@@ -305,6 +308,7 @@ struct inner_product_impl<
     static V get(const vex::vector<V> &x, const vex::vector<V> &y)
     {
         vex::Reductor<V, vex::SUM_Kahan> sum( x.queue_list() );
+        // TODO: need to transpose x here when V is non-scalar
         return sum(x * y);
     }
 };
@@ -343,14 +347,14 @@ struct axpbypcz_impl<
     }
 };
 
-template < typename A, typename B, typename V >
+template < typename A, typename B, typename V1, typename V2 >
 struct vmul_impl<
-    A, vex::vector<V>, vex::vector<V>,
-    B, vex::vector<V>
+    A, vex::vector<V1>, vex::vector<V2>,
+    B, vex::vector<V2>
     >
 {
-    static void apply(A a, const vex::vector<V> &x, const vex::vector<V> &y,
-            B b, vex::vector<V> &z)
+    static void apply(A a, const vex::vector<V1> &x, const vex::vector<V2> &y,
+            B b, vex::vector<V2> &z)
     {
         if (b)
             z = a * x * y + b * z;
