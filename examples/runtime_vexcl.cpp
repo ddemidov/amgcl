@@ -10,8 +10,8 @@
 #include <boost/foreach.hpp>
 #include <boost/range/iterator_range.hpp>
 
-#include <amgcl/backend/vexcl.hpp>
 #include <amgcl/value_type/static_matrix.hpp>
+#include <amgcl/backend/vexcl.hpp>
 #include <amgcl/runtime.hpp>
 #include <amgcl/make_solver.hpp>
 #include <amgcl/adapter/zero_copy.hpp>
@@ -88,8 +88,8 @@ boost::tuple<size_t, double> block_solve(
         rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&rhs[0]);
         rhs_type       * xptr = reinterpret_cast<rhs_type       *>(&x[0]);
 
-        vex::vector<rhs_type> f(ctx, rows, fptr);
-        vex::vector<rhs_type> u(ctx, rows, xptr);
+        vex::vector<rhs_type> f(ctx, rows / B, fptr);
+        vex::vector<rhs_type> u(ctx, rows / B, xptr);
 
         boost::tuple<size_t, double> r = solve(f, u);
         vex::copy(u.begin(), u.end(), xptr);
@@ -156,7 +156,7 @@ boost::tuple<size_t, double> solve(
     switch (block_size) {
         case 1:
             return scalar_solve<Precond>(prm, rows, ptr, col, val, rhs, x);
-#if 0
+#if 1
         case 2:
             return block_solve<2, Precond>(prm, rows, ptr, col, val, rhs, x);
         case 3:

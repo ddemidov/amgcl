@@ -45,7 +45,7 @@ namespace amgcl {
 
 template <typename T, int N, int M>
 struct static_matrix {
-    boost::array<T, N * M> buf;
+    T buf[N * M];
 
     T operator()(int i, int j) const {
         return buf[i * M + j];
@@ -64,11 +64,11 @@ struct static_matrix {
     }
 
     const T* data() const {
-        return buf.data();
+        return buf;
     }
 
     T* data() {
-        return buf.data();
+        return buf;
     }
 
     const static_matrix& operator+=(const static_matrix &y) {
@@ -128,12 +128,14 @@ struct static_matrix {
     }
 
     friend std::ostream& operator<<(std::ostream &os, const static_matrix &a) {
+        os << "{";
         for(int i = 0; i < N; ++i) {
             for(int j = 0; j < M; ++j) {
-                os << " " << a(i,j);
+                if (i || j) os << ", ";
+                os << a(i,j);
             }
-            os << std::endl;
         }
+        os << "}";
         return os;
     }
 };

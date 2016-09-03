@@ -51,11 +51,12 @@ namespace solver {
  * Copies the rhs to the host memory, solves the problem using the host CPU,
  * then copies the solution back to the compute device(s).
  */
-template <class T>
-struct vexcl_skyline_lu : solver::skyline_lu<T> {
-    typedef solver::skyline_lu<T> Base;
+template <class value_type>
+struct vexcl_skyline_lu : solver::skyline_lu<value_type> {
+    typedef solver::skyline_lu<value_type> Base;
+    typedef typename math::rhs_of<value_type>::type rhs_type;
 
-    mutable std::vector<T> _rhs, _x;
+    mutable std::vector<rhs_type> _rhs, _x;
 
     template <class Matrix, class Params>
     vexcl_skyline_lu(const Matrix &A, const Params&)
@@ -73,6 +74,111 @@ struct vexcl_skyline_lu : solver::skyline_lu<T> {
 }
 
 namespace backend {
+
+namespace detail {
+
+template <class T>
+inline std::string cl_header() {
+    std::ostringstream src;
+
+    src << R"(
+template <class T, int N, int M>
+struct amgcl_static_matrix {
+    T buf[N * M];
+
+    T operator()(int i, int j) const {
+        return buf[i * M + j];
+    }
+
+    T& operator()(int i, int j) {
+        return buf[i * M + j];
+    }
+
+    T operator()(int i) const {
+        return buf[i];
+    }
+
+    T& operator()(int i) {
+        return buf[i];
+    }
+
+    const amgcl_static_matrix& operator+=(amgcl_static_matrix y) {
+        for(int i = 0; i < N * M; ++i)
+            buf[i] += y.buf[i];
+        return *this;
+    }
+
+    const amgcl_static_matrix& operator-=(amgcl_static_matrix y) {
+        for(int i = 0; i < N * M; ++i)
+            buf[i] -= y.buf[i];
+        return *this;
+    }
+
+    const amgcl_static_matrix& operator*=(T c) {
+        for(int i = 0; i < N * M; ++i)
+            buf[i] *= c;
+        return *this;
+    }
+
+    friend amgcl_static_matrix operator+(amgcl_static_matrix x, amgcl_static_matrix y)
+    {
+        return x += y;
+    }
+
+    friend amgcl_static_matrix operator-(amgcl_static_matrix x, amgcl_static_matrix y)
+    {
+        return x -= y;
+    }
+
+    friend amgcl_static_matrix operator*(T a, amgcl_static_matrix x)
+    {
+        return x *= a;
+    }
+
+    friend amgcl_static_matrix operator-(amgcl_static_matrix x)
+    {
+        for(int i = 0; i < N * M; ++i)
+            x.buf[i] = -x.buf[i];
+        return x;
+    }
+};
+
+template <typename T, int N, int K, int M>
+amgcl_static_matrix<T, N, M> operator*(
+        amgcl_static_matrix<T, N, K> a,
+        amgcl_static_matrix<T, K, M> b
+        )
+{
+    amgcl_static_matrix<T, N, M> c;
+    for(int i = 0; i < N; ++i) {
+        for(int j = 0; j < M; ++j)
+            c(i,j) = T();
+        for(int k = 0; k < K; ++k) {
+            T aik = a(i,k);
+            for(int j = 0; j < M; ++j)
+                c(i,j) += aik * b(k,j);
+        }
+    }
+    return c;
+}
+
+template <typename T, int N>
+T operator*(
+        amgcl_static_matrix<T, N, 1> a,
+        amgcl_static_matrix<T, N, 1> b
+        )
+{
+    T sum = T();
+    for(int i = 0; i < N; ++i)
+        sum += a(i) * b(i);
+    return sum;
+}
+    )";
+
+    return src.str();
+}
+
+} // namespace
 
 /**
  * The backend uses the <a href="https://github.com/ddemidov/vexcl">VexCL</a>
@@ -250,6 +356,8 @@ struct spmv_impl<
     static void apply(Alpha alpha, const matrix &A, const vector &x,
             Beta beta, vector &y)
     {
+        vex::scoped_program_header  ph(x.queue_list(), detail::cl_header<VA>());
+        vex::scoped_compile_options co(x.queue_list(), "-x clc++");
         if (beta)
             y = alpha * (A * x) + beta * y;
         else
@@ -271,6 +379,8 @@ struct residual_impl<
     static void apply(const vector &rhs, const matrix &A, const vector &x,
             vector &r)
     {
+        vex::scoped_program_header  ph(x.queue_list(), detail::cl_header<VA>());
+        vex::scoped_compile_options co(x.queue_list(), "-x clc++");
         r = rhs - A * x;
     }
 };
@@ -280,7 +390,9 @@ struct clear_impl< vex::vector<V> >
 {
     static void apply(vex::vector<V> &x)
     {
-        x = 0;
+        vex::scoped_program_header  ph(x.queue_list(), detail::cl_header<V>());
+        vex::scoped_compile_options co(x.queue_list(), "-x clc++");
+        x = V();
     }
 };
 
@@ -292,6 +404,8 @@ struct copy_impl<
 {
     static void apply(const vex::vector<V> &x, vex::vector<V> &y)
     {
+        vex::scoped_program_header  ph(x.queue_list(), detail::cl_header<V>());
+        vex::scoped_compile_options co(x.queue_list(), "-x clc++");
         y = x;
     }
 };
@@ -313,9 +427,13 @@ struct inner_product_impl<
     vex::vector<V>
     >
 {
-    static V get(const vex::vector<V> &x, const vex::vector<V> &y)
+    typedef typename math::inner_product_impl<V>::return_type return_type;
+
+    static return_type get(const vex::vector<V> &x, const vex::vector<V> &y)
     {
-        vex::Reductor<V, vex::SUM_Kahan> sum( x.queue_list() );
+        vex::scoped_program_header  ph(x.queue_list(), detail::cl_header<V>());
+        vex::scoped_compile_options co(x.queue_list(), "-x clc++");
+        vex::Reductor<return_type, vex::SUM_Kahan> sum( x.queue_list() );
         // TODO: need to transpose x here when V is non-scalar
         return sum(x * y);
     }
@@ -328,6 +446,8 @@ struct axpby_impl<
     > {
     static void apply(A a, const vex::vector<V> &x, B b, vex::vector<V> &y)
     {
+        vex::scoped_program_header  ph(x.queue_list(), detail::cl_header<V>());
+        vex::scoped_compile_options co(x.queue_list(), "-x clc++");
         if (b)
             y = a * x + b * y;
         else
@@ -348,6 +468,8 @@ struct axpbypcz_impl<
             C c,       vex::vector<V> &z
             )
     {
+        vex::scoped_program_header  ph(x.queue_list(), detail::cl_header<V>());
+        vex::scoped_compile_options co(x.queue_list(), "-x clc++");
         if (c)
             z = a * x + b * y + c * z;
         else
@@ -364,6 +486,8 @@ struct vmul_impl<
     static void apply(A a, const vex::vector<V1> &x, const vex::vector<V2> &y,
             B b, vex::vector<V2> &z)
     {
+        vex::scoped_program_header  ph(x.queue_list(), detail::cl_header<V1>());
+        vex::scoped_compile_options co(x.queue_list(), "-x clc++");
         if (b)
             z = a * x * y + b * z;
         else
