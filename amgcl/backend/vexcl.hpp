@@ -38,6 +38,7 @@ THE SOFTWARE.
 
 #include <amgcl/solver/skyline_lu.hpp>
 #include <vexcl/vexcl.hpp>
+#include <vexcl/sparse/csr.hpp>
 
 #include <amgcl/util.hpp>
 #include <amgcl/backend/builtin.hpp>
@@ -88,7 +89,7 @@ struct vexcl {
 
     typedef typename math::rhs_of<value_type>::type rhs_type;
 
-    typedef vex::SpMat<value_type, index_type, index_type> matrix;
+    typedef vex::sparse::csr<value_type, index_type, index_type> matrix;
     typedef vex::vector<rhs_type>                          vector;
     typedef vex::vector<value_type>                        matrix_diagonal;
     typedef DirectSolver                                   direct_solver;
@@ -136,7 +137,14 @@ struct vexcl {
         BOOST_AUTO(Acol, a.col_data());
         BOOST_AUTO(Aval, a.val_data());
 
-        return boost::make_shared<matrix>(prm.context(), rows(*A), cols(*A), Aptr, Acol, Aval);
+        const size_t n   = backend::rows(a);
+        const size_t nnz = backend::nonzeros(a);
+
+        return boost::make_shared<matrix>(prm.context(),
+                boost::make_iterator_range(Aptr, Aptr + n+1),
+                boost::make_iterator_range(Acol, Acol + nnz),
+                boost::make_iterator_range(Aval, Aval + nnz)
+                );
     }
 
     // Copy vector from builtin backend.
@@ -210,33 +218,33 @@ struct vexcl {
 // Backend interface implementation
 //---------------------------------------------------------------------------
 template < typename V, typename C, typename P >
-struct rows_impl< vex::SpMat<V, C, P> > {
-    static size_t get(const vex::SpMat<V, C, P> &A) {
+struct rows_impl< vex::sparse::csr<V, C, P> > {
+    static size_t get(const vex::sparse::csr<V, C, P> &A) {
         return A.rows();
     }
 };
 
 template < typename V, typename C, typename P >
-struct cols_impl< vex::SpMat<V, C, P> > {
-    static size_t get(const vex::SpMat<V, C, P> &A) {
+struct cols_impl< vex::sparse::csr<V, C, P> > {
+    static size_t get(const vex::sparse::csr<V, C, P> &A) {
         return A.cols();
     }
 };
 
 template < typename V, typename C, typename P >
-struct nonzeros_impl< vex::SpMat<V, C, P> > {
-    static size_t get(const vex::SpMat<V, C, P> &A) {
+struct nonzeros_impl< vex::sparse::csr<V, C, P> > {
+    static size_t get(const vex::sparse::csr<V, C, P> &A) {
         return A.nonzeros();
     }
 };
 
 template < typename Alpha, typename Beta, typename VA, typename C, typename P, typename VX >
 struct spmv_impl<
-    Alpha, vex::SpMat<VA, C, P>, vex::vector<VX>,
+    Alpha, vex::sparse::csr<VA, C, P>, vex::vector<VX>,
     Beta,  vex::vector<VX>
     >
 {
-    typedef vex::SpMat<VA, C, P> matrix;
+    typedef vex::sparse::csr<VA, C, P> matrix;
     typedef vex::vector<VX>      vector;
 
     static void apply(Alpha alpha, const matrix &A, const vector &x,
@@ -251,13 +259,13 @@ struct spmv_impl<
 
 template < typename VA, typename C, typename P, typename VX >
 struct residual_impl<
-    vex::SpMat<VA, C, P>,
+    vex::sparse::csr<VA, C, P>,
     vex::vector<VX>,
     vex::vector<VX>,
     vex::vector<VX>
     >
 {
-    typedef vex::SpMat<VA, C, P> matrix;
+    typedef vex::sparse::csr<VA, C, P> matrix;
     typedef vex::vector<VX>      vector;
 
     static void apply(const vector &rhs, const matrix &A, const vector &x,
