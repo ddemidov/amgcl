@@ -12,6 +12,7 @@
 
 #include <amgcl/value_type/static_matrix.hpp>
 #include <amgcl/backend/vexcl.hpp>
+#include <amgcl/backend/vexcl_static_matrix.hpp>
 #include <amgcl/runtime.hpp>
 #include <amgcl/make_solver.hpp>
 #include <amgcl/adapter/zero_copy.hpp>
@@ -28,26 +29,6 @@ using amgcl::prof;
 using amgcl::precondition;
 
 typedef amgcl::scoped_tic< amgcl::profiler<> > scoped_tic;
-
-namespace vex {
-    template <typename T, int N, int M>
-    struct is_cl_native< amgcl::static_matrix<T, N, M> > : std::true_type {};
-
-    template <typename T, int N, int M>
-    struct type_name_impl< amgcl::static_matrix<T, N, M> >
-    {
-        static std::string get() {
-            std::ostringstream s;
-            s << "amgcl_static_matrix<" << type_name<T>() << "," << N << "," << M << ">";
-            return s.str();
-        }
-    };
-
-    template <typename T, int N, int M>
-    struct cl_scalar_of< amgcl::static_matrix<T, N, M> > {
-        typedef T type;
-    };
-} // namespace vex
 
 //---------------------------------------------------------------------------
 template <int B, template <class> class Precond>
@@ -67,6 +48,8 @@ boost::tuple<size_t, double> block_solve(
 
     vex::Context ctx(vex::Filter::Env);
     std::cout << ctx << std::endl;
+
+    amgcl::backend::enable_static_matrix_for_vexcl(ctx);
 
     typename Backend::params bprm;
     bprm.q = ctx;
