@@ -39,6 +39,7 @@ THE SOFTWARE.
 #include <amgcl/solver/skyline_lu.hpp>
 #include <vexcl/vexcl.hpp>
 #include <vexcl/sparse/csr.hpp>
+#include <vexcl/sparse/ell.hpp>
 
 #include <amgcl/util.hpp>
 #include <amgcl/backend/builtin.hpp>
@@ -195,7 +196,7 @@ struct vexcl {
 
     typedef typename math::rhs_of<value_type>::type rhs_type;
 
-    typedef vex::sparse::csr<value_type, index_type, index_type> matrix;
+    typedef vex::sparse::ell<value_type, index_type, index_type> matrix;
     typedef vex::vector<rhs_type>                          vector;
     typedef vex::vector<value_type>                        matrix_diagonal;
     typedef DirectSolver                                   direct_solver;
@@ -324,33 +325,33 @@ struct vexcl {
 // Backend interface implementation
 //---------------------------------------------------------------------------
 template < typename V, typename C, typename P >
-struct rows_impl< vex::sparse::csr<V, C, P> > {
-    static size_t get(const vex::sparse::csr<V, C, P> &A) {
+struct rows_impl< vex::sparse::ell<V, C, P> > {
+    static size_t get(const vex::sparse::ell<V, C, P> &A) {
         return A.rows();
     }
 };
 
 template < typename V, typename C, typename P >
-struct cols_impl< vex::sparse::csr<V, C, P> > {
-    static size_t get(const vex::sparse::csr<V, C, P> &A) {
+struct cols_impl< vex::sparse::ell<V, C, P> > {
+    static size_t get(const vex::sparse::ell<V, C, P> &A) {
         return A.cols();
     }
 };
 
 template < typename V, typename C, typename P >
-struct nonzeros_impl< vex::sparse::csr<V, C, P> > {
-    static size_t get(const vex::sparse::csr<V, C, P> &A) {
+struct nonzeros_impl< vex::sparse::ell<V, C, P> > {
+    static size_t get(const vex::sparse::ell<V, C, P> &A) {
         return A.nonzeros();
     }
 };
 
 template < typename Alpha, typename Beta, typename VA, typename C, typename P, typename VX >
 struct spmv_impl<
-    Alpha, vex::sparse::csr<VA, C, P>, vex::vector<VX>,
+    Alpha, vex::sparse::ell<VA, C, P>, vex::vector<VX>,
     Beta,  vex::vector<VX>
     >
 {
-    typedef vex::sparse::csr<VA, C, P> matrix;
+    typedef vex::sparse::ell<VA, C, P> matrix;
     typedef vex::vector<VX>      vector;
 
     static void apply(Alpha alpha, const matrix &A, const vector &x,
@@ -367,13 +368,13 @@ struct spmv_impl<
 
 template < typename VA, typename C, typename P, typename VX >
 struct residual_impl<
-    vex::sparse::csr<VA, C, P>,
+    vex::sparse::ell<VA, C, P>,
     vex::vector<VX>,
     vex::vector<VX>,
     vex::vector<VX>
     >
 {
-    typedef vex::sparse::csr<VA, C, P> matrix;
+    typedef vex::sparse::ell<VA, C, P> matrix;
     typedef vex::vector<VX>      vector;
 
     static void apply(const vector &rhs, const matrix &A, const vector &x,
