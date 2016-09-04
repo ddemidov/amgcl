@@ -252,7 +252,7 @@ struct spmv_impl<
     static void apply(Alpha alpha, const matrix &A, const vector &x,
             Beta beta, vector &y)
     {
-        if (beta)
+        if (!math::is_zero(beta))
             y = alpha * (A * x) + beta * y;
         else
             y = alpha * (A * x);
@@ -331,7 +331,7 @@ struct axpby_impl<
     > {
     static void apply(A a, const vex::vector<V> &x, B b, vex::vector<V> &y)
     {
-        if (b)
+        if (!math::is_zero(b))
             y = a * x + b * y;
         else
             y = a * x;
@@ -351,7 +351,7 @@ struct axpbypcz_impl<
             C c,       vex::vector<V> &z
             )
     {
-        if (c)
+        if (!math::is_zero(c))
             z = a * x + b * y + c * z;
         else
             z = a * x + b * y;
@@ -367,7 +367,7 @@ struct vmul_impl<
     static void apply(A a, const vex::vector<V1> &x, const vex::vector<V2> &y,
             B b, vex::vector<V2> &z)
     {
-        if (b)
+        if (!math::is_zero(b))
             z = a * x * y + b * z;
         else
             z = a * x * y;

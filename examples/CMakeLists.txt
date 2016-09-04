@@ -45,6 +45,10 @@ if (VEXCL_ROOT)
     add_executable(runtime_vexcl runtime_vexcl.cpp)
     target_link_libraries(runtime_vexcl ${Boost_LIBRARIES} ${VEXCL_BACKEND_LIBRARIES})
     set_target_properties(runtime_vexcl PROPERTIES COMPILE_FLAGS ${CXX11_FLAG})
+
+    add_executable(vexcl_complex vexcl_complex.cpp)
+    target_link_libraries(vexcl_complex ${Boost_LIBRARIES} ${VEXCL_BACKEND_LIBRARIES})
+    set_target_properties(vexcl_complex PROPERTIES COMPILE_FLAGS ${CXX11_FLAG})
 endif()
 
 if (CUDA_FOUND AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
