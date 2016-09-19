@@ -140,9 +140,10 @@ struct vexcl {
         BOOST_AUTO(Aval, a.val_data());
 
         const size_t n   = backend::rows(a);
+        const size_t m   = backend::cols(a);
         const size_t nnz = backend::nonzeros(a);
 
-        return boost::make_shared<matrix>(prm.context(),
+        return boost::make_shared<matrix>(prm.context(), n, m,
                 boost::make_iterator_range(Aptr, Aptr + n+1),
                 boost::make_iterator_range(Acol, Acol + nnz),
                 boost::make_iterator_range(Aval, Aval + nnz)
