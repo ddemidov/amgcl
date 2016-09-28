@@ -46,6 +46,15 @@ if (HAVE_HPX)
 endif()
 
 #----------------------------------------------------------------------------
+# Enable asynchronous setup?
+#----------------------------------------------------------------------------
+option(ASYNC_SETUP "Enable asynchronous AMG setup" ON)
+if (ASYNC_SETUP)
+    add_definitions(-DAMGCL_ASYNC_SETUP)
+    set(BOOST_COMPONENTS thread)
+endif()
+
+#----------------------------------------------------------------------------
 # Find Boost
 #----------------------------------------------------------------------------
 if (WIN32)
@@ -69,7 +78,7 @@ set(BOOST_COMPONENTS ${BOOST_COMPONENTS}
     program_options
     system
     filesystem
-    serialization
+    thread
     unit_test_framework
     )
 

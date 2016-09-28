@@ -43,6 +43,12 @@ THE SOFTWARE.
 #include <boost/tuple/tuple.hpp>
 #include <boost/static_assert.hpp>
 
+#ifdef AMGCL_ASYNC_SETUP
+#  include <boost/thread/thread.hpp>
+#  include <boost/thread/condition_variable.hpp>
+#  include <boost/thread/locks.hpp>
+#endif
+
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/solver/detail/default_inner_product.hpp>
 #include <amgcl/util.hpp>
@@ -120,9 +126,21 @@ class amg {
             /// Number of cycles to make as part of preconditioning.
             unsigned pre_cycles;
 
+#ifdef AMGCL_ASYNC_SETUP
+            /// Asynchronous setup.
+            /** Starts cycling as soon as the first level is (partially)
+             * constructed. May be useful for GPGPU backends as a way to split
+             * the work between the host CPU and the compute device(s).
+             */
+            bool async_setup;
+#endif
+
             params() :
                 coarse_enough( Backend::direct_solver::coarse_enough() ),
                 npre(1), npost(1), ncycle(1), pre_cycles(1)
+#ifdef AMGCL_ASYNC_SETUP
+                , async_setup(false)
+#endif
             {}
 
             params(const boost::property_tree::ptree &p)
@@ -133,8 +151,16 @@ class amg {
                   AMGCL_PARAMS_IMPORT_VALUE(p, npost),
                   AMGCL_PARAMS_IMPORT_VALUE(p, ncycle),
                   AMGCL_PARAMS_IMPORT_VALUE(p, pre_cycles)
+#ifdef AMGCL_ASYNC_SETUP
+                , AMGCL_PARAMS_IMPORT_VALUE(p, async_setup)
+#endif
             {
-                AMGCL_PARAMS_CHECK(p, (coarsening)(relax)(coarse_enough)(npre)(npost)(ncycle)(pre_cycles));
+                AMGCL_PARAMS_CHECK(p, (coarsening)(relax)(coarse_enough)(npre)
+                        (npost)(ncycle)(pre_cycles)
+#ifdef AMGCL_ASYNC_SETUP
+                        (async_setup)
+#endif
+                        );
             }
 
             void get(
@@ -149,6 +175,9 @@ class amg {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, npost);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, ncycle);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, pre_cycles);
+#ifdef AMGCL_ASYNC_SETUP
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, async_setup);
+#endif
             }
         } prm;
 
@@ -172,7 +201,7 @@ class amg {
             boost::shared_ptr<build_matrix> A = boost::make_shared<build_matrix>(M);
             sort_rows(*A);
 
-            init(A, bprm);
+            do_init(A, bprm);
         }
 
         /// Builds the AMG hierarchy for the system matrix.
@@ -194,8 +223,14 @@ class amg {
                 const backend_params &bprm = backend_params()
            ) : prm(p)
         {
-            init(A, bprm);
+            do_init(A, bprm);
         }
+
+#ifdef AMGCL_ASYNC_SETUP
+        ~amg() {
+            if (prm.async_setup) init_thread.join();
+        }
+#endif
 
         /// Performs single V-cycle for the given right-hand side and solution.
         /**
@@ -235,7 +270,7 @@ class amg {
             if (prm.pre_cycles) {
                 backend::clear(x);
                 for(unsigned i = 0; i < prm.pre_cycles; ++i)
-                    cycle(levels.begin(), rhs, x);
+                    cycle(rhs, x);
             } else {
                 backend::copy(rhs, x);
             }
@@ -248,51 +283,74 @@ class amg {
 
     private:
         struct level {
-            boost::shared_ptr<matrix> A;
-            boost::shared_ptr<matrix> P;
-            boost::shared_ptr<matrix> R;
+            size_t m_rows, m_nonzeros;
 
             boost::shared_ptr<vector> f;
             boost::shared_ptr<vector> u;
             boost::shared_ptr<vector> t;
 
+            boost::shared_ptr<matrix> A;
+            boost::shared_ptr<matrix> P;
+            boost::shared_ptr<matrix> R;
+
             boost::shared_ptr< typename Backend::direct_solver > solve;
 
             boost::shared_ptr<relax_type> relax;
 
-            size_t m_rows, m_nonzeros;
+            level() {}
 
-            level(
-                    boost::shared_ptr<build_matrix> a,
-                    boost::shared_ptr<build_matrix> p,
-                    boost::shared_ptr<build_matrix> r,
-                    const params &prm,
-                    const backend_params &bprm
-                 ) :
-                A( Backend::copy_matrix(a, bprm) ),
-                P( Backend::copy_matrix(p, bprm) ),
-                R( Backend::copy_matrix(r, bprm) ),
-                f( Backend::create_vector(backend::rows(*a), bprm) ),
-                u( Backend::create_vector(backend::rows(*a), bprm) ),
-                t( Backend::create_vector(backend::rows(*a), bprm) ),
-                relax( new relax_type(*a, prm.relax, bprm) ),
-                m_rows( backend::rows(*A) ),
-                m_nonzeros( backend::nonzeros(*A) )
-            { }
+            level(boost::shared_ptr<build_matrix> A,
+                    params &prm, const backend_params &bprm) :
+                m_rows(backend::rows(*A)),
+                m_nonzeros(backend::nonzeros(*A)),
+                f(Backend::create_vector(m_rows, bprm)),
+                u(Backend::create_vector(m_rows, bprm)),
+                t(Backend::create_vector(m_rows, bprm)),
+                A(Backend::copy_matrix(A, bprm)),
+                relax(boost::make_shared<relax_type>(*A, prm.relax, bprm))
+            {}
 
-            level(
-                    boost::shared_ptr<build_matrix> a,
-                    const backend_params &bprm,
-                    bool no_finer_levels
-                 ) :
-                f( Backend::create_vector(backend::rows(*a), bprm) ),
-                u( Backend::create_vector(backend::rows(*a), bprm) ),
-                solve( Backend::create_solver(a, bprm) ),
-                m_rows( backend::rows(*a) ),
-                m_nonzeros( backend::nonzeros(*a) )
+            boost::shared_ptr<build_matrix> step_down(
+                    boost::shared_ptr<build_matrix> A,
+                    params &prm, const backend_params &bprm)
             {
-                if (no_finer_levels)
-                    A = Backend::copy_matrix(a, bprm);
+                TIC("transfer operators");
+                boost::shared_ptr<build_matrix> P, R;
+                boost::tie(P, R) = Coarsening::transfer_operators(
+                        *A, prm.coarsening);
+
+                precondition(backend::cols(*P) > 0,
+                        "Zero-sized coarse level in amgcl (diagonal matrix?)");
+
+                sort_rows(*P);
+                sort_rows(*R);
+                TOC("transfer operators");
+
+                this->P = Backend::copy_matrix(P, bprm);
+                this->R = Backend::copy_matrix(R, bprm);
+
+                TIC("coarse operator");
+                A = Coarsening::coarse_operator(*A, *P, *R, prm.coarsening);
+                sort_rows(*A);
+                TOC("coarse operator");
+
+                return A;
+            }
+
+            void create_coarse(
+                    boost::shared_ptr<build_matrix> A,
+                    params &prm, const backend_params &bprm,
+                    bool single_level)
+            {
+                m_rows     = backend::rows(*A);
+                m_nonzeros = backend::nonzeros(*A);
+
+                u = Backend::create_vector(m_rows, bprm);
+                f = Backend::create_vector(m_rows, bprm);
+
+                solve = Backend::create_solver(A, bprm);
+                if (single_level)
+                    this->A = Backend::copy_matrix(A, bprm);
             }
 
             size_t rows() const {
@@ -307,6 +365,11 @@ class amg {
         typedef typename std::list<level>::const_iterator level_iterator;
 
         std::list<level> levels;
+#ifdef AMGCL_ASYNC_SETUP
+        boost::thread init_thread;
+        mutable boost::mutex levels_mx;
+        mutable boost::condition_variable ready_to_cycle;
+#endif
 
         void init(
                 boost::shared_ptr<build_matrix> A,
@@ -318,44 +381,77 @@ class amg {
                     "Matrix should be square!"
                     );
 
-            boost::shared_ptr<build_matrix> P, R;
-
             while( backend::rows(*A) > prm.coarse_enough) {
-                TIC("transfer operators");
-                boost::tie(P, R) = Coarsening::transfer_operators(
-                        *A, prm.coarsening);
-                precondition(
-                        backend::cols(*P) > 0,
-                        "Zero-sized coarse level in amgcl (diagonal matrix?)"
-                        );
-                sort_rows(*P);
-                sort_rows(*R);
-                TOC("transfer operators");
-
-                TIC("move to backend")
-                levels.push_back( level(A, P, R, prm, bprm) );
-                TOC("move to backend")
-
-                TIC("coarse operator");
-                A = Coarsening::coarse_operator(*A, *P, *R, prm.coarsening);
-                sort_rows(*A);
-                TOC("coarse operator");
+                {
+#ifdef AMGCL_ASYNC_SETUP
+                    boost::lock_guard<boost::mutex> lock(levels_mx);
+#endif
+                    levels.push_back( level(A, prm, bprm) );
+                }
+#ifdef AMGCL_ASYNC_SETUP
+                ready_to_cycle.notify_all();
+#endif
+                A = levels.back().step_down(A, prm, bprm);
             }
 
             TIC("coarsest level");
-            levels.push_back( level(A, bprm, levels.empty()) );
+            {
+                level l;
+                l.create_coarse(A, prm, bprm, levels.empty());
+
+#ifdef AMGCL_ASYNC_SETUP
+                boost::lock_guard<boost::mutex> lock(levels_mx);
+#endif
+                levels.push_back( l );
+            }
+#ifdef AMGCL_ASYNC_SETUP
+            ready_to_cycle.notify_all();
+#endif
             TOC("coarsest level");
         }
 
+        void do_init(
+                boost::shared_ptr<build_matrix> A,
+                const backend_params &bprm = backend_params()
+                )
+        {
+#ifdef AMGCL_ASYNC_SETUP
+            if (prm.async_setup) {
+                init_thread = boost::thread(&amg::init, this, A, bprm);
+                {
+                    boost::unique_lock<boost::mutex> lock(levels_mx);
+                    while(levels.empty()) ready_to_cycle.wait(lock);
+                }
+            } else
+#endif
+            {
+                init(A, bprm);
+            }
+        }
         template <class Vec1, class Vec2>
         void cycle(level_iterator lvl, const Vec1 &rhs, Vec2 &x) const
         {
-            level_iterator nxt = lvl; ++nxt;
+            level_iterator nxt = lvl, end;
 
-            if (nxt == levels.end()) {
-                TIC("coarse");
-                (*lvl->solve)(rhs, x);
-                TOC("coarse");
+            {
+#ifdef AMGCL_ASYNC_SETUP
+                boost::lock_guard<boost::mutex> lock(levels_mx);
+#endif
+                ++nxt;
+                end = levels.end();
+            }
+
+            if (nxt == end) {
+                if (lvl->solve) {
+                    TIC("coarse");
+                    (*lvl->solve)(rhs, x);
+                    TOC("coarse");
+                } else {
+                    TIC("relax");
+                    lvl->relax->apply_pre(*lvl->A, rhs, x, *lvl->t, prm.relax);
+                    lvl->relax->apply_post(*lvl->A, rhs, x, *lvl->t, prm.relax);
+                    TOC("relax");
+                }
             } else {
                 for (size_t j = 0; j < prm.ncycle; ++j) {
                     TIC("relax");
