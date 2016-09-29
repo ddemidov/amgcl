@@ -157,9 +157,6 @@ class amg {
             {
                 AMGCL_PARAMS_CHECK(p, (coarsening)(relax)(coarse_enough)(npre)
                         (npost)(ncycle)(pre_cycles)
-#ifdef AMGCL_ASYNC_SETUP
-                        (async_setup)
-#endif
                         );
             }
 
