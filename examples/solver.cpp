@@ -9,15 +9,37 @@
 #include <boost/foreach.hpp>
 #include <boost/range/iterator_range.hpp>
 
-#include <amgcl/backend/builtin.hpp>
-#include <amgcl/value_type/static_matrix.hpp>
+#if defined(SOLVER_BACKEND_VEXCL)
+#  include <amgcl/backend/vexcl.hpp>
+   typedef amgcl::backend::vexcl<double> Backend;
+#elif defined(SOLVER_BACKEND_VIENNACL)
+#  include <amgcl/backend/viennacl.hpp>
+   typedef amgcl::backend::viennacl< viennacl::compressed_matrix<double> > Backend;
+#elif defined(SOLVER_BACKEND_CUDA)
+#  include <amgcl/backend/cuda.hpp>
+   typedef amgcl::backend::cuda<double> Backend;
+#elif defined(SOLVER_BACKEND_EIGEN)
+#  include <amgcl/backend/eigen.hpp>
+   typedef amgcl::backend::eigen<double> Backend;
+#elif defined(SOLVER_BACKEND_BLAZE)
+#  include <amgcl/backend/blaze.hpp>
+   typedef amgcl::backend::blaze<double> Backend;
+#else
+#  ifndef SOLVER_BACKEND_BUILTIN
+#    define SOLVER_BACKEND_BUILTIN
+#  endif
+#  include <amgcl/backend/builtin.hpp>
+#  include <amgcl/value_type/static_matrix.hpp>
+#  include <amgcl/adapter/block_matrix.hpp>
+   typedef amgcl::backend::builtin<double> Backend;
+#endif
+
 #include <amgcl/runtime.hpp>
 #include <amgcl/make_solver.hpp>
-#include <amgcl/adapter/zero_copy.hpp>
-#include <amgcl/adapter/block_matrix.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/io/mm.hpp>
 #include <amgcl/io/binary.hpp>
+
 #include <amgcl/profiler.hpp>
 
 #include "sample_problem.hpp"
@@ -28,6 +50,9 @@ using amgcl::precondition;
 
 typedef amgcl::scoped_tic< amgcl::profiler<> > scoped_tic;
 
+Backend::params bprm;
+
+#ifdef SOLVER_BACKEND_BUILTIN
 //---------------------------------------------------------------------------
 template <int B, template <class> class Precond>
 boost::tuple<size_t, double> block_solve(
@@ -42,11 +67,11 @@ boost::tuple<size_t, double> block_solve(
 {
     typedef amgcl::static_matrix<double, B, B> value_type;
     typedef amgcl::static_matrix<double, B, 1> rhs_type;
-    typedef amgcl::backend::builtin<value_type> Backend;
+    typedef amgcl::backend::builtin<value_type> BBackend;
 
     typedef amgcl::make_solver<
-        Precond<Backend>,
-        amgcl::runtime::iterative_solver<Backend>
+        Precond<BBackend>,
+        amgcl::runtime::iterative_solver<BBackend>
         > Solver;
 
     prof.tic("setup");
@@ -67,6 +92,7 @@ boost::tuple<size_t, double> block_solve(
         return solve(frng, xrng);
     }
 }
+#endif
 
 //---------------------------------------------------------------------------
 template <template <class> class Precond>
@@ -80,7 +106,13 @@ boost::tuple<size_t, double> scalar_solve(
         std::vector<double>          &x
         )
 {
-    typedef amgcl::backend::builtin<double> Backend;
+#if defined(SOLVER_BACKEND_VEXCL)
+    vex::Context ctx(vex::Filter::Env);
+    std::cout << ctx << std::endl;
+    bprm.q = ctx;
+#elif defined(SOLVER_BACKEND_CUDA)
+    cusparseCreate(&bprm.cusparse_handle);
+#endif
 
     typedef amgcl::make_solver<
         Precond<Backend>,
@@ -88,15 +120,18 @@ boost::tuple<size_t, double> scalar_solve(
         > Solver;
 
     prof.tic("setup");
-    Solver solve(amgcl::adapter::zero_copy(rows, &ptr[0], &col[0], &val[0]), prm);
+    Solver solve(boost::tie(rows, ptr, col, val), prm, bprm);
     prof.toc("setup");
 
     std::cout << solve.precond() << std::endl;
 
+    typedef Backend::vector vector;
+    boost::shared_ptr<vector> f_b = Backend::copy_vector(rhs, bprm);
+    boost::shared_ptr<vector> x_b = Backend::copy_vector(x,   bprm);
+
     {
         scoped_tic t(prof, "solve");
-
-        return solve(rhs, x);
+        return solve(*f_b, *x_b);
     }
 }
 
@@ -116,6 +151,7 @@ boost::tuple<size_t, double> solve(
     switch (block_size) {
         case 1:
             return scalar_solve<Precond>(prm, rows, ptr, col, val, rhs, x);
+#ifdef SOLVER_BACKEND_BUILTIN
         case 2:
             return block_solve<2, Precond>(prm, rows, ptr, col, val, rhs, x);
         case 3:
@@ -126,6 +162,7 @@ boost::tuple<size_t, double> solve(
             return block_solve<5, Precond>(prm, rows, ptr, col, val, rhs, x);
         case 6:
             return block_solve<6, Precond>(prm, rows, ptr, col, val, rhs, x);
+#endif
         default:
             precondition(false, "Unsupported block size");
             return boost::make_tuple(0, 0.0);
@@ -318,17 +355,12 @@ int main(int argc, char *argv[]) {
                 prm, rows, ptr, col, val, rhs, x, block_size);
     }
 
-    double norm_rhs = sqrt(amgcl::backend::inner_product(rhs, rhs));
-    amgcl::backend::spmv(-1, boost::tie(rows, ptr, col, val), x, 1, rhs);
-    double resid = sqrt(amgcl::backend::inner_product(rhs, rhs)) / norm_rhs;
-
     if (vm.count("output")) {
         scoped_tic t(prof, "write");
         amgcl::io::mm_write(vm["output"].as<string>(), &x[0], x.size());
     }
 
-    std::cout << "Iterations:     " << iters << std::endl
-              << "Reported error: " << error << std::endl
-              << "Real error:     " << resid << std::endl
+    std::cout << "Iterations: " << iters << std::endl
+              << "Error:      " << error << std::endl
               << prof << std::endl;
 }

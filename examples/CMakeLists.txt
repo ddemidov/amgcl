@@ -37,37 +37,59 @@ if (HPX_FOUND)
         )
 endif()
 
+if (EIGEN_INCLUDE)
+    add_executable(solver_eigen solver.cpp)
+    target_link_libraries(solver_eigen ${Boost_LIBRARIES})
+endif()
+
+if (BLAZE_INCLUDE)
+    add_executable(solver_blaze solver.cpp)
+    target_link_libraries(solver_blaze ${Boost_LIBRARIES})
+endif()
+
 if (VEXCL_ROOT)
     add_executable(vexcl vexcl.cpp)
     target_link_libraries(vexcl ${Boost_LIBRARIES} ${VEXCL_BACKEND_LIBRARIES})
     set_target_properties(vexcl PROPERTIES COMPILE_FLAGS ${CXX11_FLAG})
 
-    add_executable(runtime_vexcl runtime_vexcl.cpp)
-    target_link_libraries(runtime_vexcl ${Boost_LIBRARIES} ${VEXCL_BACKEND_LIBRARIES})
-    set_target_properties(runtime_vexcl PROPERTIES COMPILE_FLAGS ${CXX11_FLAG})
+    add_executable(solver_vexcl solver.cpp)
+    target_link_libraries(solver_vexcl ${Boost_LIBRARIES} ${VEXCL_BACKEND_LIBRARIES})
+    set_target_properties(solver_vexcl PROPERTIES
+        COMPILE_FLAGS "${CXX11_FLAG} -DSOLVER_BACKEND_VEXCL"
+        )
 endif()
 
 if (CUDA_FOUND AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    set(CUDA_OPTIONS "-arch=sm_${CUDA_COMPUTE_CAPABILITY}")
+    set(CUDA_OPTIONS "-DSOLVER_BACKEND_CUDA -arch=sm_${CUDA_COMPUTE_CAPABILITY}")
     if (NOT WIN32)
         set(CUDA_OPTIONS "${CUDA_OPTIONS} -Xcompiler -std=c++03")
     endif()
-    cuda_add_executable(cuda cuda.cu OPTIONS ${CUDA_OPTIONS})
+
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/solver.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/solver.cu
+        COPYONLY
+        )
+
+    cuda_add_executable(solver_cuda ${CMAKE_CURRENT_BINARY_DIR}/solver.cu OPTIONS ${CUDA_OPTIONS})
+
     if (NOT WIN32)
-        set_target_properties(cuda PROPERTIES
+        set_target_properties(solver_cuda PROPERTIES
             COMPILE_FLAGS -std=c++03
             LINK_FLAGS -std=c++03
             )
     endif()
-    target_link_libraries(cuda ${CUDA_cusparse_LIBRARY} ${Boost_LIBRARIES})
+    target_link_libraries(solver_cuda ${CUDA_cusparse_LIBRARY} ${Boost_LIBRARIES})
 endif()
 
 if (VIENNACL_INCLUDE)
     add_definitions(-DVIENNACL_WITH_OPENCL)
     find_package(OpenCL REQUIRED)
     include_directories( ${OPENCL_INCLUDE_DIRS} )
-    add_executable(runtime_viennacl runtime_viennacl.cpp)
-    target_link_libraries(runtime_viennacl ${Boost_LIBRARIES} ${OPENCL_LIBRARIES})
+
+    add_executable(solver_viennacl solver.cpp)
+    target_link_libraries(solver_viennacl ${Boost_LIBRARIES} ${OPENCL_LIBRARIES})
+    set_target_properties(solver_viennacl PROPERTIES COMPILE_FLAGS "-DSOLVER_BACKEND_VIENNACL")
 endif()
 
 add_subdirectory(mpi)
