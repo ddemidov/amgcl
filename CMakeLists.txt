@@ -42,7 +42,6 @@ endif()
 option(HAVE_HPX "Build HPX examples" OFF)
 if (HAVE_HPX)
     find_package(HPX)
-    set(BOOST_COMPONENTS serialization)
 endif()
 
 #----------------------------------------------------------------------------
@@ -79,6 +78,7 @@ set(BOOST_COMPONENTS ${BOOST_COMPONENTS}
     system
     filesystem
     thread
+    serialization
     unit_test_framework
     )
 
