@@ -155,9 +155,13 @@ class amg {
                 , AMGCL_PARAMS_IMPORT_VALUE(p, async_setup)
 #endif
             {
+#ifdef AMGCL_ASYNC_SETUP
                 AMGCL_PARAMS_CHECK(p, (coarsening)(relax)(coarse_enough)(npre)
-                        (npost)(ncycle)(pre_cycles)
-                        );
+                        (npost)(ncycle)(pre_cycles)(async_setup));
+#else
+                AMGCL_PARAMS_CHECK(p, (coarsening)(relax)(coarse_enough)(npre)
+                        (npost)(ncycle)(pre_cycles));
+#endif
             }
 
             void get(
