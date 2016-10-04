@@ -114,6 +114,13 @@ class amg {
              */
             unsigned coarse_enough;
 
+            /// Maximum number of levels.
+            /** If this number is reached while the size of the last level is
+             * greater that `coarse_enough`, then the coarsest level will not
+             * be solved exactly, but will use a smoother.
+             */
+            unsigned max_levels;
+
             /// Number of pre-relaxations.
             unsigned npre;
 
@@ -137,6 +144,7 @@ class amg {
 
             params() :
                 coarse_enough( Backend::direct_solver::coarse_enough() ),
+                max_levels( std::numeric_limits<unsigned>::max() ),
                 npre(1), npost(1), ncycle(1), pre_cycles(1)
 #ifdef AMGCL_ASYNC_SETUP
                 , async_setup(false)
@@ -147,6 +155,7 @@ class amg {
                 : AMGCL_PARAMS_IMPORT_CHILD(p, coarsening),
                   AMGCL_PARAMS_IMPORT_CHILD(p, relax),
                   AMGCL_PARAMS_IMPORT_VALUE(p, coarse_enough),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, max_levels),
                   AMGCL_PARAMS_IMPORT_VALUE(p, npre),
                   AMGCL_PARAMS_IMPORT_VALUE(p, npost),
                   AMGCL_PARAMS_IMPORT_VALUE(p, ncycle),
@@ -156,12 +165,15 @@ class amg {
 #endif
             {
 #ifdef AMGCL_ASYNC_SETUP
-                AMGCL_PARAMS_CHECK(p, (coarsening)(relax)(coarse_enough)(npre)
-                        (npost)(ncycle)(pre_cycles)(async_setup));
+                AMGCL_PARAMS_CHECK(p, (coarsening)(relax)(coarse_enough)
+                        (max_levels)(npre)(npost)(ncycle)(pre_cycles)
+                        (async_setup));
 #else
-                AMGCL_PARAMS_CHECK(p, (coarsening)(relax)(coarse_enough)(npre)
-                        (npost)(ncycle)(pre_cycles));
+                AMGCL_PARAMS_CHECK(p, (coarsening)(relax)(coarse_enough)
+                        (max_levels)(npost)(ncycle)(pre_cycles));
 #endif
+
+                precondition(max_levels > 0, "max_levels should be positive");
             }
 
             void get(
@@ -172,6 +184,7 @@ class amg {
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, coarsening);
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, relax);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, coarse_enough);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, max_levels);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, npre);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, npost);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, ncycle);
@@ -382,7 +395,7 @@ class amg {
                     "Matrix should be square!"
                     );
 
-            while( backend::rows(*A) > prm.coarse_enough) {
+            while( backend::rows(*A) > prm.coarse_enough && levels.size() < prm.max_levels) {
                 {
 #ifdef AMGCL_ASYNC_SETUP
                     boost::lock_guard<boost::mutex> lock(levels_mx);
@@ -395,20 +408,22 @@ class amg {
                 A = levels.back().step_down(A, prm, bprm);
             }
 
-            TIC("coarsest level");
-            {
+            if (levels.size() < prm.max_levels) {
+                TIC("coarsest level");
                 level l;
                 l.create_coarse(A, prm, bprm, levels.empty());
 
+                {
 #ifdef AMGCL_ASYNC_SETUP
-                boost::lock_guard<boost::mutex> lock(levels_mx);
+                    boost::lock_guard<boost::mutex> lock(levels_mx);
 #endif
-                levels.push_back( l );
+                    levels.push_back( l );
+                }
+#ifdef AMGCL_ASYNC_SETUP
+                ready_to_cycle.notify_all();
+#endif
+                TOC("coarsest level");
             }
-#ifdef AMGCL_ASYNC_SETUP
-            ready_to_cycle.notify_all();
-#endif
-            TOC("coarsest level");
         }
 
         void do_init(
