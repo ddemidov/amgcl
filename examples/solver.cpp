@@ -110,8 +110,20 @@ boost::tuple<size_t, double> scalar_solve(
     vex::Context ctx(vex::Filter::Env);
     std::cout << ctx << std::endl;
     bprm.q = ctx;
+#elif defined(SOLVER_BACKEND_VIENNACL)
+    std::cout
+        << viennacl::ocl::current_device().name()
+        << " (" << viennacl::ocl::current_device().vendor() << ")\n\n";
 #elif defined(SOLVER_BACKEND_CUDA)
     cusparseCreate(&bprm.cusparse_handle);
+    {
+        int dev;
+        cudaGetDevice(&dev);
+
+        cudaDeviceProp prop;
+        cudaGetDeviceProperties(&prop, dev);
+        std::cout << prop.name << std::endl << std::endl;
+    }
 #endif
 
     typedef amgcl::make_solver<
