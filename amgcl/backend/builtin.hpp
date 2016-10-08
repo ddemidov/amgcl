@@ -117,6 +117,33 @@ struct crs {
         }
     }
 
+    crs(crs &other) :
+        nrows(other.nrows),
+        ncols(other.ncols),
+        ptr(other.ptr),
+        col(other.col),
+        val(other.val)
+    {}
+
+#ifndef BOOST_NO_CXX11_RVALUE_REFERENCES
+    crs(crs &&other) :
+        nrows(other.nrows),
+        ncols(other.ncols),
+        ptr(std::move(other.ptr)),
+        col(std::move(other.col)),
+        val(std::move(other.val))
+    {}
+
+    const crs& operator=(crs &&other) {
+        std::swap(nrows, other.nrows);
+        std::swap(ncols, other.ncols);
+        ptr.swap(other.ptr);
+        col.swap(other.col);
+        val.swap(other.val);
+        return *this;
+    }
+#endif
+
     virtual ~crs() {}
 
     virtual const ptr_type* ptr_data() const { return &ptr[0]; }
