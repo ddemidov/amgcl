@@ -155,7 +155,6 @@ class block_preconditioner {
             P->apply(rhs, x);
         }
     private:
-        ptrdiff_t n;
         boost::shared_ptr< comm_pattern<backend_type> > C;
         boost::shared_ptr<bmatrix>  Arem;
         boost::shared_ptr<matrix> A;
