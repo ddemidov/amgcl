@@ -209,7 +209,7 @@ struct iluk {
 
             nonzero() : col(-1) {}
 
-            nonzero(ptrdiff_t col, value_type val, int lev)
+            nonzero(ptrdiff_t col, const value_type &val, int lev)
                 : col(col), val(val), lev(lev) {}
 
             friend bool operator<(const nonzero &a, const nonzero &b) {
@@ -246,7 +246,7 @@ struct iluk {
                 nz.reserve(16);
             }
 
-            void add(ptrdiff_t col, value_type val, int lev) {
+            void add(ptrdiff_t col, const value_type &val, int lev) {
                 if (idx[col] < 0) {
                     if (lev <= lfil) {
                         int p = nz.size();

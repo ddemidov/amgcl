@@ -234,7 +234,7 @@ struct ilut {
 
                 nonzero() : col(-1) {}
 
-                nonzero(ptrdiff_t col, value_type val = value_type())
+                nonzero(ptrdiff_t col, const value_type &val = value_type())
                     : col(col), val(val) {}
             };
 

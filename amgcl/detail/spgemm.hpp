@@ -170,8 +170,8 @@ Idx* merge_rows(
 
 template <class Idx, class Val>
 Idx* merge_rows(
-        Val alpha1, const Idx *col1, const Idx *col1_end, const Val *val1,
-        Val alpha2, const Idx *col2, const Idx *col2_end, const Val *val2,
+        const Val &alpha1, const Idx *col1, const Idx *col1_end, const Val *val1,
+        const Val &alpha2, const Idx *col2, const Idx *col2_end, const Val *val2,
         Idx *col3, Val *val3
         )
 {
