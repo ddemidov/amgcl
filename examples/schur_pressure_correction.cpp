@@ -8,12 +8,32 @@
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/foreach.hpp>
 
+#if defined(SOLVER_BACKEND_VEXCL)
+#  include <amgcl/backend/vexcl.hpp>
+   typedef amgcl::backend::vexcl<double> Backend;
+#elif defined(SOLVER_BACKEND_VIENNACL)
+#  include <amgcl/backend/viennacl.hpp>
+   typedef amgcl::backend::viennacl< viennacl::compressed_matrix<double> > Backend;
+#elif defined(SOLVER_BACKEND_CUDA)
+#  include <amgcl/backend/cuda.hpp>
+#  include <amgcl/relaxation/cusparse_ilu0.hpp>
+   typedef amgcl::backend::cuda<double> Backend;
+#else
+#  ifndef SOLVER_BACKEND_BUILTIN
+#    define SOLVER_BACKEND_BUILTIN
+#  endif
+#  include <amgcl/backend/builtin.hpp>
+#  include <amgcl/value_type/static_matrix.hpp>
+#  include <amgcl/adapter/block_matrix.hpp>
+#  include <amgcl/make_block_solver.hpp>
+   typedef amgcl::backend::builtin<double> Backend;
+#endif
+
 #include <amgcl/make_solver.hpp>
-#include <amgcl/make_block_solver.hpp>
-#include <amgcl/value_type/static_matrix.hpp>
 #include <amgcl/runtime.hpp>
 #include <amgcl/preconditioner/schur_pressure_correction.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
+
 #include <amgcl/io/mm.hpp>
 #include <amgcl/io/binary.hpp>
 #include <amgcl/profiler.hpp>
@@ -53,24 +73,46 @@ typename boost::enable_if_c<
     void>::type
 solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
 {
-    tic t1(prof, "schur_complement");
+    Backend::params bprm;
 
-    typedef amgcl::backend::builtin<double> Backend;
+#if defined(SOLVER_BACKEND_VEXCL)
+    vex::Context ctx(vex::Filter::Env);
+    std::cout << ctx << std::endl;
+    bprm.q = ctx;
+#elif defined(SOLVER_BACKEND_VIENNACL)
+    std::cout
+        << viennacl::ocl::current_device().name()
+        << " (" << viennacl::ocl::current_device().vendor() << ")\n\n";
+#elif defined(SOLVER_BACKEND_CUDA)
+    cusparseCreate(&bprm.cusparse_handle);
+    {
+        int dev;
+        cudaGetDevice(&dev);
+
+        cudaDeviceProp prop;
+        cudaGetDeviceProperties(&prop, dev);
+        std::cout << prop.name << std::endl << std::endl;
+    }
+#endif
+
+    tic t1(prof, "schur_complement");
 
     amgcl::make_solver<
         amgcl::preconditioner::schur_pressure_correction<USolver, PSolver>,
         amgcl::runtime::iterative_solver<Backend>
-        > solve(K, prm);
+        > solve(K, prm, bprm);
 
     std::cout << solve.precond() << std::endl;
 
-    tic t2(prof, "solve");
-    std::vector<double> x(rhs.size(), 0.0);
+    typedef Backend::vector vector;
+    boost::shared_ptr<vector> f = Backend::copy_vector(rhs, bprm);
+    boost::shared_ptr<vector> x = Backend::create_vector(rhs.size(), bprm);
 
+    tic t2(prof, "solve");
     size_t iters;
     double error;
 
-    boost::tie(iters, error) = solve(rhs, x);
+    boost::tie(iters, error) = solve(*f, *x);
 
     std::cout << "Iterations: " << iters << std::endl
               << "Error:      " << error << std::endl;
@@ -83,7 +125,6 @@ void solve_schur(int pb, const Matrix &K, const std::vector<double> &rhs, boost:
     switch (pb) {
         case 1:
             {
-                typedef amgcl::backend::builtin<double> Backend;
                 typedef
                     amgcl::make_solver<
                         amgcl::runtime::amg<Backend>,
@@ -93,13 +134,14 @@ void solve_schur(int pb, const Matrix &K, const std::vector<double> &rhs, boost:
                 solve_schur<USolver, PSolver>(K, rhs, prm);
             }
             break;
+#if defined(SOLVER_BACKEND_BUILTIN)
         case 2:
             {
-                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 2, 2> > Backend;
+                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 2, 2> > BBackend;
                 typedef
                     amgcl::make_block_solver<
-                        amgcl::runtime::amg<Backend>,
-                        amgcl::runtime::iterative_solver<Backend>
+                        amgcl::runtime::amg<BBackend>,
+                        amgcl::runtime::iterative_solver<BBackend>
                         >
                     PSolver;
                 solve_schur<USolver, PSolver>(K, rhs, prm);
@@ -107,11 +149,11 @@ void solve_schur(int pb, const Matrix &K, const std::vector<double> &rhs, boost:
             break;
         case 3:
             {
-                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 3, 3> > Backend;
+                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 3, 3> > BBackend;
                 typedef
                     amgcl::make_block_solver<
-                        amgcl::runtime::amg<Backend>,
-                        amgcl::runtime::iterative_solver<Backend>
+                        amgcl::runtime::amg<BBackend>,
+                        amgcl::runtime::iterative_solver<BBackend>
                         >
                     PSolver;
                 solve_schur<USolver, PSolver>(K, rhs, prm);
@@ -119,16 +161,17 @@ void solve_schur(int pb, const Matrix &K, const std::vector<double> &rhs, boost:
             break;
         case 4:
             {
-                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 4, 4> > Backend;
+                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 4, 4> > BBackend;
                 typedef
                     amgcl::make_block_solver<
-                        amgcl::runtime::amg<Backend>,
-                        amgcl::runtime::iterative_solver<Backend>
+                        amgcl::runtime::amg<BBackend>,
+                        amgcl::runtime::iterative_solver<BBackend>
                         >
                     PSolver;
                 solve_schur<USolver, PSolver>(K, rhs, prm);
             }
             break;
+#endif
         default:
             precondition(false, "Unsupported block size for pressure");
     }
@@ -144,7 +187,6 @@ void solve_schur(int ub, int pb, const Matrix &K, const std::vector<double> &rhs
     switch (ub) {
         case 1:
             {
-                typedef amgcl::backend::builtin<double> Backend;
                 typedef
                     amgcl::make_solver<
                         amgcl::runtime::relaxation::as_preconditioner<Backend>,
@@ -154,13 +196,14 @@ void solve_schur(int ub, int pb, const Matrix &K, const std::vector<double> &rhs
                 solve_schur<USolver>(pb, K, rhs, prm);
             }
             break;
+#if defined(SOLVER_BACKEND_BUILTIN)
         case 2:
             {
-                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 2, 2> > Backend;
+                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 2, 2> > BBackend;
                 typedef
                     amgcl::make_block_solver<
-                        amgcl::runtime::relaxation::as_preconditioner<Backend>,
-                        amgcl::runtime::iterative_solver<Backend>
+                        amgcl::runtime::relaxation::as_preconditioner<BBackend>,
+                        amgcl::runtime::iterative_solver<BBackend>
                         >
                     USolver;
                 solve_schur<USolver>(pb, K, rhs, prm);
@@ -168,11 +211,11 @@ void solve_schur(int ub, int pb, const Matrix &K, const std::vector<double> &rhs
             break;
         case 3:
             {
-                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 3, 3> > Backend;
+                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 3, 3> > BBackend;
                 typedef
                     amgcl::make_block_solver<
-                        amgcl::runtime::relaxation::as_preconditioner<Backend>,
-                        amgcl::runtime::iterative_solver<Backend>
+                        amgcl::runtime::relaxation::as_preconditioner<BBackend>,
+                        amgcl::runtime::iterative_solver<BBackend>
                         >
                     USolver;
                 solve_schur<USolver>(pb, K, rhs, prm);
@@ -180,16 +223,17 @@ void solve_schur(int ub, int pb, const Matrix &K, const std::vector<double> &rhs
             break;
         case 4:
             {
-                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 4, 4> > Backend;
+                typedef amgcl::backend::builtin< amgcl::static_matrix<double, 4, 4> > BBackend;
                 typedef
                     amgcl::make_block_solver<
-                        amgcl::runtime::relaxation::as_preconditioner<Backend>,
-                        amgcl::runtime::iterative_solver<Backend>
+                        amgcl::runtime::relaxation::as_preconditioner<BBackend>,
+                        amgcl::runtime::iterative_solver<BBackend>
                         >
                     USolver;
                 solve_schur<USolver>(pb, K, rhs, prm);
             }
             break;
+#endif
         default:
             precondition(false, "Unsupported block size for flow");
     }
