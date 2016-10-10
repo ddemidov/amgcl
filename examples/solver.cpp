@@ -17,6 +17,7 @@
    typedef amgcl::backend::viennacl< viennacl::compressed_matrix<double> > Backend;
 #elif defined(SOLVER_BACKEND_CUDA)
 #  include <amgcl/backend/cuda.hpp>
+#  include <amgcl/relaxation/cusparse_ilu0.hpp>
    typedef amgcl::backend::cuda<double> Backend;
 #elif defined(SOLVER_BACKEND_EIGEN)
 #  include <amgcl/backend/eigen.hpp>
