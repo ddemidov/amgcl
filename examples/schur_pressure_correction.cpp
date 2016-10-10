@@ -107,6 +107,7 @@ solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tre
     typedef Backend::vector vector;
     boost::shared_ptr<vector> f = Backend::copy_vector(rhs, bprm);
     boost::shared_ptr<vector> x = Backend::create_vector(rhs.size(), bprm);
+    amgcl::backend::clear(*x);
 
     tic t2(prof, "solve");
     size_t iters;

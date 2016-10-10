@@ -8,6 +8,24 @@
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/foreach.hpp>
 
+#if defined(SOLVER_BACKEND_VEXCL)
+#  include <amgcl/backend/vexcl.hpp>
+   typedef amgcl::backend::vexcl<double> Backend;
+#elif defined(SOLVER_BACKEND_VIENNACL)
+#  include <amgcl/backend/viennacl.hpp>
+   typedef amgcl::backend::viennacl< viennacl::compressed_matrix<double> > Backend;
+#elif defined(SOLVER_BACKEND_CUDA)
+#  include <amgcl/backend/cuda.hpp>
+#  include <amgcl/relaxation/cusparse_ilu0.hpp>
+   typedef amgcl::backend::cuda<double> Backend;
+#else
+#  ifndef SOLVER_BACKEND_BUILTIN
+#    define SOLVER_BACKEND_BUILTIN
+#  endif
+#  include <amgcl/backend/builtin.hpp>
+   typedef amgcl::backend::builtin<double> Backend;
+#endif
+
 #include <amgcl/make_solver.hpp>
 #include <amgcl/runtime.hpp>
 #include <amgcl/preconditioner/cpr_drs.hpp>
@@ -26,9 +44,29 @@ typedef amgcl::scoped_tic< amgcl::profiler<> > tic;
 template <class Matrix>
 void solve_cpr(const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
 {
-    tic t1(prof, "CPR");
+    Backend::params bprm;
 
-    typedef amgcl::backend::builtin<double> Backend;
+#if defined(SOLVER_BACKEND_VEXCL)
+    vex::Context ctx(vex::Filter::Env);
+    std::cout << ctx << std::endl;
+    bprm.q = ctx;
+#elif defined(SOLVER_BACKEND_VIENNACL)
+    std::cout
+        << viennacl::ocl::current_device().name()
+        << " (" << viennacl::ocl::current_device().vendor() << ")\n\n";
+#elif defined(SOLVER_BACKEND_CUDA)
+    cusparseCreate(&bprm.cusparse_handle);
+    {
+        int dev;
+        cudaGetDevice(&dev);
+
+        cudaDeviceProp prop;
+        cudaGetDeviceProperties(&prop, dev);
+        std::cout << prop.name << std::endl << std::endl;
+    }
+#endif
+
+    tic t1(prof, "CPR");
 
     typedef
         amgcl::runtime::amg<Backend>
@@ -41,17 +79,20 @@ void solve_cpr(const Matrix &K, const std::vector<double> &rhs, boost::property_
     amgcl::make_solver<
         amgcl::preconditioner::cpr_drs<PPrecond, SPrecond>,
         amgcl::runtime::iterative_solver<Backend>
-        > solve(K, prm);
+        > solve(K, prm, bprm);
 
     std::cout << solve.precond() << std::endl;
 
-    tic t2(prof, "solve");
-    std::vector<double> x(rhs.size(), 1.0);
+    typedef Backend::vector vector;
+    boost::shared_ptr<vector> f = Backend::copy_vector(rhs, bprm);
+    boost::shared_ptr<vector> x = Backend::create_vector(rhs.size(), bprm);
+    amgcl::backend::clear(*x);
 
+    tic t2(prof, "solve");
     size_t iters;
     double error;
 
-    boost::tie(iters, error) = solve(rhs, x);
+    boost::tie(iters, error) = solve(*f, *x);
 
     std::cout << "Iterations: " << iters << std::endl
               << "Error:      " << error << std::endl;

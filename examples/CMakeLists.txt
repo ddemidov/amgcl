@@ -63,6 +63,12 @@ if (VEXCL_ROOT)
     set_target_properties(schur_pressure_correction_vexcl PROPERTIES
         COMPILE_FLAGS "${CXX11_FLAG} -DSOLVER_BACKEND_VEXCL"
         )
+
+    add_executable(cpr_drs_vexcl cpr_drs.cpp)
+    target_link_libraries(cpr_drs_vexcl ${Boost_LIBRARIES} ${VEXCL_BACKEND_LIBRARIES})
+    set_target_properties(cpr_drs_vexcl PROPERTIES
+        COMPILE_FLAGS "${CXX11_FLAG} -DSOLVER_BACKEND_VEXCL"
+        )
 endif()
 
 if (CUDA_FOUND AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -83,12 +89,22 @@ if (CUDA_FOUND AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         COPYONLY
         )
 
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/cpr_drs.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/cpr_drs.cu
+        COPYONLY
+        )
+
     cuda_add_executable(solver_cuda
         ${CMAKE_CURRENT_BINARY_DIR}/solver.cu
         OPTIONS ${CUDA_OPTIONS})
 
     cuda_add_executable(schur_pressure_correction_cuda
         ${CMAKE_CURRENT_BINARY_DIR}/schur_pressure_correction.cu
+        OPTIONS ${CUDA_OPTIONS})
+
+    cuda_add_executable(cpr_drs_cuda
+        ${CMAKE_CURRENT_BINARY_DIR}/cpr_drs.cu
         OPTIONS ${CUDA_OPTIONS})
 
     if (NOT WIN32)
@@ -101,10 +117,16 @@ if (CUDA_FOUND AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
             COMPILE_FLAGS -std=c++03
             LINK_FLAGS -std=c++03
             )
+
+        set_target_properties(cpr_drs_cuda PROPERTIES
+            COMPILE_FLAGS -std=c++03
+            LINK_FLAGS -std=c++03
+            )
     endif()
 
     target_link_libraries(solver_cuda ${CUDA_cusparse_LIBRARY} ${Boost_LIBRARIES})
     target_link_libraries(schur_pressure_correction_cuda ${CUDA_cusparse_LIBRARY} ${Boost_LIBRARIES})
+    target_link_libraries(cpr_drs_cuda ${CUDA_cusparse_LIBRARY} ${Boost_LIBRARIES})
 endif()
 
 if (VIENNACL_INCLUDE)
@@ -116,9 +138,13 @@ if (VIENNACL_INCLUDE)
     target_link_libraries(solver_viennacl ${Boost_LIBRARIES} ${OPENCL_LIBRARIES})
     set_target_properties(solver_viennacl PROPERTIES COMPILE_FLAGS "-DSOLVER_BACKEND_VIENNACL")
 
-    add_executable(schur_pressure_correction_viennacl solver.cpp)
+    add_executable(schur_pressure_correction_viennacl schur_pressure_correction.cpp)
     target_link_libraries(schur_pressure_correction_viennacl ${Boost_LIBRARIES} ${OPENCL_LIBRARIES})
     set_target_properties(schur_pressure_correction_viennacl PROPERTIES COMPILE_FLAGS "-DSOLVER_BACKEND_VIENNACL")
+
+    add_executable(cpr_drs_viennacl cpr_drs.cpp)
+    target_link_libraries(cpr_drs_viennacl ${Boost_LIBRARIES} ${OPENCL_LIBRARIES})
+    set_target_properties(cpr_drs_viennacl PROPERTIES COMPILE_FLAGS "-DSOLVER_BACKEND_VIENNACL")
 endif()
 
 add_subdirectory(mpi)
