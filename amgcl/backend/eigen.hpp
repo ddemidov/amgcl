@@ -146,15 +146,15 @@ struct is_eigen_sparse_matrix : boost::false_type {};
 template <class T, class Enable = void>
 struct is_eigen_type : boost::false_type {};
 
-template <class T>
+template <typename Scalar, int Flags, typename Storage>
 struct is_eigen_sparse_matrix<
-    T,
-    typename boost::enable_if<
-            typename boost::mpl::and_<
-                typename boost::is_arithmetic<typename T::Scalar>::type,
-                typename boost::is_base_of<Eigen::SparseMatrixBase<T>, T>::type
-            >::type
-        >::type
+    Eigen::MappedSparseMatrix<Scalar, Flags, Storage>
+    > : boost::true_type
+{};
+
+template <typename Scalar, int Flags, typename Storage>
+struct is_eigen_sparse_matrix<
+    Eigen::SparseMatrix<Scalar, Flags, Storage>
     > : boost::true_type
 {};
 
