@@ -51,8 +51,6 @@ using amgcl::precondition;
 
 typedef amgcl::scoped_tic< amgcl::profiler<> > scoped_tic;
 
-Backend::params bprm;
-
 #ifdef SOLVER_BACKEND_BUILTIN
 //---------------------------------------------------------------------------
 template <int B, template <class> class Precond>
@@ -107,6 +105,8 @@ boost::tuple<size_t, double> scalar_solve(
         std::vector<double>          &x
         )
 {
+    Backend::params bprm;
+
 #if defined(SOLVER_BACKEND_VEXCL)
     vex::Context ctx(vex::Filter::Env);
     std::cout << ctx << std::endl;
