@@ -38,11 +38,16 @@ THE SOFTWARE.
 
 #include <amgcl/solver/skyline_lu.hpp>
 #include <vexcl/vexcl.hpp>
+#include <vexcl/sparse/matrix.hpp>
+#include <vexcl/sparse/distributed.hpp>
 
 #include <amgcl/util.hpp>
 #include <amgcl/backend/builtin.hpp>
 
 namespace amgcl {
+
+template <class V, class C, class P>
+using vex_SpMat = vex::sparse::distributed< vex::sparse::matrix<V, C, P> >;
 
 namespace solver {
 
@@ -77,7 +82,7 @@ namespace backend {
  * The backend uses the <a href="https://github.com/ddemidov/vexcl">VexCL</a>
  * library for accelerating solution on the modern GPUs and multicore
  * processors with the help of OpenCL or CUDA technologies.
- * The VexCL backend stores the system matrix as ``vex::SpMat<real>`` and
+ * The VexCL backend stores the system matrix as ``vex_SpMat<real>`` and
  * expects the right hand side and the solution vectors to be instances of the
  * ``vex::vector<real>`` type.
  */
@@ -86,7 +91,7 @@ struct vexcl {
     typedef real      value_type;
     typedef ptrdiff_t index_type;
 
-    typedef vex::SpMat<value_type, index_type, index_type> matrix;
+    typedef vex_SpMat<value_type, index_type, index_type> matrix;
     typedef vex::vector<value_type>                        vector;
     typedef vex::vector<value_type>                        matrix_diagonal;
     typedef DirectSolver                                   direct_solver;
@@ -98,17 +103,24 @@ struct vexcl {
 
         std::vector< vex::backend::command_queue > q; ///< Command queues that identify compute devices to use with VexCL.
 
-        params() {}
+        /// Do CSR to ELL conversion on the GPU side.
+        /** This will result in faster setup, but will require more GPU memory. */
+        bool fast_matrix_setup;
 
-        params(const boost::property_tree::ptree &p) {
+        params() : fast_matrix_setup(true) {}
+
+        params(const boost::property_tree::ptree &p)
+            : AMGCL_PARAMS_IMPORT_CHILD(p, fast_matrix_setup)
+        {
             std::vector<vex::backend::command_queue> *ptr = 0;
             ptr = p.get("q", ptr);
             if (ptr) q = *ptr;
-            AMGCL_PARAMS_CHECK(p, (q));
+            AMGCL_PARAMS_CHECK(p, (q)(fast_matrix_setup));
         }
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {
             p.put(path + "q", &q);
+            AMGCL_PARAMS_EXPORT_VALUE(p, path, fast_matrix_setup);
         }
 
         const std::vector<vex::backend::command_queue>& context() const {
@@ -127,14 +139,7 @@ struct vexcl {
     copy_matrix(boost::shared_ptr< typename builtin<real>::matrix > A, const params &prm)
     {
         precondition(!prm.context().empty(), "Empty VexCL context!");
-
-        const typename builtin<real>::matrix &a = *A;
-
-        BOOST_AUTO(Aptr, a.ptr_data());
-        BOOST_AUTO(Acol, a.col_data());
-        BOOST_AUTO(Aval, a.val_data());
-
-        return boost::make_shared<matrix>(prm.context(), rows(*A), cols(*A), Aptr, Acol, Aval);
+        return boost::make_shared<matrix>(prm.context(), rows(*A), cols(*A), A->ptr, A->col, A->val, prm.fast_matrix_setup);
     }
 
     // Copy vector from builtin backend.
@@ -207,33 +212,33 @@ struct vexcl {
 // Backend interface implementation
 //---------------------------------------------------------------------------
 template < typename V, typename C, typename P >
-struct rows_impl< vex::SpMat<V, C, P> > {
-    static size_t get(const vex::SpMat<V, C, P> &A) {
+struct rows_impl< vex_SpMat<V, C, P> > {
+    static size_t get(const vex_SpMat<V, C, P> &A) {
         return A.rows();
     }
 };
 
 template < typename V, typename C, typename P >
-struct cols_impl< vex::SpMat<V, C, P> > {
-    static size_t get(const vex::SpMat<V, C, P> &A) {
+struct cols_impl< vex_SpMat<V, C, P> > {
+    static size_t get(const vex_SpMat<V, C, P> &A) {
         return A.cols();
     }
 };
 
 template < typename V, typename C, typename P >
-struct nonzeros_impl< vex::SpMat<V, C, P> > {
-    static size_t get(const vex::SpMat<V, C, P> &A) {
+struct nonzeros_impl< vex_SpMat<V, C, P> > {
+    static size_t get(const vex_SpMat<V, C, P> &A) {
         return A.nonzeros();
     }
 };
 
 template < typename Alpha, typename Beta, typename V, typename C, typename P >
 struct spmv_impl<
-    Alpha, vex::SpMat<V, C, P>, vex::vector<V>,
+    Alpha, vex_SpMat<V, C, P>, vex::vector<V>,
     Beta,  vex::vector<V>
     >
 {
-    typedef vex::SpMat<V, C, P> matrix;
+    typedef vex_SpMat<V, C, P> matrix;
     typedef vex::vector<V>      vector;
 
     static void apply(Alpha alpha, const matrix &A, const vector &x,
@@ -248,13 +253,13 @@ struct spmv_impl<
 
 template < typename V, typename C, typename P >
 struct residual_impl<
-    vex::SpMat<V, C, P>,
+    vex_SpMat<V, C, P>,
     vex::vector<V>,
     vex::vector<V>,
     vex::vector<V>
     >
 {
-    typedef vex::SpMat<V, C, P> matrix;
+    typedef vex_SpMat<V, C, P> matrix;
     typedef vex::vector<V>      vector;
 
     static void apply(const vector &rhs, const matrix &A, const vector &x,
