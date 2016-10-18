@@ -55,11 +55,12 @@ namespace solver {
  * Copies the rhs to the host memory, solves the problem using the host CPU,
  * then copies the solution back to the compute device(s).
  */
-template <class T>
-struct vexcl_skyline_lu : solver::skyline_lu<T> {
-    typedef solver::skyline_lu<T> Base;
+template <class value_type>
+struct vexcl_skyline_lu : solver::skyline_lu<value_type> {
+    typedef solver::skyline_lu<value_type> Base;
+    typedef typename math::rhs_of<value_type>::type rhs_type;
 
-    mutable std::vector<T> _rhs, _x;
+    mutable std::vector<rhs_type> _rhs, _x;
 
     template <class Matrix, class Params>
     vexcl_skyline_lu(const Matrix &A, const Params&)
@@ -92,7 +93,8 @@ struct vexcl {
     typedef ptrdiff_t index_type;
 
     typedef vex_SpMat<value_type, index_type, index_type> matrix;
-    typedef vex::vector<value_type>                        vector;
+    typedef typename math::rhs_of<value_type>::type rhs_type;
+    typedef vex::vector<rhs_type>                          vector;
     typedef vex::vector<value_type>                        matrix_diagonal;
     typedef DirectSolver                                   direct_solver;
 
@@ -143,17 +145,18 @@ struct vexcl {
     }
 
     // Copy vector from builtin backend.
-    static boost::shared_ptr<vector>
-    copy_vector(typename builtin<real>::vector const &x, const params &prm)
+    template <class T>
+    static boost::shared_ptr< vex::vector<T> >
+    copy_vector(const std::vector<T> &x, const params &prm)
     {
         precondition(!prm.context().empty(), "Empty VexCL context!");
-
-        return boost::make_shared<vector>(prm.context(), x);
+        return boost::make_shared< vex::vector<T> >(prm.context(), x);
     }
 
     // Copy vector from builtin backend.
-    static boost::shared_ptr<vector>
-    copy_vector(boost::shared_ptr< typename builtin<real>::vector > x, const params &prm)
+    template <class T>
+    static boost::shared_ptr< vex::vector<T> >
+    copy_vector(boost::shared_ptr< std::vector<T> > x, const params &prm)
     {
         return copy_vector(*x, prm);
     }
@@ -232,7 +235,7 @@ struct nonzeros_impl< vex_SpMat<V, C, P> > {
     }
 };
 
-template < typename Alpha, typename Beta, typename V, typename C, typename P >
+template < typename Alpha, typename Beta, typename VA, typename C, typename P, typename VX >
 struct spmv_impl<
     Alpha, vex_SpMat<V, C, P>, vex::vector<V>,
     Beta,  vex::vector<V>
@@ -244,14 +247,14 @@ struct spmv_impl<
     static void apply(Alpha alpha, const matrix &A, const vector &x,
             Beta beta, vector &y)
     {
-        if (beta)
+        if (!math::is_zero(beta))
             y = alpha * (A * x) + beta * y;
         else
             y = alpha * (A * x);
     }
 };
 
-template < typename V, typename C, typename P >
+template < typename VA, typename C, typename P, typename VX >
 struct residual_impl<
     vex_SpMat<V, C, P>,
     vex::vector<V>,
@@ -274,7 +277,7 @@ struct clear_impl< vex::vector<V> >
 {
     static void apply(vex::vector<V> &x)
     {
-        x = 0;
+        x = V();
     }
 };
 
@@ -307,9 +310,11 @@ struct inner_product_impl<
     vex::vector<V>
     >
 {
-    static V get(const vex::vector<V> &x, const vex::vector<V> &y)
+    typedef typename math::inner_product_impl<V>::return_type return_type;
+
+    static return_type get(const vex::vector<V> &x, const vex::vector<V> &y)
     {
-        vex::Reductor<V, vex::SUM_Kahan> sum( x.queue_list() );
+        vex::Reductor<return_type, vex::SUM_Kahan> sum( x.queue_list() );
         return sum(x * y);
     }
 };
@@ -321,7 +326,7 @@ struct axpby_impl<
     > {
     static void apply(A a, const vex::vector<V> &x, B b, vex::vector<V> &y)
     {
-        if (b)
+        if (!math::is_zero(b))
             y = a * x + b * y;
         else
             y = a * x;
@@ -341,23 +346,23 @@ struct axpbypcz_impl<
             C c,       vex::vector<V> &z
             )
     {
-        if (c)
+        if (!math::is_zero(c))
             z = a * x + b * y + c * z;
         else
             z = a * x + b * y;
     }
 };
 
-template < typename A, typename B, typename V >
+template < typename A, typename B, typename V1, typename V2 >
 struct vmul_impl<
-    A, vex::vector<V>, vex::vector<V>,
-    B, vex::vector<V>
+    A, vex::vector<V1>, vex::vector<V2>,
+    B, vex::vector<V2>
     >
 {
-    static void apply(A a, const vex::vector<V> &x, const vex::vector<V> &y,
-            B b, vex::vector<V> &z)
+    static void apply(A a, const vex::vector<V1> &x, const vex::vector<V2> &y,
+            B b, vex::vector<V2> &z)
     {
-        if (b)
+        if (!math::is_zero(b))
             z = a * x * y + b * z;
         else
             z = a * x * y;
