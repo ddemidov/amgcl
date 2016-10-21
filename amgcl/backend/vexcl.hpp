@@ -251,6 +251,7 @@ vex::backend::kernel& blocked_spmv_kernel2(const vex::backend::command_queue &q)
          */
        src.kernel("blocked_spmv2").open("(")
             .template parameter<int>("N")
+            .template parameter<double>("alpha")
             .template parameter<int>("ell_width")
             .template parameter<int>("ell_pitch")
             .template parameter< global_ptr<const long> >("ell_col")
@@ -295,7 +296,7 @@ vex::backend::kernel& blocked_spmv_kernel2(const vex::backend::command_queue &q)
         src.new_line() << "   }";
 
         src.new_line() << "   if (row < N)";
-        src.new_line() << "     y[subwarp_size*row+subwarp_idx] = my_y;";
+        src.new_line() << "     y[subwarp_size*row+subwarp_idx] = alpha * my_y;";
         src.close("}"); // for
 
         
@@ -323,13 +324,10 @@ struct spmv_impl<
     {
         if (!math::is_zero(beta))
             y = alpha * (A * x) + beta * y;
-        else if (alpha == 1)
+        else
         {
             auto &K = blocked_spmv_kernel2<amgcl::math::static_rows<VA>::value>(x.queue_list()[0]);
-            K(x.queue_list()[0], (int)y.size(), (int)A.ell_width, (int)A.ell_pitch, A.ell_col, A.ell_val, x(0), y(0));
-        } else {
-            apply(1.0, A, x, beta, y);
-            y *= alpha;
+            K(x.queue_list()[0], (int)y.size(), static_cast<double>(alpha), (int)A.ell_width, (int)A.ell_pitch, A.ell_col, A.ell_val, x(0), y(0));
         }
     }
 };
