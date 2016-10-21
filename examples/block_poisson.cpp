@@ -108,6 +108,10 @@ void solve(int m, const boost::property_tree::ptree &prm) {
 
     int n = sample_problem<B>(m, ptr, col, val);
 
+#if 0
+    typedef amgcl::backend::builtin<block<B,B>> Backend;
+    typename Backend::params bprm;
+#else
     typedef amgcl::backend::vexcl<block<B,B>> Backend;
 
     vex::Context ctx(vex::Filter::Env && vex::Filter::Count(1));
@@ -121,6 +125,7 @@ void solve(int m, const boost::property_tree::ptree &prm) {
 
     typename Backend::params bprm;
     bprm.q = ctx;
+#endif
 
     typedef amgcl::make_solver<
         amgcl::runtime::amg<Backend>,
@@ -133,11 +138,16 @@ void solve(int m, const boost::property_tree::ptree &prm) {
 
     std::cout << solve.precond() << std::endl;
 
+#if 0
+    std::vector< block<B,1> > f(n, math::constant< block<B,1> >(1.0));
+    std::vector< block<B,1> > x(n, math::constant< block<B,1> >(0.0));
+#else
     vex::vector< block<B,1> > f(ctx, n);
     vex::vector< block<B,1> > x(ctx, n);
 
     f = math::constant< block<B,1> >(1.0);
     x = math::constant< block<B,1> >(0.0);
+#endif
 
     prof.tic("solve");
     int    iters;
@@ -223,9 +233,6 @@ int main(int argc, char *argv[]) {
 
         case 2:
             solve<2>(vm["size"].as<int>(), prm);
-            break;
-        case 3:
-            solve<3>(vm["size"].as<int>(), prm);
             break;
         case 4:
             solve<4>(vm["size"].as<int>(), prm);
