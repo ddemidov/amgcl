@@ -3,6 +3,8 @@
 
 #include <amgcl/value_type/static_matrix.hpp>
 #include <vexcl/vexcl.hpp>
+#include <vexcl/sparse/ell.hpp>
+#include <vexcl/sparse/distributed.hpp>
 
 namespace amgcl {
 namespace backend {
@@ -172,6 +174,14 @@ inline void enable_static_matrix_for_vexcl(
 } // namespace amgcl
 
 namespace vex {
+namespace sparse {
+
+template <typename T, int N>
+struct rhs_of< amgcl::static_matrix<T, N, N> > {
+    typedef amgcl::static_matrix<T, N, 1> type;
+};
+
+} // namespace sparse
 
 template <typename T, int N, int M>
 struct is_cl_native< amgcl::static_matrix<T, N, M> > : std::true_type {};

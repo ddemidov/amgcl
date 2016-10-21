@@ -69,6 +69,10 @@ if (VEXCL_ROOT)
     set_target_properties(cpr_drs_vexcl PROPERTIES
         COMPILE_FLAGS "${CXX11_FLAG} -DSOLVER_BACKEND_VEXCL"
         )
+
+    add_executable(block_poisson block_poisson.cpp)
+    target_link_libraries(block_poisson ${Boost_LIBRARIES} ${VEXCL_BACKEND_LIBRARIES})
+    set_target_properties(block_poisson PROPERTIES COMPILE_FLAGS ${CXX11_FLAG})
 endif()
 
 if (CUDA_FOUND AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")

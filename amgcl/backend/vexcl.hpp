@@ -237,12 +237,12 @@ struct nonzeros_impl< vex_SpMat<V, C, P> > {
 
 template < typename Alpha, typename Beta, typename VA, typename C, typename P, typename VX >
 struct spmv_impl<
-    Alpha, vex_SpMat<V, C, P>, vex::vector<V>,
-    Beta,  vex::vector<V>
+    Alpha, vex_SpMat<VA, C, P>, vex::vector<VX>,
+    Beta,  vex::vector<VX>
     >
 {
-    typedef vex_SpMat<V, C, P> matrix;
-    typedef vex::vector<V>      vector;
+    typedef vex_SpMat<VA, C, P> matrix;
+    typedef vex::vector<VX>      vector;
 
     static void apply(Alpha alpha, const matrix &A, const vector &x,
             Beta beta, vector &y)
@@ -256,14 +256,14 @@ struct spmv_impl<
 
 template < typename VA, typename C, typename P, typename VX >
 struct residual_impl<
-    vex_SpMat<V, C, P>,
-    vex::vector<V>,
-    vex::vector<V>,
-    vex::vector<V>
+    vex_SpMat<VA, C, P>,
+    vex::vector<VX>,
+    vex::vector<VX>,
+    vex::vector<VX>
     >
 {
-    typedef vex_SpMat<V, C, P> matrix;
-    typedef vex::vector<V>      vector;
+    typedef vex_SpMat<VA, C, P> matrix;
+    typedef vex::vector<VX>      vector;
 
     static void apply(const vector &rhs, const matrix &A, const vector &x,
             vector &r)
