@@ -47,7 +47,7 @@ THE SOFTWARE.
 namespace amgcl {
 
 template <class V, class C, class P>
-using vex_SpMat = vex::sparse::distributed< vex::sparse::matrix<V, C, P> >;
+using vex_SpMat = vex::sparse::ell<V, C, P>;
 
 namespace solver {
 
@@ -235,6 +235,80 @@ struct nonzeros_impl< vex_SpMat<V, C, P> > {
     }
 };
 
+
+template <int B>
+vex::backend::kernel& blocked_spmv_kernel2(const vex::backend::command_queue &q) {
+    using namespace vex;
+    using namespace vex::detail;
+    static kernel_cache cache;
+
+    auto K = cache.find(q);
+    if (K == cache.end()) {
+        vex::backend::source_generator src(q);
+
+         /* The following kernel uses B threads for each B*B block -> more continguous memory reads for A
+         * Performances are from a Tesla C2070.
+         */
+       src.kernel("blocked_spmv2").open("(")
+            .template parameter<int>("N")
+            .template parameter<int>("ell_width")
+            .template parameter<int>("ell_pitch")
+            .template parameter< global_ptr<const long> >("ell_col")
+            .template parameter< global_ptr<const double> >("ell_val")
+            .template parameter< global_ptr<const double> >("x")
+            .template parameter< global_ptr<double> >("y")
+            .close(")").open("{");
+
+        src.new_line() << " size_t global_id   = " << src.global_id(0) << ";";
+        src.new_line() << " size_t global_size = " << src.global_size(0) << ";";
+ 
+        src.new_line() << " #define subwarp_size " << B;
+        src.new_line() << " const size_t subwarp_gid = " << src.local_id(0) << " / subwarp_size;";
+        src.new_line() << " const size_t subwarp_idx = " << src.local_id(0) << " % subwarp_size;";
+
+        src.new_line().smem_static_var("double", "row_A[256*subwarp_size]");
+#ifdef VEXCL_BACKEND_OPENCL
+        src.new_line().smem_static_var("double", "*my_A = row_A + subwarp_gid * subwarp_size * subwarp_size");
+#else
+        src.new_line() << " double *my_A = row_A + subwarp_gid * subwarp_size * subwarp_size;";
+#endif
+        src.new_line() << " double my_x, my_y;";
+
+        src.new_line() << " size_t loop_iters = (N-1) / (global_size / subwarp_size) + 1;";
+
+        src.new_line() << " for (size_t iter = 0; iter < loop_iters; ++iter)";
+        src.open("{");
+        src.new_line() << "   size_t row = (global_id + iter * global_size) / subwarp_size;";
+        src.new_line() << "   my_y = 0;";
+        src.new_line() << "   size_t offset = min((int)row, (int)N-1);";
+        src.new_line() << "   for (size_t i = 0; i < ell_width; ++i, offset += ell_pitch) {";
+        src.new_line() << "     int c = ell_col[offset];";
+
+        src.new_line() << "     size_t ell_val_offset = subwarp_size * subwarp_size * offset + subwarp_idx;";
+        src.new_line() << "     my_x = (c >= 0) ? x[subwarp_size * c + subwarp_idx] : 0.0;";
+        src.new_line() << "     for (size_t k=0; k<subwarp_size; ++k) ";
+        src.new_line() << "       my_A[k * subwarp_size + subwarp_idx] = (c >= 0) ? ell_val[ell_val_offset + k * subwarp_size] * my_x : 0.0;";
+        src.new_line().barrier();
+
+        src.new_line() << "     for (size_t k=0; k<subwarp_size; ++k)";
+        src.new_line() << "       my_y += my_A[subwarp_idx * subwarp_size + k];";
+        src.new_line() << "   }";
+
+        src.new_line() << "   if (row < N)";
+        src.new_line() << "     y[subwarp_size*row+subwarp_idx] = my_y;";
+        src.close("}"); // for
+
+        
+        src.close("}"); // kernel
+
+        K = cache.insert(q, vex::backend::kernel(q, src.str(), "blocked_spmv2"));
+        K->second.config(256, 256);
+    }
+
+    return K->second;
+}
+
+
 template < typename Alpha, typename Beta, typename VA, typename C, typename P, typename VX >
 struct spmv_impl<
     Alpha, vex_SpMat<VA, C, P>, vex::vector<VX>,
@@ -249,8 +323,14 @@ struct spmv_impl<
     {
         if (!math::is_zero(beta))
             y = alpha * (A * x) + beta * y;
-        else
-            y = alpha * (A * x);
+        else if (alpha == 1)
+        {
+            auto &K = blocked_spmv_kernel2<amgcl::math::static_rows<VA>::value>(x.queue_list()[0]);
+            K(x.queue_list()[0], (int)y.size(), (int)A.ell_width, (int)A.ell_pitch, A.ell_col, A.ell_val, x(0), y(0));
+        } else {
+            apply(1.0, A, x, beta, y);
+            y *= alpha;
+        }
     }
 };
 
@@ -268,7 +348,8 @@ struct residual_impl<
     static void apply(const vector &rhs, const matrix &A, const vector &x,
             vector &r)
     {
-        r = rhs - A * x;
+        spmv(1.0, A, x, 0.0, r);
+        r = rhs - r;
     }
 };
 
