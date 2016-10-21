@@ -24,17 +24,11 @@ using block = amgcl::static_matrix<double, N, M>;
 
 //---------------------------------------------------------------------------
 template <int N>
-block<N,N> random_block(double mean, double sigma = 0.2) {
-    static std::mt19937 rng;
-    std::normal_distribution<double> rnd(mean, sigma);
-
-    block<N,N> b;
-
-    for(int i = 0; i < N*N; ++i)
-        b(i) = rnd(rng);
+block<N,N> make_block(bool diagonal = false) {
+    block<N,N> b = amgcl::math::zero<block<N,N>>();
 
     for(int i = 0; i < N; ++i)
-        while(b(i,i) == 0) b(i,i) = rnd(rng);
+        b(i,i) = diagonal ? 6 : -1;
 
     return b;
 }
@@ -63,35 +57,35 @@ int sample_problem(
             for(int i = 0; i < n; ++i, ++idx) {
                 if (k > 0) {
                     col.push_back(idx - n * n);
-                    val.push_back(random_block<B>(-1));
+                    val.push_back(make_block<B>());
                 }
 
                 if (j > 0) {
                     col.push_back(idx - n);
-                    val.push_back(random_block<B>(-1));
+                    val.push_back(make_block<B>());
                 }
 
                 if (i > 0) {
                     col.push_back(idx - 1);
-                    val.push_back(random_block<B>(-1));
+                    val.push_back(make_block<B>());
                 }
 
                 col.push_back(idx);
-                val.push_back(random_block<B>(6));
+                val.push_back(make_block<B>(true));
 
                 if (i + 1 < n) {
                     col.push_back(idx + 1);
-                    val.push_back(random_block<B>(-1));
+                    val.push_back(make_block<B>());
                 }
 
                 if (j + 1 < n) {
                     col.push_back(idx + n);
-                    val.push_back(random_block<B>(-1));
+                    val.push_back(make_block<B>());
                 }
 
                 if (k + 1 < n) {
                     col.push_back(idx + n * n);
-                    val.push_back(random_block<B>(-1));
+                    val.push_back(make_block<B>());
                 }
 
                 ptr.push_back(col.size());
@@ -132,6 +126,8 @@ void solve(int m, const boost::property_tree::ptree &prm) {
     prof.tic("setup");
     Solver solve(boost::tie(n, ptr, col, val), prm, bprm);
     prof.toc("setup");
+
+    std::cout << solve.precond() << std::endl;
 
     vex::vector< block<B,1> > f(ctx, n);
     vex::vector< block<B,1> > x(ctx, n);
