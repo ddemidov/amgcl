@@ -220,6 +220,7 @@ int main(int argc, char *argv[]) {
     }
 
     switch(vm["block-size"].as<int>()) {
+
         case 2:
             solve<2>(vm["size"].as<int>(), prm);
             break;
@@ -228,6 +229,9 @@ int main(int argc, char *argv[]) {
             break;
         case 4:
             solve<4>(vm["size"].as<int>(), prm);
+            break;
+        case 8:
+            solve<8>(vm["size"].as<int>(), prm);
             break;
         default:
             throw std::logic_error("Unsupported block size");
