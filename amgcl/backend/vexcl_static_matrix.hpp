@@ -364,6 +364,200 @@ struct vmul_impl<
         return K->second;
     }
 };
+
+template < typename T, int B >
+struct clear_impl< vex::vector< static_matrix<T,B,1> > >
+{
+    typedef vex::vector< static_matrix<T,B,1> > vector;
+
+    static void apply(vector &x) {
+        auto &K = clear_kernel(x.queue_list()[0]);
+        K(x.queue_list()[0], (int)(x.size() * B), x(0));
+    }
+
+    static vex::backend::kernel& clear_kernel(const vex::backend::command_queue &q) {
+        using namespace vex;
+        using namespace vex::detail;
+        static kernel_cache cache;
+
+        auto K = cache.find(q);
+        if (K == cache.end()) {
+            vex::backend::source_generator src(q);
+
+            src.kernel("amgcl_clear_kernel").open("(")
+                .template parameter<int>("n")
+                .template parameter< global_ptr<T> >("x")
+                .close(")").open("{").grid_stride_loop();
+            src.new_line() << "  x[idx] = " << T() << ";";
+            src.close("}");
+
+            K = cache.insert(q, vex::backend::kernel(q, src.str(), "amgcl_clear_kernel"));
+        }
+
+        return K->second;
+    }
+};
+
+template < typename T, int B >
+struct copy_impl<
+    vex::vector< static_matrix<T,B,1> >,
+    vex::vector< static_matrix<T,B,1> >
+    >
+{
+    typedef vex::vector< static_matrix<T,B,1> > vector;
+
+    static void apply(const vector &x, vector &y) {
+        auto &K = copy_kernel(x.queue_list()[0]);
+        K(x.queue_list()[0], (int)(x.size() * B), x(0), y(0));
+    }
+
+    static vex::backend::kernel& copy_kernel(const vex::backend::command_queue &q) {
+        using namespace vex;
+        using namespace vex::detail;
+        static kernel_cache cache;
+
+        auto K = cache.find(q);
+        if (K == cache.end()) {
+            vex::backend::source_generator src(q);
+
+            src.kernel("amgcl_copy_kernel").open("(")
+                .template parameter<int>("n")
+                .template parameter< global_ptr<const T> >("x")
+                .template parameter< global_ptr<T> >("y")
+                .close(")").open("{").grid_stride_loop();
+            src.new_line() << "  y[idx] = x[idx];";
+            src.close("}");
+
+            K = cache.insert(q, vex::backend::kernel(q, src.str(), "amgcl_copy_kernel"));
+        }
+
+        return K->second;
+    }
+};
+
+template < typename A, typename B, typename T, int N >
+struct axpby_impl<
+    A, vex::vector< static_matrix<T, N, 1> >,
+    B, vex::vector< static_matrix<T, N, 1> >
+    >
+{
+    typedef vex::vector< static_matrix<T,N,1> > vector;
+
+    static void apply(A a, const vector &x, B b, vector &y) {
+        auto &K = axpby_kernel(x.queue_list()[0]);
+        K(x.queue_list()[0], (int)(x.size() * N), (double)a, (double)b, x(0), y(0));
+    }
+
+    static vex::backend::kernel& axpby_kernel(const vex::backend::command_queue &q) {
+        using namespace vex;
+        using namespace vex::detail;
+        static kernel_cache cache;
+
+        auto K = cache.find(q);
+        if (K == cache.end()) {
+            vex::backend::source_generator src(q);
+
+            src.kernel("amgcl_axpby_kernel").open("(")
+                .template parameter<int>("n")
+                .template parameter<T>("a")
+                .template parameter<T>("b")
+                .template parameter< global_ptr<const T> >("x")
+                .template parameter< global_ptr<T> >("y")
+                .close(")").open("{").grid_stride_loop();
+            src.new_line() << "  if(b) y[idx] = a * x[idx] + b * y[idx];";
+            src.new_line() << "  else  y[idx] = a * x[idx];";
+            src.close("}");
+
+            K = cache.insert(q, vex::backend::kernel(q, src.str(), "amgcl_axpby_kernel"));
+        }
+
+        return K->second;
+    }
+};
+
+template < typename A, typename B, typename C, typename T, int N >
+struct axpbypcz_impl<
+    A, vex::vector< static_matrix<T, N, 1> >,
+    B, vex::vector< static_matrix<T, N, 1> >,
+    C, vex::vector< static_matrix<T, N, 1> >
+    >
+{
+    typedef vex::vector< static_matrix<T,N,1> > vector;
+
+    static void apply(A a, const vector &x, B b, const vector &y, C c, vector &z) {
+        auto &K = axpbypcz_kernel(x.queue_list()[0]);
+        K(x.queue_list()[0], (int)(x.size() * N),
+                (double)a, (double)b, (double)c, x(0), y(0), z(0));
+    }
+
+    static vex::backend::kernel& axpbypcz_kernel(const vex::backend::command_queue &q) {
+        using namespace vex;
+        using namespace vex::detail;
+        static kernel_cache cache;
+
+        auto K = cache.find(q);
+        if (K == cache.end()) {
+            vex::backend::source_generator src(q);
+
+            src.kernel("amgcl_axpbypcz_kernel").open("(")
+                .template parameter<int>("n")
+                .template parameter<T>("a")
+                .template parameter<T>("b")
+                .template parameter<T>("c")
+                .template parameter< global_ptr<const T> >("x")
+                .template parameter< global_ptr<const T> >("y")
+                .template parameter< global_ptr<T> >("z")
+                .close(")").open("{").grid_stride_loop();
+            src.new_line() << "  if(c) z[idx] = a * x[idx] + b * y[idx] + c * z[idx];";
+            src.new_line() << "  else  z[idx] = a * x[idx] + b * y[idx];";
+            src.close("}");
+
+            K = cache.insert(q, vex::backend::kernel(q, src.str(), "amgcl_axpbypcz_kernel"));
+        }
+
+        return K->second;
+    }
+};
+
+template < typename T, int B >
+struct inner_product_impl<
+    vex::vector< static_matrix<T,B,1> >,
+    vex::vector< static_matrix<T,B,1> >
+    >
+{
+    typedef T return_type;
+    typedef vex::vector< static_matrix<T,B,1> > vector;
+
+    static return_type get(const vector &x, const vector &y)
+    {
+        static const  B2S b2s;
+
+        vex::Reductor<T, vex::SUM_Kahan> sum( x.queue_list() );
+
+        return sum(
+                b2s(vex::element_index(0, x.size() * B), vex::raw_pointer(x)) *
+                b2s(vex::element_index(0, x.size() * B), vex::raw_pointer(y))
+                );
+    }
+
+    struct B2S : vex::UserFunction< B2S, double(int, static_matrix<T,B,1>*) > {
+        B2S() {}
+        static std::string name() { return "B2S"; }
+        static void define(vex::backend::source_generator &src, const std::string &name = "B2S") {
+            using namespace vex;
+
+            src.function<T>(name).open("(")
+                .template parameter<int>("i")
+                .template parameter< global_ptr<static_matrix<T,B,1>>>("x")
+                .close(")").open("{");
+
+            src.new_line() << type_name< global_ptr<T> >() << " y = (" << type_name<global_ptr<T>>() << ")(" << type_name<global_ptr<void>>() << ")x;";
+            src.new_line() << "return y[i];";
+            src.close("}");
+        }
+    };
+};
+
 } // namespace backend
 } // namespace amgcl
 
