@@ -19,16 +19,24 @@
 
 #include <amgcl/profiler.hpp>
 
+namespace amgcl {
+    profiler<> prof;
+}
+
 template <int N, int M>
 using block = amgcl::static_matrix<double, N, M>;
 
 //---------------------------------------------------------------------------
 template <int N>
 block<N,N> make_block(bool diagonal = false) {
-    block<N,N> b = amgcl::math::zero<block<N,N>>();
+    static std::mt19937 rng;
+    static std::normal_distribution<double> rnd(0, 1e-2);
+
+    block<N,N> b;
 
     for(int i = 0; i < N; ++i)
-        b(i,i) = diagonal ? 6 : -1;
+        for(int j = 0; j < N; ++j)
+            b(i,j) = ((i == j) ? (diagonal ? 6.0 : -1.0) : rnd(rng));
 
     return b;
 }
@@ -96,17 +104,55 @@ int sample_problem(
     return n3;
 }
 
+template <int B>
+void save_scalar_matrix(
+        const std::string             &fname,
+        const std::vector<int>        &ptr,
+        const std::vector<int>        &col,
+        const std::vector<block<B,B>> &val
+        )
+{
+    const size_t n  = ptr.size() - 1;
+    const size_t sn = n * B;
+
+    std::vector<ptrdiff_t> sptr; sptr.reserve(sn+1);
+    std::vector<ptrdiff_t> scol; scol.reserve(col.size() * B * B);
+    std::vector<double>    sval; sval.reserve(val.size() * B * B);
+
+    sptr.push_back(0);
+
+    for(size_t i = 0; i < n; ++i) {
+        for(int ii = 0; ii < B; ++ii) {
+            for(int j = ptr[i]; j < ptr[i+1]; ++j) {
+                for(int jj = 0; jj < B; ++jj) {
+                    scol.push_back(col[j] * B + jj);
+                    sval.push_back(val[j](ii,jj));
+                }
+            }
+            sptr.push_back(scol.size());
+        }
+    }
+
+    std::ofstream f(fname, std::ios::binary);
+    f.write((char*)&sn, sizeof(size_t));
+    f.write((char*)sptr.data(), sptr.size() * sizeof(ptrdiff_t));
+    f.write((char*)scol.data(), scol.size() * sizeof(ptrdiff_t));
+    f.write((char*)sval.data(), sval.size() * sizeof(double));
+}
+
 //---------------------------------------------------------------------------
 template <int B>
 void solve(int m, const boost::property_tree::ptree &prm) {
     namespace math = amgcl::math;
 
-    amgcl::profiler<> prof;
+    using amgcl::prof;
 
     std::vector<int> ptr, col;
     std::vector<block<B,B>> val;
 
     int n = sample_problem<B>(m, ptr, col, val);
+
+    save_scalar_matrix<B>("bp.bin", ptr, col, val);
 
 #if 0
     typedef amgcl::backend::builtin<block<B,B>> Backend;
