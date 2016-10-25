@@ -13,8 +13,13 @@ its sparse matrices:
 
             sparse_matrix(int n, int m) : _n(n), _m(m), _rows(n) { }
 
-            int nrows() const { return _n; }
-            int ncols() const { return _m; }
+            int nrows()    const { return _n; }
+            int ncols()    const { return _m; }
+            int nonzeros() const {
+                int nnz = 0;
+                for(auto &row : _rows) nnz += row.size();
+                return nns;
+            }
 
             // Get a value at row i and column j
             double operator()(int i, int j) const {
@@ -68,8 +73,8 @@ its nonzero elements:
     };
 
     // Number of nonzeros in the matrix. This may be just a rough estimate.
-    template<> struct cols_impl<sparse_matrix> {
-        static int get(const sparse_matrix &A) { return A.ncols(); }
+    template<> struct nonzeros_impl<sparse_matrix> {
+        static int get(const sparse_matrix &A) { return A.nonzeros(); }
     };
 
 The last and the most involved part is providing a row iterator for the custom
