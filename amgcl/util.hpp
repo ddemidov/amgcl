@@ -38,6 +38,7 @@ THE SOFTWARE.
 #include <boost/io/ios_state.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/preprocessor/stringize.hpp>
+#include <boost/preprocessor/facilities/empty.hpp>
 #include <boost/preprocessor/seq/for_each.hpp>
 
 /* Performance measurement macros
@@ -122,7 +123,7 @@ inline const boost::property_tree::ptree& empty_ptree() {
 struct empty_params {
     empty_params() {}
     empty_params(const boost::property_tree::ptree &p) {
-        AMGCL_PARAMS_CHECK(p, );
+        AMGCL_PARAMS_CHECK(p, BOOST_PP_EMPTY());
     }
     void get(boost::property_tree::ptree&, const std::string&) const {}
 };
