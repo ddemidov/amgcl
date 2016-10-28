@@ -32,11 +32,145 @@ inline void enable_static_matrix_for_vexcl(
 
     src.new_line() << "T buf[N * M];";
 
+    src.function("T", "operator()")
+        .open("(")
+        .parameter<int>("i")
+        .parameter<int>("j")
+        .close(") const")
+        .open("{")
+        .new_line() << "return buf[i * M + j];";
+    src.close("}");
+
+    src.function("T&", "operator()")
+        .open("(")
+        .parameter<int>("i")
+        .parameter<int>("j")
+        .close(")")
+        .open("{")
+        .new_line() << "return buf[i * M + j];";
+    src.close("}");
+
+    src.function("T", "operator()")
+        .open("(")
+        .parameter<int>("i")
+        .close(") const")
+        .open("{")
+        .new_line() << "return buf[i];";
+    src.close("}");
+
+    src.function("T&", "operator()")
+        .open("(")
+        .parameter<int>("i")
+        .close(")")
+        .open("{")
+        .new_line() << "return buf[i];";
+    src.close("}");
+
+    src.function("const amgcl_static_matrix&", "operator+=")
+        .open("(")
+        .parameter("amgcl_static_matrix", "y")
+        .close(")")
+        .open("{");
+    src.new_line() << "for(int i = 0; i < N * M; ++i) buf[i] += y.buf[i];";
+    src.new_line() << "return *this;";
+    src.close("}");
+
+    src.function("const amgcl_static_matrix&", "operator-=")
+        .open("(")
+        .parameter("amgcl_static_matrix", "y")
+        .close(")")
+        .open("{");
+    src.new_line() << "for(int i = 0; i < N * M; ++i) buf[i] -= y.buf[i];";
+    src.new_line() << "return *this;";
+    src.close("}");
+
+    src.function("const amgcl_static_matrix&", "operator*=")
+        .open("(")
+        .parameter("T", "c")
+        .close(")")
+        .open("{");
+    src.new_line() << "for(int i = 0; i < N * M; ++i) buf[i] *= c;";
+    src.new_line() << "return *this;";
+    src.close("}");
+
+    src.new_line() << "friend";
+    src.function("amgcl_static_matrix", "operator+")
+        .open("(")
+        .parameter("amgcl_static_matrix", "x")
+        .parameter("amgcl_static_matrix", "y")
+        .close(")")
+        .open("{")
+        .new_line() << "return x += y;";
+    src.close("}");
+
+    src.new_line() << "friend";
+    src.function("amgcl_static_matrix", "operator-")
+        .open("(")
+        .parameter("amgcl_static_matrix", "x")
+        .parameter("amgcl_static_matrix", "y")
+        .close(")")
+        .open("{")
+        .new_line() << "return x -= y;";
+    src.close("}");
+
+    src.new_line() << "friend";
+    src.function("amgcl_static_matrix", "operator*")
+        .open("(")
+        .parameter("T", "a")
+        .parameter("amgcl_static_matrix", "x")
+        .close(")")
+        .open("{")
+        .new_line() << "return x *= a;";
+    src.close("}");
+
+    src.new_line() << "friend";
+    src.function("amgcl_static_matrix", "operator-")
+        .open("(")
+        .parameter("amgcl_static_matrix", "x")
+        .close(")")
+        .open("{");
+    src.new_line() << "for(int i = 0; i < N * M; ++i) x.buf[i] = -x.buf[i];";
+    src.new_line() << "return x;";
+    src.close("}");
     src.close("};");
+
+    src.new_line() << "template <typename T, int N, int K, int M>";
+    src.function("amgcl_static_matrix<T, N, M>", "operator*")
+        .open("(")
+        .parameter("amgcl_static_matrix<T, N, K>", "a")
+        .parameter("amgcl_static_matrix<T, K, M>", "b")
+        .close(")")
+        .open("{");
+
+    src.new_line() << "amgcl_static_matrix<T, N, M> c;";
+    src.new_line() << "for(int i = 0; i < N; ++i)";
+    src.open("{");
+    src.new_line() << "for(int j = 0; j < M; ++j) c(i,j) = T();";
+    src.new_line() << "for(int k = 0; k < K; ++k)";
+    src.open("{");
+    src.new_line() << "T aik = a(i,k);";
+    src.new_line() << "for(int j = 0; j < M; ++j) c(i,j) += aik * b(k,j);";
+    src.close("}");
+    src.close("}");
+    src.new_line() << "return c;";
+    src.close("}");
+
+    src.new_line() << "template <typename T, int N>";
+    src.function("T", "operator*")
+        .open("(")
+        .parameter("amgcl_static_matrix<T, N, 1>", "a")
+        .parameter("amgcl_static_matrix<T, N, 1>", "b")
+        .close(")")
+        .open("{");
+    src.new_line() << "T sum = T();";
+    src.new_line() << "for(int i = 0; i < N; ++i) sum += a(i) * b(i);";
+    src.new_line() << "return sum;";
+    src.close("}");
 
     vex::push_program_header(q, src.str());
 }
 
+#if 0
 template <typename Alpha, typename Beta, typename T, int B>
 struct spmv_impl<
     Alpha, vex_SpMat<static_matrix<T,B,B>, ptrdiff_t, ptrdiff_t>,
@@ -424,6 +558,7 @@ struct inner_product_impl<
         }
     };
 };
+#endif
 
 } // namespace backend
 } // namespace amgcl
