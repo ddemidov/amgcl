@@ -11,6 +11,7 @@
 
 #if defined(SOLVER_BACKEND_VEXCL)
 #  include <amgcl/backend/vexcl.hpp>
+#  include <amgcl/backend/vexcl_static_matrix.hpp>
    typedef amgcl::backend::vexcl<double> Backend;
 #elif defined(SOLVER_BACKEND_VIENNACL)
 #  include <amgcl/backend/viennacl.hpp>
@@ -30,11 +31,11 @@
 #    define SOLVER_BACKEND_BUILTIN
 #  endif
 #  include <amgcl/backend/builtin.hpp>
-#  include <amgcl/value_type/static_matrix.hpp>
-#  include <amgcl/adapter/block_matrix.hpp>
    typedef amgcl::backend::builtin<double> Backend;
 #endif
 
+#include <amgcl/value_type/static_matrix.hpp>
+#include <amgcl/adapter/block_matrix.hpp>
 #include <amgcl/runtime.hpp>
 #include <amgcl/make_solver.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
@@ -51,7 +52,7 @@ using amgcl::precondition;
 
 typedef amgcl::scoped_tic< amgcl::profiler<> > scoped_tic;
 
-#ifdef SOLVER_BACKEND_BUILTIN
+#if defined(SOLVER_BACKEND_BUILTIN) || defined(SOLVER_BACKEND_VEXCL)
 //---------------------------------------------------------------------------
 template <int B, template <class> class Precond>
 boost::tuple<size_t, double> block_solve(
@@ -66,7 +67,25 @@ boost::tuple<size_t, double> block_solve(
 {
     typedef amgcl::static_matrix<double, B, B> value_type;
     typedef amgcl::static_matrix<double, B, 1> rhs_type;
+
+#ifdef SOLVER_BACKEND_VEXCL
+    typedef amgcl::backend::vexcl<value_type> BBackend;
+#else
     typedef amgcl::backend::builtin<value_type> BBackend;
+#endif
+
+    Backend::params bprm;
+
+#ifdef SOLVER_BACKEND_VEXCL
+    vex::Context ctx(vex::Filter::Env && vex::Filter::Count(1));
+    std::cout << ctx << std::endl;
+    bprm.q = ctx;
+
+#if defined(VEXCL_BACKEND_CUDA)
+    vex::push_compile_options(ctx, "-Xcompiler -std=c++03");
+#endif
+    amgcl::backend::enable_static_matrix_for_vexcl(ctx);
+#endif
 
     typedef amgcl::make_solver<
         Precond<BBackend>,
@@ -79,16 +98,20 @@ boost::tuple<size_t, double> block_solve(
 
     std::cout << solve.precond() << std::endl;
 
+    typedef typename BBackend::vector vector;
+
+    rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&rhs[0]);
+    rhs_type       * xptr = reinterpret_cast<rhs_type       *>(&x[0]);
+
+    std::vector<rhs_type> f_h(fptr, fptr + rows / B);
+    std::vector<rhs_type> x_h(xptr, xptr + rows / B);
+
+    boost::shared_ptr<vector> f_b = Backend::copy_vector(f_h, bprm);
+    boost::shared_ptr<vector> x_b = Backend::copy_vector(x_h,   bprm);
+
     {
         scoped_tic t(prof, "solve");
-
-        rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&rhs[0]);
-        rhs_type       * xptr = reinterpret_cast<rhs_type       *>(&x[0]);
-
-        boost::iterator_range<rhs_type const *> frng(fptr, fptr + rows/B);
-        boost::iterator_range<rhs_type       *> xrng(xptr, xptr + rows/B);
-
-        return solve(frng, xrng);
+        return solve(*f_b, *x_b);
     }
 }
 #endif
@@ -164,7 +187,7 @@ boost::tuple<size_t, double> solve(
     switch (block_size) {
         case 1:
             return scalar_solve<Precond>(prm, rows, ptr, col, val, rhs, x);
-#ifdef SOLVER_BACKEND_BUILTIN
+#if defined(SOLVER_BACKEND_BUILTIN) || defined(SOLVER_BACKEND_VEXCL)
         case 2:
             return block_solve<2, Precond>(prm, rows, ptr, col, val, rhs, x);
         case 3:
