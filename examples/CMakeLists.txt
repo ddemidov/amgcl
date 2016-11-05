@@ -6,6 +6,9 @@ target_link_libraries(mm2bin ${Boost_LIBRARIES})
 add_executable(solver solver.cpp)
 target_link_libraries(solver ${Boost_LIBRARIES})
 
+add_executable(solver_complex solver_complex.cpp)
+target_link_libraries(solver_complex ${Boost_LIBRARIES})
+
 add_executable(crs_builder crs_builder.cpp)
 target_link_libraries(crs_builder ${Boost_LIBRARIES})
 
