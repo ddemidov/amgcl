@@ -272,6 +272,10 @@ class fgmres {
             return (*this)(P.system_matrix(), P, rhs, x);
         }
 
+
+        friend std::ostream& operator<<(std::ostream &os, const fgmres &s) {
+            return os << "fgmres(" << s.prm.M << "): " << s.n << " unknowns";
+        }
     private:
         size_t n;
         InnerProduct inner_product;

@@ -205,6 +205,9 @@ class cg {
             return (*this)(P.system_matrix(), P, rhs, x);
         }
 
+        friend std::ostream& operator<<(std::ostream &os, const cg &s) {
+            return os << "cg: " << s.n << " unknowns";
+        }
     public:
         params prm;
 

@@ -71,6 +71,10 @@ class EigenSolver {
 
             X = S.solve(RHS);
         }
+
+        friend std::ostream& operator<<(std::ostream &os, const EigenSolver &s) {
+            return os << "eigen: " << s.n << " unknowns";
+        }
     private:
         ptrdiff_t n;
         Solver S;

@@ -216,6 +216,9 @@ class make_solver {
             return n;
         }
 
+        friend std::ostream& operator<<(std::ostream &os, const make_solver &p) {
+            return os << p.S << std::endl << p.P;
+        }
     private:
         size_t           n;
         Precond          P;

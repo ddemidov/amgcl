@@ -36,6 +36,7 @@
 #endif
 
 #include <amgcl/runtime.hpp>
+#include <amgcl/preconditioner/runtime.hpp>
 #include <amgcl/make_solver.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/io/mm.hpp>
@@ -358,15 +359,12 @@ int main(int argc, char *argv[]) {
     double error;
 
     int block_size    = vm["block-size"].as<int>();
-    bool single_level = vm["single-level"].as<bool>();
 
-    if (single_level) {
-        boost::tie(iters, error) = solve<amgcl::runtime::relaxation::as_preconditioner>(
-                prm, rows, ptr, col, val, rhs, x, block_size);
-    } else {
-        boost::tie(iters, error) = solve<amgcl::runtime::amg>(
-                prm, rows, ptr, col, val, rhs, x, block_size);
-    }
+    if (vm["single-level"].as<bool>())
+        prm.put("precond.type", "relaxation");
+
+    boost::tie(iters, error) = solve<amgcl::runtime::preconditioner>(
+            prm, rows, ptr, col, val, rhs, x, block_size);
 
     if (vm.count("output")) {
         scoped_tic t(prof, "write");

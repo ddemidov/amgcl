@@ -220,7 +220,9 @@ class bicgstab {
             return (*this)(P.system_matrix(), P, rhs, x);
         }
 
-
+        friend std::ostream& operator<<(std::ostream &os, const bicgstab &s) {
+            return os << "bicgstab: " << s.n << " unknowns";
+        }
     public:
         params prm;
 

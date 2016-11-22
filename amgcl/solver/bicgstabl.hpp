@@ -269,6 +269,10 @@ done:
             return (*this)(P.system_matrix(), P, rhs, x);
         }
 
+
+        friend std::ostream& operator<<(std::ostream &os, const bicgstabl &s) {
+            return os << "bicgstab(" << s.prm.L << "): " << s.n << " unknowns";
+        }
     public:
         params prm;
 

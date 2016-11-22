@@ -231,6 +231,10 @@ class gmres {
             return (*this)(P.system_matrix(), P, rhs, x);
         }
 
+
+        friend std::ostream& operator<<(std::ostream &os, const gmres &s) {
+            return os << "gmres(" << s.prm.M << "): " << s.n << " unknowns";
+        }
     public:
         params prm;
 

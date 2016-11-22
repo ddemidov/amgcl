@@ -474,6 +474,10 @@ class lgmres {
             return (*this)(P.system_matrix(), P, rhs, x);
         }
 
+
+        friend std::ostream& operator<<(std::ostream &os, const lgmres &s) {
+            return os << "lgmres(" << s.prm.M << "," << s.prm.L << "): " << s.n << " unknowns";
+        }
     private:
         size_t n;
         InnerProduct inner_product;
