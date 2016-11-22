@@ -40,7 +40,7 @@ namespace amgcl {
 namespace runtime {
 
 /// Preconditioner kinds.
-namespace precond_kind {
+namespace precond_class {
 enum type {
     amg,            ///< AMG
     relaxation,     ///< Single-level relaxation
@@ -72,11 +72,11 @@ inline std::istream& operator>>(std::istream &in, type &p)
     else if (val == "nested")
         p = nested;
     else
-        throw std::invalid_argument("Invalid preconditioner kind");
+        throw std::invalid_argument("Invalid preconditioner class");
 
     return in;
 }
-} // namespace precond_kind
+} // namespace precond_class
 
 template <class Backend>
 class preconditioner {
@@ -95,13 +95,13 @@ class preconditioner {
                 const Matrix &A,
                 params prm = params(),
                 const backend_params &bprm = backend_params())
-            : kind(prm.get("type", runtime::precond_kind::amg)),
+            : _class(prm.get("class", runtime::precond_class::amg)),
               handle(0)
         {
-            if (!prm.erase("type")) AMGCL_PARAM_MISSING("type");
+            if (!prm.erase("class")) AMGCL_PARAM_MISSING("class");
 
-            switch(kind) {
-                case precond_kind::amg:
+            switch(_class) {
+                case precond_class::amg:
                     {
                         typedef
                             runtime::amg<Backend>
@@ -110,7 +110,7 @@ class preconditioner {
                         handle = static_cast<void*>(new Precond(A, prm, bprm));
                     }
                     break;
-                case precond_kind::relaxation:
+                case precond_class::relaxation:
                     {
                         typedef
                             runtime::relaxation::as_preconditioner<Backend>
@@ -119,7 +119,7 @@ class preconditioner {
                         handle = static_cast<void*>(new Precond(A, prm, bprm));
                     }
                     break;
-                case precond_kind::nested:
+                case precond_class::nested:
                     {
                         typedef
                             make_solver<
@@ -132,13 +132,13 @@ class preconditioner {
                     }
                     break;
                 default:
-                    throw std::invalid_argument("Unsupported preconditioner kind");
+                    throw std::invalid_argument("Unsupported preconditioner class");
             }
         }
 
         ~preconditioner() {
-            switch (kind) {
-                case precond_kind::amg:
+            switch (_class) {
+                case precond_class::amg:
                     {
                         typedef
                             runtime::amg<Backend>
@@ -147,7 +147,7 @@ class preconditioner {
                         delete static_cast<Precond*>(handle);
                     }
                     break;
-                case precond_kind::relaxation:
+                case precond_class::relaxation:
                     {
                         typedef
                             runtime::relaxation::as_preconditioner<Backend>
@@ -156,7 +156,7 @@ class preconditioner {
                         delete static_cast<Precond*>(handle);
                     }
                     break;
-                case precond_kind::nested:
+                case precond_class::nested:
                     {
                         typedef
                             make_solver<
@@ -175,8 +175,8 @@ class preconditioner {
 
         template <class Vec1, class Vec2>
         void apply(const Vec1 &rhs, Vec2 &x) const {
-            switch(kind) {
-                case precond_kind::amg:
+            switch(_class) {
+                case precond_class::amg:
                     {
                         typedef
                             runtime::amg<Backend>
@@ -185,7 +185,7 @@ class preconditioner {
                         static_cast<Precond*>(handle)->apply(rhs, x);
                     }
                     break;
-                case precond_kind::relaxation:
+                case precond_class::relaxation:
                     {
                         typedef
                             runtime::relaxation::as_preconditioner<Backend>
@@ -194,7 +194,7 @@ class preconditioner {
                         static_cast<Precond*>(handle)->apply(rhs, x);
                     }
                     break;
-                case precond_kind::nested:
+                case precond_class::nested:
                     {
                         typedef
                             make_solver<
@@ -207,13 +207,13 @@ class preconditioner {
                     }
                     break;
                 default:
-                    throw std::invalid_argument("Unsupported preconditioner kind");
+                    throw std::invalid_argument("Unsupported preconditioner class");
             }
         }
 
         const matrix& system_matrix() const {
-            switch(kind) {
-                case precond_kind::amg:
+            switch(_class) {
+                case precond_class::amg:
                     {
                         typedef
                             runtime::amg<Backend>
@@ -221,7 +221,7 @@ class preconditioner {
 
                         return static_cast<Precond*>(handle)->system_matrix();
                     }
-                case precond_kind::relaxation:
+                case precond_class::relaxation:
                     {
                         typedef
                             runtime::relaxation::as_preconditioner<Backend>
@@ -229,7 +229,7 @@ class preconditioner {
 
                         return static_cast<Precond*>(handle)->system_matrix();
                     }
-                case precond_kind::nested:
+                case precond_class::nested:
                     {
                         typedef
                             make_solver<
@@ -241,7 +241,7 @@ class preconditioner {
                         return static_cast<Precond*>(handle)->system_matrix();
                     }
                 default:
-                    throw std::invalid_argument("Unsupported preconditioner kind");
+                    throw std::invalid_argument("Unsupported preconditioner class");
             }
         }
 
@@ -251,8 +251,8 @@ class preconditioner {
 
         friend std::ostream& operator<<(std::ostream &os, const preconditioner &p)
         {
-            switch(p.kind) {
-                case precond_kind::amg:
+            switch(p._class) {
+                case precond_class::amg:
                     {
                         typedef
                             runtime::amg<Backend>
@@ -260,7 +260,7 @@ class preconditioner {
 
                         return os << *static_cast<Precond*>(p.handle);
                     }
-                case precond_kind::relaxation:
+                case precond_class::relaxation:
                     {
                         typedef
                             runtime::relaxation::as_preconditioner<Backend>
@@ -268,7 +268,7 @@ class preconditioner {
 
                         return os << *static_cast<Precond*>(p.handle);
                     }
-                case precond_kind::nested:
+                case precond_class::nested:
                     {
                         typedef
                             make_solver<
@@ -280,11 +280,11 @@ class preconditioner {
                         return os << *static_cast<Precond*>(p.handle);
                     }
                 default:
-                    throw std::invalid_argument("Unsupported preconditioner kind");
+                    throw std::invalid_argument("Unsupported preconditioner class");
             }
         }
     private:
-        const runtime::precond_kind::type kind;
+        const runtime::precond_class::type _class;
 
         void *handle;
 };

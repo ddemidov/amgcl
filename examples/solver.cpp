@@ -361,7 +361,7 @@ int main(int argc, char *argv[]) {
     int block_size    = vm["block-size"].as<int>();
 
     if (vm["single-level"].as<bool>())
-        prm.put("precond.type", "relaxation");
+        prm.put("precond.class", "relaxation");
 
     boost::tie(iters, error) = solve<amgcl::runtime::preconditioner>(
             prm, rows, ptr, col, val, rhs, x, block_size);
