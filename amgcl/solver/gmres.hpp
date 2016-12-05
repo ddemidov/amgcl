@@ -257,7 +257,7 @@ class gmres {
                 coef_type &dx, coef_type &dy, coef_type cs, coef_type sn
                 )
         {
-            coef_type tmp = cs * dx + sn * dy;
+            coef_type tmp = math::adjoint(cs) * dx + math::adjoint(sn) * dy;
             dy = -sn * dx + cs * dy;
             dx = tmp;
         }
