@@ -13,6 +13,7 @@
 #include <amgcl/value_type/complex.hpp>
 
 #include <amgcl/runtime.hpp>
+#include <amgcl/preconditioner/runtime.hpp>
 #include <amgcl/make_solver.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/io/mm.hpp>
@@ -204,15 +205,11 @@ int main(int argc, char *argv[]) {
     size_t iters;
     double error;
 
-    bool single_level = vm["single-level"].as<bool>();
+    if (vm["single-level"].as<bool>())
+        prm.put("precond.class", "relaxation");
 
-    if (single_level) {
-        boost::tie(iters, error) = solve<amgcl::runtime::relaxation::as_preconditioner>(
-                prm, rows, ptr, col, val, rhs, x);
-    } else {
-        boost::tie(iters, error) = solve<amgcl::runtime::amg>(
-                prm, rows, ptr, col, val, rhs, x);
-    }
+    boost::tie(iters, error) = solve<amgcl::runtime::preconditioner>(
+            prm, rows, ptr, col, val, rhs, x);
 
     if (vm.count("output")) {
         scoped_tic t(prof, "write");

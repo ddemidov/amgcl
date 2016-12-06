@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include <boost/property_tree/ptree.hpp>
 #include <amgcl/runtime.hpp>
 #include <amgcl/relaxation/runtime.hpp>
+#include <amgcl/preconditioner/dummy.hpp>
 #include <amgcl/make_solver.hpp>
 
 namespace amgcl {
@@ -44,6 +45,7 @@ namespace precond_class {
 enum type {
     amg,            ///< AMG
     relaxation,     ///< Single-level relaxation
+    dummy,          ///< Identity matrix as preconditioner.
     nested          ///< Nested solver as preconditioner.
 };
 
@@ -53,6 +55,8 @@ inline std::ostream& operator<<(std::ostream &os, type p) {
             return os << "amg";
         case relaxation:
             return os << "relaxation";
+        case dummy:
+            return os << "dummy";
         case nested:
             return os << "nested";
         default:
@@ -69,6 +73,8 @@ inline std::istream& operator>>(std::istream &in, type &p)
         p = amg;
     else if (val == "relaxation")
         p = relaxation;
+    else if (val == "dummy")
+        p = dummy;
     else if (val == "nested")
         p = nested;
     else
@@ -119,6 +125,15 @@ class preconditioner {
                         handle = static_cast<void*>(new Precond(A, prm, bprm));
                     }
                     break;
+                case precond_class::dummy:
+                    {
+                        typedef
+                            amgcl::preconditioner::dummy<Backend>
+                            Precond;
+
+                        handle = static_cast<void*>(new Precond(A, prm, bprm));
+                    }
+                    break;
                 case precond_class::nested:
                     {
                         typedef
@@ -151,6 +166,15 @@ class preconditioner {
                     {
                         typedef
                             runtime::relaxation::as_preconditioner<Backend>
+                            Precond;
+
+                        delete static_cast<Precond*>(handle);
+                    }
+                    break;
+                case precond_class::dummy:
+                    {
+                        typedef
+                            amgcl::preconditioner::dummy<Backend>
                             Precond;
 
                         delete static_cast<Precond*>(handle);
@@ -194,6 +218,15 @@ class preconditioner {
                         static_cast<Precond*>(handle)->apply(rhs, x);
                     }
                     break;
+                case precond_class::dummy:
+                    {
+                        typedef
+                            amgcl::preconditioner::dummy<Backend>
+                            Precond;
+
+                        static_cast<Precond*>(handle)->apply(rhs, x);
+                    }
+                    break;
                 case precond_class::nested:
                     {
                         typedef
@@ -225,6 +258,14 @@ class preconditioner {
                     {
                         typedef
                             runtime::relaxation::as_preconditioner<Backend>
+                            Precond;
+
+                        return static_cast<Precond*>(handle)->system_matrix();
+                    }
+                case precond_class::dummy:
+                    {
+                        typedef
+                            amgcl::preconditioner::dummy<Backend>
                             Precond;
 
                         return static_cast<Precond*>(handle)->system_matrix();
@@ -264,6 +305,14 @@ class preconditioner {
                     {
                         typedef
                             runtime::relaxation::as_preconditioner<Backend>
+                            Precond;
+
+                        return os << *static_cast<Precond*>(p.handle);
+                    }
+                case precond_class::dummy:
+                    {
+                        typedef
+                            amgcl::preconditioner::dummy<Backend>
                             Precond;
 
                         return os << *static_cast<Precond*>(p.handle);
