@@ -7,6 +7,7 @@ Bibliography
 .. [CaGP73] Caretto, L. S., et al. "Two calculation procedures for steady, three-dimensional flows with recirculation." Proceedings of the third international conference on numerical methods in fluid mechanics. Springer Berlin Heidelberg, 1973.
 .. [DeSh12] Demidov, D. E., and Shevchenko, D. V. "Modification of algebraic multigrid for effective GPGPU-based solution of nonstationary hydrodynamics problems." Journal of Computational Science 3.6 (2012): 460-462.
 .. [Saad03] Saad, Yousef. Iterative methods for sparse linear systems. Siam, 2003.
+.. [SaTu08] Sala, Marzio, and Raymond S. Tuminaro. "A new Petrov-Galerkin smoothed aggregation preconditioner for nonsymmetric linear systems." SIAM Journal on Scientific Computing 31.1 (2008): 143-166.
 .. [SlDi93] Sleijpen, Gerard LG, and Diederik R. Fokkema. "BiCGstab (l) for linear equations involving unsymmetric matrices with complex spectrum." Electronic Transactions on Numerical Analysis 1.11 (1993): 2000.
 .. [Stue99] Stüben, Klaus. Algebraic multigrid (AMG): an introduction with applications. GMD-Forschungszentrum Informationstechnik, 1999.
 .. [Stue07] Stüben, Klaus, et al. "Algebraic multigrid methods (AMG) for the efficient solution of fully implicit formulations in reservoir simulation." SPE Reservoir Simulation Symposium. Society of Petroleum Engineers, 2007.
