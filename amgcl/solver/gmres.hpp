@@ -40,6 +40,7 @@ THE SOFTWARE.
 
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/solver/detail/default_inner_product.hpp>
+#include <amgcl/solver/detail/givens_rotations.hpp>
 #include <amgcl/util.hpp>
 
 namespace amgcl {
@@ -149,7 +150,7 @@ class gmres {
                 backend::residual(rhs, A, x, *r);
 
                 // -- Check stopping condition
-                if ((norm_r = norm(*r)) < prm.tol * norm_rhs || iter >= prm.maxiter)
+                if ((norm_r = norm(*r)) < eps || iter >= prm.maxiter)
                     break;
 
                 // -- Inner GMRES iteration
@@ -183,11 +184,11 @@ class gmres {
                     backend::axpby(math::inverse(H[j+1][j]), v_new, math::zero<scalar_type>(), v_new);
 
                     for(unsigned k = 0; k < j; ++k)
-                        apply_plane_rotation(H[k][j], H[k+1][j], cs[k], sn[k]);
+                        detail::apply_plane_rotation(H[k][j], H[k+1][j], cs[k], sn[k]);
 
-                    generate_plane_rotation(H[j][j], H[j+1][j], cs[j], sn[j]);
-                    apply_plane_rotation(H[j][j], H[j+1][j], cs[j], sn[j]);
-                    apply_plane_rotation(s[j], s[j+1], cs[j], sn[j]);
+                    detail::generate_plane_rotation(H[j][j], H[j+1][j], cs[j], sn[j]);
+                    detail::apply_plane_rotation(H[j][j], H[j+1][j], cs[j], sn[j]);
+                    detail::apply_plane_rotation(s[j], s[j+1], cs[j], sn[j]);
 
                     scalar_type inner_res = std::abs(s[j+1]);
 
@@ -204,11 +205,7 @@ class gmres {
                         s[k] -= H[k][i] * s[i];
                 }
 
-                unsigned k = 0;
-                for (; k + 1 < j; k += 2)
-                    backend::axpbypcz(s[k], *v[k], s[k+1], *v[k+1], math::identity<scalar_type>(), x);
-                for (; k < j; ++k)
-                    backend::axpby(s[k], *v[k], math::identity<scalar_type>(), x);
+                backend::lin_comb(j, s, v, math::identity<scalar_type>(), x);
             }
 
             return boost::make_tuple(iter, norm_r / norm_rhs);
@@ -251,33 +248,6 @@ class gmres {
         template <class Vec>
         scalar_type norm(const Vec &x) const {
             return std::abs(sqrt(inner_product(x, x)));
-        }
-
-        static void apply_plane_rotation(
-                coef_type &dx, coef_type &dy, coef_type cs, coef_type sn
-                )
-        {
-            coef_type tmp = math::adjoint(cs) * dx + math::adjoint(sn) * dy;
-            dy = -sn * dx + cs * dy;
-            dx = tmp;
-        }
-
-        static void generate_plane_rotation(
-                coef_type dx, coef_type dy, coef_type &cs, coef_type &sn
-                )
-        {
-            if (math::is_zero(dy)) {
-                cs = 1;
-                sn = 0;
-            } else if (std::abs(dy) > std::abs(dx)) {
-                coef_type tmp = dx / dy;
-                sn = math::inverse(sqrt(math::identity<coef_type>() + tmp * tmp));
-                cs = tmp * sn;
-            } else {
-                coef_type tmp = dy / dx;
-                cs = math::inverse(sqrt(math::identity<coef_type>() + tmp * tmp));
-                sn = tmp * cs;
-            }
         }
 };
 
