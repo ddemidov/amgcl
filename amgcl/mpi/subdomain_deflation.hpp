@@ -669,12 +669,7 @@ class subdomain_deflation {
             coarse_solve(df, dx);
 
             // x += Z * dx
-            ptrdiff_t j = 0, k = dv_start[comm.rank];
-            for(; j + 1 < ndv; j += 2, k += 2)
-                backend::axpbypcz(dx[k], *Z[j], dx[k+1], *Z[j+1], 1, x);
-
-            for(; j < ndv; ++j, ++k)
-                backend::axpby(dx[k], *Z[j], 1, x);
+            backend::lin_comb(ndv, &dx[dv_start[comm.rank]], Z, 1, x);
 
             TOC("postprocess");
         }
