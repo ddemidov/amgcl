@@ -156,6 +156,15 @@ class lgmres {
              */
             unsigned K;
 
+            /// Reset augmented vectors between solves.
+            /** If the solver is used to repeatedly solve similar problems,
+             *  then keeping the augmented vectors between solves may speed up
+             *  subsequent solves.
+             *  This flag, when set, resets the augmented vectors at the
+             *  beginning of each solve.
+             */
+            bool always_reset;
+
             /// Whether LGMRES should store also A*v in addition to vectors `v`.
             bool store_Av;
 
@@ -166,25 +175,27 @@ class lgmres {
             scalar_type tol;
 
             params()
-                : pside(precond::right), M(30), K(3), store_Av(true),
-                  maxiter(100), tol(1e-8)
+                : pside(precond::right), M(30), K(3), always_reset(false),
+                  store_Av(true), maxiter(100), tol(1e-8)
             { }
 
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_VALUE(p, pside),
                   AMGCL_PARAMS_IMPORT_VALUE(p, M),
                   AMGCL_PARAMS_IMPORT_VALUE(p, K),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, always_reset),
                   AMGCL_PARAMS_IMPORT_VALUE(p, store_Av),
                   AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
                   AMGCL_PARAMS_IMPORT_VALUE(p, tol)
             {
-                AMGCL_PARAMS_CHECK(p, (pside)(M)(K)(store_Av)(maxiter)(tol));
+                AMGCL_PARAMS_CHECK(p, (pside)(M)(K)(always_reset)(store_Av)(maxiter)(tol));
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, pside);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, M);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, K);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, always_reset);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, store_Av);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, maxiter);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, tol);
@@ -203,7 +214,7 @@ class lgmres {
               H0(boost::extents[prm.M + 1][prm.M]),
               s(prm.M + 1), cs(prm.M + 1), sn(prm.M + 1),
               r( Backend::create_vector(n, bprm) ),
-              ws(prm.M + prm.K),
+              ws(prm.M + prm.K), outer_v(prm.K), outer_Av(prm.K),
               inner_product(inner_product)
         {
             if (prm.pside == precond::right)
@@ -245,6 +256,11 @@ class lgmres {
                 Vec2          &x
                 ) const
         {
+            if (prm.always_reset) {
+                outer_v.clear();
+                outer_Av.clear();
+            }
+
             scalar_type norm_rhs = norm(rhs);
             if (norm_rhs < amgcl::detail::eps<scalar_type>(n)) {
                 backend::clear(x);
@@ -253,9 +269,6 @@ class lgmres {
 
             scalar_type norm_r = math::zero<scalar_type>(),
                         eps = prm.tol * norm_rhs, norm_v0;
-
-            boost::circular_buffer< boost::shared_ptr<vector> > outer_v(prm.K);
-            boost::circular_buffer< boost::shared_ptr<vector> > outer_Av(prm.K);
 
             unsigned iter = 0, n_outer = 0;
             while(true) {
@@ -433,7 +446,7 @@ class lgmres {
 
 
         friend std::ostream& operator<<(std::ostream &os, const lgmres &s) {
-            return os << "lgmres(" << s.prm.M << "," << s.prm.L << "): " << s.n << " unknowns";
+            return os << "lgmres(" << s.prm.M << "," << s.prm.K << "): " << s.n << " unknowns";
         }
     private:
         size_t n;
@@ -444,6 +457,9 @@ class lgmres {
         mutable std::vector< boost::shared_ptr<vector> > vs, ws;
         mutable boost::shared_ptr<vector> t;
         mutable std::vector< boost::shared_ptr<vector> > outer_v_data, outer_Av_data;
+        mutable boost::circular_buffer< boost::shared_ptr<vector> > outer_v;
+        mutable boost::circular_buffer< boost::shared_ptr<vector> > outer_Av;
+
 
         InnerProduct inner_product;
 
