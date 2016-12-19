@@ -143,10 +143,24 @@ boost::tuple<size_t, double> scalar_solve(
     boost::shared_ptr<vector> f_b = Backend::copy_vector(rhs, bprm);
     boost::shared_ptr<vector> x_b = Backend::copy_vector(x,   bprm);
 
+    boost::tuple<size_t, double> info;
+
     {
         scoped_tic t(prof, "solve");
-        return solve(*f_b, *x_b);
+        info = solve(*f_b, *x_b);
     }
+
+#if defined(SOLVER_BACKEND_VEXCL)
+    vex::copy(*x_b, x);
+#elif defined(SOLVER_BACKEND_VIENNACL)
+    viennacl::fast_copy(*x_b, x);
+#elif defined(SOLVER_BACKEND_CUDA)
+    thrust::copy(x_b->begin(), x_b->end(), x.begin());
+#else
+    std::copy_n(&(*x_b)[0], rows, &x[0]);
+#endif
+
+    return info;
 }
 
 //---------------------------------------------------------------------------
