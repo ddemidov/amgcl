@@ -157,7 +157,7 @@ boost::tuple<size_t, double> scalar_solve(
 #elif defined(SOLVER_BACKEND_CUDA)
     thrust::copy(x_b->begin(), x_b->end(), x.begin());
 #else
-    std::copy_n(&(*x_b)[0], rows, &x[0]);
+    std::copy(&(*x_b)[0], &(*x_b)[0] + rows, &x[0]);
 #endif
 
     return info;
