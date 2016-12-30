@@ -44,34 +44,6 @@ struct make_random< amgcl::static_matrix<T,N,M> > {
     }
 };
 
-void qr_issue_39() {
-    boost::multi_array<double, 2> A0(boost::extents[2][2]);
-    A0[0][0] = 1e+0;
-    A0[0][1] = 1e+0;
-    A0[1][0] = 1e-8;
-    A0[1][1] = 1e+0;
-
-    boost::multi_array<double, 2> A = A0;
-
-    amgcl::detail::QR<double, amgcl::detail::row_major> qr;
-
-    qr.compute(2, 2, A.data());
-    qr.compute_q();
-
-    // Check that A = QR
-    for(int i = 0; i < 2; ++i) {
-        for(int j = 0; j < 2; ++j) {
-            double sum = 0;
-            for(int k = 0; k < 2; ++k)
-                sum += qr.Q(i,k) * qr.R(k,j);
-
-            sum -= A0[i][j];
-
-            BOOST_CHECK_SMALL(sum, 1e-8);
-        }
-    }
-}
-
 template <class value_type, amgcl::detail::storage_order order>
 void run_qr_test() {
     const size_t n = 5;
@@ -151,6 +123,34 @@ BOOST_AUTO_TEST_CASE( test_qr ) {
     run_qr_test< std::complex<double>,               amgcl::detail::col_major>();
     run_qr_test< amgcl::static_matrix<double, 2, 2>, amgcl::detail::row_major>();
     run_qr_test< amgcl::static_matrix<double, 2, 2>, amgcl::detail::col_major>();
+}
+
+BOOST_AUTO_TEST_CASE( qr_issue_39 ) {
+    boost::multi_array<double, 2> A0(boost::extents[2][2]);
+    A0[0][0] = 1e+0;
+    A0[0][1] = 1e+0;
+    A0[1][0] = 1e-8;
+    A0[1][1] = 1e+0;
+
+    boost::multi_array<double, 2> A = A0;
+
+    amgcl::detail::QR<double, amgcl::detail::row_major> qr;
+
+    qr.compute(2, 2, A.data());
+    qr.compute_q();
+
+    // Check that A = QR
+    for(int i = 0; i < 2; ++i) {
+        for(int j = 0; j < 2; ++j) {
+            double sum = 0;
+            for(int k = 0; k < 2; ++k)
+                sum += qr.Q(i,k) * qr.R(k,j);
+
+            sum -= A0[i][j];
+
+            BOOST_CHECK_SMALL(sum, 1e-8);
+        }
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
