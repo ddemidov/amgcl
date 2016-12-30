@@ -101,6 +101,16 @@ enum storage_order {
     col_major
 };
 
+template <class T>
+inline T real(T a) {
+    return a;
+}
+
+template <class T>
+inline T real(std::complex<T> a) {
+    return std::real(a);
+}
+
 /// In-place QR factorization.
 /**
  * \tparam Order Storage order of the input matrix. Should be col_major for
@@ -354,7 +364,7 @@ class QR {
 
             if (math::is_zero(xnorm2)) return tau;
 
-            scalar_type beta = -boost::math::copysign(sqrt(sqr(math::norm(alpha)) + xnorm2), std::real(alpha));
+            scalar_type beta = -boost::math::copysign(sqrt(sqr(math::norm(alpha)) + xnorm2), amgcl::detail::real(alpha));
 
             tau = math::identity<value_type>() - math::inverse(beta) * alpha;
             alpha = math::inverse(alpha - beta * math::identity<value_type>());
