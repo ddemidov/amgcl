@@ -121,6 +121,9 @@ class QR {
     public:
         QR() : m(0), n(0) {}
 
+        // Computes a QR factorization of the matrix A, where Q is represented
+        // as a product of elementary reflectors.
+        //     Q = H(1) H(2) . . . H(k), where k = min(rows,cols).
         void compute(int rows, int cols, value_type *A, int max_cols = -1) {
             /*
              *  Ported from ZGEQR2
@@ -186,6 +189,13 @@ class QR {
             }
         }
 
+        // Performs explicit factorization of the matrix A.
+        // Calls compute() and explicitly forms factors Q and R,
+        // so that Q() and R() methods below are valid calls.
+        void factorize(int rows, int cols, int row_stride, int col_stride, value_type *A) {
+            // ...
+        }
+
         void append_cols(int cols) {
             const int row_stride = (Order == row_major ? nmax : 1);
             const int col_stride = (Order == row_major ? 1 : m);
@@ -231,7 +241,9 @@ class QR {
             return q[i*row_stride + j*col_stride];
         }
 
-        // Solves the system Q R x = f
+        // Solve over- or underdetermined system Ax = rhs.
+        // Calls compute() on the appropriate version of A (either transposed
+        // or not).
         void solve(value_type *f, value_type *x) const {
             const int row_stride = (Order == row_major ? nmax : 1);
             const int col_stride = (Order == row_major ? 1 : m);
