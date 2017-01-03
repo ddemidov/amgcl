@@ -101,7 +101,7 @@ struct spai1 {
             std::vector<ptrdiff_t> marker(m, -1);
             std::vector<ptrdiff_t> I, J;
             std::vector<value_type> B, ek;
-            amgcl::detail::QR<value_type, amgcl::detail::col_major> qr;
+            amgcl::detail::QR<value_type> qr;
 
             for(size_t i = chunk_start; i < chunk_end; ++i) {
                 ptrdiff_t row_beg = Aptr[i];
@@ -136,8 +136,8 @@ struct spai1 {
                         B[marker[a.col()] + J.size() * (j - row_beg)] = a.value();
                 }
 
-                qr.compute(J.size(), I.size(), &B[0]);
-                qr.solve(&ek[0], &Ainv->val[row_beg]);
+                qr.solve(J.size(), I.size(), &B[0], &ek[0], &Ainv->val[row_beg],
+                        amgcl::detail::col_major);
 
                 for(size_t j = 0; j < J.size(); ++j)
                     marker[J[j]] = -1;

@@ -165,7 +165,7 @@ boost::shared_ptr<Matrix> tentative_prolongation(
 
         size_t offset = 0;
 
-        amgcl::detail::QR<double, amgcl::detail::col_major> qr;
+        amgcl::detail::QR<double> qr;
         std::vector<double> Bpart;
         for(ptrdiff_t i = 0, nb = naggr / block_size; i < nb; ++i) {
             size_t d = 0;
@@ -178,8 +178,7 @@ boost::shared_ptr<Matrix> tentative_prolongation(
                     Bpart[jj + d * k] = nullspace.B[ib + k];
             }
 
-            qr.compute(d, nullspace.cols, &Bpart[0]);
-            qr.compute_q();
+            qr.factorize(d, nullspace.cols, &Bpart[0], amgcl::detail::col_major);
 
             for(int ii = 0; ii < nullspace.cols; ++ii)
                 for(int jj = 0; jj < nullspace.cols; ++jj)
