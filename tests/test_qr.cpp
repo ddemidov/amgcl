@@ -78,6 +78,9 @@ void run_qr_test(const size_t n, const size_t m) {
         }
     }
 
+    // Keep in mind it's inplace computation.
+    A = A0;
+
     // Check that solution works (A^t A x == A^t f).
     typedef typename amgcl::math::rhs_of<value_type>::type rhs_type;
     std::vector<rhs_type> f0(n, amgcl::math::constant<rhs_type>(1));

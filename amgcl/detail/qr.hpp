@@ -186,6 +186,18 @@ class QR {
             }
         }
 
+        // Convenience wrappers where row_stride and col_stride are determined automatically.
+        void compute(int rows, int cols, value_type *A, int max_cols = -1) {
+            int m = rows;
+            int n = cols;
+            int nmax = (max_cols < 0 ? n : max_cols);
+
+            const int row_stride = (Order == row_major ? nmax : 1);
+            const int col_stride = (Order == row_major ? 1 : m);
+
+            compute(rows, cols, row_stride, col_stride, A, max_cols);
+        }
+
         // Performs explicit factorization of the matrix A.
         // Calls compute() and explicitly forms factors Q and R,
         // so that Q() and R() methods below are valid calls.
@@ -255,6 +267,7 @@ class QR {
         // Calls compute() on the appropriate version of A (either transposed
         // or not).
         void solve(int rows, int cols, value_type *A, value_type *rhs, value_type *x) {
+
             const int row_stride = (Order == row_major ? nmax : 1);
             const int col_stride = (Order == row_major ? 1 : m);
 
@@ -262,10 +275,10 @@ class QR {
 
                 compute(rows, cols, row_stride, col_stride, A);
 
-                for(int i = 0, ii = 0; i < n; ++i, ii += row_stride + col_stride)
+                for(int i = 0, ii = 0; i < m; ++i, ii += row_stride + col_stride)
                     apply_reflector(m-i, 1, r+ii, row_stride, math::adjoint(tau[i]), rhs+i, 1, 1);
 
-                std::copy(rhs, rhs+n, x);
+                std::copy(rhs, rhs+k, x);
 
                 for(int i = n; i --> 0; ) {
                     value_type rii = r[i*(row_stride+col_stride)];
@@ -290,11 +303,31 @@ class QR {
                     rhs[i] *= math::inverse(rii);
                 }
 
-                std::copy(rhs, rhs+n, x);
+                std::copy(rhs, rhs+k, x);
 
-                for(int i = 0, ii = 0; i < m; ++i, ii += row_stride + col_stride)
-                    apply_reflector(m-i, 1, r+ii, row_stride, math::adjoint(tau[i]), x+i, 1, 1);
+                for(int i = m-1, ii = i*(row_stride + col_stride);
+                        i >= 0; --i, ii -= row_stride + col_stride)
+                        apply_reflector(m-i, 1, r+ii, row_stride, tau[i], x+i, 1, 1);
+            }
+        }
 
+        // Solves the system Q R x = f
+        void solve(value_type *f, value_type *x) const {
+            const int row_stride = (Order == row_major ? nmax : 1);
+            const int col_stride = (Order == row_major ? 1 : m);
+
+            for(int i = 0, ii = 0; i < m; ++i, ii += row_stride + col_stride)
+                apply_reflector(m-i, 1, r+ii, row_stride, math::adjoint(tau[i]), f+i, 1, 1);
+
+            std::copy(f, f+k, x);
+
+            for(int i = n; i --> 0; ) {
+                value_type rii = r[i*(row_stride+col_stride)];
+                if (math::is_zero(rii)) continue;
+                x[i] = math::inverse(rii) * x[i];
+
+                for(int j = 0, ja = 0; j < i; ++j, ja += row_stride)
+                    x[j] -= r[ja+i*col_stride] * x[i];
             }
         }
 
@@ -521,6 +554,18 @@ class QR<value_type, Order, typename boost::enable_if< math::is_static_matrix<va
             base.compute(rows * M, cols * N, 1, m * M, buf.data(), nmax * N);
         }
 
+        // Convenience wrappers where row_stride and col_stride are determined automatically.
+        void compute(int rows, int cols, value_type *A, int max_cols = -1) {
+            int m = rows;
+            int n = cols;
+            int nmax = (max_cols < 0 ? n : max_cols);
+
+            const int row_stride = (Order == row_major ? nmax : 1);
+            const int col_stride = (Order == row_major ? 1 : m);
+
+            compute(rows, cols, row_stride, col_stride, A, max_cols);
+        }
+
         // Performs explicit factorization of the matrix A.
         // Calls compute() and explicitly forms factors Q and R,
         // so that Q() and R() methods below are valid calls.
@@ -595,13 +640,35 @@ class QR<value_type, Order, typename boost::enable_if< math::is_static_matrix<va
         // Calls compute() on the appropriate version of A (either transposed
         // or not).
         void solve(int rows, int cols, value_type *A, rhs_type *rhs, rhs_type *x) {
+            const int M = math::static_rows<value_type>::value;
+            const int N = math::static_cols<value_type>::value;
+
+            m = rows;
+            n = cols;
+            nmax = n;
+
+            const int row_stride = (Order == row_major ? n : 1);
+            const int col_stride = (Order == row_major ? 1 : m);
+
+            r = A;
+
+            buf.resize(M * m * N * nmax);
+
+            const int brows = M * m;
+
+            for(int i = 0, ib = 0; i < m; ++i)
+                for(int ii = 0; ii < M; ++ii, ++ib)
+                    for(int j = 0, jb = 0; j < n; ++j)
+                        for(int jj = 0; jj < N; ++jj, jb += brows)
+                            buf[ib + jb] = A[i * row_stride + j * col_stride](ii, jj);
+
             base.solve(
-                    rows,
-                    cols,
-                    A,
+                    rows * M,
+                    cols * N,
+                    buf.data(),
                     reinterpret_cast<scalar_type*>(rhs),
                     reinterpret_cast<scalar_type*>(x)
-                    );
+            );
         }
 
         void compute_q() { base.compute_q(); }
