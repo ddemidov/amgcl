@@ -70,10 +70,9 @@ def git_version(abbrev=4):
         version = pep386adapt(version)
 
 
-    # If we still don't have anything, that's an error.
-
+    # If we still don't have anything, fallback to 0.0.1.
     if version is None:
-        raise ValueError("Cannot find the version number!")
+        version = '0.0.1'
 
     # If the current version is different from what's in the
     # RELEASE-VERSION file, update the file to be current.
