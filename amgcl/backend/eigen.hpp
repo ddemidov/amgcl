@@ -205,7 +205,7 @@ struct cols_impl<
 template <class T>
 struct nonzeros_impl<
     T,
-    typename boost::enable_if<typename is_eigen_type<T>::type>::type
+    typename boost::enable_if<typename is_eigen_sparse_matrix<T>::type>::type
     >
 {
     static size_t get(const T &matrix) {

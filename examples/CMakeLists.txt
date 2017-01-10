@@ -43,11 +43,13 @@ endif()
 if (EIGEN_INCLUDE)
     add_executable(solver_eigen solver.cpp)
     target_link_libraries(solver_eigen ${Boost_LIBRARIES})
+    set_target_properties(solver_eigen PROPERTIES COMPILE_FLAGS "-DSOLVER_BACKEND_EIGEN")
 endif()
 
 if (BLAZE_INCLUDE)
     add_executable(solver_blaze solver.cpp)
     target_link_libraries(solver_blaze ${Boost_LIBRARIES})
+    set_target_properties(solver_blaze PROPERTIES COMPILE_FLAGS "-DSOLVER_BACKEND_BLAZE")
 endif()
 
 if (VEXCL_ROOT)
