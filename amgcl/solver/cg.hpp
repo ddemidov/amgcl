@@ -150,14 +150,13 @@ class cg {
             }
 
             scalar_type eps  = prm.tol * norm_rhs;
-            scalar_type eps2 = eps * eps;
 
-            coef_type rho1 = 2 * eps2 * one;
+            coef_type rho1 = 2 * eps * one;
             coef_type rho2 = zero;
             scalar_type res_norm = norm(*r);
 
             size_t iter = 0;
-            for(; iter < prm.maxiter && math::norm(res_norm) > eps2; ++iter) {
+            for(; iter < prm.maxiter && math::norm(res_norm) > eps; ++iter) {
                 P.apply(*r, *s);
 
                 rho2 = rho1;
