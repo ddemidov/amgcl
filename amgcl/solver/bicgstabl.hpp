@@ -73,11 +73,15 @@ class bicgstabl {
             /// Maximum number of iterations.
             size_t maxiter;
 
-            /// Target residual error.
+            /// Target relative residual error.
             scalar_type tol;
 
+            /// Target absolute residual error.
+            scalar_type abstol;
+
             params(int L = 2, size_t maxiter = 100, scalar_type tol = 1e-8)
-                : L(L), maxiter(maxiter), tol(tol)
+                : L(L), maxiter(maxiter), tol(tol),
+                  abstol(std::numeric_limits<scalar_type>::min())
             {
                 precondition(L > 0, "L in BiCGStab(L) should be >=1");
             }
@@ -85,15 +89,17 @@ class bicgstabl {
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_VALUE(p, L),
                   AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, tol)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, tol),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, abstol)
             {
-                AMGCL_PARAMS_CHECK(p, (L)(maxiter)(tol));
+                AMGCL_PARAMS_CHECK(p, (L)(maxiter)(tol)(abstol));
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, L);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, maxiter);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, tol);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, abstol);
             }
         };
 
@@ -156,7 +162,7 @@ class bicgstabl {
             }
 
             scalar_type res_norm = norm(*r0);
-            scalar_type eps      = prm.tol * norm_rhs;
+            scalar_type eps      = std::max(prm.tol * norm_rhs, prm.abstol);
 
             if(res_norm < eps)
                 return boost::make_tuple(0, res_norm / norm_rhs);

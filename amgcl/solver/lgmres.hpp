@@ -171,12 +171,16 @@ class lgmres {
             /// Maximum number of iterations.
             size_t maxiter;
 
-            /// Target residual error.
+            /// Target relative residual error.
             scalar_type tol;
+
+            /// Target absolute residual error.
+            scalar_type abstol;
 
             params()
                 : pside(precond::right), M(30), K(3), always_reset(false),
-                  store_Av(true), maxiter(100), tol(1e-8)
+                  store_Av(true), maxiter(100), tol(1e-8),
+                  abstol(std::numeric_limits<scalar_type>::min())
             { }
 
             params(const boost::property_tree::ptree &p)
@@ -186,9 +190,10 @@ class lgmres {
                   AMGCL_PARAMS_IMPORT_VALUE(p, always_reset),
                   AMGCL_PARAMS_IMPORT_VALUE(p, store_Av),
                   AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, tol)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, tol),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, abstol)
             {
-                AMGCL_PARAMS_CHECK(p, (pside)(M)(K)(always_reset)(store_Av)(maxiter)(tol));
+                AMGCL_PARAMS_CHECK(p, (pside)(M)(K)(always_reset)(store_Av)(maxiter)(tol)(abstol));
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
@@ -199,6 +204,7 @@ class lgmres {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, store_Av);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, maxiter);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, tol);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, abstol);
             }
         } prm;
 
@@ -267,8 +273,8 @@ class lgmres {
                 return boost::make_tuple(0, norm_rhs);
             }
 
-            scalar_type norm_r = math::zero<scalar_type>(),
-                        eps = prm.tol * norm_rhs, norm_v0;
+            scalar_type norm_r = math::zero<scalar_type>(), norm_v0;
+            scalar_type eps = std::max(prm.tol * norm_rhs, prm.abstol);
 
             unsigned iter = 0, n_outer = 0;
             while(true) {

@@ -70,23 +70,29 @@ class bicgstab {
             /// Maximum number of iterations.
             size_t maxiter;
 
-            /// Target residual error.
+            /// Target relative residual error.
             scalar_type tol;
 
+            /// Target absolute residual error.
+            scalar_type abstol;
+
             params(size_t maxiter = 100, scalar_type tol = 1e-8)
-                : maxiter(maxiter), tol(tol)
+                : maxiter(maxiter), tol(tol),
+                  abstol(std::numeric_limits<scalar_type>::min())
             {}
 
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, tol)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, tol),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, abstol)
             {
-                AMGCL_PARAMS_CHECK(p, (maxiter)(tol));
+                AMGCL_PARAMS_CHECK(p, (maxiter)(tol)(abstol));
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, maxiter);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, tol);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, abstol);
             }
         };
 
@@ -144,7 +150,7 @@ class bicgstab {
                 return boost::make_tuple(0, norm_rhs);
             }
 
-            scalar_type eps = norm_rhs * prm.tol;
+            scalar_type eps = std::max(norm_rhs * prm.tol, prm.abstol);
 
             coef_type rho1  = zero;
             coef_type rho2  = zero;
