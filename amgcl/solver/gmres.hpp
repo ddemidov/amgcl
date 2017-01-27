@@ -76,25 +76,31 @@ class gmres {
             /// Maximum number of iterations.
             unsigned maxiter;
 
-            /// Target residual error.
+            /// Target relative residual error.
             scalar_type tol;
 
+            /// Target absolute residual error.
+            scalar_type abstol;
+
             params(unsigned M = 30, unsigned maxiter = 100, scalar_type tol = 1e-8)
-                : M(M), maxiter(maxiter), tol(tol)
+                : M(M), maxiter(maxiter), tol(tol),
+                  abstol(std::numeric_limits<scalar_type>::min())
             { }
 
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_VALUE(p, M),
                   AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, tol)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, tol),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, abstol)
             {
-                AMGCL_PARAMS_CHECK(p, (M)(maxiter)(tol));
+                AMGCL_PARAMS_CHECK(p, (M)(maxiter)(tol)(abstol));
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, M);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, maxiter);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, tol);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, abstol);
             }
         };
 
@@ -144,7 +150,8 @@ class gmres {
                 return boost::make_tuple(0, norm_rhs);
             }
 
-            scalar_type eps = prm.tol * norm_rhs, norm_r = math::zero<scalar_type>();
+            scalar_type eps = std::max(prm.tol * norm_rhs, prm.abstol);
+            scalar_type norm_r = math::zero<scalar_type>();
 
             while(true) {
                 backend::residual(rhs, A, x, *r);
