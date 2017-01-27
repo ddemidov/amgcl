@@ -178,7 +178,7 @@ class lgmres {
             scalar_type abstol;
 
             params()
-                : pside(precond::right), M(30), K(3), always_reset(false),
+                : pside(precond::right), M(30), K(3), always_reset(true),
                   store_Av(true), maxiter(100), tol(1e-8),
                   abstol(std::numeric_limits<scalar_type>::min())
             { }
