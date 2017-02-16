@@ -368,7 +368,7 @@ void mm_write(const std::string &fname, const Matrix &A) {
     // Data
     for(size_t i = 0; i < rows; ++i) {
         for(row_iterator a = backend::row_begin(A, i); a; ++a) {
-            f << i << " " << a.col() << " ";
+            f << i + 1 << " " << a.col() + 1 << " ";
             detail::write_value(f, a.value()) << "\n";
         }
     }
