@@ -89,7 +89,7 @@ int main(int argc, char *argv[]) {
         )
         (
          "prm,p",
-         po::value< vector<string> >(),
+         po::value< vector<string> >()->multitoken(),
          "Parameters specified as name=value pairs. "
          "May be provided multiple times. Examples:\n"
          "  -p solver.tol=1e-3\n"
