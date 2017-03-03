@@ -94,7 +94,7 @@ if (VEXCL_ROOT)
     add_definitions(-DAMGCL_HAVE_VEXCL)
 
     set(VEXCL_BACKEND "OpenCL" CACHE STRING "Select VexCL backend (OpenCL/CUDA/Compute)")
-    set_property(CACHE VEXCL_BACKEND PROPERTY STRINGS "OpenCL" "CUDA" "Compute")
+    set_property(CACHE VEXCL_BACKEND PROPERTY STRINGS "OpenCL" "CUDA" "Compute" "JIT")
 
     #----------------------------------------------------------------------------
     # Find VexCL backend
@@ -114,6 +114,9 @@ if (VEXCL_ROOT)
         include_directories( ${CUDA_INCLUDE_DIRS} )
         set(VEXCL_BACKEND_LIBRARIES ${CUDA_CUDA_LIBRARY})
         add_definitions(-DVEXCL_BACKEND_CUDA)
+    elseif ("${VEXCL_BACKEND}" STREQUAL "JIT")
+        add_definitions(-DVEXCL_BACKEND_JIT)
+        set(VEXCL_BACKEND_LIBRARIES dl)
     endif()
 endif()
 
