@@ -10,7 +10,10 @@
 #include <boost/range/iterator_range.hpp>
 
 #if defined(SOLVER_BACKEND_VEXCL)
+#  include <amgcl/value_type/static_matrix.hpp>
+#  include <amgcl/adapter/block_matrix.hpp>
 #  include <amgcl/backend/vexcl.hpp>
+#  include <amgcl/backend/vexcl_static_matrix.hpp>
    typedef amgcl::backend::vexcl<double> Backend;
 #elif defined(SOLVER_BACKEND_VIENNACL)
 #  include <amgcl/backend/viennacl.hpp>
@@ -91,6 +94,61 @@ boost::tuple<size_t, double> block_solve(
 
         return solve(frng, xrng);
     }
+}
+#endif
+
+#ifdef SOLVER_BACKEND_VEXCL
+//---------------------------------------------------------------------------
+template <int B, template <class> class Precond>
+boost::tuple<size_t, double> block_solve(
+        const boost::property_tree::ptree &prm,
+        size_t rows,
+        std::vector<ptrdiff_t> const &ptr,
+        std::vector<ptrdiff_t> const &col,
+        std::vector<double>    const &val,
+        std::vector<double>    const &rhs,
+        std::vector<double>          &x
+        )
+{
+    typedef amgcl::static_matrix<double, B, B> value_type;
+    typedef amgcl::static_matrix<double, B, 1> rhs_type;
+    typedef amgcl::backend::vexcl<value_type> BBackend;
+
+    typedef amgcl::make_solver<
+        Precond<BBackend>,
+        amgcl::runtime::iterative_solver<BBackend>
+        > Solver;
+
+    typename BBackend::params bprm;
+
+    vex::Context ctx(vex::Filter::Env);
+    std::cout << ctx << std::endl;
+    bprm.q = ctx;
+
+    vex::scoped_program_header header(ctx,
+            amgcl::backend::vexcl_static_matrix_declaration<double,B>());
+
+    prof.tic("setup");
+    Solver solve(amgcl::adapter::block_matrix<B, value_type>(boost::tie(rows, ptr, col, val)), prm, bprm);
+    prof.toc("setup");
+
+    std::cout << solve.precond() << std::endl;
+
+    rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&rhs[0]);
+    rhs_type       * xptr = reinterpret_cast<rhs_type       *>(&x[0]);
+
+    vex::vector<rhs_type> f_b(ctx, rows/B, fptr);
+    vex::vector<rhs_type> x_b(ctx, rows/B, xptr);
+
+    boost::tuple<size_t, double> info;
+    {
+        scoped_tic t(prof, "solve");
+        info = solve(f_b, x_b);
+    }
+
+    vex::copy(x_b.begin(), x_b.end(), xptr);
+
+    return info;
 }
 #endif
 
@@ -179,7 +237,7 @@ boost::tuple<size_t, double> solve(
     switch (block_size) {
         case 1:
             return scalar_solve<Precond>(prm, rows, ptr, col, val, rhs, x);
-#ifdef SOLVER_BACKEND_BUILTIN
+#if defined(SOLVER_BACKEND_BUILTIN) || defined(SOLVER_BACKEND_VEXCL)
         case 2:
             return block_solve<2, Precond>(prm, rows, ptr, col, val, rhs, x);
         case 3:

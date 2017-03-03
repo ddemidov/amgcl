@@ -53,11 +53,12 @@ namespace solver {
  * Copies the rhs to the host memory, solves the problem using the host CPU,
  * then copies the solution back to the compute device(s).
  */
-template <class T>
-struct vexcl_skyline_lu : solver::skyline_lu<T> {
-    typedef solver::skyline_lu<T> Base;
+template <class value_type>
+struct vexcl_skyline_lu : solver::skyline_lu<value_type> {
+    typedef solver::skyline_lu<value_type> Base;
+    typedef typename math::rhs_of<value_type>::type rhs_type;
 
-    mutable std::vector<T> _rhs, _x;
+    mutable std::vector<rhs_type> _rhs, _x;
 
     template <class Matrix, class Params>
     vexcl_skyline_lu(const Matrix &A, const Params&)
@@ -92,7 +93,8 @@ struct vexcl {
     typedef vex::sparse::distributed<
                 vex::sparse::matrix<value_type, index_type, index_type>
                 > matrix;
-    typedef vex::vector<value_type>                        vector;
+    typedef typename math::rhs_of<value_type>::type rhs_type;
+    typedef vex::vector<rhs_type>                          vector;
     typedef vex::vector<value_type>                        matrix_diagonal;
     typedef DirectSolver                                   direct_solver;
 
@@ -103,17 +105,24 @@ struct vexcl {
 
         std::vector< vex::backend::command_queue > q; ///< Command queues that identify compute devices to use with VexCL.
 
-        params() {}
+        /// Do CSR to ELL conversion on the GPU side.
+        /** This will result in faster setup, but will require more GPU memory. */
+        bool fast_matrix_setup;
 
-        params(const boost::property_tree::ptree &p) {
+        params() : fast_matrix_setup(true) {}
+
+        params(const boost::property_tree::ptree &p)
+            : AMGCL_PARAMS_IMPORT_CHILD(p, fast_matrix_setup)
+        {
             std::vector<vex::backend::command_queue> *ptr = 0;
             ptr = p.get("q", ptr);
             if (ptr) q = *ptr;
-            AMGCL_PARAMS_CHECK(p, (q));
+            AMGCL_PARAMS_CHECK(p, (q)(fast_matrix_setup));
         }
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {
             p.put(path + "q", &q);
+            AMGCL_PARAMS_EXPORT_VALUE(p, path, fast_matrix_setup);
         }
 
         const std::vector<vex::backend::command_queue>& context() const {
@@ -151,17 +160,18 @@ struct vexcl {
     }
 
     // Copy vector from builtin backend.
-    static boost::shared_ptr<vector>
-    copy_vector(typename builtin<real>::vector const &x, const params &prm)
+    template <class T>
+    static boost::shared_ptr< vex::vector<T> >
+    copy_vector(const std::vector<T> &x, const params &prm)
     {
         precondition(!prm.context().empty(), "Empty VexCL context!");
-
-        return boost::make_shared<vector>(prm.context(), x);
+        return boost::make_shared< vex::vector<T> >(prm.context(), x);
     }
 
     // Copy vector from builtin backend.
-    static boost::shared_ptr<vector>
-    copy_vector(boost::shared_ptr< typename builtin<real>::vector > x, const params &prm)
+    template <class T>
+    static boost::shared_ptr< vex::vector<T> >
+    copy_vector(boost::shared_ptr< std::vector<T> > x, const params &prm)
     {
         return copy_vector(*x, prm);
     }
