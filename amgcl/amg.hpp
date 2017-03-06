@@ -179,7 +179,7 @@ class amg {
                         (pre_cycles)(async_setup));
 #else
                 AMGCL_PARAMS_CHECK(p, (coarsening)(relax)(coarse_enough)
-                        (direct_coarse)(max_levels)(npost)(ncycle)
+                        (direct_coarse)(max_levels)(npre)(npost)(ncycle)
                         (pre_cycles));
 #endif
 
