@@ -124,6 +124,7 @@ boost::tuple<size_t, double> block_solve(
     vex::Context ctx(vex::Filter::Env);
     std::cout << ctx << std::endl;
     bprm.q = ctx;
+    bprm.fast_matrix_setup = prm.get("fast", true);
 
     vex::scoped_program_header header(ctx,
             amgcl::backend::vexcl_static_matrix_declaration<double,B>());

@@ -155,7 +155,8 @@ struct vexcl {
         return boost::make_shared<matrix>(prm.context(), n, m,
                 boost::make_iterator_range(Aptr, Aptr + n+1),
                 boost::make_iterator_range(Acol, Acol + nnz),
-                boost::make_iterator_range(Aval, Aval + nnz)
+                boost::make_iterator_range(Aval, Aval + nnz),
+                prm.fast_matrix_setup
                 );
     }
 
