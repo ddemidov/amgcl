@@ -775,8 +775,7 @@ struct clear_impl< vex::vector< static_matrix<T,B,1> > >
     typedef vex::vector<vector_value> vector;
 
     static void apply(vector &x) {
-        const vector_value zero = {0};
-        x = zero;
+        x.template reinterpret<T>() = 0;
     }
 };
 
@@ -789,7 +788,9 @@ struct copy_impl<
     typedef vex::vector< static_matrix<T,B,1> > vector;
 
     static void apply(const vector &x, vector &y) {
-        y = x;
+        auto X = x.template reinterpret<T>();
+        auto Y = y.template reinterpret<T>();
+        Y = X;
     }
 };
 
@@ -803,9 +804,12 @@ struct axpby_impl<
 
     static void apply(A a, const vector &x, B b, vector &y) {
         if (b)
-            y = vex_add<T,N>().apply(vex_scale<T,N>().apply(a, x), vex_scale<T,N>().apply(b, y));
+            y.template reinterpret<T>() =
+                a * x.template reinterpret<T>() +
+                b * y.template reinterpret<T>();
         else
-            y = vex_scale<T,N>().apply(a, x);
+            y.template reinterpret<T>() =
+                a * x.template reinterpret<T>();
     }
 };
 
@@ -820,9 +824,14 @@ struct axpbypcz_impl<
 
     static void apply(A a, const vector &x, B b, const vector &y, C c, vector &z) {
         if (c)
-            z = vex_add<T,N>().apply(vex_add<T,N>().apply(vex_scale<T,N>().apply(a, x), vex_scale<T,N>().apply(b, y)), vex_scale<T,N>().apply(c, z));
+            z.template reinterpret<T>() =
+                a * x.template reinterpret<T>() +
+                b * y.template reinterpret<T>() +
+                c * z.template reinterpret<T>();
         else
-            z = vex_add<T,N>().apply(vex_scale<T,N>().apply(a, x), vex_scale<T,N>().apply(b, y));
+            z.template reinterpret<T>() =
+                a * x.template reinterpret<T>() +
+                b * y.template reinterpret<T>();
     }
 };
 
@@ -836,35 +845,9 @@ struct inner_product_impl<
     typedef static_matrix<T,B,1> vector_value;
     typedef vex::vector<vector_value> vector;
 
-    struct BlockProduct : vex::UserFunction< BlockProduct, double(vector_value, vector_value) > {
-        BlockProduct() {}
-
-        static std::string name() {
-            return "inner_prod_" + vex::type_name<vector_value>();
-        }
-
-        static void define(vex::backend::source_generator &src, const std::string &name = name()) {
-            src.begin_function<T>(name);
-            src.begin_function_parameters();
-            src.parameter<vector_value>("a");
-            src.parameter<vector_value>("b");
-            src.end_function_parameters();
-            src.new_line() << "return ";
-            for(int i = 0; i < B; ++i) {
-                if (i) src << " + ";
-                src.new_line() << "a.data[" << i << "][0] * "
-                               << "b.data[" << i << "][0]";
-            }
-            src << ";";
-            src.end_function();
-        }
-    };
-
     static return_type get(const vector &x, const vector &y) {
-        static const BlockProduct bp;
-
         vex::Reductor<T, vex::SUM_Kahan> sum( x.queue_list() );
-        return sum( bp(x, y) );
+        return sum( x.template reinterpret<T>() * y.template reinterpret<T>() );
     }
 };
 
