@@ -211,7 +211,7 @@ class ell<amgcl::static_matrix<T, N, N>, Col, Ptr> {
             }
 
             if (csr_nnz) {
-                csr_ptr = backend::device_vector<Col>(q[0], n + 1,   _csr_ptr.data());
+                csr_ptr = backend::device_vector<Ptr>(q[0], n + 1,   _csr_ptr.data());
                 csr_col = backend::device_vector<Col>(q[0], csr_nnz, _csr_col.data());
                 csr_val = create_device_vector       (q[0], csr_nnz, _csr_val.data());
             }
