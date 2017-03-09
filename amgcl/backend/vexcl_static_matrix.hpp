@@ -157,26 +157,28 @@ class ell<amgcl::static_matrix<T, N, N>, Col, Ptr> {
 
                 csr_ptr = backend::device_vector<Col>(q[0], n + 1,   &ptr[0]);
                 csr_col = backend::device_vector<Col>(q[0], csr_nnz, &col[0]);
-                csr_val = create_device_vector       (q[0], csr_nnz, &val[0]);
+                csr_val = create_device_vector       (q[0], csr_nnz, &val[0], false);
 
                 return;
             }
+
+            size_t ell_nnz = ell_pitch * ell_width;
 
             // Count nonzeros in CSR part of the matrix.
             for(size_t i = ell_width + 1; i <= max_width; ++i)
                 csr_nnz += hist[i] * (i - ell_width);
 
             /* 3. Split the input matrix into ELL and CSR submatrices. */
-            std::vector<Col> _ell_col(ell_pitch * ell_width, static_cast<Col>(-1));
-            std::vector<Val> _ell_val(ell_pitch * ell_width);
+            std::vector<Col> _ell_col(ell_nnz, static_cast<Col>(-1));
+            std::vector<T>   _ell_val(ell_nnz * N * N);
             std::vector<Ptr> _csr_ptr;
             std::vector<Col> _csr_col;
-            std::vector<Val> _csr_val;
+            std::vector<T>   _csr_val;
 
             if (csr_nnz) {
                 _csr_ptr.resize(n + 1);
                 _csr_col.resize(csr_nnz);
-                _csr_val.resize(csr_nnz);
+                _csr_val.resize(csr_nnz * N * N);
 
                 _csr_ptr[0] = 0;
                 for(size_t i = 0; i < n; ++i) {
@@ -195,10 +197,14 @@ class ell<amgcl::static_matrix<T, N, N>, Col, Ptr> {
 
                     if (w < ell_width) {
                         _ell_col[i + w * ell_pitch] = c;
-                        _ell_val[i + w * ell_pitch] = v;
+                        for(int k = 0, ii = 0; ii < N; ++ii)
+                            for(int jj = 0; jj < N; ++jj, ++k)
+                                _ell_val[k * ell_nnz + w * ell_pitch + i] = v(ii,jj);
                     } else {
                         _csr_col[csr_head] = c;
-                        _csr_val[csr_head] = v;
+                        for(int k = 0, ii = 0; ii < N; ++ii)
+                            for(int jj = 0; jj < N; ++jj, ++k)
+                                _csr_val[k * csr_nnz + csr_head] = v(ii,jj);
                         ++csr_head;
                     }
                 }
@@ -207,13 +213,13 @@ class ell<amgcl::static_matrix<T, N, N>, Col, Ptr> {
             {
                 size_t ell_size = ell_pitch * ell_width;
                 ell_col = backend::device_vector<Col>(q[0], ell_size, _ell_col.data());
-                ell_val = create_device_vector       (q[0], ell_size, _ell_val.data());
+                ell_val = backend::device_vector<T>  (q[0], ell_nnz * N * N, _ell_val.data());
             }
 
             if (csr_nnz) {
                 csr_ptr = backend::device_vector<Ptr>(q[0], n + 1,   _csr_ptr.data());
                 csr_col = backend::device_vector<Col>(q[0], csr_nnz, _csr_col.data());
-                csr_val = create_device_vector       (q[0], csr_nnz, _csr_val.data());
+                csr_val = backend::device_vector<T>  (q[0], csr_nnz * N * N, _csr_val.data());
             }
         }
 
@@ -411,16 +417,28 @@ class ell<amgcl::static_matrix<T, N, N>, Col, Ptr> {
         backend::device_vector<T>   csr_val;
 
         backend::device_vector<T> create_device_vector(const backend::command_queue &q,
-                size_t nnz, const Val *host_data)
+                size_t nnz, const Val *host_data, bool fast = true)
         {
             backend::device_vector<T> val(q, nnz * N * N);
 
-            auto v = val.map(q);
+            if (fast) {
+                backend::device_vector<T> tmp(q, nnz * N * N, reinterpret_cast<const T*>(host_data));
 
-            for(int k = 0, i = 0; i < N; ++i)
-                for(int j = 0; j < N; ++j, ++k)
-                    for(size_t m = 0; m < nnz; ++m)
-                        v[k * nnz + m] = host_data[m](i,j);
+                VEX_FUNCTION(T, transpose, (int,k)(int,m)(int,nnz)(T*, v),
+                        int i = k / nnz;
+                        int j = k % nnz;
+                        return v[j * m + i];
+                        );
+
+                vex::vector<T>(q,val) = transpose(vex::element_index(), N*N, nnz, raw_pointer(vex::vector<T>(q, tmp)));
+            } else {
+                auto v = val.map(q);
+
+                for(int k = 0, i = 0; i < N; ++i)
+                    for(int j = 0; j < N; ++j, ++k)
+                        for(size_t m = 0; m < nnz; ++m)
+                            v[k * nnz + m] = host_data[m](i,j);
+            }
 
             return val;
         }
