@@ -5,6 +5,7 @@ endif()
 
 add_library(libamgcl ${AMGCL_LIB_SRC})
 target_link_libraries(libamgcl ${Boost_LIBRARIES})
+set_target_properties(libamgcl PROPERTIES PREFIX "")
 
 if (MPI_CXX_FOUND)
     set(AMGCL_MPI_LIB_SRC amgcl_mpi.cpp)
@@ -14,6 +15,7 @@ if (MPI_CXX_FOUND)
 
     add_library(libamgcl_mpi ${AMGCL_MPI_LIB_SRC})
     set_target_properties(libamgcl_mpi PROPERTIES
+        PREFIX        ""
         COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}"
         LINK_FLAGS    "${MPI_CXX_LINK_FLAGS}"
         )
