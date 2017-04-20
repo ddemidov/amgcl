@@ -6,6 +6,11 @@ endif()
 
 project(AMGCL)
 
+set(AMGCL_MASTER_PROJECT OFF)
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+    set(AMGCL_MASTER_PROJECT ON)
+endif()
+
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib)
@@ -203,61 +208,70 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     endif ()
 endif ()
 
-#----------------------------------------------------------------------------
-enable_testing()
-add_subdirectory(tests)
+if (AMGCL_MASTER_PROJECT)
+    option(AMGCL_BUILD_TESTS    OFF)
+    option(AMGCL_BUILD_EXAMPLES OFF)
 
-#----------------------------------------------------------------------------
-set(BUILD_SHARED_LIBS ON)
-add_subdirectory(lib)
-add_subdirectory(examples)
-add_subdirectory(docs)
+    add_subdirectory(docs)
 
-#----------------------------------------------------------------------------
-# Build Fortran example
-#----------------------------------------------------------------------------
-option(HAVE_FORTRAN "Build Fortran example" OFF)
-if (HAVE_FORTRAN)
-    add_subdirectory(fortran)
-endif()
+    if (AMGCL_BUILD_TESTS)
+        enable_testing()
+        add_subdirectory(tests)
+    endif()
 
-#----------------------------------------------------------------------------
-add_library(amgcl INTERFACE)
-add_library(amgcl::amgcl ALIAS amgcl)
+    if (AMGCL_BUILD_EXAMPLES)
+        set(BUILD_SHARED_LIBS ON)
+        add_subdirectory(lib)
+        add_subdirectory(examples)
 
-if (OpenMP_FOUND)
-    target_include_directories(amgcl INTERFACE
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-        $<INSTALL_INTERFACE:include>
+
+        #----------------------------------------------------------------------------
+        # Build Fortran example
+        #----------------------------------------------------------------------------
+        option(AMGCL_HAVE_FORTRAN "Build Fortran example" OFF)
+        if (AMGCL_HAVE_FORTRAN)
+            add_subdirectory(fortran)
+        endif()
+    endif()
+
+    #----------------------------------------------------------------------------
+    add_library(amgcl INTERFACE)
+    add_library(amgcl::amgcl ALIAS amgcl)
+
+    if (OpenMP_FOUND)
+        target_include_directories(amgcl INTERFACE
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+            $<INSTALL_INTERFACE:include>
+            )
+        target_link_libraries(amgcl INTERFACE ${OpenMP_CXX_FLAGS})
+        target_compile_options(amgcl INTERFACE ${OpenMP_CXX_FLAGS})
+    endif()
+
+    install(DIRECTORY amgcl DESTINATION include)
+
+    install(TARGETS amgcl EXPORT amgclTargets)
+
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/amgcl-config.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/cmake/amgcl-config.cmake"
+        COPYONLY
         )
-    target_link_libraries(amgcl INTERFACE ${OpenMP_CXX_FLAGS})
-    target_compile_options(amgcl INTERFACE ${OpenMP_CXX_FLAGS})
+
+    export(EXPORT amgclTargets
+        FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/amgcl-targets.cmake"
+        NAMESPACE amgcl::
+        )
+
+    export(PACKAGE amgcl)
+
+    install(EXPORT amgclTargets
+        FILE amgcl-targets.cmake
+        NAMESPACE amgcl::
+        DESTINATION share/amgcl/cmake
+        )
+
+    install(
+        FILES cmake/amgcl-config.cmake
+        DESTINATION share/amgcl/cmake
+        )
 endif()
-
-install(DIRECTORY amgcl DESTINATION include)
-
-install(TARGETS amgcl EXPORT amgclTargets)
-
-configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/amgcl-config.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/cmake/amgcl-config.cmake"
-    COPYONLY
-    )
-
-export(EXPORT amgclTargets
-    FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/amgcl-targets.cmake"
-    NAMESPACE amgcl::
-    )
-
-export(PACKAGE amgcl)
-
-install(EXPORT amgclTargets
-    FILE amgcl-targets.cmake
-    NAMESPACE amgcl::
-    DESTINATION share/amgcl/cmake
-    )
-
-install(
-    FILES cmake/amgcl-config.cmake
-    DESTINATION share/amgcl/cmake
-    )

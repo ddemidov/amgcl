@@ -38,7 +38,7 @@ script:
 - export CC=gcc-5 CXX=g++-5
 - sudo pip install .
 - mkdir -p build && cd build
-- cmake -DTEST_COVERAGE=ON ..
+- cmake -DTEST_COVERAGE=ON -DAMGCL_BUILD_TESTS=ON -DAMGCL_BUILD_EXAMPLES=ON ..
 - make
 - ctest --output-on-failure
 - for n in 1 4 16; do echo --- $n ---; mpirun -np $n ./examples/mpi/runtime_sdd; done
