@@ -9,7 +9,8 @@ platform:
 configuration:
     - Release
 build_script:
-    - cmake -DAMGCL_BUILD_TEST=ON -DAMGCL_BUILD_EXAMPLES=ON .
-    - cmake --build . --config Release
+    - cmake -DAMGCL_BUILD_TESTS=ON -DAMGCL_BUILD_EXAMPLES=ON . -Bbuild
+    - cmake --build build --config Release
 test_script:
+    - cd build
     - ctest --build-config Release --output-on-failure
