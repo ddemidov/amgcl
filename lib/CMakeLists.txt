@@ -3,8 +3,8 @@ if (WIN32)
     set(AMGCL_LIB_SRC ${AMGCL_LIB_SRC} dll.def)
 endif()
 
-add_library(amgcl ${AMGCL_LIB_SRC})
-target_link_libraries(amgcl ${Boost_LIBRARIES})
+add_library(libamgcl ${AMGCL_LIB_SRC})
+target_link_libraries(libamgcl ${Boost_LIBRARIES})
 
 if (MPI_CXX_FOUND)
     set(AMGCL_MPI_LIB_SRC amgcl_mpi.cpp)
@@ -12,18 +12,18 @@ if (MPI_CXX_FOUND)
         set(AMGCL_MPI_LIB_SRC ${AMGCL_MPI_LIB_SRC} mpi_dll.def)
     endif()
 
-    add_library(amgcl_mpi ${AMGCL_MPI_LIB_SRC})
-    set_target_properties(amgcl_mpi PROPERTIES
+    add_library(libamgcl_mpi ${AMGCL_MPI_LIB_SRC})
+    set_target_properties(libamgcl_mpi PROPERTIES
         COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}"
         LINK_FLAGS    "${MPI_CXX_LINK_FLAGS}"
         )
-    target_link_libraries(amgcl_mpi
-        amgcl
+    target_link_libraries(libamgcl_mpi
+        libamgcl
         ${MPI_CXX_LIBRARIES}
         ${Boost_LIBRARIES}
         )
     if (HAVE_PASTIX)
-        target_link_libraries(amgcl_mpi
+        target_link_libraries(libamgcl_mpi
             ${PASTIX_LIBRARIES}
             ${SCOTCH_LIBRARIES}
             ${BLAS_LIBRARIES}

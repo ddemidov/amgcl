@@ -19,7 +19,7 @@ add_executable(block_crs block_crs.cpp)
 target_link_libraries(block_crs ${Boost_LIBRARIES})
 
 add_executable(call_lib call_lib.cpp)
-target_link_libraries(call_lib ${Boost_LIBRARIES} amgcl)
+target_link_libraries(call_lib ${Boost_LIBRARIES} libamgcl)
 
 add_executable(schur_pressure_correction schur_pressure_correction.cpp)
 target_link_libraries(schur_pressure_correction ${Boost_LIBRARIES})

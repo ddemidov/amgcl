@@ -222,4 +222,42 @@ if (HAVE_FORTRAN)
 endif()
 
 #----------------------------------------------------------------------------
+add_library(amgcl INTERFACE)
+add_library(amgcl::amgcl ALIAS amgcl)
+
+if (OpenMP_FOUND)
+    target_include_directories(amgcl INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:include>
+        )
+    target_link_libraries(amgcl INTERFACE ${OpenMP_CXX_FLAGS})
+    target_compile_options(amgcl INTERFACE ${OpenMP_CXX_FLAGS})
+endif()
+
 install(DIRECTORY amgcl DESTINATION include)
+
+install(TARGETS amgcl EXPORT amgclTargets)
+
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/amgcl-config.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/cmake/amgcl-config.cmake"
+    COPYONLY
+    )
+
+export(EXPORT amgclTargets
+    FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/amgcl-targets.cmake"
+    NAMESPACE amgcl::
+    )
+
+export(PACKAGE amgcl)
+
+install(EXPORT amgclTargets
+    FILE amgcl-targets.cmake
+    NAMESPACE amgcl::
+    DESTINATION share/amgcl/cmake
+    )
+
+install(
+    FILES cmake/amgcl-config.cmake
+    DESTINATION share/amgcl/cmake
+    )

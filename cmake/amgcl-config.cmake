@@ -1,0 +1,16 @@
+# Distributed under the MIT License.
+# Copyright (c) 2012-2017 Denis Demidov <dennis.demidov@gmail.com>
+
+#.rst
+# amgcl-config
+# ------------
+#
+# Try to find amgcl include dirs and libraries. Use this module by invoking
+# find_package with the form::
+#
+#   find_package(amgcl)
+#
+# The module defines :prop_tgt:`amgcl::amgcl` :prop_tgt:`IMPORTED` targets.
+
+include("${CMAKE_CURRENT_LIST_DIR}/amgcl-targets.cmake")
+message(STATUS "Found amgcl")
