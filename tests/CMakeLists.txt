@@ -1,10 +1,11 @@
 #----------------------------------------------------------------------------
 # Test coverage
 #----------------------------------------------------------------------------
-option(TEST_COVERAGE "Analyze test coverage with gcov/lcov" OFF)
+option(AMGCL_TEST_COVERAGE "Analyze test coverage with gcov/lcov" OFF)
 
-if(TEST_COVERAGE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage")
+if(AMGCL_TEST_COVERAGE)
+    target_compile_options(amgcl INTERFACE --coverage)
+    target_link_libraries(amgcl INTERFACE --coverage)
 
     # Resets coverage statistics
     add_custom_target(coverage_reset
@@ -14,12 +15,7 @@ if(TEST_COVERAGE)
         )
 
     # Converts accumulated coverage statistics into coverage/index.html
-    # Run
-    #   make tests
-    # for all OpenCL platforms after
-    #   make coverage_reset
-    # and before
-    #   make coverage
+    # Run `make tests` after `make coverage_reset` and before `make coverage`.
     add_custom_target(coverage
         COMMAND lcov --directory . --base-directory "${CMAKE_SOURCE_DIR}/amgcl" --no-external --capture --output-file coverage.info
         COMMAND lcov --remove coverage.info '/usr*' -o coverage.info
@@ -31,12 +27,22 @@ endif()
 #----------------------------------------------------------------------------
 # The tests
 #----------------------------------------------------------------------------
+add_library(amgcl_test INTERFACE)
+
+if (NOT Boost_USE_STATIC_LIBS)
+    target_compile_definitions(amgcl_test INTERFACE BOOST_TEST_DYN_LINK)
+endif ()
+
+target_include_directories(amgcl_test INTERFACE ${Boost_INCLUDE_DIRS})
+target_link_libraries(amgcl_test INTERFACE
+    amgcl
+    ${Boost_SYSTEM_LIBRARY}
+    ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY}
+    )
+
 function(add_amgcl_test TEST_NAME TEST_SOURCE)
     add_executable(${TEST_NAME} ${TEST_SOURCE})
-    target_link_libraries(${TEST_NAME} ${Boost_LIBRARIES})
-    if (VEXCL_ROOT)
-        target_link_libraries(${TEST_NAME} ${VEXCL_BACKEND_LIBRARIES})
-    endif()
+    target_link_libraries(${TEST_NAME} amgcl_test)
     add_test(${TEST_NAME} ${TEST_NAME})
 endfunction()
 
@@ -50,20 +56,25 @@ add_amgcl_test(test_solver_complex    test_solver_complex.cpp)
 add_amgcl_test(test_solver_block_crs  test_solver_block_crs.cpp)
 add_amgcl_test(test_solver_ns_builtin test_solver_ns_builtin.cpp)
 
-if (BLAZE_INCLUDE)
-    add_amgcl_test(test_solver_blaze     test_solver_blaze.cpp)
+if (TARGET blaze_target)
+    add_amgcl_test(test_solver_blaze test_solver_blaze.cpp)
+    target_link_libraries(test_solver_blaze blaze_target)
 endif()
 
-if (VIENNACL_INCLUDE)
-    add_amgcl_test(test_solver_viennacl  test_solver_viennacl.cpp)
-endif()
-
-if (EIGEN_INCLUDE)
+if (TARGET eigen_target)
     add_amgcl_test(test_eigen_solver    test_eigen_solver.cpp)
     add_amgcl_test(test_solver_eigen    test_solver_eigen.cpp)
     add_amgcl_test(test_solver_ns_eigen test_solver_ns_eigen.cpp)
+
+    target_link_libraries(test_eigen_solver eigen_target)
+    target_link_libraries(test_solver_eigen eigen_target)
+    target_link_libraries(test_solver_ns_eigen eigen_target)
 endif()
 
+if (TARGET viennacl_target)
+    add_amgcl_test(test_solver_viennacl  test_solver_viennacl.cpp)
+    target_link_libraries(test_solver_viennacl viennacl_target)
+endif()
 
 if (NOT WIN32)
     configure_file(

@@ -1,34 +1,24 @@
-if (MPI_CXX_FOUND)
+if (TARGET mpi_target)
     function(add_mpi_example example sources)
         add_executable(${example} ${sources})
-        set_target_properties(${example} PROPERTIES
-            COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}"
-            LINK_FLAGS    "${MPI_CXX_LINK_FLAGS}"
-            )
         target_link_libraries(${example}
-            ${Boost_LIBRARIES}
-            ${MPI_CXX_LIBRARIES}
+            amgcl mpi_target
+            ${Boost_PROGRAM_OPTIONS_LIBRARY}
             )
 
-        if (HAVE_PASTIX)
-            target_link_libraries(${example}
-                ${PASTIX_LIBRARIES}
-                ${SCOTCH_LIBRARIES}
-                ${BLAS_LIBRARIES}
-                pthread bz2
-                )
+        if (TARGET pastix_target)
+            target_link_libraries(${example} pastix_target)
         endif()
     endfunction()
 
-    if (HAVE_PASTIX)
+    if (TARGET pastix_target)
         add_mpi_example(check_pastix check_pastix.cpp)
     endif()
 
-    if (EIGEN_INCLUDE AND METIS_INCLUDES)
+    if (TARGET eigen_target AND TARGET metis_target)
         add_executable(partition partition.cpp)
-        target_link_Libraries(partition
-            ${Boost_LIBRARIES}
-            ${METIS_LIBRARY}
+        target_link_Libraries(partition amgcl eigen_target metis_target
+            ${Boost_PROGRAM_OPTIONS_LIBRARY}
             )
     endif()
 
@@ -38,12 +28,12 @@ if (MPI_CXX_FOUND)
     add_mpi_example(schur_pc_mpi        schur_pc_mpi.cpp)
     add_mpi_example(solve_mm_mpi        solve_mm_mpi.cpp)
     add_mpi_example(call_mpi_lib        call_mpi_lib.cpp)
-    target_link_libraries(call_mpi_lib libamgcl libamgcl_mpi)
 
-    if (VEXCL_ROOT)
+    target_link_libraries(call_mpi_lib libamgcl_mpi)
+
+    if (TARGET vexcl_target)
         add_mpi_example(runtime_sdd_vexcl runtime_sdd_vexcl.cpp)
-        target_link_libraries(runtime_sdd_vexcl ${VEXCL_BACKEND_LIBRARIES})
-        set_target_properties(runtime_sdd_vexcl PROPERTIES COMPILE_FLAGS ${CXX11_FLAG})
+        target_link_libraries(runtime_sdd_vexcl amgcl vexcl_target mpi_target)
     endif()
 
     configure_file(

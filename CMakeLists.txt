@@ -11,25 +11,93 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
     set(AMGCL_MASTER_PROJECT ON)
 endif()
 
-set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib)
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+if (CMAKE_VERSION VERSION_LESS "3.1.0")
+    set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/opencl)
+endif()
 
 #----------------------------------------------------------------------------
-# Find OpenMP
+# Find Boost
 #----------------------------------------------------------------------------
+option(Boost_USE_STATIC_LIBS "Use static versions of Boost libraries" OFF)
+if (WIN32)
+    set(Boost_USE_STATIC_LIBS ON)
+endif ()
+
+find_package(Boost REQUIRED COMPONENTS
+    chrono
+    date_time
+    program_options
+    serialization
+    system
+    thread
+    unit_test_framework
+    )
+
+#----------------------------------------------------------------------------
+# Builtin backend
+#----------------------------------------------------------------------------
+add_library(amgcl INTERFACE)
+add_library(amgcl::amgcl ALIAS amgcl)
+
+target_include_directories(amgcl INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:include>
+    ${Boost_INCLUDE_DIRS}
+    )
+
 find_package(OpenMP)
-if (OpenMP_CXX_FLAGS)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+if (OpenMP_FOUND)
+    target_compile_options(amgcl INTERFACE ${OpenMP_CXX_FLAGS})
+    target_link_libraries(amgcl INTERFACE
+        $<$<CXX_COMPILER_ID:GNU>:${OpenMP_CXX_FLAGS}>
+        $<$<CXX_COMPILER_ID:Clang>:${OpenMP_CXX_FLAGS}>
+        $<$<CXX_COMPILER_ID:Intel>:${OpenMP_CXX_FLAGS}>
+        )
 endif ()
 
 #----------------------------------------------------------------------------
-# Find Eigen
+# Common compile options and definitions
+#----------------------------------------------------------------------------
+target_compile_options(amgcl INTERFACE
+    # Compiler is GNU (g++):
+    $<$<CXX_COMPILER_ID:GNU>:-ffast-math>
+    # Compiler is Clang:
+    $<$<CXX_COMPILER_ID:Clang>:-ffast-math>
+    # Compiler is MSVC:
+    $<$<CXX_COMPILER_ID:MSVC>:/bigobj>
+    $<$<CXX_COMPILER_ID:MSVC>:/fp:fast>
+    )
+
+target_compile_definitions(amgcl INTERFACE
+    # Compiler is MSVC:
+    $<$<CXX_COMPILER_ID:MSVC>:NOMINMAX>
+    $<$<CXX_COMPILER_ID:MSVC>:_VARIADIC_MAX=10>
+    $<$<CXX_COMPILER_ID:MSVC>:_SCL_SECURE_NO_WARNINGS>
+    )
+
+#----------------------------------------------------------------------------
+# Enable asynchronous setup?
+#----------------------------------------------------------------------------
+option(AMGCL_ASYNC_SETUP "Enable asynchronous AMG setup" ON)
+if (AMGCL_ASYNC_SETUP)
+    target_compile_definitions(amgcl INTERFACE AMGCL_ASYNC_SETUP)
+    target_include_directories(amgcl INTERFACE ${Boost_INCLUDE_DIRS})
+    target_link_libraries(amgcl INTERFACE
+        ${Boost_SYSTEM_LIBRARY}
+        ${Boost_THREAD_LIBRARY}
+        ${Boost_CHRONO_LIBRARY}
+        ${Boost_DATE_TIME_LIBRARY}
+        )
+endif()
+
+#----------------------------------------------------------------------------
+# Eigen backend
 #----------------------------------------------------------------------------
 find_path(EIGEN_INCLUDE Eigen/SparseCore PATH_SUFFIXES eigen3)
 if (EIGEN_INCLUDE)
-    include_directories(${EIGEN_INCLUDE})
-    add_definitions(-DAMGCL_HAVE_EIGEN)
+    add_library(eigen_target INTERFACE)
+    target_include_directories(eigen_target INTERFACE ${EIGEN_INCLUDE})
 endif()
 
 #----------------------------------------------------------------------------
@@ -37,91 +105,28 @@ endif()
 #----------------------------------------------------------------------------
 find_path(BLAZE_INCLUDE blaze/Math.h)
 if (BLAZE_INCLUDE)
-    include_directories(${BLAZE_INCLUDE})
-    add_definitions(-DAMGCL_HAVE_BLAZE)
+    add_library(blaze_target INTERFACE)
+    target_include_directories(blaze_target INTERFACE ${BLAZE_INCLUDE})
 endif()
-
-#----------------------------------------------------------------------------
-# Find HPX
-#----------------------------------------------------------------------------
-option(HAVE_HPX "Build HPX examples" OFF)
-if (HAVE_HPX)
-    find_package(HPX)
-endif()
-
-#----------------------------------------------------------------------------
-# Enable asynchronous setup?
-#----------------------------------------------------------------------------
-option(ASYNC_SETUP "Enable asynchronous AMG setup" ON)
-if (ASYNC_SETUP)
-    add_definitions(-DAMGCL_ASYNC_SETUP)
-    set(BOOST_COMPONENTS thread)
-endif()
-
-#----------------------------------------------------------------------------
-# Find Boost
-#----------------------------------------------------------------------------
-if (WIN32)
-    set(Boost_USE_STATIC_LIBS ON)
-else ()
-    option(
-        USE_STATIC_BOOST_LIBS
-        "Use static versions of Boost libraries"
-        OFF
-        )
-
-    if (USE_STATIC_BOOST_LIBS)
-        set(Boost_USE_STATIC_LIBS ON)
-    else()
-        set(Boost_USE_STATIC_LIBS OFF)
-        add_definitions(-DBOOST_TEST_DYN_LINK)
-    endif()
-endif ()
-
-set(BOOST_COMPONENTS ${BOOST_COMPONENTS}
-    program_options
-    system
-    filesystem
-    thread
-    serialization
-    unit_test_framework
-    )
-
-find_package(Boost COMPONENTS ${BOOST_COMPONENTS})
-include_directories( ${Boost_INCLUDE_DIRS} )
 
 #----------------------------------------------------------------------------
 # Find VexCL
 #----------------------------------------------------------------------------
-set(VEXCL_ROOT $ENV{VEXCL_ROOT} CACHE STRING "VexCL root")
-if (VEXCL_ROOT)
-    include_directories( ${VEXCL_ROOT} )
-    add_definitions(-DAMGCL_HAVE_VEXCL)
+find_package(VexCL)
+if (VexCL_FOUND)
+    add_library(vexcl_target INTERFACE)
 
-    set(VEXCL_BACKEND "OpenCL" CACHE STRING "Select VexCL backend (OpenCL/CUDA/Compute)")
+    set(VEXCL_BACKEND "OpenCL" CACHE STRING "Select VexCL backend (OpenCL/CUDA/Compute/JIT)")
     set_property(CACHE VEXCL_BACKEND PROPERTY STRINGS "OpenCL" "CUDA" "Compute" "JIT")
 
-    #----------------------------------------------------------------------------
-    # Find VexCL backend
-    #----------------------------------------------------------------------------
-    if ("${VEXCL_BACKEND}" STREQUAL "OpenCL")
-        find_package(OpenCL REQUIRED)
-        include_directories( ${OPENCL_INCLUDE_DIRS} )
-        set(VEXCL_BACKEND_LIBRARIES ${OPENCL_LIBRARIES})
-        add_definitions(-DVEXCL_BACKEND_OPENCL)
-    elseif ("${VEXCL_BACKEND}" STREQUAL "Compute")
-        find_package(OpenCL REQUIRED)
-        include_directories( ${OPENCL_INCLUDE_DIRS} )
-        set(VEXCL_BACKEND_LIBRARIES ${OPENCL_LIBRARIES})
-        add_definitions(-DVEXCL_BACKEND_COMPUTE)
-    elseif ("${VEXCL_BACKEND}" STREQUAL "CUDA")
-        find_package(CUDA REQUIRED)
-        include_directories( ${CUDA_INCLUDE_DIRS} )
-        set(VEXCL_BACKEND_LIBRARIES ${CUDA_CUDA_LIBRARY})
-        add_definitions(-DVEXCL_BACKEND_CUDA)
-    elseif ("${VEXCL_BACKEND}" STREQUAL "JIT")
-        add_definitions(-DVEXCL_BACKEND_JIT)
-        set(VEXCL_BACKEND_LIBRARIES dl)
+    if("${VEXCL_BACKEND}" STREQUAL "OpenCL")
+        target_link_libraries(vexcl_target INTERFACE VexCL::OpenCL)
+    elseif("${VEXCL_BACKEND}" STREQUAL "Compute")
+        target_link_libraries(vexcl_target INTERFACE VexCL::Compute)
+    elseif("${VEXCL_BACKEND}" STREQUAL "CUDA")
+        target_link_libraries(vexcl_target INTERFACE VexCL::CUDA)
+    elseif("${VEXCL_BACKEND}" STREQUAL "JIT")
+        target_link_libraries(vexcl_target INTERFACE VexCL::JIT)
     endif()
 endif()
 
@@ -130,27 +135,55 @@ endif()
 #----------------------------------------------------------------------------
 find_path(VIENNACL_INCLUDE viennacl/forwards.h)
 if (VIENNACL_INCLUDE)
-    add_definitions(-DAMGCL_HAVE_VIENNACL)
-    add_definitions(-DVIENNACL_WITH_OPENMP)
-    include_directories(${VIENNACL_INCLUDE})
+    add_library(viennacl_target INTERFACE)
+    target_link_libraries(viennacl_target INTERFACE amgcl)
+    target_include_directories(viennacl_target INTERFACE ${VIENNACL_INCLUDE})
+    target_compile_definitions(viennacl_target INTERFACE SOLVER_BACKEND_VIENNACL)
+
+    find_package(OpenCL)
+    if (OpenCL_FOUND)
+        target_include_directories(viennacl_target INTERFACE ${OpenCL_INCLUDE_DIRS})
+        target_link_libraries(viennacl_target INTERFACE ${OpenCL_LIBRARY})
+        target_compile_definitions(viennacl_target INTERFACE VIENNACL_WITH_OPENCL)
+        target_compile_options(viennacl_target INTERFACE
+            $<$<CXX_COMPILER_ID:GNU>:-Wno-ignored-attributes>
+            $<$<CXX_COMPILER_ID:Clang>:-Wno-ignored-attributes>
+            )
+    else()
+        target_compile_definitions(viennacl_target INTERFACE VIENNACL_WITH_OPENMP)
+    endif()
 endif()
 
 #----------------------------------------------------------------------------
 # Find CUDA
 #----------------------------------------------------------------------------
-find_package(CUDA QUIET)
-if (CUDA_FOUND)
-    set(CUDA_COMPUTE_CAPABILITY "35" CACHE STRING "CUDA Compute Capability")
-    add_definitions(-DAMGCL_HAVE_CUDA)
-    add_definitions(-DBOOST_DISABLE_ASSERTS)
-endif ()
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    find_package(CUDA)
+    if (CUDA_FOUND)
+        cuda_select_nvcc_arch_flags(CUDA_ARCH_FLAGS Auto)
+        list(APPEND CUDA_NVCC_FLAGS
+            ${CUDA_ARCH_FLAGS}
+            -Wno-deprecated-gpu-targets
+            -Xcompiler -std=c++03
+            )
+
+        add_library(cuda_target INTERFACE)
+        target_link_libraries(cuda_target INTERFACE ${CUDA_cusparse_LIBRARY})
+
+        target_compile_options(cuda_target INTERFACE
+            $<$<CXX_COMPILER_ID:GNU>:-std=c++03>
+            )
+    endif()
+endif()
 
 #----------------------------------------------------------------------------
 # Find MPI
 #----------------------------------------------------------------------------
-find_package(MPI QUIET)
+find_package(MPI)
 if (MPI_CXX_FOUND)
-    include_directories(${MPI_CXX_INCLUDE_PATH})
+    add_library(mpi_target INTERFACE)
+    target_link_libraries(mpi_target INTERFACE amgcl ${MPI_CXX_LIBRARIES})
+    target_include_directories(mpi_target INTERFACE ${MPI_CXX_INCLUDE_PATH})
 endif()
 
 #----------------------------------------------------------------------------
@@ -160,53 +193,30 @@ find_package(Metis  QUIET)
 find_package(Scotch QUIET)
 find_package(Pastix QUIET)
 find_package(BLAS   QUIET)
+find_library(PTHREAD_LIBRARY pthread)
+find_library(BZ2_LIBRARY bz2)
 
 if (METIS_INCLUDES)
-    include_directories(${METIS_INCLUDES})
+    add_library(metis_target INTERFACE)
+    target_include_directories(metis_target INTERFACE ${METIS_INCLUDES})
+    target_link_libraries(metis_target INTERFACE ${METIS_LIBRARY})
 endif()
 
-if (PASTIX_INCLUDES AND SCOTCH_INCLUDES AND BLAS_FOUND)
-    set(HAVE_PASTIX ON)
-    include_directories(${PASTIX_INCLUDES})
-    add_definitions(-DAMGCL_HAVE_PASTIX)
+if (PASTIX_INCLUDES AND SCOTCH_INCLUDES AND BLAS_FOUND AND PTHREAD_LIBRARY AND BZ2_LIBRARY)
+    add_library(pastix_target INTERFACE)
+    target_include_directories(pastix_target INTERFACE
+        ${PASTIX_INCLUDES}
+        ${SCOTCH_INCLUDES}
+        )
+    target_link_libraries(pastix_target INTERFACE
+        ${PASTIX_LIBRARIES}
+        ${SCOTCH_LIBRARIES}
+        ${BLAS_LIBRARIES}
+        ${PTHREAD_LIBRARY}
+        ${BZ2_LIBRARY}
+        )
+    target_compile_definitions(pastix_target INTERFACE AMGCL_HAVE_PASTIX)
 endif()
-
-if (SCOTCH_INCLUDES)
-    include_directories(${SCOTCH_INCLUDES})
-endif()
-
-#----------------------------------------------------------------------------
-# Visual Studio compilation flags
-#----------------------------------------------------------------------------
-if (WIN32)
-    add_definitions(-DNOMINMAX)
-    add_definitions(-D_VARIADIC_MAX=10)
-    add_definitions(/bigobj)
-    add_definitions(-D_SCL_SECURE_NO_WARNINGS)
-    add_definitions(/fp:fast)
-endif ()
-
-#----------------------------------------------------------------------------
-# Enable C++11 support, set compilation flags
-#----------------------------------------------------------------------------
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffast-math -Wall -Wclobbered -Wempty-body -Wignored-qualifiers -Wmissing-field-initializers -Wsign-compare -Wtype-limits -Wuninitialized -Wno-unused-parameter -Wunused-but-set-parameter -Wno-comment -Wno-type-limits -Wno-strict-aliasing -Wno-unused-local-typedefs -Wno-deprecated-declarations -Wno-ignored-attributes -Wno-misleading-indentation")
-    set(CXX11_FLAG -std=c++0x)
-endif ()
-
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-    set(CXX11_FLAG -std=c++11)
-endif ()
-
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffast-math -Wall -Wempty-body -Wignored-qualifiers -Wmissing-field-initializers -Wsign-compare -Wtype-limits -Wuninitialized -Wno-unused-parameter -Wno-comment -Wno-tautological-compare -Wno-deprecated-declarations -Wno-unused-local-typedef")
-    set(CXX11_FLAG -std=c++11)
-
-    option(USE_LIBCPP "Use libc++ with Clang" OFF)
-    if (USE_LIBCPP)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-    endif ()
-endif ()
 
 if (AMGCL_MASTER_PROJECT)
     option(AMGCL_BUILD_TESTS    OFF)
@@ -220,7 +230,6 @@ if (AMGCL_MASTER_PROJECT)
     endif()
 
     if (AMGCL_BUILD_EXAMPLES)
-        set(BUILD_SHARED_LIBS ON)
         add_subdirectory(lib)
         add_subdirectory(examples)
 
@@ -234,22 +243,25 @@ if (AMGCL_MASTER_PROJECT)
         endif()
     endif()
 
-    #----------------------------------------------------------------------------
-    add_library(amgcl INTERFACE)
-    add_library(amgcl::amgcl ALIAS amgcl)
-
-    if (OpenMP_FOUND)
-        target_include_directories(amgcl INTERFACE
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-            $<INSTALL_INTERFACE:include>
-            )
-        target_link_libraries(amgcl INTERFACE ${OpenMP_CXX_FLAGS})
-        target_compile_options(amgcl INTERFACE ${OpenMP_CXX_FLAGS})
-    endif()
-
     install(DIRECTORY amgcl DESTINATION include)
 
     install(TARGETS amgcl EXPORT amgclTargets)
+
+    if(TARGET eigen)
+        install(TARGETS eigen EXPORT amgclTargets)
+    endif()
+
+    if(TARGET blaze)
+        install(TARGETS blaze EXPORT amgclTargets)
+    endif()
+
+    if(TARGET viennacl)
+        install(TARGETS viennacl EXPORT amgclTargets)
+    endif()
+
+    if(TARGET mpi)
+        install(TARGETS mpi EXPORT amgclTargets)
+    endif()
 
     configure_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/cmake/amgcl-config.cmake"
