@@ -1,3 +1,4 @@
+dist: trusty
 language: cpp
 compiler: g++
 
@@ -14,7 +15,6 @@ addons:
     sources:
     - ubuntu-toolchain-r-test
     - boost-latest
-    - george-edison55-precise-backports
     packages:
     - gcc-5
     - g++-5
@@ -30,8 +30,6 @@ addons:
     - openmpi-bin
     - libopenmpi-dev
     - python-scipy
-    - cmake
-    - cmake-data
 
 env:
   global:
