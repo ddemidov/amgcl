@@ -15,6 +15,6 @@ if (TARGET mpi_target)
     target_link_libraries(libamgcl_mpi PUBLIC libamgcl mpi_target)
 
     if (TARGET pastix_target)
-        target_link_libraries(libamgcl_mpi pastix_target)
+        target_link_libraries(libamgcl_mpi PUBLIC pastix_target)
     endif()
 endif()
