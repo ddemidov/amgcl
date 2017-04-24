@@ -43,13 +43,13 @@ add_amgcl_example(call_lib call_lib.cpp)
 target_link_libraries(call_lib libamgcl)
 
 #----------------------------------------------------------------------------
-# The HPX example is no longer compiling
+# The HPX backend example
 #----------------------------------------------------------------------------
-#find_package(HPX)
-#if (HPX_FOUND)
-#    add_hpx_executable(hpx ESSENTIAL SOURCES hpx.cpp)
-#    target_link_libraries(hpx_exe PRIVATE amgcl_example)
-#endif()
+find_package(HPX)
+if (HPX_FOUND)
+    add_hpx_executable(solver_hpx SOURCES solver_hpx.cpp)
+    target_link_libraries(solver_hpx_exe PRIVATE amgcl_example)
+endif()
 
 if (TARGET vexcl_target)
     add_amgcl_example(vexcl vexcl.cpp)
