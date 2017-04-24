@@ -108,10 +108,10 @@ endif()
 #----------------------------------------------------------------------------
 # Find Blaze
 #----------------------------------------------------------------------------
-find_path(BLAZE_INCLUDE blaze/Math.h)
-if (BLAZE_INCLUDE)
+find_package(blaze)
+if (blaze_FOUND)
     add_library(blaze_target INTERFACE)
-    target_include_directories(blaze_target INTERFACE ${BLAZE_INCLUDE})
+    target_link_libraries(blaze_target INTERFACE blaze::blaze)
 endif()
 
 #----------------------------------------------------------------------------
