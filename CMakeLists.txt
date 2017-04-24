@@ -195,6 +195,7 @@ find_package(Pastix QUIET)
 find_package(BLAS   QUIET)
 find_library(PTHREAD_LIBRARY pthread)
 find_library(BZ2_LIBRARY bz2)
+find_library(HWLOC_LIBRARY hwloc)
 
 if (METIS_INCLUDES)
     add_library(metis_target INTERFACE)
@@ -214,6 +215,7 @@ if (PASTIX_INCLUDES AND SCOTCH_INCLUDES AND BLAS_FOUND AND PTHREAD_LIBRARY AND B
         ${BLAS_LIBRARIES}
         ${PTHREAD_LIBRARY}
         ${BZ2_LIBRARY}
+        ${HWLOC_LIBRARY}
         )
     target_compile_definitions(pastix_target INTERFACE AMGCL_HAVE_PASTIX)
 endif()
