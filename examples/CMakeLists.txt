@@ -48,7 +48,7 @@ target_link_libraries(call_lib libamgcl)
 find_package(HPX)
 if (HPX_FOUND)
     add_hpx_executable(solver_hpx SOURCES solver_hpx.cpp)
-    target_link_libraries(solver_hpx_exe PRIVATE amgcl_example)
+    hpx_setup_target(solver_hpx_exe DEPENDENCIES amgcl_example)
 endif()
 
 if (TARGET vexcl_target)
