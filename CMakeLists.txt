@@ -163,18 +163,16 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     find_package(CUDA)
     if (CUDA_FOUND)
         cuda_select_nvcc_arch_flags(CUDA_ARCH_FLAGS Auto)
+
         list(APPEND CUDA_NVCC_FLAGS
-            ${CUDA_ARCH_FLAGS}
-            -Wno-deprecated-gpu-targets
-            -Xcompiler -std=c++03
-            )
+            ${CUDA_ARCH_FLAGS} -Wno-deprecated-gpu-targets)
+
+        if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+            list(APPEND CUDA_NVCC_FLAGS -Xcompiler -std=c++03)
+        endif()
 
         add_library(cuda_target INTERFACE)
         target_link_libraries(cuda_target INTERFACE ${CUDA_cusparse_LIBRARY})
-
-        target_compile_options(cuda_target INTERFACE
-            $<$<CXX_COMPILER_ID:GNU>:-std=c++03>
-            )
     endif()
 endif()
 
