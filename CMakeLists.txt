@@ -147,7 +147,9 @@ if (VIENNACL_INCLUDE)
         target_compile_definitions(viennacl_target INTERFACE VIENNACL_WITH_OPENCL)
         target_compile_options(viennacl_target INTERFACE
             $<$<CXX_COMPILER_ID:GNU>:-Wno-ignored-attributes>
+            $<$<CXX_COMPILER_ID:GNU>:-Wno-deprecated-declarations>
             $<$<CXX_COMPILER_ID:Clang>:-Wno-ignored-attributes>
+            $<$<CXX_COMPILER_ID:Clang>:-Wno-deprecated-declarations>
             )
     else()
         target_compile_definitions(viennacl_target INTERFACE VIENNACL_WITH_OPENMP)
