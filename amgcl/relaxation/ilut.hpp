@@ -122,8 +122,8 @@ struct ilut {
                     ++lenU;
             }
 
-            Lnz += lenL * prm.p;
-            Unz += lenU * prm.p;
+            Lnz += static_cast<size_t>(lenL * prm.p);
+            Unz += static_cast<size_t>(lenU * prm.p);
         }
 
         boost::shared_ptr<build_matrix> L = boost::make_shared<build_matrix>();
@@ -172,7 +172,11 @@ struct ilut {
                 }
             }
 
-            w.move_to(lenL * prm.p, lenU * prm.p, tol, *L, *U, D);
+            w.move_to(
+                    static_cast<int>(lenL * prm.p),
+                    static_cast<int>(lenU * prm.p),
+                    tol, *L, *U, D
+                    );
         }
 
         this->D = Backend::copy_vector(D, bprm);

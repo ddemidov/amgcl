@@ -71,6 +71,7 @@ target_compile_options(amgcl INTERFACE
     # Compiler is MSVC:
     $<$<CXX_COMPILER_ID:MSVC>:/bigobj>
     $<$<CXX_COMPILER_ID:MSVC>:/fp:fast>
+    $<$<CXX_COMPILER_ID:MSVC>:/wd4715>
     )
 
 target_compile_definitions(amgcl INTERFACE

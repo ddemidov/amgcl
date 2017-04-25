@@ -71,8 +71,14 @@ namespace amgcl {
 /// Throws \p message if \p condition is not true.
 template <class Condition, class Message>
 void precondition(const Condition &condition, const Message &message) {
-    if ( !static_cast<bool>(condition) )
-        throw std::runtime_error(message);
+#ifdef _MSC_VER
+#  pragma warning(push)
+#  pragma warning(disable: 4800)
+#endif
+    if (!condition) throw std::runtime_error(message);
+#ifdef _MSC_VER
+#  pragma warning(pop)
+#endif
 }
 
 #define AMGCL_PARAMS_IMPORT_VALUE(p, name)                                     \
