@@ -1,6 +1,8 @@
 dist: trusty
 language: cpp
-compiler: g++
+compiler:
+    - gcc
+    - clang
 
 addons:
   coverity_scan:
@@ -16,8 +18,6 @@ addons:
     - ubuntu-toolchain-r-test
     - boost-latest
     packages:
-    - gcc-5
-    - g++-5
     - libboost-chrono1.55-dev
     - libboost-date-time1.55-dev
     - libboost-system1.55-dev
@@ -36,7 +36,6 @@ env:
   - secure: "Hl9sa1V5YSJDYOSr9wnw109Vvm27FVTIZC5gIEiNOwdsqdzsO2JTtnk/tLmhStUvyPfJ5Vv8lxc52KFBV1DNDLIT88hxdZ8yRdg1FClVY+B30IfSjO9nKfgNtpGBozBJOfUbOZJwMxsGOdjGDq0dn667E8WcljBLeywRyxjRFvY="
 
 script:
-- export CC=gcc-5 CXX=g++-5
 - sudo pip install .
 - mkdir -p build && cd build
 - cmake -DAMGCL_TEST_COVERAGE=ON -DAMGCL_BUILD_TESTS=ON -DAMGCL_BUILD_EXAMPLES=ON ..
