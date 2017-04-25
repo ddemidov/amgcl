@@ -6,7 +6,9 @@ endif()
 
 project(AMGCL)
 
-cmake_policy(SET CMP0058 OLD)
+if (NOT (CMAKE_VERSION LESS 3.3))
+    cmake_policy(SET CMP0058 OLD)
+endif()
 
 set(AMGCL_MASTER_PROJECT OFF)
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
