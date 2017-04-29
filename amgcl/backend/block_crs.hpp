@@ -194,6 +194,12 @@ struct block_crs {
         return boost::make_shared<vector>(x);
     }
 
+    static boost::shared_ptr< vector >
+    copy_vector(const std::vector<value_type> &x, const params&)
+    {
+        return boost::make_shared<vector>(x);
+    }
+
     /// Copy vector from builtin backend.
     static boost::shared_ptr<vector>
     copy_vector(boost::shared_ptr< vector > x, const params&)

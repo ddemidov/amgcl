@@ -80,12 +80,8 @@ class block_preconditioner {
             boost::shared_ptr<build_matrix> Aloc = boost::make_shared<build_matrix>();
             boost::shared_ptr<build_matrix> Arem = boost::make_shared<build_matrix>();
 
-            Aloc->nrows = n;
-            Aloc->ncols = n;
-            Arem->nrows = n;
-
-            Aloc->ptr.resize(n + 1, 0);
-            Arem->ptr.resize(n + 1, 0);
+            Aloc->set_size(n, n, true);
+            Arem->set_size(n, 0, true);
 
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < n; ++i) {
@@ -99,14 +95,11 @@ class block_preconditioner {
                 }
             }
 
-            boost::partial_sum(Aloc->ptr, Aloc->ptr.begin());
-            boost::partial_sum(Arem->ptr, Arem->ptr.begin());
+            std::partial_sum(Aloc->ptr, Aloc->ptr + n + 1, Aloc->ptr);
+            std::partial_sum(Arem->ptr, Arem->ptr + n + 1, Arem->ptr);
 
-            Aloc->col.resize(Aloc->ptr.back());
-            Aloc->val.resize(Aloc->ptr.back());
-
-            Arem->col.resize(Arem->ptr.back());
-            Arem->val.resize(Arem->ptr.back());
+            Aloc->set_nonzeros(Aloc->ptr[n]);
+            Arem->set_nonzeros(Arem->ptr[n]);
 
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < n; ++i) {
@@ -129,8 +122,8 @@ class block_preconditioner {
                 }
             }
 
-            C = boost::make_shared< comm_pattern<backend_type> >(comm, n, Arem->col, bprm);
-            Arem->ncols = C->renumber(Arem->col);
+            C = boost::make_shared< comm_pattern<backend_type> >(comm, n, Arem->nnz, Arem->col, bprm);
+            Arem->ncols = C->renumber(Arem->nnz, Arem->col);
 
             P = boost::make_shared<Precond>(Aloc, prm, bprm);
 

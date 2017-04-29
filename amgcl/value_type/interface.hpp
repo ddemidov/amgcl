@@ -32,7 +32,6 @@ THE SOFTWARE.
  */
 
 #include <boost/type_traits.hpp>
-#include <boost/typeof/typeof.hpp>
 
 namespace amgcl {
 namespace math {

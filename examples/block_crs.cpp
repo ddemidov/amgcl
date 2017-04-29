@@ -5,6 +5,7 @@
 
 #include <amgcl/amg.hpp>
 
+#include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/backend/block_crs.hpp>
 #include <amgcl/coarsening/aggregation.hpp>
 #include <amgcl/relaxation/spai0.hpp>
@@ -25,8 +26,10 @@ int main() {
         amgcl::relaxation::spai0
         > AMG;
 
-    amgcl::backend::crs<double, ptrdiff_t> A;
-    std::vector<double> rhs;
+    std::vector<ptrdiff_t> ptr;
+    std::vector<ptrdiff_t> col;
+    std::vector<double>    val;
+    std::vector<double>    rhs;
 
     prof.tic("read");
     {
@@ -48,14 +51,13 @@ int main() {
         std::istream_iterator<double> ival(fval);
         std::istream_iterator<double> irhs(frhs);
 
-        A.ptr.assign(iptr, iend);
-        A.col.assign(icol, iend);
-        A.val.assign(ival, dend);
-
+        ptr.assign(iptr, iend);
+        col.assign(icol, iend);
+        val.assign(ival, dend);
         rhs.assign(irhs, dend);
     }
 
-    int n = A.nrows = A.ncols = A.ptr.size() - 1;
+    int n = ptr.size() - 1;
     prof.toc("read");
 
     prof.tic("build");
@@ -67,7 +69,7 @@ int main() {
     Backend::params bprm;
     bprm.block_size = 4;
 
-    AMG amg(A, prm, bprm);
+    AMG amg(boost::tie(n, ptr, col, val), prm, bprm);
     prof.toc("build");
 
     std::cout << amg << std::endl;

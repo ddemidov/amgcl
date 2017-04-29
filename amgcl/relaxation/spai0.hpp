@@ -63,7 +63,7 @@ struct spai0 {
 
         const size_t n = rows(A);
 
-        boost::shared_ptr< std::vector<value_type> > m = boost::make_shared< std::vector<value_type> >(n);
+        boost::shared_ptr< backend::numa_vector<value_type> > m = boost::make_shared< backend::numa_vector<value_type> >(n, false);
 
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {

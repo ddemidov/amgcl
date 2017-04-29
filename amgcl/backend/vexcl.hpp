@@ -144,18 +144,14 @@ struct vexcl {
 
         const typename builtin<real>::matrix &a = *A;
 
-        BOOST_AUTO(Aptr, a.ptr_data());
-        BOOST_AUTO(Acol, a.col_data());
-        BOOST_AUTO(Aval, a.val_data());
-
         const size_t n   = rows(*A);
         const size_t m   = cols(*A);
-        const size_t nnz = Aptr[n];
+        const size_t nnz = a.ptr[n];
 
         return boost::make_shared<matrix>(prm.context(), n, m,
-                boost::make_iterator_range(Aptr, Aptr + n+1),
-                boost::make_iterator_range(Acol, Acol + nnz),
-                boost::make_iterator_range(Aval, Aval + nnz),
+                boost::make_iterator_range(a.ptr, a.ptr + n+1),
+                boost::make_iterator_range(a.col, a.col + nnz),
+                boost::make_iterator_range(a.val, a.val + nnz),
                 prm.fast_matrix_setup
                 );
     }
@@ -169,10 +165,18 @@ struct vexcl {
         return boost::make_shared< vex::vector<T> >(prm.context(), x);
     }
 
+    template <class T>
+    static boost::shared_ptr< vex::vector<T> >
+    copy_vector(const numa_vector<T> &x, const params &prm)
+    {
+        precondition(!prm.context().empty(), "Empty VexCL context!");
+        return boost::make_shared< vex::vector<T> >(prm.context(), x.size(), x.data());
+    }
+
     // Copy vector from builtin backend.
     template <class T>
     static boost::shared_ptr< vex::vector<T> >
-    copy_vector(boost::shared_ptr< std::vector<T> > x, const params &prm)
+    copy_vector(boost::shared_ptr< numa_vector<T> > x, const params &prm)
     {
         return copy_vector(*x, prm);
     }

@@ -272,8 +272,7 @@ struct cuda {
     copy_matrix(boost::shared_ptr< typename builtin<real>::matrix > A, const params &prm)
     {
         return boost::make_shared<matrix>(rows(*A), cols(*A),
-                A->ptr_data(), A->col_data(), A->val_data(),
-                prm.cusparse_handle
+                A->ptr, A->col, A->val, prm.cusparse_handle
                 );
     }
 
@@ -281,7 +280,7 @@ struct cuda {
     static boost::shared_ptr<vector>
     copy_vector(typename builtin<real>::vector const &x, const params&)
     {
-        return boost::make_shared<vector>(x.begin(), x.end());
+        return boost::make_shared<vector>(x.data(), x.data() + x.size());
     }
 
     /// Copy vector from builtin backend.

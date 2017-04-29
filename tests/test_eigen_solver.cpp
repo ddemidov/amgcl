@@ -10,10 +10,21 @@ BOOST_AUTO_TEST_SUITE( test_eigen_solver )
 
 BOOST_AUTO_TEST_CASE(eigen_solver)
 {
-    amgcl::backend::crs<double, int> A;
+    std::vector<int>    ptr;
+    std::vector<int>    col;
+    std::vector<double> val;
     std::vector<double> rhs;
 
-    size_t n = A.nrows = A.ncols = sample_problem(16, A.val, A.col, A.ptr, rhs);
+    size_t n = sample_problem(16, val, col, ptr, rhs);
+
+    amgcl::backend::crs<double, int> A;
+
+    A.nrows = A.ncols = n;
+    A.nnz = ptr[n];
+    A.ptr = ptr.data();
+    A.col = col.data();
+    A.val = val.data();
+    A.own_data = false;
 
     amgcl::solver::EigenSolver<Eigen::SparseLU<Eigen::SparseMatrix<double, Eigen::ColMajor, int> > > solve( A );
 

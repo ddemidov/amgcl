@@ -67,10 +67,10 @@ struct precond {
 
     const precond& matvec() const { return *this; }
 
-    py::array_t<double> call(py::array_t<double> _rhs) const {
-        auto rhs = make_range(_rhs);
-        std::vector<double> x(boost::size(rhs), 0.0);
-        this->apply(std::vector<double>(boost::begin(rhs), boost::end(rhs)), x);
+    py::array_t<double> call(py::array_t<double> rhs) const {
+        vector x(rhs.size(), true);
+        vector f(rhs.data(), rhs.data() + rhs.size());
+        this->apply(f, x);
         return make_array(x.size(), x.data());
     }
 };
