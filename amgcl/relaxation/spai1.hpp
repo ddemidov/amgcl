@@ -73,16 +73,7 @@ struct spai1 {
         const size_t m   = backend::cols(A);
         const size_t nnz = backend::nonzeros(A);
 
-        BOOST_AUTO(Aptr, A.ptr_data());
-        BOOST_AUTO(Acol, A.col_data());
-
-        boost::shared_ptr<Matrix> Ainv = boost::make_shared<Matrix>();
-        Ainv->nrows = n;
-        Ainv->ncols = m;
-
-        Ainv->ptr.assign(Aptr, Aptr + n+1);
-        Ainv->col.assign(Acol, Acol + nnz);
-        Ainv->val.assign(nnz, math::zero<value_type>());
+        boost::shared_ptr<Matrix> Ainv = boost::make_shared<Matrix>(A);
 
 #pragma omp parallel
         {
@@ -104,17 +95,17 @@ struct spai1 {
             amgcl::detail::QR<value_type> qr;
 
             for(size_t i = chunk_start; i < chunk_end; ++i) {
-                ptrdiff_t row_beg = Aptr[i];
-                ptrdiff_t row_end = Aptr[i + 1];
+                ptrdiff_t row_beg = A.ptr[i];
+                ptrdiff_t row_end = A.ptr[i + 1];
 
-                I.assign(Acol + row_beg, Acol + row_end);
+                I.assign(A.col + row_beg, A.col + row_end);
 
                 J.clear();
                 for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                    ptrdiff_t c = Acol[j];
+                    ptrdiff_t c = A.col[j];
 
-                    for(ptrdiff_t jj = Aptr[c], ee = Aptr[c + 1]; jj < ee; ++jj) {
-                        ptrdiff_t cc = Acol[jj];
+                    for(ptrdiff_t jj = A.ptr[c], ee = A.ptr[c + 1]; jj < ee; ++jj) {
+                        ptrdiff_t cc = A.col[jj];
                         if (marker[cc] < 0) {
                             marker[cc] = 1;
                             J.push_back(cc);
@@ -130,7 +121,7 @@ struct spai1 {
                 }
 
                 for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                    ptrdiff_t c = Acol[j];
+                    ptrdiff_t c = A.col[j];
 
                     for(row_iterator a = row_begin(A, c); a; ++a)
                         B[marker[a.col()] + J.size() * (j - row_beg)] = a.value();

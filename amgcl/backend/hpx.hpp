@@ -74,9 +74,6 @@ class hpx_matrix {
             index_type n = backend::rows(*A);
             index_type m = backend::cols(*A);
 
-            BOOST_AUTO(Aptr, A->ptr_data());
-            BOOST_AUTO(Acol, A->col_data());
-
             index_type nseg = (n + grain_size - 1) / grain_size;
             index_type mseg = (m + grain_size - 1) / grain_size;
 
@@ -88,12 +85,12 @@ class hpx_matrix {
             hpx::parallel::for_each(
                     hpx::parallel::par,
                     boost::begin(range), boost::end(range),
-                    [this, grain_size, n, Aptr, Acol](index_type seg) {
+                    [this, grain_size, n, A](index_type seg) {
                         index_type i = seg * grain_size;
-                        index_type beg = Aptr[i];
-                        index_type end = Aptr[std::min<index_type>(i + grain_size, n)];
+                        index_type beg = A->ptr[i];
+                        index_type end = A->ptr[std::min<index_type>(i + grain_size, n)];
 
-                        auto mm = std::minmax_element(Acol + beg, Acol + end);
+                        auto mm = std::minmax_element(A->col + beg, A->col + end);
 
                         index_type xbeg = *std::get<0>(mm) / grain_size;
                         index_type xend = *std::get<1>(mm) / grain_size + 1;
@@ -154,10 +151,11 @@ class hpx_vector {
             init_futures();
         }
 
-        hpx_vector(boost::shared_ptr<Base> o, int grain_size)
+        template <class Other>
+        hpx_vector(boost::shared_ptr<Other> o, int grain_size)
             : nseg( (o->size() + grain_size - 1) / grain_size ),
               grain_size( grain_size ),
-              buf(o)
+              buf(boost::make_shared<Base>(o->data(), o->data() + o->size()))
         {
             precondition(grain_size > 0, "grain size should be positive");
             init_futures();
@@ -296,10 +294,11 @@ struct HPX {
     }
 
     /// Copy vector to builtin backend.
-    static boost::shared_ptr<vector>
-    copy_vector(boost::shared_ptr<typename vector::Base> x, const params &p)
+    template <typename Other>
+    static boost::shared_ptr<hpx_vector<typename Other::value_type>>
+    copy_vector(boost::shared_ptr<Other> x, const params &p)
     {
-        return boost::make_shared<vector>(x, p.grain_size);
+        return boost::make_shared<hpx_vector<typename Other::value_type>>(x, p.grain_size);
     }
 
     /// Create vector of the specified size.

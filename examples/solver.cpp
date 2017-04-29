@@ -83,17 +83,21 @@ boost::tuple<size_t, double> block_solve(
 
     std::cout << solve.precond() << std::endl;
 
+    rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&rhs[0]);
+    rhs_type       * xptr = reinterpret_cast<rhs_type       *>(&x[0]);
+
+    amgcl::backend::numa_vector<rhs_type> F(fptr, fptr + rows/B);
+    amgcl::backend::numa_vector<rhs_type> X(xptr, xptr + rows/B);
+
+    boost::tuple<size_t, double> info;
     {
         scoped_tic t(prof, "solve");
-
-        rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&rhs[0]);
-        rhs_type       * xptr = reinterpret_cast<rhs_type       *>(&x[0]);
-
-        boost::iterator_range<rhs_type const *> frng(fptr, fptr + rows/B);
-        boost::iterator_range<rhs_type       *> xrng(xptr, xptr + rows/B);
-
-        return solve(frng, xrng);
+        info = solve(F, X);
     }
+
+    std::copy(X.data(), X.data() + X.size(), xptr);
+
+    return info;
 }
 #endif
 

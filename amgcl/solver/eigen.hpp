@@ -56,9 +56,8 @@ class EigenSolver {
                     MatrixType(
                         Eigen::MappedSparseMatrix<value_type, Eigen::RowMajor, int>(
                             backend::rows(A), backend::cols(A), backend::nonzeros(A),
-                            const_cast<int*>(backend::ptr_data(A)),
-                            const_cast<int*>(backend::col_data(A)),
-                            const_cast<value_type*>(backend::val_data(A))
+                            const_cast<int*>(A.ptr), const_cast<int*>(A.col),
+                            const_cast<value_type*>(A.val)
                             )
                         )
                     );

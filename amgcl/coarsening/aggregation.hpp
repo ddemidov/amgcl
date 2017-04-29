@@ -136,13 +136,10 @@ struct aggregation {
                 );
         TOC("interpolation");
 
-        boost::shared_ptr<Matrix> R = boost::make_shared<Matrix>();
-        *R = transpose(*P);
-
         if (prm.nullspace.cols > 0)
             prm.aggr.block_size = prm.nullspace.cols;
 
-        return boost::make_tuple(P, R);
+        return boost::make_tuple(P, transpose(*P));
     }
 
     /// Creates system matrix for the coarser level.

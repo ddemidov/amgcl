@@ -143,20 +143,15 @@ boost::shared_ptr<Matrix> tentative_prolongation(
         // Precompute the shape of the prolongation operator.
         // Each row contains exactly nullspace.cols non-zero entries.
         // Rows that do not belong to any aggregate are empty.
-        P->nrows = n;
-        P->ncols = nullspace.cols * naggr / block_size;
-        P->ptr.reserve(n + 1);
+        P->set_size(n, nullspace.cols * naggr / block_size);
+        P->ptr[0] = 0;
 
-        P->ptr.push_back(0);
-        for(size_t i = 0; i < n; ++i) {
-            if (aggr[i] < 0)
-                P->ptr.push_back(P->ptr.back());
-            else
-                P->ptr.push_back(P->ptr.back() + nullspace.cols);
-        }
+#pragma omp parallel for
+        for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i)
+            P->ptr[i+1] = aggr[i] < 0 ? 0 : nullspace.cols;
 
-        P->col.resize(P->ptr.back());
-        P->val.resize(P->ptr.back());
+        std::partial_sum(P->ptr, P->ptr + n + 1, P->ptr);
+        P->set_nonzeros();
 
         // Compute the tentative prolongation operator and null-space vectors
         // for the coarser level.
@@ -199,17 +194,22 @@ boost::shared_ptr<Matrix> tentative_prolongation(
 
         std::swap(nullspace.B, Bnew);
     } else {
-        P->nrows = n;
-        P->ncols = naggr;
-        P->ptr.reserve(n + 1);
-        P->col.reserve(n);
+        P->set_size(n, naggr);
+        P->ptr[0] = 0;
+#pragma omp parallel for
+        for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i)
+            P->ptr[i+1] = (aggr[i] >= 0);
 
-        P->ptr.push_back(0);
-        for(size_t i = 0; i < n; ++i) {
-            if (aggr[i] >= 0) P->col.push_back(aggr[i]);
-            P->ptr.push_back( static_cast<ptrdiff_t>(P->col.size()) );
+        std::partial_sum(P->ptr, P->ptr + n + 1, P->ptr);
+        P->set_nonzeros(P->ptr[n]);
+
+#pragma omp parallel for
+        for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
+            if (aggr[i] >= 0) {
+                P->col[P->ptr[i]] = aggr[i];
+                P->val[P->ptr[i]] = math::identity<value_type>();
+            }
         }
-        P->val.resize(n, math::identity<value_type>());
     }
     TOC("tentative");
 
