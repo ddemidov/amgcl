@@ -35,7 +35,7 @@ namespace amgcl {
 
 struct constant_deflation {
     size_t dim() const { return 1; }
-    double operator()(ptrdiff_t i, unsigned j) const { return 1.0; }
+    double operator()(ptrdiff_t, unsigned) const { return 1.0; }
 };
 
 struct linear_deflation {

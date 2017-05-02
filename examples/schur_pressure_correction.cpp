@@ -56,7 +56,7 @@ typename boost::enable_if_c<
     ),
     void
     >::type
-solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
+solve_schur(const Matrix&, const std::vector<double>&, boost::property_tree::ptree&)
 {}
 
 //---------------------------------------------------------------------------

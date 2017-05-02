@@ -296,7 +296,7 @@ struct parallel_ilu0 {
     }
 
     template <class Matrix, class VectorRHS, class VectorX>
-    void apply(const Matrix &A, const VectorRHS &rhs, VectorX &x, const params &prm) const
+    void apply(const Matrix&, const VectorRHS &rhs, VectorX &x, const params &prm) const
     {
         backend::copy(rhs, x);
         solve(x, prm);
