@@ -29,7 +29,7 @@ addons:
     - lcov
     - openmpi-bin
     - libopenmpi-dev
-    - python-scipy
+    - python3-scipy
 
 env:
   global:
@@ -38,7 +38,7 @@ env:
 script:
 - export CC=gcc-5 CXX=g++-5
 - mkdir -p build && cd build
-- cmake -DAMGCL_TEST_COVERAGE=ON -DAMGCL_BUILD_TESTS=ON -DAMGCL_BUILD_EXAMPLES=ON ..
+- cmake -DAMGCL_TEST_COVERAGE=ON -DAMGCL_BUILD_TESTS=ON -DAMGCL_BUILD_EXAMPLES=ON -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/python3 ..
 - make
 - ctest --output-on-failure
 - for n in 1 4 16; do echo --- $n ---; mpirun -np $n ./examples/mpi/runtime_sdd; done
