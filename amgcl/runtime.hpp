@@ -152,11 +152,7 @@ typename boost::disable_if<
     typename backend::coarsening_is_supported<Backend, Coarsening>::type,
     void
     >::type
-process_amg(
-        runtime::relaxation::type relaxation,
-        const Func &func
-        )
-{
+process_amg(runtime::relaxation::type, const Func&) {
     throw std::logic_error("The coarsening is not supported by the backend");
 }
 

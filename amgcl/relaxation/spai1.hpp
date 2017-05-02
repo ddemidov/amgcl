@@ -71,7 +71,6 @@ struct spai1 {
 
         const size_t n   = backend::rows(A);
         const size_t m   = backend::cols(A);
-        const size_t nnz = backend::nonzeros(A);
 
         boost::shared_ptr<Matrix> Ainv = boost::make_shared<Matrix>(A);
 
@@ -161,7 +160,7 @@ struct spai1 {
     }
 
     template <class Matrix, class VectorRHS, class VectorX>
-    void apply(const Matrix &A, const VectorRHS &rhs, VectorX &x, const params&) const
+    void apply(const Matrix&, const VectorRHS &rhs, VectorX &x, const params&) const
     {
         backend::spmv(math::identity<scalar_type>(), *M, rhs, math::zero<scalar_type>(), x);
     }

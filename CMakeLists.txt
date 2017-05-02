@@ -51,7 +51,7 @@ target_include_directories(amgcl INTERFACE
     )
 
 find_package(OpenMP)
-if (OpenMP_FOUND)
+if (OPENMP_FOUND)
     target_compile_options(amgcl INTERFACE ${OpenMP_CXX_FLAGS})
     target_link_libraries(amgcl INTERFACE
         $<$<CXX_COMPILER_ID:GNU>:${OpenMP_CXX_FLAGS}>
@@ -66,8 +66,10 @@ endif ()
 target_compile_options(amgcl INTERFACE
     # Compiler is GNU (g++):
     $<$<CXX_COMPILER_ID:GNU>:-ffast-math>
+    $<$<CXX_COMPILER_ID:GNU>:$<BUILD_INTERFACE:-Wall;-Wextra;-Wpedantic>>
     # Compiler is Clang:
     $<$<CXX_COMPILER_ID:Clang>:-ffast-math>
+    $<$<CXX_COMPILER_ID:Clang>:$<BUILD_INTERFACE:-Wall;-Wextra;-Wpedantic>>
     # Compiler is MSVC:
     $<$<CXX_COMPILER_ID:MSVC>:/bigobj>
     $<$<CXX_COMPILER_ID:MSVC>:/fp:fast>
@@ -173,7 +175,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
             ${CUDA_ARCH_FLAGS} -Wno-deprecated-gpu-targets)
 
         if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-            list(APPEND CUDA_NVCC_FLAGS -Xcompiler -std=c++03)
+            list(APPEND CUDA_NVCC_FLAGS -Xcompiler -std=c++03 -Xcompiler -Wno-vla)
         endif()
 
         add_library(cuda_target INTERFACE)
@@ -189,6 +191,10 @@ if (MPI_CXX_FOUND)
     add_library(mpi_target INTERFACE)
     target_link_libraries(mpi_target INTERFACE amgcl ${MPI_CXX_LIBRARIES})
     target_include_directories(mpi_target INTERFACE ${MPI_CXX_INCLUDE_PATH})
+    target_compile_options(mpi_target INTERFACE
+        $<$<CXX_COMPILER_ID:GNU>:-Wno-long-long>
+        $<$<CXX_COMPILER_ID:Clang>:-Wno-long-long>
+        )
 endif()
 
 #----------------------------------------------------------------------------
