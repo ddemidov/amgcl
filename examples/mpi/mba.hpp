@@ -37,9 +37,9 @@ THE SOFTWARE.
 #include <list>
 #include <utility>
 
+#include <boost/container/flat_map.hpp>
 #include <boost/array.hpp>
 #include <boost/multi_array.hpp>
-#include <boost/container/flat_map.hpp>
 #include <boost/range/algorithm.hpp>
 #include <boost/range/numeric.hpp>
 #include <boost/iterator/transform_iterator.hpp>

@@ -8,6 +8,9 @@
 #include <omp.h>
 #endif
 
+#include "domain_partition.hpp"
+#include "mba.hpp"
+
 #include <boost/scope_exit.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/range/algorithm.hpp>
@@ -25,9 +28,6 @@
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/adapter/zero_copy.hpp>
 #include <amgcl/profiler.hpp>
-
-#include "domain_partition.hpp"
-#include "mba.hpp"
 
 namespace amgcl {
     profiler<> prof;
