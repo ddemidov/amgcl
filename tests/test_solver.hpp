@@ -190,6 +190,7 @@ void test_backend() {
     }
 
     // Trivial problem
+#if !defined(SOLVER_BACKEND_VIENNACL)
     {
         std::vector<ptrdiff_t>  ptr;
         std::vector<ptrdiff_t>  col;
@@ -205,6 +206,7 @@ void test_backend() {
 
         test_problem<Backend>(n, ptr, col, val, rhs);
     }
+#endif
 }
 
 #endif
