@@ -83,4 +83,6 @@ if (NOT WIN32)
         COPYONLY
         )
     add_test(test_pyamgcl test_pyamgcl.py)
+    set_tests_properties(test_pyamgcl
+        PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR}/..")
 endif()

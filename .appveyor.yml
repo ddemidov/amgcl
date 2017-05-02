@@ -9,6 +9,7 @@ platform:
 configuration:
     - Release
 build_script:
+    - git submodule update --init --recursive
     - cmake -DAMGCL_BUILD_TESTS=ON -DAMGCL_BUILD_EXAMPLES=ON . -Bbuild
     - cmake --build build --config Release
 test_script:
