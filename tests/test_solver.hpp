@@ -105,16 +105,24 @@ void test_problem(
     };
 
     amgcl::runtime::relaxation::type relaxation[] = {
-        amgcl::runtime::relaxation::spai0,
-        amgcl::runtime::relaxation::spai1,
-        amgcl::runtime::relaxation::damped_jacobi,
-        amgcl::runtime::relaxation::gauss_seidel,
-        amgcl::runtime::relaxation::multicolor_gauss_seidel,
-        amgcl::runtime::relaxation::ilu0,
-        amgcl::runtime::relaxation::parallel_ilu0,
-        amgcl::runtime::relaxation::iluk,
-        amgcl::runtime::relaxation::ilut,
-        amgcl::runtime::relaxation::chebyshev
+        amgcl::runtime::relaxation::spai0
+#ifndef AMGCL_RUNTIME_DISABLE_SPAI1
+      , amgcl::runtime::relaxation::spai1
+#endif
+      , amgcl::runtime::relaxation::damped_jacobi
+      , amgcl::runtime::relaxation::gauss_seidel
+#ifndef AMGCL_RUNTIME_DISABLE_MULTICOLOR_GS
+      , amgcl::runtime::relaxation::multicolor_gauss_seidel
+#endif
+      , amgcl::runtime::relaxation::ilu0
+#ifndef AMGCL_RUNTIME_DISABLE_PARALLEL_ILU0
+      , amgcl::runtime::relaxation::parallel_ilu0
+#endif
+      , amgcl::runtime::relaxation::iluk
+      , amgcl::runtime::relaxation::ilut
+#ifndef AMGCL_RUNTIME_DISABLE_CHEBYSHEV
+      , amgcl::runtime::relaxation::chebyshev
+#endif
     };
 
     amgcl::runtime::solver::type solver[] = {
