@@ -237,6 +237,16 @@ endif()
 if (AMGCL_MASTER_PROJECT)
     option(AMGCL_BUILD_TESTS    OFF)
     option(AMGCL_BUILD_EXAMPLES OFF)
+    option(AMGCL_DISABLE_RARE_COMPONENTS OFF)
+
+    if(AMGCL_DISABLE_RARE_COMPONENTS)
+        add_definitions(
+            -DAMGCL_RUNTIME_DISABLE_MULTICOLOR_GS
+            -DAMGCL_RUNTIME_DISABLE_PARALLEL_ILU0
+            -DAMGCL_RUNTIME_DISABLE_SPAI1
+            -DAMGCL_RUNTIME_DISABLE_CHEBYSHEV
+            )
+    endif()
 
     add_subdirectory(docs)
 
