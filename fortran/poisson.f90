@@ -70,7 +70,7 @@ program poisson
 
     ! Solve the problem for the given right-hand-side.
     cnv = amgcl_solver_solve(solver, rhs, x)
-    write(*,"('Iterations:' I3, ', residual: ', E13.6)") cnv%iterations, cnv%residual
+    write(*,"('Iterations:', I3, ', residual: ', E13.6)") cnv%iterations, cnv%residual
 
     ! Destroy solver and parameter pack.
     call amgcl_solver_destroy(solver)
