@@ -44,10 +44,13 @@ find_package(Boost REQUIRED COMPONENTS
 add_library(amgcl INTERFACE)
 add_library(amgcl::amgcl ALIAS amgcl)
 
+target_include_directories(amgcl SYSTEM INTERFACE
+    ${Boost_INCLUDE_DIRS}
+    )
+
 target_include_directories(amgcl INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     $<INSTALL_INTERFACE:include>
-    ${Boost_INCLUDE_DIRS}
     )
 
 find_package(OpenMP)
