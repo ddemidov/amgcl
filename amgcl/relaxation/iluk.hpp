@@ -219,9 +219,9 @@ struct iluk {
 
         struct sparse_vector {
             struct comp_indices {
-                const std::vector<nonzero> &nz;
+                const std::deque<nonzero> &nz;
 
-                comp_indices(const std::vector<nonzero> &nz) : nz(nz) {}
+                comp_indices(const std::deque<nonzero> &nz) : nz(nz) {}
 
                 bool operator()(int a, int b) const {
                     return nz[a].col > nz[b].col;
@@ -234,7 +234,7 @@ struct iluk {
 
             int lfil;
 
-            std::vector<nonzero>   nz;
+            std::deque<nonzero>    nz;
             std::vector<ptrdiff_t> idx;
             priority_queue q;
 
@@ -242,9 +242,7 @@ struct iluk {
 
             sparse_vector(size_t n, int lfil)
                 : lfil(lfil), idx(n, -1), q(comp_indices(nz)), dia(0)
-            {
-                nz.reserve(16);
-            }
+            {}
 
             void add(ptrdiff_t col, const value_type &val, int lev) {
                 if (idx[col] < 0) {
