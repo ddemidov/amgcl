@@ -32,9 +32,6 @@ THE SOFTWARE.
  */
 
 #include <vector>
-#ifdef _OPENMP
-#  include <omp.h>
-#endif
 
 #include <boost/shared_ptr.hpp>
 #include <amgcl/backend/interface.hpp>
@@ -76,24 +73,13 @@ struct spai1 {
 
 #pragma omp parallel
         {
-#ifdef _OPENMP
-            int nt  = omp_get_num_threads();
-            int tid = omp_get_thread_num();
-
-            size_t chunk_size  = (n + nt - 1) / nt;
-            size_t chunk_start = tid * chunk_size;
-            size_t chunk_end   = std::min(n, chunk_start + chunk_size);
-#else
-            size_t chunk_start = 0;
-            size_t chunk_end   = n;
-#endif
-
             std::vector<ptrdiff_t> marker(m, -1);
             std::vector<ptrdiff_t> I, J;
             std::vector<value_type> B, ek;
             amgcl::detail::QR<value_type> qr;
 
-            for(size_t i = chunk_start; i < chunk_end; ++i) {
+#pragma omp for
+            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
                 ptrdiff_t row_beg = A.ptr[i];
                 ptrdiff_t row_end = A.ptr[i + 1];
 
