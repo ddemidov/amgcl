@@ -108,7 +108,7 @@ endif()
 #----------------------------------------------------------------------------
 # Find Blaze
 #----------------------------------------------------------------------------
-find_package(blaze)
+find_package(blaze QUIET)
 if (blaze_FOUND)
     add_library(blaze_target INTERFACE)
     target_link_libraries(blaze_target INTERFACE blaze::blaze)
@@ -117,7 +117,7 @@ endif()
 #----------------------------------------------------------------------------
 # Find VexCL
 #----------------------------------------------------------------------------
-find_package(VexCL)
+find_package(VexCL QUIET)
 if (VexCL_FOUND)
     add_library(vexcl_target INTERFACE)
 
