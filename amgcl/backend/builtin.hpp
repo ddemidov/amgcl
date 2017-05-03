@@ -716,29 +716,21 @@ struct inner_product_impl<
 
 #pragma omp parallel
         {
-#ifdef _OPENMP
-            int nt  = omp_get_num_threads();
-            int tid = omp_get_thread_num();
-
-            size_t chunk_size  = (n + nt - 1) / nt;
-            size_t chunk_start = tid * chunk_size;
-            size_t chunk_end   = std::min(n, chunk_start + chunk_size);
-#else
-            size_t chunk_start = 0;
-            size_t chunk_end   = n;
-#endif
-
             return_type s = math::zero<return_type>();
             return_type c = math::zero<return_type>();
-            for(size_t i = chunk_start; i < chunk_end; ++i) {
+
+#pragma omp for
+            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
                 return_type d = math::inner_product(x[i], y[i]) - c;
                 return_type t = s + d;
                 c = (t - s) - d;
                 s = t;
             }
+
 #pragma omp critical
             sum += s;
         }
+
         return sum;
     }
 };
