@@ -96,9 +96,10 @@ setup(
         author_email='dennis.demidov@gmail.com',
         license='MIT',
         url='https://github.com/ddemidov/amgcl',
-        include_package_data=True,
-        zip_safe=False,
         packages=['pyamgcl'],
+        include_package_data=True,
+        exclude_package_data={'': ['CMakeLists.txt', 'pybind11']},
+        zip_safe=False,
         ext_modules=[
             Extension('pyamgcl.pyamgcl_ext', ['pyamgcl/pyamgcl.cpp'],
                 include_dirs=[
