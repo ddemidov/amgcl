@@ -722,7 +722,7 @@ struct inner_product_impl<
             return_type s = math::zero<return_type>();
             return_type c = math::zero<return_type>();
 
-#pragma omp for
+#pragma omp for nowait
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
                 return_type d = math::inner_product(x[i], y[i]) - c;
                 return_type t = s + d;

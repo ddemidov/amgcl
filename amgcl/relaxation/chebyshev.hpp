@@ -196,7 +196,7 @@ class chebyshev {
 #pragma omp parallel
             {
                 scalar_type my_emax = 0;
-#pragma omp for
+#pragma omp for nowait
                 for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
                     scalar_type hi = 0;
 

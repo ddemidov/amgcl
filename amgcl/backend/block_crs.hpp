@@ -100,15 +100,14 @@ struct bcrs {
                 }
             }
 
-            boost::fill(marker, -1);
-
-#pragma omp barrier
 #pragma omp single
             {
                 boost::partial_sum(ptr, ptr.begin());
                 col.resize(ptr.back());
                 val.resize(ptr.back() * block_size * block_size, 0);
             }
+
+            boost::fill(marker, -1);
 
             // Fill the block matrix.
 #pragma omp for
