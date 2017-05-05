@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <fstream>
 #include <vector>
+#include <numeric>
 #include <cmath>
 #include <stdexcept>
 #ifdef _OPENMP
@@ -13,8 +14,6 @@
 
 #include <boost/scope_exit.hpp>
 #include <boost/shared_ptr.hpp>
-#include <boost/range/algorithm.hpp>
-
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -499,7 +498,7 @@ int main(int argc, char *argv[]) {
     MPI_Allgather(
             &chunk, 1, amgcl::mpi::datatype<ptrdiff_t>(),
             &domain[1], 1, amgcl::mpi::datatype<ptrdiff_t>(), world);
-    boost::partial_sum(domain, domain.begin());
+    std::partial_sum(domain.begin(), domain.end(), domain.begin());
 
     lo = part.domain(world.rank).min_corner();
     hi = part.domain(world.rank).max_corner();
@@ -711,7 +710,7 @@ int main(int argc, char *argv[]) {
     if (!out_file.empty()) {
         if (world.rank == 0) {
             std::vector<double> X(n2);
-            boost::copy(x, X.begin());
+            std::copy(x.begin(), x.end(), X.begin());
 
             for(int i = 1; i < world.size; ++i)
                 MPI_Recv(&X[domain[i]], domain[i+1] - domain[i], MPI_DOUBLE, i, 42, MPI_COMM_WORLD, MPI_STATUS_IGNORE);

@@ -3,13 +3,14 @@
 #include <iomanip>
 #include <fstream>
 #include <vector>
+#include <algorithm>
+#include <numeric>
 #include <cmath>
 #ifdef _OPENMP
 #include <omp.h>
 #endif
 
 #include <boost/scope_exit.hpp>
-#include <boost/range/algorithm.hpp>
 
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -73,7 +74,7 @@ std::vector<ptrdiff_t> read_problem(
             ++domain[p+1];
         }
 
-        boost::partial_sum(domain, domain.begin());
+        std::partial_sum(domain.begin(), domain.end(), domain.begin());
     }
 
     ptrdiff_t chunk_beg = domain[world.rank];
@@ -90,7 +91,7 @@ std::vector<ptrdiff_t> read_problem(
             order[i] = j;
         }
 
-        boost::rotate(domain, domain.end() - 1);
+        std::rotate(domain.begin(), domain.end(), domain.end() - 1);
         domain[0] = 0;
     }
 
@@ -135,7 +136,7 @@ std::vector<ptrdiff_t> read_problem(
                 V.push_back(v);
             }
 
-            boost::partial_sum(ptr, ptr.begin());
+            std::partial_sum(ptr.begin(), ptr.end(), ptr.begin());
 
             ptrdiff_t loc_nnz = ptr.back();
 
@@ -148,7 +149,7 @@ std::vector<ptrdiff_t> read_problem(
                 val[ptr[row]] = V[i];
                 ++ptr[row];
             }
-            boost::rotate(ptr, ptr.end() - 1);
+            std::rotate(ptr.begin(), ptr.end(), ptr.end() - 1);
             ptr[0] = 0;
         }
     }
@@ -337,7 +338,7 @@ int main(int argc, char *argv[]) {
                 }
 
                 std::ostream_iterator<double> oi(f, "\n");
-                boost::copy(x, oi);
+                std::copy(x.begin(), x.end(), oi);
             }
             MPI_Barrier(world);
         }

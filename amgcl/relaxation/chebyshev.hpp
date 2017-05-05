@@ -33,7 +33,6 @@ THE SOFTWARE.
 
 #include <vector>
 #include <cmath>
-#include <boost/range/iterator_range.hpp>
 #include <boost/foreach.hpp>
 #include <boost/multi_array.hpp>
 #include <boost/math/constants/constants.hpp>

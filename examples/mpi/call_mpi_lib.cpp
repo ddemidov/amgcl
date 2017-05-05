@@ -2,10 +2,9 @@
 #include <iomanip>
 #include <fstream>
 #include <vector>
+#include <numeric>
 
 #include <boost/scope_exit.hpp>
-#include <boost/range/algorithm.hpp>
-#include <boost/range/numeric.hpp>
 
 #include <amgcl/mpi/util.hpp>
 #include <amgcl_mpi.h>
@@ -45,7 +44,7 @@ int main(int argc, char *argv[]) {
             &chunk, 1, amgcl::mpi::datatype<ptrdiff_t>(),
             &domain[1], 1, amgcl::mpi::datatype<ptrdiff_t>(),
             MPI_COMM_WORLD);
-    boost::partial_sum(domain, domain.begin());
+    std::partial_sum(domain.begin(), domain.end(), domain.begin());
 
     ptrdiff_t chunk_start = domain[rank];
     ptrdiff_t chunk_end   = domain[rank + 1];
@@ -138,7 +137,7 @@ int main(int argc, char *argv[]) {
     if (n <= 4096) {
         if (rank == 0) {
             std::vector<double> X(n2);
-            boost::copy(x, X.begin());
+            std::copy(x.begin(), x.end(), X.begin());
 
             for(int i = 1; i < size; ++i)
                 MPI_Recv(&X[domain[i]], domain[i+1] - domain[i], MPI_DOUBLE, i, 42, MPI_COMM_WORLD, MPI_STATUS_IGNORE);

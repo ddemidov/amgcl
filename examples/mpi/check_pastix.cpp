@@ -2,10 +2,11 @@
 #include <iomanip>
 #include <fstream>
 #include <vector>
+#include <algorithm>
+#include <numeric>
 #include <cmath>
 
 #include <boost/scope_exit.hpp>
-#include <boost/range/algorithm.hpp>
 
 #include <amgcl/mpi/pastix.hpp>
 #include <amgcl/profiler.hpp>
@@ -39,7 +40,7 @@ int main(int argc, char *argv[]) {
 
     std::vector<int> domain(world.size + 1);
     MPI_Allgather(&chunk, 1, MPI_INT, &domain[1], 1, MPI_INT, world);
-    boost::partial_sum(domain, domain.begin());
+    std::partial_sum(domain.begin(), domain.end(), domain.begin());
 
     prof.tic("assemble");
     std::vector<int>    ptr;
@@ -100,7 +101,7 @@ int main(int argc, char *argv[]) {
     prof.tic("save");
     if (world.rank == 0) {
         std::vector<double> X(n2);
-        boost::copy(x, X.begin());
+        std::copy(x.begin(), x.end(), X.begin());
 
         for(int i = 1; i < world.size; ++i)
             MPI_Recv(&X[domain[i]], domain[i+1] - domain[i], MPI_DOUBLE, i, 42, world, MPI_STATUS_IGNORE);

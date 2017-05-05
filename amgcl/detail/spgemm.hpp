@@ -46,8 +46,6 @@ THE SOFTWARE.
  */
 #include <vector>
 #include <algorithm>
-#include <boost/range/algorithm.hpp>
-#include <boost/range/numeric.hpp>
 #ifdef _OPENMP
 #include <omp.h>
 #endif

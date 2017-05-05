@@ -2,14 +2,13 @@
 #include <iomanip>
 #include <fstream>
 #include <vector>
+#include <numeric>
 #include <cmath>
 #ifdef _OPENMP
 #include <omp.h>
 #endif
 
 #include <boost/scope_exit.hpp>
-#include <boost/range/algorithm.hpp>
-
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -155,7 +154,7 @@ int main(int argc, char *argv[]) {
             &domain[1], 1, amgcl::mpi::datatype<ptrdiff_t>(),
             world
             );
-    boost::partial_sum(domain, domain.begin());
+    std::partial_sum(domain.begin(), domain.end(), domain.begin());
 
     ptrdiff_t chunk_start = domain[world.rank];
     ptrdiff_t chunk_end   = domain[world.rank + 1];

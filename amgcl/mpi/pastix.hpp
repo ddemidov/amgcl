@@ -39,8 +39,6 @@ See http://pastix.gforge.inria.fr
 
 #include <boost/static_assert.hpp>
 #include <boost/type_traits.hpp>
-#include <boost/range/algorithm.hpp>
-#include <boost/range/numeric.hpp>
 #include <boost/range/irange.hpp>
 #include <boost/foreach.hpp>
 

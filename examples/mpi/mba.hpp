@@ -36,13 +36,11 @@ THE SOFTWARE.
 #include <map>
 #include <list>
 #include <utility>
+#include <algorithm>
 
 #include <boost/container/flat_map.hpp>
 #include <boost/array.hpp>
 #include <boost/multi_array.hpp>
-#include <boost/range/algorithm.hpp>
-#include <boost/range/numeric.hpp>
-#include <boost/iterator/transform_iterator.hpp>
 #include <boost/type_traits.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
@@ -70,13 +68,13 @@ class grid_iterator {
         explicit grid_iterator(const boost::array<size_t, NDim> &dims)
             : N(dims), idx(0)
         {
-            boost::fill(i, 0);
+            std::fill(i.begin(), i.end(), 0);
             done = (i == N);
         }
 
         explicit grid_iterator(size_t dim) : idx(0) {
-            boost::fill(N, dim);
-            boost::fill(i, 0);
+            std::fill(N.begin(), N.end(), dim);
+            std::fill(i.begin(), i.end(), 0);
             done = (0 == dim);
         }
 
@@ -117,19 +115,19 @@ class grid_iterator {
 
 template <typename T, size_t N>
 boost::array<T, N> operator+(boost::array<T, N> a, const boost::array<T, N> &b) {
-    boost::transform(a, b, boost::begin(a), std::plus<T>());
+    std::transform(a.begin(), a.end(), b.begin(), a.begin(), std::plus<T>());
     return a;
 }
 
 template <typename T, size_t N>
 boost::array<T, N> operator-(boost::array<T, N> a, T b) {
-    boost::transform(a, boost::begin(a), std::bind2nd(std::minus<T>(), b));
+    std::transform(a.begin(), a.end(), a.begin(), std::bind2nd(std::minus<T>(), b));
     return a;
 }
 
 template <typename T, size_t N>
 boost::array<T, N> operator*(boost::array<T, N> a, T b) {
-    boost::transform(a, boost::begin(a), std::bind2nd(std::multiplies<T>(), b));
+    std::transform(a.begin(), a.end(), a.begin(), std::bind2nd(std::multiplies<T>(), b));
     return a;
 }
 
@@ -476,7 +474,7 @@ class control_lattice_sparse : public control_lattice<NDim> {
         }
 
         static void append(two_doubles &a, const two_doubles &b) {
-            boost::transform(a, b, boost::begin(a), std::plus<double>());
+            std::transform(a.begin(), a.end(), b.begin(), a.begin(), std::plus<double>());
         }
 
         double get_phi(const index &i) const {
@@ -501,7 +499,7 @@ class linear_approximation {
 
             if (n <= NDim) {
                 // Not enough points to get a unique plane
-                boost::fill(C, 0.0);
+                std::fill(C.begin(), C.end(), 0.0);
                 C[NDim] = std::accumulate(val_begin, val_begin + n, 0.0) / n;
                 return;
             }
@@ -517,7 +515,7 @@ class linear_approximation {
             // Solve least-squares problem to get approximation with a plane.
             for(; p != coo_end; ++p, ++v, ++n) {
                 boost::array<double, NDim+1> x;
-                boost::copy(*p, boost::begin(x));
+                std::copy(p->begin(), p->end(), boost::begin(x));
                 x[NDim] = 1.0;
 
                 for(unsigned i = 0; i <= NDim; ++i) {
@@ -542,7 +540,7 @@ class linear_approximation {
             }
 
             if (singular) {
-                boost::fill(C, 0.0);
+                std::fill(C.begin(), C.end(), 0.0);
                 C[NDim] = sum_val / n;
             } else {
                 ublas::lu_substitute(A, pm, f);

@@ -1,14 +1,13 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <algorithm>
+#include <numeric>
 #include <cassert>
 
-#include <amgcl/util.hpp>
-
-#include <boost/range/algorithm.hpp>
-#include <boost/range/numeric.hpp>
 #include <boost/program_options.hpp>
 
+#include <amgcl/util.hpp>
 #include <amgcl/io/mm.hpp>
 #include <amgcl/io/binary.hpp>
 
@@ -46,8 +45,8 @@ void pointwise_graph(
         }
     }
 
-    boost::partial_sum(ptr1, ptr1.begin());
-    boost::fill(marker, -1);
+    std::partial_sum(ptr1.begin(), ptr1.end(), ptr1.begin());
+    std::fill(marker.begin(), marker.end(), -1);
 
     std::vector<int> col1(ptr1.back());
 
@@ -77,7 +76,7 @@ void pointwise_graph(
     for(int i = 0; i < nnz; ++i)
         ++( ptr2[ col1[i] + 1 ] );
 
-    boost::partial_sum(ptr2, ptr2.begin());
+    std::partial_sum(ptr2.begin(), ptr2.end(), ptr2.begin());
 
     for(int i = 0; i < np; ++i)
         for(int j = ptr1[i]; j < ptr1[i+1]; ++j)
@@ -87,7 +86,7 @@ void pointwise_graph(
     ptr2.front() = 0;
 
     // Merge both matrices.
-    boost::fill(marker, -1);
+    std::fill(marker.begin(), marker.end(), -1);
     pptr.resize(np + 1, 0);
 
     for(int i = 0; i < np; ++i) {
@@ -108,8 +107,8 @@ void pointwise_graph(
         }
     }
 
-    boost::partial_sum(pptr, pptr.begin());
-    boost::fill(marker, -1);
+    std::partial_sum(pptr.begin(), pptr.end(), pptr.begin());
+    std::fill(marker.begin(), marker.end(), -1);
 
     pcol.resize(pptr.back());
 
@@ -149,7 +148,7 @@ std::vector<int> pointwise_partition(
     std::vector<int> part(nrows);
 
     if (npart == 1) {
-        boost::fill(part, 0);
+        std::fill(part.begin(), part.end(), 0);
     } else {
         int edgecut;
 

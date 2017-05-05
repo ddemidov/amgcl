@@ -1,4 +1,6 @@
 #include <iostream>
+#include <vector>
+#include <algorithm>
 
 #include <amgcl/amg.hpp>
 #include <amgcl/make_solver.hpp>
@@ -8,8 +10,6 @@
 #include <amgcl/relaxation/multicolor_gauss_seidel.hpp>
 #include <amgcl/solver/cg.hpp>
 #include <amgcl/profiler.hpp>
-
-#include <boost/range/algorithm.hpp>
 
 #include "sample_problem.hpp"
 
@@ -119,7 +119,7 @@ int main(int argc, char *argv[]) {
     // Nesting iterative solvers in this way allows to shave last bits off the
     // error.
     amgcl::solver::cg< amgcl::backend::builtin<double> > S(n);
-    boost::fill(x, 0);
+    std::fill(x.begin(), x.end(), 0);
 
     prof.tic("nested solver");
     boost::tie(iters, resid) = S(solve.system_matrix(), solve, f, x);

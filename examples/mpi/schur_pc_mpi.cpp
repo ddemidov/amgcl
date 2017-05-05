@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <fstream>
 #include <vector>
+#include <numeric>
 #include <cmath>
 #ifdef _OPENMP
 #include <omp.h>
@@ -16,7 +17,6 @@
 #include <boost/foreach.hpp>
 #include <boost/range/iterator_range.hpp>
 #include <boost/scope_exit.hpp>
-#include <boost/range/algorithm.hpp>
 
 #include <amgcl/io/binary.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
@@ -57,7 +57,7 @@ std::vector<ptrdiff_t> read_problem(
         ++domain[p+1];
         precondition(p < world.size, "MPI world does not correspond to partition");
     }
-    boost::partial_sum(domain, domain.begin());
+    std::partial_sum(domain.begin(), domain.end(), domain.begin());
 
     ptrdiff_t chunk_beg = domain[world.rank];
     ptrdiff_t chunk_end = domain[world.rank + 1];
@@ -68,7 +68,7 @@ std::vector<ptrdiff_t> read_problem(
     for(ptrdiff_t i = 0; i < n; ++i)
         order[i] = domain[part[i]]++;
 
-    boost::rotate(domain, domain.end() - 1);
+    std::rotate(domain.begin(), domain.end(), domain.end() - 1);
     domain[0] = 0;
 
     // Read matrix chunk
@@ -99,7 +99,7 @@ std::vector<ptrdiff_t> read_problem(
             if (part[i] == world.rank)
                 ptr.push_back(gptr[i+1] - gptr[i]);
 
-        boost::partial_sum(ptr, ptr.begin());
+        std::partial_sum(ptr.begin(), ptr.end(), ptr.begin());
 
         col.clear(); col.reserve(ptr.back());
         val.clear(); val.reserve(ptr.back());

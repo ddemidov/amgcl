@@ -1,7 +1,6 @@
 #include <iostream>
 #include <vector>
 
-#include <boost/range/algorithm.hpp>
 #include <lib/amgcl.h>
 #include "sample_problem.hpp"
 
@@ -34,7 +33,7 @@ int main() {
     conv_info cnv = amgcl_solver_solve(solver, rhs.data(), x.data());
 
     // Solve same problem again, but explicitly provide the matrix this time:
-    boost::fill(x, 0);
+    std::fill(x.begin(), x.end(), 0);
     cnv = amgcl_solver_solve_mtx(
             solver, ptr.data(), col.data(), val.data(),
             rhs.data(), x.data()
