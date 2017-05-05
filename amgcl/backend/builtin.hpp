@@ -603,6 +603,9 @@ struct is_builtin_vector< boost::iterator_range<Iterator> > : boost::true_type {
 //---------------------------------------------------------------------------
 // Specialization of backend interface
 //---------------------------------------------------------------------------
+template <typename T1, typename T2>
+struct backends_compatible< builtin<T1>, builtin<T2> > : boost::true_type {};
+
 template < typename V, typename C, typename P >
 struct value_type< crs<V, C, P> > {
     typedef V type;
