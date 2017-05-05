@@ -24,6 +24,9 @@ add_amgcl_example(cpr cpr.cpp)
 add_amgcl_example(cpr_drs cpr_drs.cpp)
 add_amgcl_example(custom_adapter custom_adapter.cpp)
 
+add_amgcl_example(solver_mixed solver.cpp)
+target_compile_definitions(solver_mixed PRIVATE SOLVER_MIXED_PRECISION)
+
 add_amgcl_example(ublas ublas.cpp)
 target_link_libraries(ublas ${Boost_SERIALIZATION_LIBRARY})
 
@@ -58,6 +61,11 @@ if (TARGET vexcl_target)
     add_amgcl_example(solver_vexcl solver.cpp)
     target_link_libraries(solver_vexcl vexcl_target)
     target_compile_definitions(solver_vexcl PRIVATE SOLVER_BACKEND_VEXCL)
+
+    add_amgcl_example(solver_mixed_vexcl solver.cpp)
+    target_link_libraries(solver_mixed_vexcl vexcl_target)
+    target_compile_definitions(solver_mixed_vexcl PRIVATE
+        SOLVER_BACKEND_VEXCL SOLVER_MIXED_PRECISION)
 
     add_amgcl_example(schur_pressure_correction_vexcl schur_pressure_correction.cpp)
     target_link_libraries(schur_pressure_correction_vexcl vexcl_target)

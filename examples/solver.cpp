@@ -14,20 +14,29 @@
 #  include <amgcl/adapter/block_matrix.hpp>
 #  include <amgcl/backend/vexcl.hpp>
 #  include <amgcl/backend/vexcl_static_matrix.hpp>
-   typedef amgcl::backend::vexcl<double> Backend;
+   typedef amgcl::backend::vexcl<double> SBackend;
+#  if defined(SOLVER_MIXED_PRECISION)
+   typedef amgcl::backend::vexcl<float>  PBackend;
+#  else
+   typedef amgcl::backend::vexcl<double> PBackend;
+#  endif
 #elif defined(SOLVER_BACKEND_VIENNACL)
 #  include <amgcl/backend/viennacl.hpp>
-   typedef amgcl::backend::viennacl< viennacl::compressed_matrix<double> > Backend;
+   typedef amgcl::backend::viennacl< viennacl::compressed_matrix<double> > SBackend;
+   typedef amgcl::backend::viennacl< viennacl::compressed_matrix<double> > PBackend;
 #elif defined(SOLVER_BACKEND_CUDA)
 #  include <amgcl/backend/cuda.hpp>
 #  include <amgcl/relaxation/cusparse_ilu0.hpp>
-   typedef amgcl::backend::cuda<double> Backend;
+   typedef amgcl::backend::cuda<double> SBackend;
+   typedef amgcl::backend::cuda<double> PBackend;
 #elif defined(SOLVER_BACKEND_EIGEN)
 #  include <amgcl/backend/eigen.hpp>
-   typedef amgcl::backend::eigen<double> Backend;
+   typedef amgcl::backend::eigen<double> SBackend;
+   typedef amgcl::backend::eigen<double> PBackend;
 #elif defined(SOLVER_BACKEND_BLAZE)
 #  include <amgcl/backend/blaze.hpp>
-   typedef amgcl::backend::blaze<double> Backend;
+   typedef amgcl::backend::blaze<double> SBackend;
+   typedef amgcl::backend::blaze<double> PBackend;
 #else
 #  ifndef SOLVER_BACKEND_BUILTIN
 #    define SOLVER_BACKEND_BUILTIN
@@ -35,7 +44,12 @@
 #  include <amgcl/backend/builtin.hpp>
 #  include <amgcl/value_type/static_matrix.hpp>
 #  include <amgcl/adapter/block_matrix.hpp>
-   typedef amgcl::backend::builtin<double> Backend;
+   typedef amgcl::backend::builtin<double> SBackend;
+#  if defined(SOLVER_MIXED_PRECISION)
+   typedef amgcl::backend::builtin<float>  PBackend;
+#  else
+   typedef amgcl::backend::builtin<double> PBackend;
+#  endif
 #endif
 
 #include <amgcl/runtime.hpp>
@@ -70,11 +84,17 @@ boost::tuple<size_t, double> block_solve(
 {
     typedef amgcl::static_matrix<double, B, B> value_type;
     typedef amgcl::static_matrix<double, B, 1> rhs_type;
-    typedef amgcl::backend::builtin<value_type> BBackend;
+
+    typedef amgcl::backend::builtin< amgcl::static_matrix<double, B, B> > SBackend;
+#if defined(SOLVER_MIXED_PRECISION)
+    typedef amgcl::backend::builtin< amgcl::static_matrix<float, B, B> >  PBackend;
+#else
+    typedef amgcl::backend::builtin< amgcl::static_matrix<double, B, B> > PBackend;
+#endif
 
     typedef amgcl::make_solver<
-        Precond<BBackend>,
-        amgcl::runtime::iterative_solver<BBackend>
+        Precond<PBackend>,
+        amgcl::runtime::iterative_solver<SBackend>
         > Solver;
 
     prof.tic("setup");
@@ -116,14 +136,19 @@ boost::tuple<size_t, double> block_solve(
 {
     typedef amgcl::static_matrix<double, B, B> value_type;
     typedef amgcl::static_matrix<double, B, 1> rhs_type;
-    typedef amgcl::backend::vexcl<value_type> BBackend;
+    typedef amgcl::backend::vexcl<amgcl::static_matrix<double, B, B>> SBackend;
+#if defined(SOLVER_MIXED_PRECISION)
+    typedef amgcl::backend::vexcl<amgcl::static_matrix<float, B, B>>  PBackend;
+#else
+    typedef amgcl::backend::vexcl<amgcl::static_matrix<double, B, B>> PBackend;
+#endif
 
     typedef amgcl::make_solver<
-        Precond<BBackend>,
-        amgcl::runtime::iterative_solver<BBackend>
+        Precond<PBackend>,
+        amgcl::runtime::iterative_solver<SBackend>
         > Solver;
 
-    typename BBackend::params bprm;
+    typename SBackend::params bprm;
 
     vex::Context ctx(vex::Filter::Env);
     std::cout << ctx << std::endl;
@@ -131,7 +156,11 @@ boost::tuple<size_t, double> block_solve(
     bprm.fast_matrix_setup = prm.get("fast", true);
 
     vex::scoped_program_header header(ctx,
-            amgcl::backend::vexcl_static_matrix_declaration<double,B>());
+            amgcl::backend::vexcl_static_matrix_declaration<double,B>()
+#if defined(SOLVER_MIXED_PRECISION)
+            + amgcl::backend::vexcl_static_matrix_declaration<float,B>()
+#endif
+            );
 
     prof.tic("setup");
     Solver solve(amgcl::adapter::block_matrix<B, value_type>(boost::tie(rows, ptr, col, val)), prm, bprm);
@@ -169,7 +198,7 @@ boost::tuple<size_t, double> scalar_solve(
         std::vector<double>          &x
         )
 {
-    Backend::params bprm;
+    SBackend::params bprm;
 
 #if defined(SOLVER_BACKEND_VEXCL)
     vex::Context ctx(vex::Filter::Env);
@@ -192,8 +221,8 @@ boost::tuple<size_t, double> scalar_solve(
 #endif
 
     typedef amgcl::make_solver<
-        Precond<Backend>,
-        amgcl::runtime::iterative_solver<Backend>
+        Precond<PBackend>,
+        amgcl::runtime::iterative_solver<SBackend>
         > Solver;
 
     prof.tic("setup");
@@ -202,9 +231,9 @@ boost::tuple<size_t, double> scalar_solve(
 
     std::cout << solve.precond() << std::endl;
 
-    typedef Backend::vector vector;
-    boost::shared_ptr<vector> f_b = Backend::copy_vector(rhs, bprm);
-    boost::shared_ptr<vector> x_b = Backend::copy_vector(x,   bprm);
+    typedef SBackend::vector vector;
+    boost::shared_ptr<vector> f_b = SBackend::copy_vector(rhs, bprm);
+    boost::shared_ptr<vector> x_b = SBackend::copy_vector(x,   bprm);
 
     boost::tuple<size_t, double> info;
 
