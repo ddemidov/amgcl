@@ -46,15 +46,19 @@ function(add_amgcl_test TEST_NAME TEST_SOURCE)
     add_test(${TEST_NAME} ${TEST_NAME})
 endfunction()
 
-add_amgcl_test(test_skyline_lu    test_skyline_lu.cpp)
-add_amgcl_test(test_complex_erf   test_complex_erf.cpp)
-add_amgcl_test(test_qr            test_qr.cpp)
-add_amgcl_test(test_static_matrix test_static_matrix.cpp)
-
+add_amgcl_test(test_skyline_lu        test_skyline_lu.cpp)
+add_amgcl_test(test_complex_erf       test_complex_erf.cpp)
+add_amgcl_test(test_qr                test_qr.cpp)
 add_amgcl_test(test_solver_builtin    test_solver_builtin.cpp)
 add_amgcl_test(test_solver_complex    test_solver_complex.cpp)
 add_amgcl_test(test_solver_block_crs  test_solver_block_crs.cpp)
 add_amgcl_test(test_solver_ns_builtin test_solver_ns_builtin.cpp)
+
+add_amgcl_test(test_static_matrix test_static_matrix.cpp)
+target_compile_options(test_static_matrix PRIVATE
+    $<$<CXX_COMPILER_ID:GNU>:-std=c++0x>
+    $<$<CXX_COMPILER_ID:Clang>:-std=c++0x>
+    )
 
 if (TARGET blaze_target)
     add_amgcl_test(test_solver_blaze test_solver_blaze.cpp)

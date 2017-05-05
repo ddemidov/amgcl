@@ -49,6 +49,12 @@ struct static_matrix {
 
     static_matrix() {}
 
+#ifndef BOOST_NO_INITIALIZER_LISTS
+    static_matrix(std::initializer_list<T> data) {
+        std::copy(data.begin(), data.end(), buf.begin());
+    }
+#endif
+
     template <typename U>
     static_matrix(const static_matrix<U, N, M> &y) {
         for(int i = 0; i < N * M; ++i)
