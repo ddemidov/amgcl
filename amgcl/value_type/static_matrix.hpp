@@ -47,20 +47,6 @@ template <typename T, int N, int M>
 struct static_matrix {
     boost::array<T, N * M> buf;
 
-    static_matrix() {}
-
-#ifndef BOOST_NO_INITIALIZER_LISTS
-    static_matrix(std::initializer_list<T> data) {
-        std::copy(data.begin(), data.end(), buf.begin());
-    }
-#endif
-
-    template <typename U>
-    static_matrix(const static_matrix<U, N, M> &y) {
-        for(int i = 0; i < N * M; ++i)
-            buf[i] = y.buf[i];
-    }
-
     T operator()(int i, int j) const {
         return buf[i * M + j];
     }
