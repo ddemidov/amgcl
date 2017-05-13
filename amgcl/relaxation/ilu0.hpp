@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
 #include <amgcl/relaxation/detail/ilu_solve.hpp>
+#include <amgcl/io/mm.hpp>
 
 namespace amgcl {
 namespace relaxation {
@@ -170,6 +171,10 @@ struct ilu0 {
             for(ptrdiff_t j = row_beg; j < row_end; ++j)
                 work[A.col[j]] = NULL;
         }
+
+        io::mm_write("ilu_d.mtx", D.data(), n);
+        io::mm_write("ilu_l.mtx", *L);
+        io::mm_write("ilu_u.mtx", *U);
 
         this->D = Backend::copy_vector(D, bprm);
         this->L = Backend::copy_matrix(L, bprm);
