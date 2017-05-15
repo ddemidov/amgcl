@@ -16,7 +16,6 @@
 #include <amgcl/relaxation/spai0.hpp>
 #include <amgcl/relaxation/ilu0.hpp>
 #include <amgcl/relaxation/ilut.hpp>
-#include <amgcl/relaxation/parallel_ilu0.hpp>
 #include <amgcl/relaxation/chebyshev.hpp>
 
 #include <amgcl/solver/cg.hpp>
