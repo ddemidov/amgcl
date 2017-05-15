@@ -63,23 +63,28 @@ struct iluk {
         /// Damping factor.
         scalar_type damping;
 
+        /// Use serial version of the algorithm
+        bool serial;
+
         /// Number of Jacobi iterations.
         /** \note Used for approximate solution of triangular systems on parallel backends */
         unsigned jacobi_iters;
 
-        params() : k(1), damping(1), jacobi_iters(2) {}
+        params() : k(1), damping(1), serial(false), jacobi_iters(2) {}
 
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, k)
             , AMGCL_PARAMS_IMPORT_VALUE(p, damping)
+            , AMGCL_PARAMS_IMPORT_VALUE(p, serial)
             , AMGCL_PARAMS_IMPORT_VALUE(p, jacobi_iters)
         {
-            AMGCL_PARAMS_CHECK(p, (k)(damping)(jacobi_iters));
+            AMGCL_PARAMS_CHECK(p, (k)(damping)(serial)(jacobi_iters));
         }
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {
             AMGCL_PARAMS_EXPORT_VALUE(p, path, k);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, damping);
+            AMGCL_PARAMS_EXPORT_VALUE(p, path, serial);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, jacobi_iters);
         }
     };
