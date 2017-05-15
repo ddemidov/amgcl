@@ -115,9 +115,6 @@ void test_problem(
       , amgcl::runtime::relaxation::multicolor_gauss_seidel
 #endif
       , amgcl::runtime::relaxation::ilu0
-#ifndef AMGCL_RUNTIME_DISABLE_PARALLEL_ILU0
-      , amgcl::runtime::relaxation::parallel_ilu0
-#endif
       , amgcl::runtime::relaxation::iluk
       , amgcl::runtime::relaxation::ilut
 #ifndef AMGCL_RUNTIME_DISABLE_CHEBYSHEV
