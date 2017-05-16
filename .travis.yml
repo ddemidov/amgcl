@@ -41,7 +41,7 @@ script:
 - cmake -DAMGCL_TEST_COVERAGE=ON -DAMGCL_BUILD_TESTS=ON -DAMGCL_BUILD_EXAMPLES=ON -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/python3 ..
 - make
 - for n in 1 8; do OMP_NUM_THREADS=$n ctest --output-on-failure; done
-- for n in 1 4 16; do echo --- $n ---; mpirun -np $n ./examples/mpi/runtime_sdd; done
+- for d in constant linear bilinear mba harmonic; do OMP_NUM_THREADS=1 mpirun -np 16 ./examples/mpi/runtime_sdd -v ${d}; done
 after_success:
 - lcov --directory tests --base-directory ../amgcl --capture --output-file coverage.info
 - lcov --remove coverage.info '/usr*' -o coverage.info
