@@ -7,7 +7,7 @@
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/adapter/crs_builder.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
-#include <amgcl/relaxation/multicolor_gauss_seidel.hpp>
+#include <amgcl/relaxation/gauss_seidel.hpp>
 #include <amgcl/solver/cg.hpp>
 #include <amgcl/profiler.hpp>
 
@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
         amgcl::amg<
             amgcl::backend::builtin<double>,
             amgcl::coarsening::smoothed_aggregation,
-            amgcl::relaxation::multicolor_gauss_seidel
+            amgcl::relaxation::gauss_seidel
             >,
         amgcl::solver::cg<
             amgcl::backend::builtin<double>

@@ -111,9 +111,6 @@ void test_problem(
 #endif
       , amgcl::runtime::relaxation::damped_jacobi
       , amgcl::runtime::relaxation::gauss_seidel
-#ifndef AMGCL_RUNTIME_DISABLE_MULTICOLOR_GS
-      , amgcl::runtime::relaxation::multicolor_gauss_seidel
-#endif
       , amgcl::runtime::relaxation::ilu0
       , amgcl::runtime::relaxation::iluk
       , amgcl::runtime::relaxation::ilut
