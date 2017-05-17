@@ -4,6 +4,7 @@
 #include <amgcl/adapter/zero_copy.hpp>
 #include <amgcl/solver/skyline_lu.hpp>
 #include <amgcl/backend/builtin.hpp>
+#include <amgcl/profiler.hpp>
 #include "sample_problem.hpp"
 
 namespace amgcl {

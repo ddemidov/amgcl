@@ -4,6 +4,7 @@
 #include <Eigen/SparseLU>
 #include <amgcl/solver/eigen.hpp>
 #include <amgcl/backend/builtin.hpp>
+#include <amgcl/profiler.hpp>
 #include "sample_problem.hpp"
 
 namespace amgcl {
