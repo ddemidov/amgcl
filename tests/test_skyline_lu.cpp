@@ -6,6 +6,10 @@
 #include <amgcl/backend/builtin.hpp>
 #include "sample_problem.hpp"
 
+namespace amgcl {
+    profiler<> prof;
+}
+
 BOOST_AUTO_TEST_SUITE( test_skyline_lu )
 
 BOOST_AUTO_TEST_CASE(skyline_lu)

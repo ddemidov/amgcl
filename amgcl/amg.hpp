@@ -325,21 +325,26 @@ class amg {
             level() {}
 
             level(boost::shared_ptr<build_matrix> A,
-                    params &prm, const backend_params &bprm) :
-                m_rows(backend::rows(*A)),
-                m_nonzeros(backend::nonzeros(*A)),
-                f(Backend::create_vector(m_rows, bprm)),
-                u(Backend::create_vector(m_rows, bprm)),
-                t(Backend::create_vector(m_rows, bprm)),
-                A(Backend::copy_matrix(A, bprm)),
-                relax(boost::make_shared<relax_type>(*A, prm.relax, bprm))
-            {}
+                    params &prm, const backend_params &bprm)
+                : m_rows(backend::rows(*A)), m_nonzeros(backend::nonzeros(*A))
+            {
+                AMGCL_TIC("move to backend");
+                f = Backend::create_vector(m_rows, bprm);
+                u = Backend::create_vector(m_rows, bprm);
+                t = Backend::create_vector(m_rows, bprm);
+                this->A = Backend::copy_matrix(A, bprm);
+                AMGCL_TOC("move to backend");
+
+                AMGCL_TIC("relaxation");
+                relax = boost::make_shared<relax_type>(*A, prm.relax, bprm);
+                AMGCL_TOC("relaxation");
+            }
 
             boost::shared_ptr<build_matrix> step_down(
                     boost::shared_ptr<build_matrix> A,
                     params &prm, const backend_params &bprm)
             {
-                TIC("transfer operators");
+                AMGCL_TIC("transfer operators");
                 boost::shared_ptr<build_matrix> P, R;
                 boost::tie(P, R) = Coarsening::transfer_operators(
                         *A, prm.coarsening);
@@ -349,15 +354,17 @@ class amg {
 
                 sort_rows(*P);
                 sort_rows(*R);
-                TOC("transfer operators");
+                AMGCL_TOC("transfer operators");
 
+                AMGCL_TIC("move to backend");
                 this->P = Backend::copy_matrix(P, bprm);
                 this->R = Backend::copy_matrix(R, bprm);
+                AMGCL_TOC("move to backend");
 
-                TIC("coarse operator");
+                AMGCL_TIC("coarse operator");
                 A = Coarsening::coarse_operator(*A, *P, *R, prm.coarsening);
                 sort_rows(*A);
-                TOC("coarse operator");
+                AMGCL_TOC("coarse operator");
 
                 return A;
             }
@@ -419,7 +426,7 @@ class amg {
             }
 
             if (levels.size() < prm.max_levels) {
-                TIC("coarsest level");
+                AMGCL_TIC("coarsest level");
                 if (prm.direct_coarse) {
                     level l;
                     l.create_coarse(A, bprm, levels.empty());
@@ -441,7 +448,7 @@ class amg {
 #ifdef AMGCL_ASYNC_SETUP
                 ready_to_cycle.notify_all();
 #endif
-                TOC("coarsest level");
+                AMGCL_TOC("coarsest level");
             }
         }
 
@@ -478,41 +485,35 @@ class amg {
 
             if (nxt == end) {
                 if (lvl->solve) {
-                    TIC("coarse");
+                    AMGCL_TIC("coarse");
                     (*lvl->solve)(rhs, x);
-                    TOC("coarse");
+                    AMGCL_TOC("coarse");
                 } else {
-                    TIC("relax");
+                    AMGCL_TIC("relax");
                     lvl->relax->apply_pre(*lvl->A, rhs, x, *lvl->t, prm.relax);
                     lvl->relax->apply_post(*lvl->A, rhs, x, *lvl->t, prm.relax);
-                    TOC("relax");
+                    AMGCL_TOC("relax");
                 }
             } else {
                 for (size_t j = 0; j < prm.ncycle; ++j) {
-                    TIC("relax");
+                    AMGCL_TIC("relax");
                     for(size_t i = 0; i < prm.npre; ++i)
                         lvl->relax->apply_pre(*lvl->A, rhs, x, *lvl->t, prm.relax);
-                    TOC("relax");
+                    AMGCL_TOC("relax");
 
-                    TIC("residual");
                     backend::residual(rhs, *lvl->A, x, *lvl->t);
-                    TOC("residual");
 
-                    TIC("restrict");
                     backend::spmv(math::identity<scalar_type>(), *lvl->R, *lvl->t, math::zero<scalar_type>(), *nxt->f);
-                    TOC("restrict");
 
                     backend::clear(*nxt->u);
                     cycle(nxt, *nxt->f, *nxt->u);
 
-                    TIC("prolongate");
                     backend::spmv(math::identity<scalar_type>(), *lvl->P, *nxt->u, math::identity<scalar_type>(), x);
-                    TOC("prolongate");
 
-                    TIC("relax");
+                    AMGCL_TIC("relax");
                     for(size_t i = 0; i < prm.npre; ++i)
                         lvl->relax->apply_post(*lvl->A, rhs, x, *lvl->t, prm.relax);
-                    TOC("relax");
+                    AMGCL_TOC("relax");
                 }
             }
         }

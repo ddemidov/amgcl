@@ -113,12 +113,12 @@ struct ruge_stuben {
         std::vector<char> cf(n, 'U');
         backend::crs<char, ptrdiff_t, ptrdiff_t> S;
 
-        TIC("C/F split");
+        AMGCL_TIC("C/F split");
         connect(A, prm.eps_strong, S, cf);
         cfsplit(A, S, cf);
-        TOC("C/F split");
+        AMGCL_TOC("C/F split");
 
-        TIC("interpolation");
+        AMGCL_TIC("interpolation");
         size_t nc = 0;
         std::vector<ptrdiff_t> cidx(n);
         for(size_t i = 0; i < n; ++i)
@@ -237,7 +237,7 @@ struct ruge_stuben {
                 ++row_head;
             }
         }
-        TOC("interpolation");
+        AMGCL_TOC("interpolation");
 
         return boost::make_tuple(P, transpose(*P));
     }
