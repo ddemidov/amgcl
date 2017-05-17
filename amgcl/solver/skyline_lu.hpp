@@ -345,11 +345,12 @@ class skyline_lu {
          */
         void factorize() {
             precondition(!math::is_zero(D[0]), "Zero diagonal in skyline_lu");
+            D[0] = math::inverse(D[0]);
 
             for(int k = 0; k < n - 1; ++k) {
                 // check whether A(1,k+1) lies within the skyline structure
                 if (ptr[k + 1] + k + 1 == ptr[k + 2]) {
-                    U[ptr[k+1]] = math::inverse(D[0]) * U[ptr[k+1]];
+                    U[ptr[k+1]] = D[0] * U[ptr[k+1]];
                 }
 
                 // Compute column k+1 of U
@@ -369,7 +370,7 @@ class skyline_lu {
                     for(int j = jBeginMult; j < i; ++j, ++indexL, ++indexU)
                         sum -= L[indexL] * U[indexU];
 
-                    U[indexEntry] = math::inverse(D[i]) * sum;
+                    U[indexEntry] = D[i] * sum;
                 }
 
                 // Compute row k+1 of L
@@ -394,18 +395,15 @@ class skyline_lu {
                 }
 
                 // Find element in diagonal
-                value_type sum = D[k + 1];
+                value_type sum = D[k+1];
                 for(int j = ptr[k+1]; j < ptr[k+2]; ++j)
                     sum -= L[j] * U[j];
 
                 precondition(!math::is_zero(sum),
                         "Zero sum in skyline_lu factorization");
 
-                D[k+1] = sum;
+                D[k+1] = math::inverse(sum);
             }
-
-            // Invert diagonal
-            for(int i = 0; i < n; ++i) D[i] = math::inverse(D[i]);
         }
 };
 
