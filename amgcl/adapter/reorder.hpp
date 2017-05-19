@@ -121,36 +121,36 @@ struct reordered_vector {
         return x[perm[i]];
     }
 
-    boost::iterators::permutation_iterator<
+    boost::permutation_iterator<
         typename boost::decay<Vector>::type::iterator,
         const ptrdiff_t*
         >
     begin() {
-        return boost::iterators::make_permutation_iterator(boost::begin(x), perm);
+        return boost::make_permutation_iterator(boost::begin(x), perm);
     }
 
-    boost::iterators::permutation_iterator<
+    boost::permutation_iterator<
         typename boost::decay<Vector>::type::const_iterator,
         const ptrdiff_t*
         >
     begin() const {
-        return boost::iterators::make_permutation_iterator(boost::begin(x), perm);
+        return boost::make_permutation_iterator(boost::begin(x), perm);
     }
 
-    boost::iterators::permutation_iterator<
+    boost::permutation_iterator<
         typename boost::decay<Vector>::type::iterator,
         const ptrdiff_t*
         >
     end() {
-        return boost::iterators::make_permutation_iterator(boost::end(x), perm + size());
+        return boost::make_permutation_iterator(boost::end(x), perm + size());
     }
 
-    boost::iterators::permutation_iterator<
+    boost::permutation_iterator<
         typename boost::decay<Vector>::type::const_iterator,
         const ptrdiff_t*
         >
     end() const {
-        return boost::iterators::make_permutation_iterator(boost::end(x), perm + size());
+        return boost::make_permutation_iterator(boost::end(x), perm + size());
     }
 };
 
