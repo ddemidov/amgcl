@@ -227,7 +227,7 @@ struct is_builtin_vector< adapter::reordered_vector<Vector> >
 
 namespace adapter {
 
-template <class ordering = reorder::cuthill_mckee<false> >
+template <class ordering = amgcl::reorder::cuthill_mckee<false> >
 class reorder {
     public:
         template <class Matrix>
