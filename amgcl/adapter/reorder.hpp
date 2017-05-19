@@ -37,7 +37,7 @@ THE SOFTWARE.
 #include <boost/iterator/permutation_iterator.hpp>
 
 
-#include <amgcl/solver/skyline_lu.hpp>
+#include <amgcl/reorder/cuthill_mckee.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/backend/detail/matrix_ops.hpp>
 
@@ -227,7 +227,7 @@ struct is_builtin_vector< adapter::reordered_vector<Vector> >
 
 namespace adapter {
 
-template <class ordering = matrix_permutation::CuthillMcKee<false> >
+template <class ordering = reorder::cuthill_mckee<false> >
 class reorder {
     public:
         template <class Matrix>
