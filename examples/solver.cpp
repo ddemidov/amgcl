@@ -8,6 +8,8 @@
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/foreach.hpp>
 #include <boost/range/iterator_range.hpp>
+#include <boost/typeof/typeof.hpp>
+
 
 #if defined(SOLVER_BACKEND_VEXCL)
 #  include <amgcl/value_type/static_matrix.hpp>
@@ -42,6 +44,7 @@
 #include <amgcl/preconditioner/runtime.hpp>
 #include <amgcl/make_solver.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
+#include <amgcl/adapter/reorder.hpp>
 #include <amgcl/io/mm.hpp>
 #include <amgcl/io/binary.hpp>
 
@@ -65,7 +68,8 @@ boost::tuple<size_t, double> block_solve(
         std::vector<ptrdiff_t> const &col,
         std::vector<double>    const &val,
         std::vector<double>    const &rhs,
-        std::vector<double>          &x
+        std::vector<double>          &x,
+        bool reorder
         )
 {
     typedef amgcl::static_matrix<double, B, B> value_type;
@@ -77,25 +81,54 @@ boost::tuple<size_t, double> block_solve(
         amgcl::runtime::iterative_solver<BBackend>
         > Solver;
 
-    prof.tic("setup");
-    Solver solve(amgcl::adapter::block_matrix<B, value_type>(boost::tie(rows, ptr, col, val)), prm);
-    prof.toc("setup");
+    ;
 
-    std::cout << solve.precond() << std::endl;
-
-    rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&rhs[0]);
-    rhs_type       * xptr = reinterpret_cast<rhs_type       *>(&x[0]);
-
-    amgcl::backend::numa_vector<rhs_type> F(fptr, fptr + rows/B);
-    amgcl::backend::numa_vector<rhs_type> X(xptr, xptr + rows/B);
+    BOOST_AUTO(A_raw, (boost::tie(rows, ptr, col, val)));
+    BOOST_AUTO(A_blk, (amgcl::adapter::block_matrix<B, value_type>(A_raw)));
 
     boost::tuple<size_t, double> info;
-    {
-        scoped_tic t(prof, "solve");
-        info = solve(F, X);
-    }
 
-    std::copy(X.data(), X.data() + X.size(), xptr);
+    if (reorder) {
+        prof.tic("reorder");
+        amgcl::adapter::reorder<> perm(A_blk);
+        prof.toc("reorder");
+
+        prof.tic("setup");
+        Solver solve(perm(A_blk), prm);
+        prof.toc("setup");
+
+        std::cout << solve.precond() << std::endl;
+
+        rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&rhs[0]);
+        rhs_type       * xptr = reinterpret_cast<rhs_type       *>(&x[0]);
+
+        amgcl::backend::numa_vector<rhs_type> F(perm(boost::make_iterator_range(fptr, fptr + rows/B)));
+        amgcl::backend::numa_vector<rhs_type> X(perm(boost::make_iterator_range(xptr, xptr + rows/B)));
+
+        prof.tic("solve");
+        info = solve(F, X);
+        prof.toc("solve");
+
+        perm.inverse(X, xptr);
+    } else {
+        prof.tic("setup");
+        Solver solve(A_blk, prm);
+        prof.toc("setup");
+
+        std::cout << solve.precond() << std::endl;
+
+        rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&rhs[0]);
+        rhs_type       * xptr = reinterpret_cast<rhs_type       *>(&x[0]);
+
+        amgcl::backend::numa_vector<rhs_type> F(fptr, fptr + rows/B);
+        amgcl::backend::numa_vector<rhs_type> X(xptr, xptr + rows/B);
+
+        prof.tic("solve");
+        info = solve(F, X);
+        prof.toc("solve");
+
+        std::copy(X.data(), X.data() + X.size(), xptr);
+    }
 
     return info;
 }
@@ -111,7 +144,8 @@ boost::tuple<size_t, double> block_solve(
         std::vector<ptrdiff_t> const &col,
         std::vector<double>    const &val,
         std::vector<double>    const &rhs,
-        std::vector<double>          &x
+        std::vector<double>          &x,
+        bool reorder
         )
 {
     typedef amgcl::static_matrix<double, B, B> value_type;
@@ -133,25 +167,58 @@ boost::tuple<size_t, double> block_solve(
     vex::scoped_program_header header(ctx,
             amgcl::backend::vexcl_static_matrix_declaration<double,B>());
 
-    prof.tic("setup");
-    Solver solve(amgcl::adapter::block_matrix<B, value_type>(boost::tie(rows, ptr, col, val)), prm, bprm);
-    prof.toc("setup");
-
-    std::cout << solve.precond() << std::endl;
-
-    rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&rhs[0]);
-    rhs_type       * xptr = reinterpret_cast<rhs_type       *>(&x[0]);
-
-    vex::vector<rhs_type> f_b(ctx, rows/B, fptr);
-    vex::vector<rhs_type> x_b(ctx, rows/B, xptr);
+    BOOST_AUTO(A_raw, (boost::tie(rows, ptr, col, val)));
+    BOOST_AUTO(A_blk, (amgcl::adapter::block_matrix<B, value_type>(A_raw)));
 
     boost::tuple<size_t, double> info;
-    {
-        scoped_tic t(prof, "solve");
-        info = solve(f_b, x_b);
-    }
 
-    vex::copy(x_b.begin(), x_b.end(), xptr);
+    if (reorder) {
+        prof.tic("reorder");
+        amgcl::adapter::reorder<> perm(A_blk);
+        prof.toc("reorder");
+
+        prof.tic("setup");
+        Solver solve(perm(A_blk), prm, bprm);
+        prof.toc("setup");
+
+        std::cout << solve.precond() << std::endl;
+
+        rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&rhs[0]);
+        rhs_type       * xptr = reinterpret_cast<rhs_type       *>(&x[0]);
+
+        std::vector<rhs_type> tmp(rows / B);
+
+        perm.forward(boost::make_iterator_range(fptr, fptr + rows/B), tmp);
+        vex::vector<rhs_type> f_b(ctx, tmp);
+
+        perm.forward(boost::make_iterator_range(xptr, xptr + rows/B), tmp);
+        vex::vector<rhs_type> x_b(ctx, tmp);
+
+        prof.tic("solve");
+        info = solve(f_b, x_b);
+        prof.toc("solve");
+
+        vex::copy(x_b, tmp);
+        perm.inverse(tmp, xptr);
+    } else {
+        prof.tic("setup");
+        Solver solve(A_blk, prm, bprm);
+        prof.toc("setup");
+
+        std::cout << solve.precond() << std::endl;
+
+        rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&rhs[0]);
+        rhs_type       * xptr = reinterpret_cast<rhs_type       *>(&x[0]);
+
+        vex::vector<rhs_type> f_b(ctx, rows/B, fptr);
+        vex::vector<rhs_type> x_b(ctx, rows/B, xptr);
+
+        prof.tic("solve");
+        info = solve(f_b, x_b);
+        prof.toc("solve");
+
+        vex::copy(x_b.begin(), x_b.end(), xptr);
+    }
 
     return info;
 }
@@ -166,7 +233,8 @@ boost::tuple<size_t, double> scalar_solve(
         std::vector<ptrdiff_t> const &col,
         std::vector<double>    const &val,
         std::vector<double>    const &rhs,
-        std::vector<double>          &x
+        std::vector<double>          &x,
+        bool reorder
         )
 {
     Backend::params bprm;
@@ -196,32 +264,67 @@ boost::tuple<size_t, double> scalar_solve(
         amgcl::runtime::iterative_solver<Backend>
         > Solver;
 
-    prof.tic("setup");
-    Solver solve(boost::tie(rows, ptr, col, val), prm, bprm);
-    prof.toc("setup");
-
-    std::cout << solve.precond() << std::endl;
-
     typedef Backend::vector vector;
-    boost::shared_ptr<vector> f_b = Backend::copy_vector(rhs, bprm);
-    boost::shared_ptr<vector> x_b = Backend::copy_vector(x,   bprm);
-
     boost::tuple<size_t, double> info;
 
-    {
-        scoped_tic t(prof, "solve");
+    if (reorder) {
+        prof.tic("reorder");
+        amgcl::adapter::reorder<> perm(boost::tie(rows, ptr, col, val));
+        prof.toc("reorder");
+
+        prof.tic("setup");
+        Solver solve(perm(boost::tie(rows, ptr, col, val)), prm, bprm);
+        prof.toc("setup");
+
+        std::cout << solve.precond() << std::endl;
+
+        std::vector<double> tmp(rows);
+
+        perm.forward(rhs, tmp);
+        boost::shared_ptr<vector> f_b = Backend::copy_vector(tmp, bprm);
+
+        perm.forward(x, tmp);
+        boost::shared_ptr<vector> x_b = Backend::copy_vector(tmp, bprm);
+
+        prof.tic("solve");
         info = solve(*f_b, *x_b);
-    }
+        prof.toc("solve");
 
 #if defined(SOLVER_BACKEND_VEXCL)
-    vex::copy(*x_b, x);
+        vex::copy(*x_b, tmp);
 #elif defined(SOLVER_BACKEND_VIENNACL)
-    viennacl::fast_copy(*x_b, x);
+        viennacl::fast_copy(*x_b, tmp);
 #elif defined(SOLVER_BACKEND_CUDA)
-    thrust::copy(x_b->begin(), x_b->end(), x.begin());
+        thrust::copy(x_b->begin(), x_b->end(), tmp.begin());
 #else
-    std::copy(&(*x_b)[0], &(*x_b)[0] + rows, &x[0]);
+        std::copy(&(*x_b)[0], &(*x_b)[0] + rows, &tmp[0]);
 #endif
+
+        perm.inverse(tmp, x);
+    } else {
+        prof.tic("setup");
+        Solver solve(boost::tie(rows, ptr, col, val), prm, bprm);
+        prof.toc("setup");
+
+        std::cout << solve.precond() << std::endl;
+
+        boost::shared_ptr<vector> f_b = Backend::copy_vector(rhs, bprm);
+        boost::shared_ptr<vector> x_b = Backend::copy_vector(x,   bprm);
+
+        prof.tic("solve");
+        info = solve(*f_b, *x_b);
+        prof.toc("solve");
+
+#if defined(SOLVER_BACKEND_VEXCL)
+        vex::copy(*x_b, x);
+#elif defined(SOLVER_BACKEND_VIENNACL)
+        viennacl::fast_copy(*x_b, x);
+#elif defined(SOLVER_BACKEND_CUDA)
+        thrust::copy(x_b->begin(), x_b->end(), x.begin());
+#else
+        std::copy(&(*x_b)[0], &(*x_b)[0] + rows, &x[0]);
+#endif
+    }
 
     return info;
 }
@@ -236,23 +339,24 @@ boost::tuple<size_t, double> solve(
         std::vector<double>    const &val,
         std::vector<double>    const &rhs,
         std::vector<double>          &x,
-        int block_size
+        int block_size,
+        bool reorder
         )
 {
     switch (block_size) {
         case 1:
-            return scalar_solve<Precond>(prm, rows, ptr, col, val, rhs, x);
+            return scalar_solve<Precond>(prm, rows, ptr, col, val, rhs, x, reorder);
 #if defined(SOLVER_BACKEND_BUILTIN) || defined(SOLVER_BACKEND_VEXCL)
         case 2:
-            return block_solve<2, Precond>(prm, rows, ptr, col, val, rhs, x);
+            return block_solve<2, Precond>(prm, rows, ptr, col, val, rhs, x, reorder);
         case 3:
-            return block_solve<3, Precond>(prm, rows, ptr, col, val, rhs, x);
+            return block_solve<3, Precond>(prm, rows, ptr, col, val, rhs, x, reorder);
         case 4:
-            return block_solve<4, Precond>(prm, rows, ptr, col, val, rhs, x);
+            return block_solve<4, Precond>(prm, rows, ptr, col, val, rhs, x, reorder);
         case 5:
-            return block_solve<5, Precond>(prm, rows, ptr, col, val, rhs, x);
+            return block_solve<5, Precond>(prm, rows, ptr, col, val, rhs, x, reorder);
         case 6:
-            return block_solve<6, Precond>(prm, rows, ptr, col, val, rhs, x);
+            return block_solve<6, Precond>(prm, rows, ptr, col, val, rhs, x, reorder);
 #endif
         default:
             precondition(false, "Unsupported block size");
@@ -332,6 +436,11 @@ int main(int argc, char *argv[]) {
          po::bool_switch()->default_value(false),
          "When specified, the AMG hierarchy is not constructed. "
          "Instead, the problem is solved using a single-level smoother as preconditioner. "
+        )
+        (
+         "reorder,r",
+         po::bool_switch()->default_value(false),
+         "When specified, the matrix will be reordered to improve cache-locality"
         )
         (
          "initial,x",
@@ -435,13 +544,14 @@ int main(int argc, char *argv[]) {
     size_t iters;
     double error;
 
-    int block_size    = vm["block-size"].as<int>();
+    int block_size = vm["block-size"].as<int>();
 
     if (vm["single-level"].as<bool>())
         prm.put("precond.class", "relaxation");
 
     boost::tie(iters, error) = solve<amgcl::runtime::preconditioner>(
-            prm, rows, ptr, col, val, rhs, x, block_size);
+            prm, rows, ptr, col, val, rhs, x,
+            block_size, vm["reorder"].as<bool>());
 
     if (vm.count("output")) {
         scoped_tic t(prof, "write");

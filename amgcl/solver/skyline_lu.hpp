@@ -73,7 +73,6 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <amgcl/util.hpp>
 
 namespace amgcl {
-namespace solver {
 
 namespace matrix_permutation {
 
@@ -86,10 +85,10 @@ struct none {
 
 template <bool reverse = false>
 struct CuthillMcKee {
-    template <class Matrix>
-    static void get(const Matrix &A, std::vector<int> &perm) {
+    template <class Matrix, class Vector>
+    static void get(const Matrix &A, Vector &perm) {
         typedef typename backend::row_iterator<Matrix>::type row_iterator;
-        const int n = backend::rows(A);
+        const ptrdiff_t n = backend::rows(A);
 
         /* The data structure used to sort and traverse the level sets:
          *
@@ -104,45 +103,56 @@ struct CuthillMcKee {
          * maxDegreeInCurrentLevelSet and nFirstWithDegree will be
          * firstWithDegree.
          */
-        int initialNode = 0; // node to start search
-        int maxDegree   = 0;
+        ptrdiff_t initialNode = 0; // node to start search
+        ptrdiff_t maxDegree   = 0;
 
-        std::vector<int> degree(n);
-        std::vector<int> levelSet(n, 0);
-        std::vector<int> nextSameDegree(n, -1);
+        std::vector<ptrdiff_t> degree(n);
+        std::vector<ptrdiff_t> levelSet(n, 0);
+        std::vector<ptrdiff_t> nextSameDegree(n, -1);
 
-        for(int i = 0; i < n; ++i) {
-            degree[i] = backend::row_nonzeros(A, i);
-            maxDegree = std::max(maxDegree, degree[i]);
+#pragma omp parallel
+        {
+            ptrdiff_t maxd = 0;
+#pragma omp for
+            for(ptrdiff_t i = 0; i < n; ++i) {
+                ptrdiff_t row_width = 0;
+                for(row_iterator a = backend::row_begin(A, i); a; ++a, ++row_width);
+                degree[i] = row_width;
+                maxd = std::max(maxd, degree[i]);
+            }
+#pragma omp critical
+            {
+                maxDegree = std::max(maxDegree, maxd);
+            }
         }
 
-        std::vector<int> firstWithDegree(maxDegree + 1, -1);
-        std::vector<int> nFirstWithDegree(maxDegree + 1);
+        std::vector<ptrdiff_t> firstWithDegree(maxDegree + 1, -1);
+        std::vector<ptrdiff_t> nFirstWithDegree(maxDegree + 1);
 
         // Initialize the first level set, made up by initialNode alone
         perm[0] = initialNode;
-        int currentLevelSet = 1;
+        ptrdiff_t currentLevelSet = 1;
         levelSet[initialNode] = currentLevelSet;
-        int maxDegreeInCurrentLevelSet = degree[initialNode];
+        ptrdiff_t maxDegreeInCurrentLevelSet = degree[initialNode];
         firstWithDegree[maxDegreeInCurrentLevelSet] = initialNode;
 
         // Main loop
-        for (int next = 1; next < n; ) {
-            int nMDICLS = 0;
+        for (ptrdiff_t next = 1; next < n; ) {
+            ptrdiff_t nMDICLS = 0;
             std::fill(nFirstWithDegree.begin(), nFirstWithDegree.end(), -1);
             bool empty = true; // used to detect different connected components
 
-            int firstVal  = reverse ? maxDegreeInCurrentLevelSet : 0;
-            int finalVal  = reverse ? -1 : maxDegreeInCurrentLevelSet + 1;
-            int increment = reverse ? -1 : 1;
+            ptrdiff_t firstVal  = reverse ? maxDegreeInCurrentLevelSet : 0;
+            ptrdiff_t finalVal  = reverse ? -1 : maxDegreeInCurrentLevelSet + 1;
+            ptrdiff_t increment = reverse ? -1 : 1;
 
-            for(int soughtDegree = firstVal; soughtDegree != finalVal; soughtDegree += increment)
+            for(ptrdiff_t soughtDegree = firstVal; soughtDegree != finalVal; soughtDegree += increment)
             {
-                int node = firstWithDegree[soughtDegree];
+                ptrdiff_t node = firstWithDegree[soughtDegree];
                 while (node > 0) {
                     // Visit neighbors
                     for(row_iterator a = backend::row_begin(A, node); a; ++a) {
-                        int c = a.col();
+                        ptrdiff_t c = a.col();
                         if (levelSet[c] == 0) {
                             levelSet[c] = currentLevelSet + 1;
                             perm[next] = c;
@@ -159,7 +169,7 @@ struct CuthillMcKee {
 
             ++currentLevelSet;
             maxDegreeInCurrentLevelSet = nMDICLS;
-            for(int i = 0; i <= nMDICLS; ++i)
+            for(ptrdiff_t i = 0; i <= nMDICLS; ++i)
                 firstWithDegree[i] = nFirstWithDegree[i];
 
             if (empty) {
@@ -167,7 +177,7 @@ struct CuthillMcKee {
                 // cannot reach.  Search for a node that has not yet been
                 // included in a level set, and start exploring from it.
                 bool found = false;
-                for(int i = 0; i < n; ++i) {
+                for(ptrdiff_t i = 0; i < n; ++i) {
                     if (levelSet[i] == 0) {
                         perm[next] = i;
                         ++next;
@@ -185,6 +195,8 @@ struct CuthillMcKee {
 };
 
 }
+
+namespace solver {
 
 /// Direct solver that uses skyline LU factorization.
 template <
