@@ -32,7 +32,6 @@ THE SOFTWARE.
 \ingroup adapters
 */
 
-#include <boost/core/enable_if.hpp>
 #include <boost/type_traits.hpp>
 #include <boost/range/size.hpp>
 #include <boost/iterator/permutation_iterator.hpp>
