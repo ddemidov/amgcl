@@ -16,6 +16,7 @@
 #  include <amgcl/adapter/block_matrix.hpp>
 #  include <amgcl/backend/vexcl.hpp>
 #  include <amgcl/backend/vexcl_static_matrix.hpp>
+#  include <amgcl/relaxation/vexcl_ilu.hpp>
    typedef amgcl::backend::vexcl<double> Backend;
 #elif defined(SOLVER_BACKEND_VIENNACL)
 #  include <amgcl/backend/viennacl.hpp>
