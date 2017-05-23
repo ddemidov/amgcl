@@ -69,139 +69,285 @@ class ilu_solve< backend::vexcl<value_type, DS> > {
     private:
         template <bool lower>
         struct sptr_solve {
-            ptrdiff_t nlev;
+            static const int block_size = 64;
 
-            std::vector<matrix>                 L;
-            std::vector<vex::vector<ptrdiff_t>> I;
-            std::vector<matrix_diagonal>        D;
+            // reordered matrix
+            vex::vector<ptrdiff_t>  I; // original row number
+            vex::vector<ptrdiff_t>  C; // col
+            vex::vector<value_type> V; // val
+            vex::vector<value_type> D; // dia
+
+            // row intervals for each block:
+            ptrdiff_t nblocks, pitch, max_width;
+            vex::vector<ptrdiff_t> B;
+            vex::vector<ptrdiff_t> E;
+
+            // dependants of each block:
+            vex::vector<int> deps;
+            mutable vex::vector<int> tmp_deps;
+            vex::vector<int> dep_ptr;
+            vex::vector<int> dep_idx;
+
+            vex::backend::command_queue q;
 
             template <class Matrix>
-            sptr_solve(const std::vector<vex::backend::command_queue> &q,
-                    const Matrix &A, const value_type *_D = 0) : nlev(0)
+            sptr_solve(const std::vector<vex::backend::command_queue> &_q,
+                    const Matrix &A, const value_type *_D = 0
+                    ) : nblocks(0), q(_q[0])
             {
+                precondition(_q.size() == 1, "ILU is only supported for single-device vexcl contexts");
+
+                ptrdiff_t nlev = 0;
                 ptrdiff_t n = A.nrows;
+
+                pitch = vex::alignup(n, 16);
+                max_width = 0;
 
                 std::vector<ptrdiff_t> level(n, 0);
                 std::vector<ptrdiff_t> order(n, 0);
 
 
                 // 1. split rows into levels.
-                ptrdiff_t beg = lower ? 0 : n-1;
-                ptrdiff_t end = lower ? n :  -1;
-                ptrdiff_t inc = lower ? 1 :  -1;
+                AMGCL_TIC("color");
+                {
+                    ptrdiff_t beg = lower ? 0 : n-1;
+                    ptrdiff_t end = lower ? n :  -1;
+                    ptrdiff_t inc = lower ? 1 :  -1;
 
-                for(ptrdiff_t i = beg; i != end; i += inc) {
-                    ptrdiff_t l = level[i];
+                    for(ptrdiff_t i = beg; i != end; i += inc) {
+                        ptrdiff_t l = level[i];
 
-                    for(ptrdiff_t j = A.ptr[i]; j < A.ptr[i+1]; ++j)
-                        l = std::max(l, level[A.col[j]]+1);
+                        for(ptrdiff_t j = A.ptr[i]; j < A.ptr[i+1]; ++j)
+                            l = std::max(l, level[A.col[j]]+1);
 
-                    level[i] = l;
-                    nlev = std::max(nlev, l+1);
+                        level[i] = l;
+                        nlev = std::max(nlev, l+1);
+                        max_width = std::max(max_width, A.ptr[i+1] - A.ptr[i]);
+                    }
                 }
+                AMGCL_TOC("color");
 
 
-                // 2. reorder matrix rows.
+                // 2. reorder matrix rows, count number of blocks.
+                AMGCL_TIC("sort rows");
                 std::vector<ptrdiff_t> start(nlev+1, 0);
 
                 for(ptrdiff_t i = 0; i < n; ++i)
                     ++start[level[i]+1];
 
-                std::partial_sum(start.begin(), start.end(), start.begin());
+                for(ptrdiff_t i = 0; i < nlev; ++i) {
+                    nblocks += (start[i+1] + block_size - 1) / block_size;
+                    start[i+1] += start[i];
+                }
 
                 for(ptrdiff_t i = 0; i < n; ++i)
                     order[start[level[i]]++] = i;
 
                 std::rotate(start.begin(), start.end() - 1, start.end());
                 start[0] = 0;
+                AMGCL_TOC("sort rows");
 
 
-                // 3. Create levels.
-                L.reserve(nlev);
-                I.reserve(nlev);
-                if(!lower) D.reserve(nlev);
+                // 4. reorder matrix rows
+                AMGCL_TIC("reorder matrix");
+                std::vector<ptrdiff_t>  col(pitch * max_width, -1);
+                std::vector<value_type> val(pitch * max_width);
+                std::vector<value_type> dia; if (!lower) dia.resize(n);
 
-                for(ptrdiff_t lev = 0; lev < nlev; ++lev) {
-                    // split each level into tasks.
-                    ptrdiff_t rows = start[lev+1] - start[lev];
-
-                    std::vector<ptrdiff_t>  ptr(rows + 1); ptr[0] = 0;
-                    std::vector<ptrdiff_t>  ord(rows);
-                    std::vector<value_type> dia; if (!lower) dia.resize(rows);
-
-                    // count nonzeros in the current level
-                    for(ptrdiff_t i = start[lev], k = 0; i < start[lev+1]; ++i, ++k) {
-                        ptrdiff_t j = order[i];
-                        ptr[k+1] = ptr[k] + A.ptr[j+1] - A.ptr[j];
-                        ord[k] = j;
-                        if (!lower) dia[k] = _D[j];
+                for(ptrdiff_t i = 0; i < n; ++i) {
+                    ptrdiff_t r = order[i];
+                    for(ptrdiff_t j = A.ptr[r], c = 0; j < A.ptr[r+1]; ++j, ++c) {
+                        col[c * pitch + i] = A.col[j];
+                        val[c * pitch + i] = A.val[j];
                     }
 
-                    std::vector<ptrdiff_t>    col(ptr[rows]);
-                    std::vector<value_type> val(ptr[rows]);
+                    if (!lower) dia[i] = _D[r];
+                }
+                AMGCL_TOC("reorder matrix");
 
-                    // copy nonzeros
-                    for(ptrdiff_t i = start[lev], k = 0; i < start[lev+1]; ++i, ++k) {
-                        ptrdiff_t o = ord[k];
-                        ptrdiff_t h = ptr[k];
-                        for(int j = A.ptr[o]; j < A.ptr[o+1]; ++j) {
-                            col[h] = A.col[j];
-                            val[h] = A.val[j];
-                            ++h;
+                // 4. organize matrix rows into blocks:
+                //    each level is split into blocks,
+                //    and each block is solved by a single workgroup.
+                AMGCL_TIC("create blocks");
+                std::vector<ptrdiff_t> block_beg; block_beg.reserve(nblocks+1); block_beg.push_back(0);
+                std::vector<ptrdiff_t> block_id(n, -1);
+
+                for(ptrdiff_t i = 0; i < nlev; ++i) {
+                    ptrdiff_t lev_beg = start[i];
+                    ptrdiff_t lev_end = start[i+1];
+                    for(ptrdiff_t j = lev_beg; j < lev_end; j += block_size) {
+                        ptrdiff_t id = block_beg.size()-1;
+                        ptrdiff_t beg = j;
+                        ptrdiff_t end = std::min(j+block_size, lev_end);
+                        block_beg.push_back(end);
+
+                        for(ptrdiff_t k = beg; k < end; ++k)
+                            block_id[order[k]] = id;
+                    }
+                }
+                AMGCL_TOC("create blocks");
+
+                // 5. build dependency graph between tasks.
+                AMGCL_TIC("dependency graph");
+                AMGCL_TIC("create");
+                std::vector<int> parent_ptr(nblocks + 1, 0);
+                std::vector<int> marker(nblocks, -1);
+
+                for(ptrdiff_t b = 0; b < nblocks; ++b) {
+                    for(ptrdiff_t i = block_beg[b]; i < block_beg[b+1]; ++i) {
+                        for(ptrdiff_t j = 0; j < max_width; ++j) {
+                            ptrdiff_t c = col[j * pitch + i]; if (c < 0) continue;
+                            ptrdiff_t id = block_id[c];
+                            if (marker[id] != b) {
+                                marker[id] = b;
+                                ++parent_ptr[b+1];
+                            }
                         }
                     }
-
-                    L.emplace_back(q, rows, n, ptr, col, val);
-                    I.emplace_back(q, ord);
-                    if (!lower) D.emplace_back(q, dia);
                 }
+
+                std::partial_sum(parent_ptr.begin(), parent_ptr.end(), parent_ptr.begin());
+                std::vector<int> parent(parent_ptr.back());
+                std::fill(marker.begin(), marker.end(), -1);
+
+                std::vector<int> nparents(nblocks);
+
+                for(ptrdiff_t b = 0; b < nblocks; ++b) {
+                    ptrdiff_t h = parent_ptr[b];
+                    nparents[b] = parent_ptr[b+1] - parent_ptr[b];
+
+                    for(ptrdiff_t i = block_beg[b]; i < block_beg[b+1]; ++i) {
+                        for(ptrdiff_t j = 0; j < max_width; ++j) {
+                            ptrdiff_t c = col[j * pitch + i]; if (c < 0) continue;
+                            ptrdiff_t id = block_id[c];
+                            if (marker[id] != b) {
+                                marker[id] = b;
+                                parent[h++] = id;
+                            }
+                        }
+                    }
+                }
+                AMGCL_TOC("create");
+
+                AMGCL_TIC("transpose");
+                std::vector<int> child_ptr(nblocks+1,0);
+
+                for(ptrdiff_t i = 0; i < nblocks; ++i) {
+                    for(ptrdiff_t j = parent_ptr[i]; j < parent_ptr[i+1]; ++j) {
+                        ++child_ptr[parent[j]+1];
+                    }
+                }
+
+                std::partial_sum(child_ptr.begin(), child_ptr.end(), child_ptr.begin());
+                std::vector<int> children(child_ptr.back());
+                for(ptrdiff_t i = 0; i < nblocks; ++i) {
+                    for(ptrdiff_t j = parent_ptr[i]; j < parent_ptr[i+1]; ++j) {
+                        children[child_ptr[parent[j]]++]=i;
+                    }
+                }
+                std::rotate(child_ptr.begin(), child_ptr.end()-1, child_ptr.end());
+                child_ptr[0] = 0;
+                AMGCL_TOC("transpose");
+                AMGCL_TOC("dependency graph");
+
+                B.resize(_q, block_beg);
+                I.resize(_q, order);
+                C.resize(_q, col);
+                V.resize(_q, val);
+
+                if (!lower) D.resize(_q, dia);
+
+                deps.resize(_q, nparents);
+                tmp_deps.resize(_q, nblocks);
+
+                dep_ptr.resize(_q, child_ptr);
+                dep_idx.resize(_q, children);
             }
 
             template <class Vector>
             void solve(Vector &x) const {
-                do_solve(x, is_static_matrix<value_type>());
+                tmp_deps = deps;
+
+                auto K = solve_kernel(q);
+
+                K.push_arg(nblocks);
+                K.push_arg(pitch);
+                K.push_arg(max_width);
+                K.push_arg(B(0));
+                K.push_arg(I(0));
+                K.push_arg(C(0));
+                K.push_arg(V(0));
+                if (!lower) K.push_arg(D(0));
+                K.push_arg(tmp_deps(0));
+                K.push_arg(dep_ptr(0));
+                K.push_arg(dep_idx(0));
+                K.push_arg(x(0));
+
+                K.config(nblocks, block_size)(q);
             }
 
-            template <class Vector>
-            void do_solve(Vector &x, boost::false_type) const {
-                for(ptrdiff_t i = 0; i < nlev; ++i) {
-                    using namespace vex;
+            static vex::backend::kernel& solve_kernel(const vex::backend::command_queue &q) {
+                using namespace vex;
+                using namespace vex::detail;
 
-                    auto _x = tag<1>(x);
-                    auto _I = tag<2>(I[i]);
-                    auto _y = permutation(_I)(_x);
+                static kernel_cache cache;
 
-                    if (lower) {
-                        _y -= L[i] * _x;
-                    } else {
-                        _y = D[i] * (_y - L[i] * _x);
-                    }
+                auto kernel = cache.find(q);
+                if (kernel == cache.end()) {
+                    vex::backend::source_generator src(q);
+
+                    src.begin_kernel("sptr_solve");
+                    src.begin_kernel_parameters();
+                    src.template parameter<ptrdiff_t>("nblocks");
+                    src.template parameter<ptrdiff_t>("pitch");
+                    src.template parameter<ptrdiff_t>("width");
+                    src.template parameter< global_ptr<ptrdiff_t> >("B");
+                    src.template parameter< global_ptr<ptrdiff_t> >("I");
+                    src.template parameter< global_ptr<ptrdiff_t> >("C");
+                    src.template parameter< global_ptr<value_type> >("V");
+                    if (!lower)
+                        src.template parameter< global_ptr<value_type> >("D");
+                    src.template parameter< global_ptr<int> >("deps");
+                    src.template parameter< global_ptr<int> >("dep_ptr");
+                    src.template parameter< global_ptr<int> >("dep_idx");
+                    src.template parameter< global_ptr<value_type> >("x");
+                    src.end_kernel_parameters();
+
+                    src.new_line() << "volatile " << type_name<global_ptr<int>>() << " d = deps;";
+                    src.new_line() << "int t_id = " << src.local_id(0) << ";";
+                    src.new_line() << "for(int block_id = " << src.group_id(0) << "; block_id < nblocks; block_id += " << src.num_groups(0) << ")";
+                    src.open("{");
+                    src.new_line() << "while(d[block_id] > 0);";
+                    src.new_line() << "int i = B[block_id] + t_id;";
+                    src.new_line() << "if (i < B[block_id+1])";
+                    src.open("{");
+                    src.new_line() << type_name<rhs_type>() << " s = 0;";
+                    src.new_line() << "for(" << type_name<ptrdiff_t>() << " j = 0; j < width; ++j)";
+                    src.open("{");
+                    src.new_line() << type_name<ptrdiff_t>() << " c = C[j*pitch+i]; if (c < 0) continue;";
+                    src.new_line() << "s += V[j*pitch+i] * x[c];";
+                    src.close("}");
+                    if (lower)
+                        src.new_line() << "x[I[i]] -= s;";
+                    else
+                        src.new_line() << "x[I[i]] = D[i] * (x[I[i]] - s);";
+                    src.close("}");
+                    src.new_line() << "for(int j = dep_ptr[block_id] + t_id; j < dep_ptr[block_id+1]; j += " << src.local_size(0) << ")";
+                    src.open("{");
+#ifdef VEXCL_BACKEND_CUDA
+                    src.new_line() << "atomicSub(deps + dep_idx[j], 1);";
+#else
+                    src.new_line() << "atomic_dec(deps + dep_idx[j]);";
+#endif
+                    src.close("}");
+                    src.close("}");
+                    src.end_kernel();
+
+                    kernel = cache.insert(q, vex::backend::kernel(q, src.str(), "sptr_solve"));
                 }
+
+                return kernel->second;
             }
-
-            template <class Vector>
-            void do_solve(Vector &x, boost::true_type) const {
-                using backend::vex_sub;
-                using backend::vex_mul;
-
-                typedef typename math::scalar_of<value_type>::type T;
-                const int B = math::static_rows<value_type>::value;
-
-                for(ptrdiff_t i = 0; i < nlev; ++i) {
-                    using namespace vex;
-
-                    auto _x = tag<1>(x);
-                    auto _I = tag<2>(I[i]);
-                    auto _y = permutation(_I)(_x);
-
-                    if (lower) {
-                        _y = vex_sub<T,B>().apply(_y, L[i] * _x);
-                    } else {
-                        _y = vex_mul<T,B>().apply(D[i], vex_sub<T,B>().apply(_y, L[i] * _x));
-                    }
-                }
-            }
-
         };
 
         sptr_solve<true>  lower;
