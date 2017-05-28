@@ -511,7 +511,7 @@ class amg {
                     backend::spmv(math::identity<scalar_type>(), *lvl->P, *nxt->u, math::identity<scalar_type>(), x);
 
                     AMGCL_TIC("relax");
-                    for(size_t i = 0; i < prm.npre; ++i)
+                    for(size_t i = 0; i < prm.npost; ++i)
                         lvl->relax->apply_post(*lvl->A, rhs, x, *lvl->t, prm.relax);
                     AMGCL_TOC("relax");
                 }
