@@ -368,7 +368,7 @@ product(const MatrixA &A, const MatrixB &B, bool sort = false) {
     int nt = 1;
 #endif
 
-    if (nt > 4) {
+    if (nt > 16) {
         spgemm_rmerge(A, B, *C);
     } else {
         spgemm_saad(A, B, *C, sort);
