@@ -177,6 +177,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
         list(APPEND CUDA_NVCC_FLAGS
             ${CUDA_ARCH_FLAGS} -Wno-deprecated-gpu-targets)
 
+        if (OPENMP_FOUND)
+            list(APPEND CUDA_NVCC_FLAGS -Xcompiler ${OpenMP_CXX_FLAGS})
+        endif()
+
         if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
             list(APPEND CUDA_NVCC_FLAGS -Xcompiler -std=c++03 -Xcompiler -Wno-vla)
         endif()
