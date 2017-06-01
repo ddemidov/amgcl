@@ -91,7 +91,7 @@ std::vector<ptrdiff_t> read_problem(
             order[i] = j;
         }
 
-        std::rotate(domain.begin(), domain.end(), domain.end() - 1);
+        std::rotate(domain.begin(), domain.end()-1, domain.end());
         domain[0] = 0;
     }
 
