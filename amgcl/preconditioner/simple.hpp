@@ -1,5 +1,5 @@
-#ifndef AMGCL_PRECONDITIONER_SCHUR_PRESSURE_CORRECTION_HPP
-#define AMGCL_PRECONDITIONER_SCHUR_PRESSURE_CORRECTION_HPP
+#ifndef AMGCL_PRECONDITIONER_SIMPLE_HPP
+#define AMGCL_PRECONDITIONER_SIMPLE_HPP
 
 /*
 The MIT License
@@ -29,7 +29,7 @@ THE SOFTWARE.
 /**
  * \file   amgcl/preconditioner/schur_pressure_correction.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
- * \brief  Schur-complement pressure correction preconditioning scheme.
+ * \brief  SIMPLE preconditioning scheme.
  */
 
 #include <vector>
@@ -47,7 +47,7 @@ namespace preconditioner {
 
 /// Schur-complement pressure correction preconditioner
 template <class USolver, class PSolver>
-class schur_pressure_correction {
+class simple {
     BOOST_STATIC_ASSERT_MSG(
             (
              detail::compatible_backends<
@@ -115,7 +115,7 @@ class schur_pressure_correction {
         } prm;
 
         template <class Matrix>
-        schur_pressure_correction(
+        simple(
                 const Matrix &K,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
@@ -125,7 +125,7 @@ class schur_pressure_correction {
             init(boost::make_shared<build_matrix>(K), bprm);
         }
 
-        schur_pressure_correction(
+        simple(
                 boost::shared_ptr<build_matrix> K,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
@@ -157,7 +157,7 @@ class schur_pressure_correction {
 
             // S p = rhs_p
             backend::clear(*p);
-            report("P1", (*P)(*this, *rhs_p, *p));
+            report("P1", (*P)(*S, *rhs_p, *p));
 
             // rhs_u -= Kup p
             backend::spmv(-1, *Kup, *p, 1, *rhs_u);
@@ -174,22 +174,11 @@ class schur_pressure_correction {
         const matrix& system_matrix() const {
             return *K;
         }
-
-        template <class Alpha, class Vec1, class Beta, class Vec2>
-        void spmv(Alpha alpha, const Vec1 &x, Beta beta, Vec2 &y) const {
-            // y = beta y + alpha S x, where S = Kpp - Kpu Kuu^-1 Kup
-            backend::spmv( alpha, P->system_matrix(), x, beta, y);
-
-            backend::spmv(1, *Kup, x, 0, *tmp);
-            backend::clear(*u);
-            (*U)(*tmp, *u);
-            backend::spmv(-alpha, *Kpu, *u, 1, y);
-        }
     private:
         size_t n, np, nu;
 
-        boost::shared_ptr<matrix> K, Kup, Kpu, x2u, x2p, u2x, p2x;
-        boost::shared_ptr<vector> rhs_u, rhs_p, u, p, tmp;
+        boost::shared_ptr<matrix> K, S, Kup, Kpu, x2u, x2p, u2x, p2x;
+        boost::shared_ptr<vector> rhs_u, rhs_p, u, p;
 
         boost::shared_ptr<USolver> U;
         boost::shared_ptr<PSolver> P;
@@ -294,19 +283,117 @@ class schur_pressure_correction {
                 }
             }
 
+            // Explicitly form the matrix
+            //   S = Kpp - Kpu M Kup,
+            // where
+            //   M = approx(inv(dia(Kuu)))
+            std::vector<value_type> M(nu);
+#pragma omp parallel for
+            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(nu); ++i) {
+                for(ptrdiff_t j = Kuu->ptr[i], e = Kuu->ptr[i+1]; j < e; ++j) {
+                    if (Kuu->col[j] == i) {
+                        M[i] = math::inverse(Kuu->val[j]);
+                        break;
+                    }
+                }
+            }
+
+            boost::shared_ptr<build_matrix> S = boost::make_shared<build_matrix>();
+            S->set_size(np, np);
+            S->ptr[0] = 0;
+
+#pragma omp parallel
+            {
+                std::vector<ptrdiff_t> marker(np, -1);
+
+#pragma omp for
+                for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(np); ++i) {
+                    ptrdiff_t row_width = 0;
+
+                    for(ptrdiff_t j = Kpp->ptr[i], e = Kpp->ptr[i+1]; j < e; ++j) {
+                        marker[Kpp->col[j]] = i;
+                        ++row_width;
+                    }
+
+                    for(ptrdiff_t jp = Kpu->ptr[i], ep = Kpu->ptr[i+1]; jp < ep; ++jp) {
+                        ptrdiff_t cp = Kpu->col[jp];
+
+                        for(ptrdiff_t ju = Kup->ptr[cp], eu = Kup->ptr[cp+1]; ju < eu; ++ju) {
+                            ptrdiff_t cu = Kup->col[ju];
+                            if (marker[cu] != i) {
+                                marker[cu]  = i;
+                                ++row_width;
+                            }
+                        }
+                    }
+
+                    S->ptr[i+1] = row_width;
+                }
+            }
+
+            std::partial_sum(S->ptr, S->ptr + np + 1, S->ptr);
+            S->set_nonzeros(S->ptr[np]);
+
+#pragma omp parallel
+            {
+                std::vector<ptrdiff_t> marker(np, -1);
+
+#pragma omp for
+                for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(np); ++i) {
+                    ptrdiff_t row_beg = S->ptr[i];
+                    ptrdiff_t row_end = row_beg;
+
+                    for(ptrdiff_t j = Kpp->ptr[i], e = Kpp->ptr[i+1]; j < e; ++j) {
+                        ptrdiff_t  c = Kpp->col[j];
+                        value_type v = Kpp->val[j];
+
+                        marker[c] = row_end;
+
+                        S->col[row_end] = c;
+                        S->val[row_end] = v;
+
+
+                        ++row_end;
+                    }
+
+                    for(ptrdiff_t jp = Kpu->ptr[i], ep = Kpu->ptr[i+1]; jp < ep; ++jp) {
+                        ptrdiff_t  cp = Kpu->col[jp];
+                        value_type vp = Kpu->val[jp] * M[cp];
+
+                        for(ptrdiff_t ju = Kup->ptr[cp], eu = Kup->ptr[cp+1]; ju < eu; ++ju) {
+                            ptrdiff_t  cu = Kup->col[ju];
+                            value_type vu = Kup->val[ju];
+
+                            if (marker[cu] < row_beg) {
+                                marker[cu] = row_end;
+
+                                S->col[row_end] = cu;
+                                S->val[row_end] = -(vp * vu);
+
+                                ++row_end;
+                            } else {
+                                S->val[marker[cu]] -= vp * vu;
+                            }
+                        }
+                    }
+
+                    amgcl::detail::sort_row(
+                            S->col + row_beg, S->val + row_beg, row_end - row_beg);
+                }
+            }
+
             U = boost::make_shared<USolver>(*Kuu, prm.usolver, bprm);
             P = boost::make_shared<PSolver>(*Kpp, prm.psolver, bprm);
 
             this->Kup = backend_type::copy_matrix(Kup, bprm);
             this->Kpu = backend_type::copy_matrix(Kpu, bprm);
+            this->S   = backend_type::copy_matrix(S,   bprm);
 
             rhs_u = backend_type::create_vector(nu, bprm);
             rhs_p = backend_type::create_vector(np, bprm);
 
             u = backend_type::create_vector(nu, bprm);
             p = backend_type::create_vector(np, bprm);
-
-            tmp = backend_type::create_vector(nu, bprm);
 
             // Scatter/Gather matrices
             boost::shared_ptr<build_matrix> x2u = boost::make_shared<build_matrix>();
@@ -379,8 +466,8 @@ class schur_pressure_correction {
             this->p2x = backend_type::copy_matrix(p2x, bprm);
         }
 
-        friend std::ostream& operator<<(std::ostream &os, const schur_pressure_correction &p) {
-            os << "Schur complement (two-stage preconditioner)" << std::endl;
+        friend std::ostream& operator<<(std::ostream &os, const simple &p) {
+            os << "SIMPLE (two-stage preconditioner)" << std::endl;
             os << "  unknowns: " << p.n << "(" << p.np << ")" << std::endl;
             os << "  nonzeros: " << backend::nonzeros(p.system_matrix()) << std::endl;
 
@@ -400,29 +487,6 @@ class schur_pressure_correction {
 };
 
 } // namespace preconditioner
-
-namespace backend {
-
-template <class US, class PS, class Alpha, class Beta, class Vec1, class Vec2>
-struct spmv_impl< Alpha, preconditioner::schur_pressure_correction<US, PS>, Vec1, Beta, Vec2>
-{
-    static void apply(Alpha alpha, const preconditioner::schur_pressure_correction<US, PS> &A, const Vec1 &x, Beta beta, Vec2 &y)
-    {
-        A.spmv(alpha, x, beta, y);
-    }
-};
-
-template <class US, class PS, class Vec1, class Vec2, class Vec3>
-struct residual_impl< preconditioner::schur_pressure_correction<US, PS>, Vec1, Vec2, Vec3>
-{
-    static void apply(const Vec1 &rhs, const preconditioner::schur_pressure_correction<US, PS> &A, const Vec2 &x, Vec3 &r)
-    {
-        backend::copy(rhs, r);
-        A.spmv(-1, x, 1, r);
-    }
-};
-
-} // namespace backend
 } // namespace amgcl
 
 #endif
