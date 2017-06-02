@@ -233,7 +233,7 @@ class schur_pressure_correction {
             Kup_loc->set_size(nu, np, true);
 
             Kpu_rem->set_size(np, 0, true);
-            Kup_rem->set_size(np, 0, true);
+            Kup_rem->set_size(nu, 0, true);
 
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < n; ++i) {
