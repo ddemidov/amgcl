@@ -360,7 +360,7 @@ class schur_pressure_correction {
             tmp = backend_type::create_vector(nu, bprm);
 
             if (prm.approx_schur)
-                this->M = backend_type::copy_vector(diagonal(*Kuu, /*invert = */true), bprm);
+                M = backend_type::copy_vector(diagonal(*Kuu, /*invert = */true), bprm);
 
             // Scatter/Gather matrices
             boost::shared_ptr<build_matrix> x2u = boost::make_shared<build_matrix>();

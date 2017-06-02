@@ -19,6 +19,7 @@
 #include <boost/scope_exit.hpp>
 
 #include <amgcl/io/binary.hpp>
+#include <amgcl/io/mm.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/runtime.hpp>
 #include <amgcl/mpi/make_solver.hpp>
@@ -52,7 +53,7 @@ std::vector<ptrdiff_t> read_problem(
     std::vector<ptrdiff_t> domain(world.size + 1, 0);
     std::vector<int> part;
 
-    amgcl::io::read_dense(part_file, n, m, part);
+    boost::tie(n, m) = amgcl::io::mm_reader(part_file)(part);
     BOOST_FOREACH(int p, part) {
         ++domain[p+1];
         precondition(p < world.size, "MPI world does not correspond to partition");
