@@ -38,7 +38,6 @@ THE SOFTWARE.
 #include <boost/math/constants/constants.hpp>
 
 #include <amgcl/detail/inverse.hpp>
-#include <amgcl/detail/spectral_radius.hpp>
 #include <amgcl/util.hpp>
 
 namespace amgcl {
@@ -89,7 +88,7 @@ class chebyshev {
                 p( Backend::create_vector(rows(A), backend_prm) ),
                 q( Backend::create_vector(rows(A), backend_prm) )
         {
-            scalar_type hi = amgcl::detail::spectral_radius(A);
+            scalar_type hi = spectral_radius(A);
             scalar_type lo = hi * prm.lower;
 
             // Chebyshev polynomial roots on the interval [lo, hi].
@@ -184,6 +183,35 @@ class chebyshev {
                 backend::spmv(one, A, x, zero, *q);
                 backend::axpbypcz(c, rhs, one, *q, zero, x);
             }
+        }
+
+        // Uses Gershgorin disc theorem to estimate spectral radius of the
+        // matrix
+        template <class Matrix>
+        static scalar_type spectral_radius(const Matrix &A) {
+            typedef typename backend::row_iterator<Matrix>::type row_iterator;
+            const ptrdiff_t n = rows(A);
+
+            scalar_type emax = 0;
+
+#pragma omp parallel
+            {
+                scalar_type my_emax = 0;
+#pragma omp for nowait
+                for(ptrdiff_t i = 0; i < n; ++i) {
+                    scalar_type hi = 0;
+
+                    for(row_iterator a = backend::row_begin(A, i); a; ++a)
+                        hi += math::norm( a.value() );
+
+                    my_emax = std::max(my_emax, hi);
+                }
+
+#pragma omp critical
+                emax = std::max(emax, my_emax);
+            }
+
+            return emax;
         }
 };
 
