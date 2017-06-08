@@ -108,6 +108,9 @@ find_path(EIGEN_INCLUDE Eigen/SparseCore PATH_SUFFIXES eigen3)
 if (EIGEN_INCLUDE)
     add_library(eigen_target INTERFACE)
     target_include_directories(eigen_target INTERFACE ${EIGEN_INCLUDE})
+    target_compile_options(eigen_target INTERFACE
+        $<$<CXX_COMPILER_ID:GNU>:-Wno-int-in-bool-context>
+        )
 endif()
 
 #----------------------------------------------------------------------------
