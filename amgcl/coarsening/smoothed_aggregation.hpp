@@ -354,7 +354,7 @@ struct smoothed_aggregation {
             }
         }
 
-        return radius;
+        return radius < 0 ? static_cast<scalar_type>(2) : radius;
     }
 };
 
