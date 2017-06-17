@@ -34,7 +34,7 @@ The code is ported from Matlab code published at
 http://ta.twi.tudelft.nl/nw/users/gijzen/IDR.html.
 
 This is a very stable and efficient IDR(s) variant (implemented in the MATLAB
-code idrs.m given above) is described in: Martin B. van Gijzen and Peter
+code idrs.m given above) as described in: Martin B. van Gijzen and Peter
 Sonneveld, Algorithm 913: An Elegant IDR(s) Variant that Efficiently Exploits
 Bi-orthogonality Properties. ACM Transactions on Mathematical Software, Vol.
 38, No. 1, pp. 5:1-5:19, 2011 (copyright ACM).
@@ -201,7 +201,7 @@ class idrs {
 
                     for(unsigned j = 0; j < prm.s; ++j) {
 #pragma omp for
-                        for(size_t i = 0; i < n; ++i)
+                        for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i)
                             p[i] = math::constant<rhs_type>(rnd(rng));
 
 #pragma omp single
