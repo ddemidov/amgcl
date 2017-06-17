@@ -125,7 +125,8 @@ void test_problem(
         amgcl::runtime::solver::bicgstabl,
         amgcl::runtime::solver::gmres,
         amgcl::runtime::solver::lgmres,
-        amgcl::runtime::solver::fgmres
+        amgcl::runtime::solver::fgmres,
+        amgcl::runtime::solver::idrs
     };
 
     typedef typename Backend::vector vector;
