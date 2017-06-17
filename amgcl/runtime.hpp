@@ -524,7 +524,7 @@ enum type {
     gmres,      ///< GMRES
     lgmres,     ///< LGMRES
     fgmres,     ///< FGMRES
-    idrs,       ///< IDR(s)
+    idrs        ///< IDR(s)
 };
 
 inline std::ostream& operator<<(std::ostream &os, type s)
