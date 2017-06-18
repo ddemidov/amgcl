@@ -181,9 +181,6 @@ class idrs {
             }
 
             // Initialize P.
-            // TODO: This probably has to be done before each solve,
-            //       but it looks like the convergence rate does not suffer on
-            //       consequent solves with reused P.
             P.reserve(prm.s);
             {
                 std::vector<rhs_type> p(n);
