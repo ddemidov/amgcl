@@ -127,7 +127,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args(sys.argv[1:])
 
-    if args.d == 2:
+    if int(args.d) == 2:
         (A, b) = make_poisson_2d(int(args.n))
     else:
         (A, b) = make_poisson_3d(int(args.n))
