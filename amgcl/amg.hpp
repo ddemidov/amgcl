@@ -436,7 +436,7 @@ class amg {
                 }
             }
 
-            if (backend::rows(*A) > prm.coarse_enough) {
+            if (!A || backend::rows(*A) > prm.coarse_enough) {
                 // The coarse matrix is still too big to be solved directly.
                 direct_coarse_solve = false;
             }
