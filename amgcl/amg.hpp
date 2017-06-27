@@ -349,8 +349,10 @@ class amg {
                 boost::tie(P, R) = Coarsening::transfer_operators(
                         *A, prm.coarsening);
 
-                precondition(backend::cols(*P) > 0,
-                        "Zero-sized coarse level in amgcl (diagonal matrix?)");
+                if(backend::cols(*P) == 0) {
+                    // Zero-sized coarse level in amgcl (diagonal matrix?)
+                    return boost::shared_ptr<build_matrix>();
+                }
 
                 sort_rows(*P);
                 sort_rows(*R);
@@ -412,6 +414,8 @@ class amg {
                     "Matrix should be square!"
                     );
 
+            bool direct_coarse_solve = true;
+
             while( backend::rows(*A) > prm.coarse_enough && levels.size() < prm.max_levels) {
                 {
 #ifdef AMGCL_ASYNC_SETUP
@@ -423,9 +427,21 @@ class amg {
                 ready_to_cycle.notify_all();
 #endif
                 A = levels.back().step_down(A, prm, bprm);
+                if (!A) {
+                    // Zero-sized coarse level. Probably the system matrix on
+                    // this level is diagonal, should be easily solvable with a
+                    // couple of smoother iterations.
+                    direct_coarse_solve = false;
+                    break;
+                }
             }
 
-            if (levels.size() < prm.max_levels) {
+            if (backend::rows(*A) > prm.coarse_enough) {
+                // The coarse matrix is still too big to be solved directly.
+                direct_coarse_solve = false;
+            }
+
+            if (direct_coarse_solve) {
                 AMGCL_TIC("coarsest level");
                 if (prm.direct_coarse) {
                     level l;
