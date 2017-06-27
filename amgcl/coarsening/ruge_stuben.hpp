@@ -230,7 +230,7 @@ struct ruge_stuben {
                 Val  v = A.val[j];
 
                 if (!S.val[j] || cf[c] != 'C') continue;
-                if (prm.do_trunc && Amin[i] >= v && v <= Amax[i]) continue;
+                if (prm.do_trunc && Amin[i] <= v && v <= Amax[i]) continue;
 
                 P->col[row_head] = cidx[c];
                 P->val[row_head] = (v < zero ? alpha : beta) * v;
