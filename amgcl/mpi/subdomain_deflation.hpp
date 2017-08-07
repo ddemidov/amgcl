@@ -408,13 +408,18 @@ class subdomain_deflation {
             std::vector<int> Eptr;
             if (comm.rank == master_rank) {
                 Eptr.resize(dv_start[cgroup_end] - dv_start[cgroup_beg] + 1, 0);
-            }
 
-            MPI_Gatherv(
-                    &eptr[1], ndv, MPI_INT, &Eptr[0] + 1,
-                    const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
-                    MPI_INT, 0, slaves_comm
-                    );
+                MPI_Gatherv(
+                        &eptr[1], ndv, MPI_INT, &Eptr[0] + 1,
+                        const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
+                        MPI_INT, 0, slaves_comm
+                        );
+            } else {
+                MPI_Gatherv(
+                        &eptr[1], ndv, MPI_INT, NULL, 0, NULL,
+                        MPI_INT, 0, slaves_comm
+                        );
+            }
 
             std::partial_sum(eptr.begin(), eptr.end(), eptr.begin());
             std::partial_sum(Eptr.begin(), Eptr.end(), Eptr.begin());
