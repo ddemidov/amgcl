@@ -416,7 +416,7 @@ class subdomain_deflation {
                         );
             } else {
                 MPI_Gatherv(
-                        &eptr[1], ndv, MPI_INT, NULL, 0, NULL,
+                        &eptr[1], ndv, MPI_INT, NULL, NULL, NULL,
                         MPI_INT, 0, slaves_comm
                         );
             }
@@ -465,19 +465,29 @@ class subdomain_deflation {
                     sstart[i] = Eptr[dv_start[p]     - offset];
                     ssize[i]  = Eptr[dv_start[p + 1] - offset] - sstart[i];
                 }
+
+                MPI_Gatherv(
+                        &ecol[0], ecol.size(), MPI_INT, &Ecol[0],
+                        const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
+                        MPI_INT, 0, slaves_comm
+                        );
+
+                MPI_Gatherv(
+                        &eval[0], eval.size(), dtype, &Eval[0],
+                        const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
+                        dtype, 0, slaves_comm
+                        );
+            } else {
+                MPI_Gatherv(
+                        &ecol[0], ecol.size(), MPI_INT, NULL, NULL, NULL,
+                        MPI_INT, 0, slaves_comm
+                        );
+
+                MPI_Gatherv(
+                        &eval[0], eval.size(), dtype, NULL, NULL, NULL,
+                        dtype, 0, slaves_comm
+                        );
             }
-
-            MPI_Gatherv(
-                    &ecol[0], ecol.size(), MPI_INT, &Ecol[0],
-                    const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
-                    MPI_INT, 0, slaves_comm
-                    );
-
-            MPI_Gatherv(
-                    &eval[0], eval.size(), dtype, &Eval[0],
-                    const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
-                    dtype, 0, slaves_comm
-                    );
             AMGCL_TOC("assemble E");
 
             // Prepare E factorization.
@@ -625,11 +635,18 @@ class subdomain_deflation {
         {
             AMGCL_TIC("coarse solve");
             AMGCL_TIC("exchange rhs");
-            MPI_Gatherv(
-                    &f[0], f.size(), dtype, &cf[0],
-                    const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
-                    dtype, 0, slaves_comm
-                    );
+            if (comm.rank == master_rank) {
+                MPI_Gatherv(
+                        &f[0], f.size(), dtype, &cf[0],
+                        const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
+                        dtype, 0, slaves_comm
+                        );
+            } else {
+                MPI_Gatherv(
+                        &f[0], f.size(), dtype, NULL, NULL, NULL,
+                        dtype, 0, slaves_comm
+                        );
+            }
             AMGCL_TOC("exchange rhs");
 
             if (comm.rank == master_rank) {
