@@ -32,6 +32,7 @@ THE SOFTWARE.
  */
 
 #include <iostream>
+#include <iomanip>
 #include <set>
 #include <limits>
 #include <stdexcept>
