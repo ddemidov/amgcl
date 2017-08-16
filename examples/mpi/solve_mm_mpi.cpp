@@ -149,7 +149,7 @@ std::vector<ptrdiff_t> read_problem(
                 val[ptr[row]] = V[i];
                 ++ptr[row];
             }
-            std::rotate(ptr.begin(), ptr.end(), ptr.end() - 1);
+            std::rotate(ptr.begin(), ptr.end()-1, ptr.end());
             ptr[0] = 0;
         }
     }

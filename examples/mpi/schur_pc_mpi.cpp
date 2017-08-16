@@ -69,7 +69,7 @@ std::vector<ptrdiff_t> read_problem(
     for(ptrdiff_t i = 0; i < n; ++i)
         order[i] = domain[part[i]]++;
 
-    std::rotate(domain.begin(), domain.end(), domain.end() - 1);
+    std::rotate(domain.begin(), domain.end()-1, domain.end());
     domain[0] = 0;
 
     // Read matrix chunk
