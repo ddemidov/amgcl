@@ -80,7 +80,7 @@ struct face_deflation {
     }
 
     double operator()(ptrdiff_t row, int j) const {
-        if (j == 0) return 1.0;
+        if (j == 0) return sqrt(v.shape()[0]);
         return v[row][j-1];
     }
 
@@ -94,7 +94,7 @@ struct face_deflation {
         ptrdiff_t loc_beg = domain[comm.rank];
         ptrdiff_t loc_end = domain[comm.rank + 1];
 
-        std::vector<char>      neibors(comm.size, 0);
+        std::vector<ptrdiff_t> neibors(comm.size, 0);
         std::vector<ptrdiff_t> faces;
         std::vector<ptrdiff_t> row_face(nrows, -1);
 
@@ -114,7 +114,7 @@ struct face_deflation {
 
             if (faces.size() == 1) {
                 row_face[i] = faces[0];
-                neibors[faces[0]] = 1;
+                ++neibors[faces[0]];
             }
         }
 
@@ -128,7 +128,8 @@ struct face_deflation {
 
         for(ptrdiff_t i = 0; i < nrows; ++i) {
             for(int j = 0; j < num_faces; ++j) v[i][j] = 0;
-            if (row_face[i] >= 0) v[i][face_id[row_face[i]]] = 1;
+            if (row_face[i] >= 0)
+                v[i][face_id[row_face[i]]] = sqrt(neibors[row_face[i]]);
         }
     }
 };
