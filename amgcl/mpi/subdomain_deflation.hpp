@@ -71,9 +71,72 @@ struct constant_deflation {
     }
 };
 
+//---------------------------------------------------------------------------
+struct face_deflation {
+    boost::multi_array<double,2> v;
+
+    int dim() const {
+        return 1 + v.shape()[1];
+    }
+
+    double operator()(ptrdiff_t row, int j) const {
+        if (j == 0) return 1.0;
+        return v[row][j-1];
+    }
+
+    template <class Matrix>
+    face_deflation(const communicator &comm, const Matrix &A) {
+        typedef typename backend::row_iterator<Matrix>::type row_iterator;
+
+        ptrdiff_t nrows = backend::rows(A);
+        std::vector<ptrdiff_t> domain = mpi::exclusive_sum(comm, nrows);
+
+        ptrdiff_t loc_beg = domain[comm.rank];
+        ptrdiff_t loc_end = domain[comm.rank + 1];
+
+        std::vector<char>      neibors(comm.size, 0);
+        std::vector<ptrdiff_t> faces;
+        std::vector<ptrdiff_t> row_face(nrows, -1);
+
+        for(ptrdiff_t i = 0; i < nrows; ++i) {
+            faces.clear();
+
+            for(row_iterator a = backend::row_begin(A, i); a; ++a) {
+                ptrdiff_t c = a.col();
+
+                if (loc_beg <= c && c < loc_end) continue;
+
+                faces.push_back(
+                        std::upper_bound(domain.begin(), domain.end(), c) -
+                        domain.begin() - 1
+                        );
+            }
+
+            if (faces.size() == 1) {
+                row_face[i] = faces[0];
+                neibors[faces[0]] = 1;
+            }
+        }
+
+        int num_faces = 0;
+        std::vector<int> face_id(comm.size, -1);
+        for(int i = 0; i < comm.size; ++i)
+            if (neibors[i])
+                face_id[i] = num_faces++;
+
+        v.resize(boost::extents[nrows][num_faces]);
+
+        for(ptrdiff_t i = 0; i < nrows; ++i) {
+            for(int j = 0; j < num_faces; ++j) v[i][j] = 0;
+            if (row_face[i] >= 0) v[i][face_id[row_face[i]]] = 1;
+        }
+    }
+};
+
 /// Distributed solver based on subdomain deflation.
 /**
  * \sa \cite Frank2001
+ :qa
  */
 template <
     class LocalPrecond,

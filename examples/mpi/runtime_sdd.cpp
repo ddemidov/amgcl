@@ -506,35 +506,6 @@ int main(int argc, char *argv[]) {
 
     renumbering renum(part, domain);
 
-    prof.tic("deflation");
-    boost::function<double(ptrdiff_t,unsigned)> dv;
-    unsigned ndv = 1;
-
-    if (deflation_type == "constant") {
-        dv = constant_deflation();
-    } else if (deflation_type == "linear") {
-        ndv = 3;
-        dv  = linear_deflation(chunk, lo, hi);
-    } else if (deflation_type == "bilinear") {
-        bilinear_deflation bld(n, chunk, lo, hi);
-        ndv = bld.dim();
-        dv  = bld;
-    } else if (deflation_type == "mba") {
-        mba_deflation mba(n, chunk, lo, hi);
-        ndv = mba.dim();
-        dv  = mba;
-    } else if (deflation_type == "harmonic") {
-        harmonic_deflation hd(n, chunk, lo, hi);
-        ndv = hd.dim();
-        dv  = hd;
-    } else {
-        throw std::runtime_error("Unsupported deflation type");
-    }
-
-    prm.put("num_def_vec", ndv);
-    prm.put("def_vec", &dv);
-    prof.toc("deflation");
-
     prof.tic("assemble");
     std::vector<ptrdiff_t> ptr;
     std::vector<ptrdiff_t> col;
@@ -633,6 +604,40 @@ int main(int argc, char *argv[]) {
         }
     }
     prof.toc("assemble");
+
+    prof.tic("deflation");
+
+    amgcl::mpi::face_deflation fd(world, boost::tie(chunk, ptr, col, val));
+    boost::function<double(ptrdiff_t,unsigned)> dv = fd;
+    unsigned ndv = fd.dim();
+
+    /*
+    if (deflation_type == "constant") {
+        dv = constant_deflation();
+    } else if (deflation_type == "linear") {
+        ndv = 3;
+        dv  = linear_deflation(chunk, lo, hi);
+    } else if (deflation_type == "bilinear") {
+        bilinear_deflation bld(n, chunk, lo, hi);
+        ndv = bld.dim();
+        dv  = bld;
+    } else if (deflation_type == "mba") {
+        mba_deflation mba(n, chunk, lo, hi);
+        ndv = mba.dim();
+        dv  = mba;
+    } else if (deflation_type == "harmonic") {
+        harmonic_deflation hd(n, chunk, lo, hi);
+        ndv = hd.dim();
+        dv  = hd;
+    } else {
+        throw std::runtime_error("Unsupported deflation type");
+    }
+    */
+
+    prm.put("num_def_vec", ndv);
+    prm.put("def_vec", &dv);
+    prof.toc("deflation");
+
 
     std::vector<double> x(chunk, 0);
     size_t iters;
