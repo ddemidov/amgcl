@@ -32,7 +32,7 @@ Each of the solvers in AMGCL provides two overloads for the ``operator()``:
 
 
 Conjugate Gradient
-#########################
+##################
 
 ``#include`` `\<amgcl/solver/cg.hpp>`_
 
@@ -64,7 +64,7 @@ GMRES
     :members:
 
 LGMRES
-#####
+######
 
 ``#include`` `\<amgcl/solver/lgmres.hpp>`_
 
@@ -72,7 +72,7 @@ LGMRES
     :members:
 
 FGMRES
-#####
+######
 
 ``#include`` `\<amgcl/solver/fgmres.hpp>`_
 
