@@ -37,6 +37,41 @@ struct constant_deflation {
     double operator()(ptrdiff_t, unsigned) const { return 1.0; }
 };
 
+struct partitioned_deflation {
+    unsigned nparts;
+    std::vector<unsigned> domain;
+
+    partitioned_deflation(
+            boost::array<ptrdiff_t, 2> LO,
+            boost::array<ptrdiff_t, 2> HI,
+            unsigned nparts
+            ) : nparts(nparts)
+    {
+        domain_partition<2> part(LO, HI, nparts);
+
+        ptrdiff_t nx = HI[0] - LO[0] + 1;
+        ptrdiff_t ny = HI[1] - LO[1] + 1;
+
+        domain.resize(nx * ny);
+        for(unsigned p = 0; p < nparts; ++p) {
+            boost::array<ptrdiff_t, 2> lo = part.domain(p).min_corner();
+            boost::array<ptrdiff_t, 2> hi = part.domain(p).max_corner();
+
+            for(int j = lo[1]; j <= hi[1]; ++j) {
+                for(int i = lo[0]; i <= hi[0]; ++i) {
+                    domain[(j - LO[1]) * nx + (i - LO[0])] = p;
+                }
+            }
+        }
+    }
+
+    size_t dim() const { return nparts; }
+
+    double operator()(ptrdiff_t i, unsigned j) const {
+        return domain[i] == j;
+    }
+};
+
 struct linear_deflation {
     std::vector<double> x;
     std::vector<double> y;
@@ -445,7 +480,12 @@ int main(int argc, char *argv[]) {
         (
          "deflation,v",
          po::value<std::string>(&deflation_type)->default_value(deflation_type),
-         "constant, linear, bilinear, mba, harmonic"
+         "constant, partitioned, linear, bilinear, mba, harmonic"
+        )
+        (
+         "subparts",
+         po::value<int>()->default_value(16),
+         "number of partitions for partitioned deflation"
         )
         (
          "params,p",
@@ -512,6 +552,9 @@ int main(int argc, char *argv[]) {
 
     if (deflation_type == "constant") {
         dv = constant_deflation();
+    } else if (deflation_type == "partitioned") {
+        ndv = vm["subparts"].as<int>();
+        dv  = partitioned_deflation(lo, hi, ndv);
     } else if (deflation_type == "linear") {
         ndv = 3;
         dv  = linear_deflation(chunk, lo, hi);
