@@ -53,16 +53,34 @@ struct partitioned_deflation {
         ptrdiff_t ny = HI[1] - LO[1] + 1;
 
         domain.resize(nx * ny);
+        int inner = -1, n = 0;
         for(unsigned p = 0; p < nparts; ++p) {
             boost::array<ptrdiff_t, 2> lo = part.domain(p).min_corner();
             boost::array<ptrdiff_t, 2> hi = part.domain(p).max_corner();
 
+            unsigned id = n;
+
+            if (lo[0] > LO[0] && hi[0] < HI[0] &&
+                lo[1] > LO[1] && hi[1] < HI[1])
+            {
+                if (inner < 0) {
+                    inner = id;
+                    ++n;
+                } else {
+                    id = inner;
+                }
+            } else {
+                ++n;
+            }
+
             for(int j = lo[1]; j <= hi[1]; ++j) {
                 for(int i = lo[0]; i <= hi[0]; ++i) {
-                    domain[(j - LO[1]) * nx + (i - LO[0])] = p;
+                    domain[(j - LO[1]) * nx + (i - LO[0])] = id;
                 }
             }
         }
+
+        this->nparts = n;
     }
 
     size_t dim() const { return nparts; }
@@ -553,8 +571,9 @@ int main(int argc, char *argv[]) {
     if (deflation_type == "constant") {
         dv = constant_deflation();
     } else if (deflation_type == "partitioned") {
-        ndv = vm["subparts"].as<int>();
-        dv  = partitioned_deflation(lo, hi, ndv);
+        partitioned_deflation pd(lo, hi, vm["subparts"].as<int>());
+        ndv = pd.dim();
+        dv = pd;
     } else if (deflation_type == "linear") {
         ndv = 3;
         dv  = linear_deflation(chunk, lo, hi);

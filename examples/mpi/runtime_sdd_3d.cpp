@@ -71,9 +71,25 @@ struct partitioned_deflation {
 
         domain.resize(nx * ny * nz);
 
+        int inner = -1, n = 0;
         for(unsigned p = 0; p < nparts; ++p) {
             boost::array<ptrdiff_t, 3> lo = part.domain(p).min_corner();
             boost::array<ptrdiff_t, 3> hi = part.domain(p).max_corner();
+
+            unsigned id = n;
+
+            if (lo[0] > LO[0] && hi[0] < HI[0] &&
+                lo[1] > LO[1] && hi[1] < HI[1])
+            {
+                if (inner < 0) {
+                    inner = id;
+                    ++n;
+                } else {
+                    id = inner;
+                }
+            } else {
+                ++n;
+            }
 
             for(int k = lo[2]; k <= hi[2]; ++k) {
                 int kk = k - LO[2];
@@ -81,11 +97,13 @@ struct partitioned_deflation {
                     int jj = j - LO[1];
                     for(int i = lo[0]; i <= hi[0]; ++i) {
                         int ii = i - LO[0];
-                        domain[kk * nx * ny + jj * nx + ii] = p;
+                        domain[kk * nx * ny + jj * nx + ii] = id;
                     }
                 }
             }
         }
+
+        this->nparts = n;
     }
 
     size_t dim() const { return nparts; }
@@ -270,8 +288,9 @@ int main(int argc, char *argv[]) {
         prm.put("num_def_vec", 4);
     } else if (deflation == "partitioned") {
         int ndv = vm["subparts"].as<int>();
-        def_vec = partitioned_deflation(lo, hi, ndv);
-        prm.put("num_def_vec", ndv);
+        partitioned_deflation pd(lo, hi, ndv);
+        def_vec = pd;
+        prm.put("num_def_vec", pd.dim());
     } else {
         throw std::runtime_error("Unsupported deflation type");
     }
