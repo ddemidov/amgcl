@@ -172,11 +172,11 @@ class subdomain_deflation {
             // Fill deflation vectors.
             AMGCL_TIC("copy deflation vectors");
             {
-                std::vector<value_type> z(nrows);
                 for(int j = 0; j < ndv; ++j) {
-                    for(ptrdiff_t i = 0; i < nrows; ++i)
-                        z[i] = prm.def_vec(i, j);
-                    Z[j] = backend_type::copy_vector(z, bprm);
+                    for(ptrdiff_t i = 0; i < nrows; ++i) {
+                        double z = prm.def_vec(i, j);
+                        if (z != 0.0) Z[j].emplace_back(i, z);
+                    }
                 }
             }
             AMGCL_TOC("copy deflation vectors");
@@ -600,7 +600,7 @@ class subdomain_deflation {
         std::vector<ptrdiff_t> dv_start;
         std::vector<int> sstart, ssize, mstart, msize;
 
-        std::vector< boost::shared_ptr<vector> > Z;
+        std::vector< std::vector< std::tuple<ptrdiff_t,double> > > Z;
 
         MPI_Comm masters_comm, slaves_comm;
         int master_rank;
@@ -617,8 +617,13 @@ class subdomain_deflation {
             AMGCL_TIC("project");
 
             AMGCL_TIC("local inner product");
-            for(ptrdiff_t j = 0; j < ndv; ++j)
-                df[j] = backend::inner_product(x, *Z[j]);
+            for(ptrdiff_t j = 0; j < ndv; ++j) {
+                double sum = 0.0;
+#pragma omp parallel for
+                for(ptrdiff_t k = 0; k < Z[j].size(); ++k)
+                    sum += x[std::get<0>(Z[j][k])] * std::get<1>(Z[j][k]);
+                df[j] = sum;
+            }
             AMGCL_TOC("local inner product");
 
             coarse_solve(df, dx);
@@ -679,16 +684,25 @@ class subdomain_deflation {
 
             // df = transp(Z) * (rhs - Ax)
             AMGCL_TIC("local inner product");
-            for(ptrdiff_t j = 0; j < ndv; ++j)
-                df[j] = backend::inner_product(*q, *Z[j]);
+            for(ptrdiff_t j = 0; j < ndv; ++j) {
+                double sum = 0.0;
+#pragma omp parallel for
+                for(ptrdiff_t k = 0; k < Z[j].size(); ++k)
+                    sum += (*q)[std::get<0>(Z[j][k])] * std::get<1>(Z[j][k]);
+                df[j] = sum;
+            }
             AMGCL_TOC("local inner product");
 
             // dx = inv(E) * df
             coarse_solve(df, dx);
 
             // x += Z * dx
-            backend::lin_comb(ndv, &dx[dv_start[comm.rank]], Z, 1, x);
-
+            for(ptrdiff_t j = 0; j < ndv; ++j) {
+                double c = dx[dv_start[comm.rank] + j];
+#pragma omp parallel for
+                for(ptrdiff_t k = 0; k < Z[j].size(); ++k)
+                    x[std::get<0>(Z[j][k])] += c * std::get<1>(Z[j][k]);
+            }
             AMGCL_TOC("postprocess");
         }
 
