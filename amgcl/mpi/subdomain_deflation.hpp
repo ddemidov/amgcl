@@ -673,14 +673,14 @@ class subdomain_deflation {
         void postprocess(const Vec1 &rhs, Vec2 &x) const {
             AMGCL_TIC("postprocess");
 
-            // q = Ax
-            backend::spmv(1, *A, x, 0, *q);
+            // q = rhs - Ax
+            backend::copy(rhs, *q);
+            backend::spmv(-1, *A, x, 1, *q);
 
             // df = transp(Z) * (rhs - Ax)
             AMGCL_TIC("local inner product");
             for(ptrdiff_t j = 0; j < ndv; ++j)
-                df[j] = backend::inner_product(rhs, *Z[j])
-                      - backend::inner_product(*q,  *Z[j]);
+                df[j] = backend::inner_product(*q, *Z[j]);
             AMGCL_TOC("local inner product");
 
             // dx = inv(E) * df
