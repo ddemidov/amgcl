@@ -24,15 +24,19 @@ namespace amgcl {
     profiler<> prof;
 }
 
-struct deflation_vectors {
-    size_t nv;
+struct linear_deflation {
     std::vector<double> x;
     std::vector<double> y;
     std::vector<double> z;
 
-    deflation_vectors(ptrdiff_t n, size_t nv = 4) : nv(nv), x(n), y(n), z(n) {}
+    linear_deflation(
+        std::vector<double> x,
+        std::vector<double> y,
+        std::vector<double> z
+        ) : x(x), y(y), z(z)
+    {}
 
-    size_t dim() const { return nv; }
+    size_t dim() const { return 4; }
 
     double operator()(ptrdiff_t i, int j) const {
         switch(j) {
@@ -46,6 +50,48 @@ struct deflation_vectors {
             case 3:
                 return z[i];
         }
+    }
+};
+
+struct partitioned_deflation {
+    unsigned nparts;
+    std::vector<unsigned> domain;
+
+    partitioned_deflation(
+            boost::array<ptrdiff_t, 3> LO,
+            boost::array<ptrdiff_t, 3> HI,
+            unsigned nparts
+            ) : nparts(nparts)
+    {
+        domain_partition<3> part(LO, HI, nparts);
+
+        ptrdiff_t nx = HI[0] - LO[0] + 1;
+        ptrdiff_t ny = HI[1] - LO[1] + 1;
+        ptrdiff_t nz = HI[2] - LO[2] + 1;
+
+        domain.resize(nx * ny * nz);
+
+        for(unsigned p = 0; p < nparts; ++p) {
+            boost::array<ptrdiff_t, 3> lo = part.domain(p).min_corner();
+            boost::array<ptrdiff_t, 3> hi = part.domain(p).max_corner();
+
+            for(int k = lo[2]; k <= hi[2]; ++k) {
+                int kk = k - LO[2];
+                for(int j = lo[1]; j <= hi[1]; ++j) {
+                    int jj = j - LO[1];
+                    for(int i = lo[0]; i <= hi[0]; ++i) {
+                        int ii = i - LO[0];
+                        domain[kk * nx * ny + jj * nx + ii] = p;
+                    }
+                }
+            }
+        }
+    }
+
+    size_t dim() const { return nparts; }
+
+    double operator()(ptrdiff_t i, unsigned j) const {
+        return domain[i] == j;
     }
 };
 
@@ -130,6 +176,16 @@ int main(int argc, char *argv[]) {
 #endif
         )
         (
+         "deflation,v",
+         po::value<std::string>()->default_value("linear"),
+         "constant, partitioned, linear"
+        )
+        (
+         "subparts",
+         po::value<int>()->default_value(16),
+         "number of partitions for partitioned deflation"
+        )
+        (
          "cd",
          po::bool_switch(&constant_deflation),
          "Use constant deflation (linear deflation is used by default)"
@@ -182,21 +238,46 @@ int main(int argc, char *argv[]) {
     hi = part.domain(world.rank).max_corner();
 
     renumbering renum(part, domain);
+    prof.toc("partition");
 
-    deflation_vectors def(chunk, constant_deflation ? 1 : 4);
-    for(ptrdiff_t k = lo[2]; k <= hi[2]; ++k) {
-        for(ptrdiff_t j = lo[1]; j <= hi[1]; ++j) {
-            for(ptrdiff_t i = lo[0]; i <= hi[0]; ++i) {
-                boost::array<ptrdiff_t, 3> p = {{i, j, k}};
-                std::pair<int,ptrdiff_t> v = part.index(p);
+    prof.tic("deflation");
+    std::string deflation = vm["deflation"].as<std::string>();
 
-                def.x[v.second] = (i - (lo[0] + hi[0]) / 2);
-                def.y[v.second] = (j - (lo[1] + hi[1]) / 2);
-                def.z[v.second] = (k - (lo[2] + hi[2]) / 2);
+    boost::function<double(ptrdiff_t, unsigned)> def_vec;
+
+    if (deflation == "constant") {
+        def_vec = amgcl::mpi::constant_deflation(1);
+        prm.put("num_def_vec", 1);
+    } else if (deflation == "linear") {
+        std::vector<double> x(chunk);
+        std::vector<double> y(chunk);
+        std::vector<double> z(chunk);
+
+        for(ptrdiff_t k = lo[2]; k <= hi[2]; ++k) {
+            for(ptrdiff_t j = lo[1]; j <= hi[1]; ++j) {
+                for(ptrdiff_t i = lo[0]; i <= hi[0]; ++i) {
+                    boost::array<ptrdiff_t, 3> p = {{i, j, k}};
+                    std::pair<int,ptrdiff_t> v = part.index(p);
+
+                    x[v.second] = (i - (lo[0] + hi[0]) / 2);
+                    y[v.second] = (j - (lo[1] + hi[1]) / 2);
+                    z[v.second] = (k - (lo[2] + hi[2]) / 2);
+                }
             }
         }
+
+        def_vec = linear_deflation(x, y, z);
+        prm.put("num_def_vec", 4);
+    } else if (deflation == "partitioned") {
+        int ndv = vm["subparts"].as<int>();
+        def_vec = partitioned_deflation(lo, hi, ndv);
+        prm.put("num_def_vec", ndv);
+    } else {
+        throw std::runtime_error("Unsupported deflation type");
     }
-    prof.toc("partition");
+
+    prm.put("def_vec", &def_vec);
+    prof.toc("deflation");
 
     prof.tic("assemble");
     std::vector<ptrdiff_t> ptr;
@@ -266,10 +347,6 @@ int main(int argc, char *argv[]) {
     std::vector<double> x(chunk, 0);
     size_t iters;
     double resid, tm_setup, tm_solve;
-
-    boost::function<double(ptrdiff_t, unsigned)> def_vec = boost::cref(def);
-    prm.put("num_def_vec", def.dim());
-    prm.put("def_vec",     &def_vec);
 
     if (just_relax) {
         prm.put("local.type", relaxation);
