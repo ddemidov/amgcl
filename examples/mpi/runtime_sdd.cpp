@@ -90,6 +90,49 @@ struct partitioned_deflation {
     }
 };
 
+struct boundary_deflation {
+    unsigned nvec;
+    std::vector<unsigned> vec;
+
+    boundary_deflation(
+            boost::array<ptrdiff_t, 2> lo,
+            boost::array<ptrdiff_t, 2> hi
+            ) : nvec(0)
+    {
+        ptrdiff_t nx = hi[0] - lo[0] + 1;
+        ptrdiff_t ny = hi[1] - lo[1] + 1;
+
+        vec.resize(nx * ny);
+
+        int inner = -1;
+
+        for(int j = lo[1], p = 0; j <= hi[1]; ++j) {
+            for(int i = lo[0]; i <= hi[0]; ++i, ++p) {
+                unsigned id = nvec;
+
+                if (i > lo[0] && i < hi[0] && j > lo[1] && j < hi[1]) {
+                    if (inner < 0) {
+                        inner = id;
+                        ++nvec;
+                    } else {
+                        id = inner;
+                    }
+                } else {
+                    ++nvec;
+                }
+
+                vec[p] = id;
+            }
+        }
+    }
+
+    size_t dim() const { return nvec; }
+
+    double operator()(ptrdiff_t i, unsigned j) const {
+        return vec[i] == j;
+    }
+};
+
 struct linear_deflation {
     std::vector<double> x;
     std::vector<double> y;
@@ -498,7 +541,7 @@ int main(int argc, char *argv[]) {
         (
          "deflation,v",
          po::value<std::string>(&deflation_type)->default_value(deflation_type),
-         "constant, partitioned, linear, bilinear, mba, harmonic"
+         "constant, partitioned, boundary, linear, bilinear, mba, harmonic"
         )
         (
          "subparts",
@@ -574,6 +617,10 @@ int main(int argc, char *argv[]) {
         partitioned_deflation pd(lo, hi, vm["subparts"].as<int>());
         ndv = pd.dim();
         dv = pd;
+    } else if (deflation_type == "boundary") {
+        boundary_deflation bd(lo, hi);
+        ndv = bd.dim();
+        dv = bd;
     } else if (deflation_type == "linear") {
         ndv = 3;
         dv  = linear_deflation(chunk, lo, hi);

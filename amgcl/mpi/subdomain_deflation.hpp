@@ -277,6 +277,9 @@ class subdomain_deflation {
 
             // Create local preconditioner.
             P = boost::make_shared<LocalPrecond>( *aloc, prm.local, bprm );
+            if (comm.rank == 0) {
+                std::cout << *P << std::endl;
+            }
 
             // Analyze communication pattern, create distributed matrix.
             C = boost::make_shared< comm_pattern<backend_type> >(comm, nrows, arem->nnz, arem->col, bprm);
