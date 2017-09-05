@@ -31,9 +31,21 @@ if (TARGET mpi_target)
 
     target_link_libraries(call_mpi_lib libamgcl_mpi)
 
+    if (TARGET cuda_target)
+        configure_file(
+            ${CMAKE_CURRENT_SOURCE_DIR}/runtime_sdd_3d.cpp
+            ${CMAKE_CURRENT_BINARY_DIR}/runtime_sdd_3d.cu
+            COPYONLY
+            )
+        cuda_add_executable(runtime_sdd_3d_cuda ${CMAKE_CURRENT_BINARY_DIR}/runtime_sdd_3d.cu
+            OPTIONS -DSOLVER_BACKEND_CUDA)
+        target_include_directories(runtime_sdd_3d_cuda PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+        target_link_libraries(runtime_sdd_3d_cuda amgcl_example cuda_target mpi_target)
+    endif()
+
     if (TARGET vexcl_target)
         add_mpi_example(runtime_sdd_vexcl runtime_sdd_vexcl.cpp)
-        target_link_libraries(runtime_sdd_vexcl amgcl vexcl_target mpi_target)
+        target_link_libraries(runtime_sdd_vexcl amgcl vexcl_target)
     endif()
 
     configure_file(

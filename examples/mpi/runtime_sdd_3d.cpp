@@ -13,6 +13,18 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
+#if defined(SOLVER_BACKEND_CUDA)
+#  include <amgcl/backend/cuda.hpp>
+#  include <amgcl/relaxation/cusparse_ilu0.hpp>
+   typedef amgcl::backend::cuda<double> Backend;
+#else
+#  ifndef SOLVER_BACKEND_BUILTIN
+#    define SOLVER_BACKEND_BUILTIN
+#  endif
+#  include <amgcl/backend/builtin.hpp>
+   typedef amgcl::backend::builtin<double> Backend;
+#endif
+
 #include <amgcl/mpi/direct_solver.hpp>
 #include <amgcl/mpi/subdomain_deflation.hpp>
 #include <amgcl/runtime.hpp>
@@ -263,7 +275,17 @@ int main(int argc, char *argv[]) {
     }
     prof.toc("assemble");
 
-    std::vector<double> x(chunk, 0);
+    Backend::params bprm;
+
+#if defined(SOLVER_BACKEND_CUDA)
+    cusparseCreate(&bprm.cusparse_handle);
+#endif
+
+    boost::shared_ptr<Backend::vector> f = Backend::copy_vector(rhs, bprm);
+    boost::shared_ptr<Backend::vector> x = Backend::create_vector(chunk, bprm);
+
+    amgcl::backend::clear(*x);
+
     size_t iters;
     double resid, tm_setup, tm_solve;
 
@@ -271,22 +293,23 @@ int main(int argc, char *argv[]) {
     prm.put("num_def_vec", def.dim());
     prm.put("def_vec",     &def_vec);
 
+    try {
     if (just_relax) {
         prm.put("local.type", relaxation);
 
         prof.tic("setup");
         typedef
             amgcl::mpi::subdomain_deflation<
-                amgcl::runtime::relaxation::as_preconditioner< amgcl::backend::builtin<double> >,
+                amgcl::runtime::relaxation::as_preconditioner< Backend >,
                 amgcl::runtime::iterative_solver,
                 amgcl::runtime::mpi::direct_solver<double>
             > SDD;
 
-        SDD solve(world, boost::tie(chunk, ptr, col, val), prm);
+        SDD solve(world, boost::tie(chunk, ptr, col, val), prm, bprm);
         tm_setup = prof.toc("setup");
 
         prof.tic("solve");
-        boost::tie(iters, resid) = solve(rhs, x);
+        boost::tie(iters, resid) = solve(*f, *x);
         tm_solve = prof.toc("solve");
     } else {
         prm.put("local.coarsening.type", coarsening);
@@ -295,17 +318,21 @@ int main(int argc, char *argv[]) {
         prof.tic("setup");
         typedef
             amgcl::mpi::subdomain_deflation<
-                amgcl::runtime::amg< amgcl::backend::builtin<double> >,
+                amgcl::runtime::amg< Backend >,
                 amgcl::runtime::iterative_solver,
                 amgcl::runtime::mpi::direct_solver<double>
             > SDD;
 
-        SDD solve(world, boost::tie(chunk, ptr, col, val), prm);
+        SDD solve(world, boost::tie(chunk, ptr, col, val), prm, bprm);
         tm_setup = prof.toc("setup");
 
         prof.tic("solve");
-        boost::tie(iters, resid) = solve(rhs, x);
+        boost::tie(iters, resid) = solve(*f, *x);
         tm_solve = prof.toc("solve");
+    }
+    } catch(const std::exception &e) {
+        std::cerr << e.what() << std::endl;
+        throw e;
     }
 
     if (world.rank == 0) {
