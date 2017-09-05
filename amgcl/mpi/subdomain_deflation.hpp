@@ -71,6 +71,39 @@ struct constant_deflation {
     }
 };
 
+template <class SDD, class Matrix>
+struct sdd_projected_matrix {
+    typedef typename SDD::value_type value_type;
+
+    const SDD    &S;
+    const Matrix &A;
+
+    sdd_projected_matrix(const SDD &S, const Matrix &A) : S(S), A(A) {}
+
+    template <class T, class Vec1, class Vec2>
+    void mul(T alpha, const Vec1 &x, T beta, Vec2 &y) const {
+        AMGCL_TIC("top/spmv");
+        backend::spmv(alpha, A, x, beta, y);
+        AMGCL_TOC("top/spmv");
+
+        S.project(y);
+    }
+
+    template <class Vec1, class Vec2, class Vec3>
+    void residual(const Vec1 &f, const Vec2 &x, Vec3 &r) const {
+        AMGCL_TIC("top/residual");
+        backend::residual(f, A, x, r);
+        AMGCL_TOC("top/residual");
+
+        S.project(r);
+    }
+};
+
+template <class SDD, class Matrix>
+sdd_projected_matrix<SDD, Matrix> make_sdd_projected_matrix(const SDD &S, const Matrix &A) {
+    return sdd_projected_matrix<SDD, Matrix>(S, A);
+}
+
 /// Distributed solver based on subdomain deflation.
 /**
  * \sa \cite Frank2001
@@ -541,44 +574,65 @@ class subdomain_deflation {
             double error;
             backend::clear(x);
             boost::tie(iters, error) = (*this)(rhs, x);
-            /*
-            if (comm.rank == 0)
-                std::cout << "[" << iters << ", " << error << "]" << std::endl;
-            */
         }
 
         const matrix& system_matrix() const {
             return *A;
         }
 
-        template <class Vec1, class Vec2>
-        boost::tuple<size_t, value_type>
-        operator()(const Vec1 &rhs, Vec2 &x) const {
-            boost::tuple<size_t, value_type> cnv = S(*this, *P, rhs, x);
+        template <class Matrix, class Vec1, class Vec2>
+        boost::tuple<size_t, value_type> operator()(
+                Matrix  const &A,
+                Vec1    const &rhs,
+#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
+                Vec2          &x
+#else
+                Vec2          &&x
+#endif
+                ) const
+        {
+            boost::tuple<size_t, value_type> cnv = S(make_sdd_projected_matrix(*this, A), *P, rhs, x);
             postprocess(rhs, x);
             return cnv;
         }
 
         template <class Vec1, class Vec2>
-        void mul(value_type alpha, const Vec1 &x, value_type beta, Vec2 &y) const {
-            AMGCL_TIC("top/spmv");
-            backend::spmv(alpha, *A, x, beta, y);
-            AMGCL_TOC("top/spmv");
-
-            project(y);
-        }
-
-        template <class Vec1, class Vec2, class Vec3>
-        void residual(const Vec1 &f, const Vec2 &x, Vec3 &r) const {
-            AMGCL_TIC("top/residual");
-            backend::residual(f, *A, x, r);
-            AMGCL_TOC("top/residual");
-
-            project(r);
+        boost::tuple<size_t, value_type>
+        operator()(
+                const Vec1 &rhs,
+#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
+                Vec2          &x
+#else
+                Vec2          &&x
+#endif
+                ) const
+        {
+            boost::tuple<size_t, value_type> cnv = S(make_sdd_projected_matrix(*this, *A), *P, rhs, x);
+            postprocess(rhs, x);
+            return cnv;
         }
 
         size_t size() const {
             return nrows;
+        }
+
+        template <class Vector>
+        void project(Vector &x) const {
+            AMGCL_TIC("project");
+
+            AMGCL_TIC("local inner product");
+            for(ptrdiff_t j = 0; j < ndv; ++j)
+                df[j] = backend::inner_product(x, *Z[j]);
+            AMGCL_TOC("local inner product");
+
+            coarse_solve(df, dx);
+
+            AMGCL_TIC("spmv");
+            backend::copy_to_backend(dx, *dd);
+            backend::spmv(-1, *AZ, *dd, 1, x);
+            AMGCL_TOC("spmv");
+
+            AMGCL_TOC("project");
         }
     private:
         static const int tag_exc_vals = 2011;
@@ -611,25 +665,6 @@ class subdomain_deflation {
         boost::shared_ptr<vector> dd;
 
         ISolver S;
-
-        template <class Vector>
-        void project(Vector &x) const {
-            AMGCL_TIC("project");
-
-            AMGCL_TIC("local inner product");
-            for(ptrdiff_t j = 0; j < ndv; ++j)
-                df[j] = backend::inner_product(x, *Z[j]);
-            AMGCL_TOC("local inner product");
-
-            coarse_solve(df, dx);
-
-            AMGCL_TIC("spmv");
-            backend::copy_to_backend(dx, *dd);
-            backend::spmv(-1, *AZ, *dd, 1, x);
-            AMGCL_TOC("spmv");
-
-            AMGCL_TOC("project");
-        }
 
         void coarse_solve(std::vector<value_type> &f, std::vector<value_type> &x) const
         {
@@ -699,20 +734,14 @@ class subdomain_deflation {
 namespace backend {
 
 template <
-    class LocalPrecond,
-    template <class, class> class ISolver,
-    class DSolver,
-    class Alpha, class Beta,
-    class Vec1,
-    class Vec2
+    class SDD, class Matrix,
+    class Alpha, class Beta, class Vec1, class Vec2
     >
 struct spmv_impl<
-    Alpha,
-    mpi::subdomain_deflation<LocalPrecond, ISolver, DSolver>,
-    Vec1, Beta, Vec2
+    Alpha, mpi::sdd_projected_matrix<SDD, Matrix>, Vec1, Beta, Vec2
     >
 {
-    typedef mpi::subdomain_deflation<LocalPrecond, ISolver, DSolver> M;
+    typedef mpi::sdd_projected_matrix<SDD, Matrix> M;
 
     static void apply(Alpha alpha, const M &A, const Vec1 &x, Beta beta, Vec2 &y)
     {
@@ -720,22 +749,10 @@ struct spmv_impl<
     }
 };
 
-template <
-    class LocalPrecond,
-    template <class, class> class ISolver,
-    class DSolver,
-    class Vec1,
-    class Vec2,
-    class Vec3
-    >
-struct residual_impl<
-    mpi::subdomain_deflation<LocalPrecond, ISolver, DSolver>,
-    Vec1, Vec2, Vec3
-    >
+template <class SDD, class Matrix, class Vec1, class Vec2, class Vec3>
+struct residual_impl<mpi::sdd_projected_matrix<SDD, Matrix>, Vec1, Vec2, Vec3>
 {
-    typedef mpi::subdomain_deflation<LocalPrecond, ISolver, DSolver> M;
-
-    typedef typename LocalPrecond::backend_type::value_type V;
+    typedef mpi::sdd_projected_matrix<SDD, Matrix> M;
 
     static void apply(const Vec1 &rhs, const M &A, const Vec2 &x, Vec3 &r) {
         A.residual(rhs, x, r);

@@ -264,21 +264,18 @@ int main(int argc, char *argv[]) {
                         >,
                     amgcl::runtime::iterative_solver
                     >,
-                amgcl::mpi::make_solver<
-                    amgcl::mpi::subdomain_deflation<
-                        amgcl::runtime::amg<Backend>,
-                        amgcl::runtime::iterative_solver,
-                        amgcl::runtime::mpi::direct_solver<double>
-                        >,
-                    amgcl::runtime::iterative_solver
+                amgcl::mpi::subdomain_deflation<
+                    amgcl::runtime::amg<Backend>,
+                    amgcl::runtime::iterative_solver,
+                    amgcl::runtime::mpi::direct_solver<double>
                     >
                 >,
             amgcl::runtime::iterative_solver
             > Solver;
 
     boost::function<double(ptrdiff_t,unsigned)> dv = amgcl::mpi::constant_deflation(1);
-    prm.put("precond.psolver.precond.num_def_vec", 1);
-    prm.put("precond.psolver.precond.def_vec", &dv);
+    prm.put("precond.psolver.num_def_vec", 1);
+    prm.put("precond.psolver.def_vec", &dv);
 
     Solver solve(world, boost::tie(chunk, ptr, col, val), prm);
     prof.toc("setup");
