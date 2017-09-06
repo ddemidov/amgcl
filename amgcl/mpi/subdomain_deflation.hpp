@@ -466,13 +466,19 @@ class subdomain_deflation {
             boost::multi_array<value_type, 2> erow(boost::extents[ndv][nz]);
             std::fill_n(erow.data(), erow.num_elements(), 0);
 
-            for(ptrdiff_t i = 0; i < nrows; ++i) {
-                for(row_iterator2 a = backend::row_begin(*az, i); a; ++a) {
-                    ptrdiff_t  c = a.col();
-                    value_type v = a.value();
-
+            {
+                std::vector<value_type> z(ndv);
+                for(ptrdiff_t i = 0; i < nrows; ++i) {
                     for(ptrdiff_t j = 0; j < ndv; ++j)
-                        erow[j][c] += v * prm.def_vec(i, j);
+                        z[j] = prm.def_vec(i,j);
+
+                    for(row_iterator2 a = backend::row_begin(*az, i); a; ++a) {
+                        ptrdiff_t  c = a.col();
+                        value_type v = a.value();
+
+                        for(ptrdiff_t j = 0; j < ndv; ++j)
+                            erow[j][c] += v * z[j];
+                    }
                 }
             }
 
