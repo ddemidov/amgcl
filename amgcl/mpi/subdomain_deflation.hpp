@@ -207,6 +207,7 @@ class subdomain_deflation {
             {
                 std::vector<value_type> z(nrows);
                 for(int j = 0; j < ndv; ++j) {
+#pragma omp parallel for
                     for(ptrdiff_t i = 0; i < nrows; ++i)
                         z[i] = prm.def_vec(i, j);
                     Z[j] = backend_type::copy_vector(z, bprm);
@@ -214,40 +215,40 @@ class subdomain_deflation {
             }
             AMGCL_TOC("copy deflation vectors");
 
-            // Number of nonzeros in local and remote parts of the matrix.
-            ptrdiff_t loc_nnz = 0, rem_nnz = 0;
-
             AMGCL_TIC("first pass");
             // First pass over Astrip rows:
             // 1. Count local and remote nonzeros,
             // 3. Build sparsity pattern of matrix AZ.
+            aloc->set_size(nrows, nrows, true);
+            arem->set_size(nrows, nrows/*ncols is not known at this point, does not matter*/, true);
             az->set_size(nrows, nz, true);
 
-            std::vector<ptrdiff_t> marker(nz, -1);
+#pragma omp parallel
+            {
+                std::vector<ptrdiff_t> marker(nz, -1);
 
-            for(ptrdiff_t i = 0; i < nrows; ++i) {
-                for(row_iterator1 a = backend::row_begin(Astrip, i); a; ++a) {
-                    ptrdiff_t c = a.col();
+#pragma omp for
+                for(ptrdiff_t i = 0; i < nrows; ++i) {
+                    for(row_iterator1 a = backend::row_begin(Astrip, i); a; ++a) {
+                        ptrdiff_t c = a.col();
 
 #ifdef AMGCL_SANITY_CHECK
-                    mpi::precondition(comm,
-                            c >= 0 && c < domain.back(),
-                            "Column number is out of bounds"
-                            );
+                        precondition(comm, c >= 0 && c < domain.back(), "Column number is out of bounds");
 #endif
 
-                    ptrdiff_t d = comm.rank; // domain the column belongs to
+                        ptrdiff_t d = comm.rank; // domain the column belongs to
 
-                    if (loc_beg <= c && c < loc_end) {
-                        ++loc_nnz;
-                    } else {
-                        ++rem_nnz;
-                        d = std::upper_bound(domain.begin(), domain.end(), c) - domain.begin() - 1;
-                    }
+                        if (loc_beg <= c && c < loc_end) {
+                            ++aloc->ptr[i+1];
+                        } else {
+                            ++arem->ptr[i+1];
+                            d = std::upper_bound(domain.begin(), domain.end(), c) - domain.begin() - 1;
+                        }
 
-                    if (marker[d] != i) {
-                        marker[d] = i;
-                        az->ptr[i + 1] += dv_size[d];
+                        if (marker[d] != i) {
+                            marker[d] = i;
+                            az->ptr[i+1] += dv_size[d];
+                        }
                     }
                 }
             }
@@ -257,54 +258,54 @@ class subdomain_deflation {
             // Second pass over Astrip rows:
             // 1. Build local and remote matrix parts.
             // 2. Build local part of AZ matrix.
-            aloc->set_size(nrows, nrows);
-            aloc->set_nonzeros(loc_nnz);
-            aloc->ptr[0] = 0;
-
-            arem->set_size(nrows, nrows/*ncols is not known at this point, does not matter*/);
-            arem->set_nonzeros(rem_nnz);
-            arem->ptr[0] = 0;
-
+            std::partial_sum(aloc->ptr, aloc->ptr + nrows + 1, aloc->ptr);
+            std::partial_sum(arem->ptr, arem->ptr + nrows + 1, arem->ptr);
             std::partial_sum(az->ptr, az->ptr + nrows + 1, az->ptr);
+
+            aloc->set_nonzeros(aloc->ptr[nrows]);
+            arem->set_nonzeros(arem->ptr[nrows]);
             az->set_nonzeros(az->ptr[nrows]);
 
-            std::fill(marker.begin(), marker.end(), -1);
+#pragma omp parallel
+            {
+                std::vector<ptrdiff_t> marker(nz, -1);
 
-            for(ptrdiff_t i = 0, loc_head = 0, rem_head = 0; i < nrows; ++i) {
-                ptrdiff_t az_row_beg = az->ptr[i];
-                ptrdiff_t az_row_end = az_row_beg;
+#pragma omp for
+                for(ptrdiff_t i = 0; i < nrows; ++i) {
+                    ptrdiff_t loc_head = aloc->ptr[i];
+                    ptrdiff_t rem_head = arem->ptr[i];
+                    ptrdiff_t az_row_beg = az->ptr[i];
+                    ptrdiff_t az_row_end = az_row_beg;
 
-                for(row_iterator1 a = backend::row_begin(Astrip, i); a; ++a) {
-                    ptrdiff_t  c = a.col();
-                    value_type v = a.value();
+                    for(row_iterator1 a = backend::row_begin(Astrip, i); a; ++a) {
+                        ptrdiff_t  c = a.col();
+                        value_type v = a.value();
 
-                    if (loc_beg <= c && c < loc_end) {
-                        ptrdiff_t loc_c = c - loc_beg;
-                        aloc->col[loc_head] = loc_c;
-                        aloc->val[loc_head] = v;
-                        ++loc_head;
+                        if (loc_beg <= c && c < loc_end) {
+                            ptrdiff_t loc_c = c - loc_beg;
+                            aloc->col[loc_head] = loc_c;
+                            aloc->val[loc_head] = v;
+                            ++loc_head;
 
-                        for(ptrdiff_t j = 0, k = dv_start[comm.rank]; j < ndv; ++j, ++k) {
-                            if (marker[k] < az_row_beg) {
-                                marker[k] = az_row_end;
-                                az->col[az_row_end] = k;
-                                az->val[az_row_end] = v * prm.def_vec(loc_c, j);
-                                ++az_row_end;
-                            } else {
-                                az->val[marker[k]] += v * prm.def_vec(loc_c, j);
+                            for(ptrdiff_t j = 0, k = dv_start[comm.rank]; j < ndv; ++j, ++k) {
+                                if (marker[k] < az_row_beg) {
+                                    marker[k] = az_row_end;
+                                    az->col[az_row_end] = k;
+                                    az->val[az_row_end] = v * prm.def_vec(loc_c, j);
+                                    ++az_row_end;
+                                } else {
+                                    az->val[marker[k]] += v * prm.def_vec(loc_c, j);
+                                }
                             }
+                        } else {
+                            arem->col[rem_head] = c;
+                            arem->val[rem_head] = v;
+                            ++rem_head;
                         }
-                    } else {
-                        arem->col[rem_head] = c;
-                        arem->val[rem_head] = v;
-                        ++rem_head;
                     }
+
+                    az->ptr[i] = az_row_end;
                 }
-
-                az->ptr[i] = az_row_end;
-
-                aloc->ptr[i+1] = loc_head;
-                arem->ptr[i+1] = rem_head;
             }
             AMGCL_TOC("second pass");
 
@@ -357,36 +358,40 @@ class subdomain_deflation {
 
             MPI_Waitall(C->recv.req.size(), &C->recv.req[0], MPI_STATUSES_IGNORE);
 
-            std::fill(marker.begin(), marker.end(), -1);
+#pragma omp parallel
+            {
+                std::vector<ptrdiff_t> marker(nz, -1);
 
-            // AZ += Arem * Z
-            for(ptrdiff_t i = 0; i < nrows; ++i) {
-                ptrdiff_t az_row_beg = az->ptr[i];
-                ptrdiff_t az_row_end = az_row_beg;
+                // AZ += Arem * Z
+#pragma omp for
+                for(ptrdiff_t i = 0; i < nrows; ++i) {
+                    ptrdiff_t az_row_beg = az->ptr[i];
+                    ptrdiff_t az_row_end = az_row_beg;
 
-                for(row_iterator2 a = backend::row_begin(*arem, i); a; ++a) {
-                    ptrdiff_t  c = a.col();
-                    value_type v = a.value();
+                    for(row_iterator2 a = backend::row_begin(*arem, i); a; ++a) {
+                        ptrdiff_t  c = a.col();
+                        value_type v = a.value();
 
-                    // Domain the column belongs to
-                    ptrdiff_t d = C->recv.nbr[
-                        std::upper_bound(C->recv.ptr.begin(), C->recv.ptr.end(), c) -
-                            C->recv.ptr.begin() - 1];
+                        // Domain the column belongs to
+                        ptrdiff_t d = C->recv.nbr[
+                            std::upper_bound(C->recv.ptr.begin(), C->recv.ptr.end(), c) -
+                                C->recv.ptr.begin() - 1];
 
-                    value_type *zval = &zrecv[ zcol_ptr[c] ];
-                    for(ptrdiff_t j = 0, k = dv_start[d]; j < dv_size[d]; ++j, ++k) {
-                        if (marker[k] < az_row_beg) {
-                            marker[k] = az_row_end;
-                            az->col[az_row_end] = k;
-                            az->val[az_row_end] = v * zval[j];
-                            ++az_row_end;
-                        } else {
-                            az->val[marker[k]] += v * zval[j];
+                        value_type *zval = &zrecv[ zcol_ptr[c] ];
+                        for(ptrdiff_t j = 0, k = dv_start[d]; j < dv_size[d]; ++j, ++k) {
+                            if (marker[k] < az_row_beg) {
+                                marker[k] = az_row_end;
+                                az->col[az_row_end] = k;
+                                az->val[az_row_end] = v * zval[j];
+                                ++az_row_end;
+                            } else {
+                                az->val[marker[k]] += v * zval[j];
+                            }
                         }
                     }
-                }
 
-                az->ptr[i] = az_row_end;
+                    az->ptr[i] = az_row_end;
+                }
             }
 
             std::rotate(az->ptr, az->ptr + nrows, az->ptr + nrows + 1);
