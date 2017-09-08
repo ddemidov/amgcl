@@ -15,9 +15,11 @@ if (TARGET mpi_target)
         add_mpi_example(check_pastix check_pastix.cpp)
     endif()
 
-    if (TARGET eigen_target AND TARGET metis_target)
+    if (TARGET metis_target)
         add_executable(partition partition.cpp)
-        target_link_Libraries(partition amgcl eigen_target metis_target
+        target_link_Libraries(partition
+            amgcl
+            metis_target
             ${Boost_PROGRAM_OPTIONS_LIBRARY}
             )
     endif()
