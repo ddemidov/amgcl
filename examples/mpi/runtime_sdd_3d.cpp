@@ -147,9 +147,17 @@ int main(int argc, char *argv[]) {
          "Use constant deflation (linear deflation is used by default)"
         )
         (
-         "params,p",
+         "params,P",
          po::value<std::string>(&parameter_file),
          "parameter file in json format"
+        )
+        (
+         "prm,p",
+         po::value< std::vector<std::string> >()->multitoken(),
+         "Parameters specified as name=value pairs. "
+         "May be provided multiple times. Examples:\n"
+         "  -p solver.tol=1e-3\n"
+         "  -p precond.coarse_enough=300"
         )
         (
          "just-relax,0",
@@ -169,6 +177,12 @@ int main(int argc, char *argv[]) {
 
     boost::property_tree::ptree prm;
     if (vm.count("params")) read_json(parameter_file, prm);
+
+    if (vm.count("prm")) {
+        BOOST_FOREACH(std::string v, vm["prm"].as< std::vector<std::string> >()) {
+            amgcl::put(prm, v);
+        }
+    }
 
     prm.put("isolver.type", iterative_solver);
     prm.put("dsolver.type", direct_solver);
