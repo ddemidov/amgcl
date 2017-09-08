@@ -33,6 +33,7 @@ THE SOFTWARE.
 
 #include <iostream>
 #include <iomanip>
+#include <string>
 #include <set>
 #include <limits>
 #include <stdexcept>
@@ -122,6 +123,14 @@ void precondition(const Condition &condition, const Message &message) {
         if (!defprm.count(v->first)) {                                         \
             AMGCL_PARAM_UNKNOWN(v->first);                                     \
         }
+
+// Put parameter in form "key=value" into a boost::property_tree::ptree
+inline void put(boost::property_tree::ptree &p, const std::string &param) {
+    size_t eq_pos = param.find('=');
+    if (eq_pos == std::string::npos)
+        throw std::invalid_argument("param in amgcl::put() should have \"key=value\" format!");
+    p.put(param.substr(0, eq_pos), param.substr(eq_pos + 1));
+}
 
 namespace detail {
 

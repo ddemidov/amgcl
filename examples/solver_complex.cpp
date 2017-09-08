@@ -4,8 +4,6 @@
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
-#include <boost/algorithm/string/split.hpp>
-#include <boost/algorithm/string/classification.hpp>
 #include <boost/foreach.hpp>
 #include <boost/range/iterator_range.hpp>
 
@@ -146,16 +144,8 @@ int main(int argc, char *argv[]) {
     }
 
     if (vm.count("prm")) {
-        BOOST_FOREACH(string pair, vm["prm"].as<vector<string> >())
-        {
-            using namespace boost::algorithm;
-            vector<string> key_val;
-            split(key_val, pair, is_any_of("="));
-            if (key_val.size() != 2) throw po::invalid_option_value(
-                    "Parameters specified with -p option "
-                    "should have name=value format");
-
-            prm.put(key_val[0], key_val[1]);
+        BOOST_FOREACH(string v, vm["prm"].as<vector<string> >()) {
+            amgcl::put(prm, v);
         }
     }
 
