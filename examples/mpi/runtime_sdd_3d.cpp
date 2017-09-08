@@ -13,7 +13,10 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
-#if defined(SOLVER_BACKEND_CUDA)
+#if defined(SOLVER_BACKEND_VEXCL)
+#  include <amgcl/backend/vexcl.hpp>
+   typedef amgcl::backend::vexcl<double> Backend;
+#elif defined(SOLVER_BACKEND_CUDA)
 #  include <amgcl/backend/cuda.hpp>
 #  include <amgcl/relaxation/cusparse_ilu0.hpp>
    typedef amgcl::backend::cuda<double> Backend;
@@ -291,7 +294,11 @@ int main(int argc, char *argv[]) {
 
     Backend::params bprm;
 
-#if defined(SOLVER_BACKEND_CUDA)
+#if defined(SOLVER_BACKEND_VEXCL)
+    vex::Context ctx(vex::Filter::Env);
+    std::cout << ctx << std::endl;
+    bprm.q = ctx;
+#elif defined(SOLVER_BACKEND_CUDA)
     cusparseCreate(&bprm.cusparse_handle);
 #endif
 

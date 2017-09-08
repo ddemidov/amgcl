@@ -20,8 +20,24 @@
 
 #include <boost/multi_array.hpp>
 
+#if defined(SOLVER_BACKEND_VEXCL)
+#  include <amgcl/backend/vexcl.hpp>
+   typedef amgcl::backend::vexcl<double> Backend;
+#elif defined(SOLVER_BACKEND_CUDA)
+#  include <amgcl/backend/cuda.hpp>
+#  include <amgcl/relaxation/cusparse_ilu0.hpp>
+   typedef amgcl::backend::cuda<double> Backend;
+#else
+#  ifndef SOLVER_BACKEND_BUILTIN
+#    define SOLVER_BACKEND_BUILTIN
+#  endif
+#  include <amgcl/backend/builtin.hpp>
+   typedef amgcl::backend::builtin<double> Backend;
+#endif
+
 #include <amgcl/make_solver.hpp>
 #include <amgcl/runtime.hpp>
+#include <amgcl/preconditioner/runtime.hpp>
 #include <amgcl/mpi/direct_solver.hpp>
 #include <amgcl/mpi/subdomain_deflation.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
@@ -31,11 +47,6 @@
 namespace amgcl {
     profiler<> prof;
 }
-
-struct constant_deflation {
-    size_t dim() const { return 1; }
-    double operator()(ptrdiff_t, unsigned) const { return 1.0; }
-};
 
 struct partitioned_deflation {
     unsigned nparts;
@@ -565,7 +576,7 @@ int main(int argc, char *argv[]) {
     unsigned ndv = 1;
 
     if (deflation_type == "constant") {
-        dv = constant_deflation();
+        dv = amgcl::mpi::constant_deflation(1);
     } else if (deflation_type == "partitioned") {
         ndv = vm["subparts"].as<int>();
         dv  = partitioned_deflation(lo, hi, ndv);
@@ -691,64 +702,52 @@ int main(int argc, char *argv[]) {
     }
     prof.toc("assemble");
 
-    std::vector<double> x(chunk, 0);
+    Backend::params bprm;
+
+#if defined(SOLVER_BACKEND_VEXCL)
+    vex::Context ctx(vex::Filter::Env);
+    std::cout << ctx << std::endl;
+    bprm.q = ctx;
+#elif defined(SOLVER_BACKEND_CUDA)
+    cusparseCreate(&bprm.cusparse_handle);
+#endif
+
+    boost::shared_ptr<Backend::vector> f = Backend::copy_vector(rhs, bprm);
+    boost::shared_ptr<Backend::vector> x = Backend::create_vector(chunk, bprm);
+
+    amgcl::backend::clear(*x);
+
     size_t iters;
     double resid, tm_setup, tm_solve;
 
     if (just_relax) {
+        prm.put("local.class", "relaxation");
         prm.put("local.type", relaxation);
-
-        prof.tic("setup");
-        typedef
-            amgcl::mpi::subdomain_deflation<
-                amgcl::runtime::relaxation::as_preconditioner< amgcl::backend::builtin<double> >,
-                amgcl::runtime::iterative_solver,
-                amgcl::runtime::mpi::direct_solver<double>
-            > SDD;
-
-        SDD solve(world, boost::tie(chunk, ptr, col, val), prm);
-        tm_setup = prof.toc("setup");
-
-        prof.tic("solve");
-        boost::tie(iters, resid) = solve(rhs, x);
-        tm_solve = prof.toc("solve");
     } else {
         prm.put("local.coarsening.type", coarsening);
         prm.put("local.relax.type", relaxation);
-
-        prof.tic("setup");
-        typedef
-            amgcl::mpi::subdomain_deflation<
-                amgcl::runtime::amg< amgcl::backend::builtin<double> >,
-                amgcl::runtime::iterative_solver,
-                amgcl::runtime::mpi::direct_solver<double>
-            > SDD;
-
-        SDD solve(world, boost::tie(chunk, ptr, col, val), prm);
-        tm_setup = prof.toc("setup");
-
-        prof.tic("solve");
-        boost::tie(iters, resid) = solve(rhs, x);
-        tm_solve = prof.toc("solve");
     }
+
+    prof.tic("setup");
+    typedef
+        amgcl::mpi::subdomain_deflation<
+            amgcl::runtime::preconditioner< Backend >,
+            amgcl::runtime::iterative_solver,
+            amgcl::runtime::mpi::direct_solver<double>
+        > SDD;
+
+    SDD solve(world, boost::tie(chunk, ptr, col, val), prm, bprm);
+    tm_setup = prof.toc("setup");
+
+    prof.tic("solve");
+    boost::tie(iters, resid) = solve(*f, *x);
+    tm_solve = prof.toc("solve");
 
     if (world.rank == 0) {
         std::cout
             << "Iterations: " << iters << std::endl
-            << "Error:      " << resid << std::endl;
-
-        if (world.size == 1) {
-            double res = 0;
-            for(int i = 0; i < chunk; ++i) {
-                double sum = rhs[i];
-                for(int j = ptr[i]; j < ptr[i+1]; ++j)
-                    sum -= val[j] * x[col[j]];
-                res += sum * sum;
-            }
-            std::cout << "True error: " << sqrt(res) << std::endl;
-        }
-
-        std::cout << std::endl << prof << std::endl;
+            << "Error:      " << resid << std::endl
+            << prof << std::endl;
 
 #ifdef _OPENMP
         int nt = omp_get_max_threads();
@@ -765,10 +764,17 @@ int main(int argc, char *argv[]) {
 
 
     if (!out_file.empty()) {
-        if (world.rank == 0) {
-            std::vector<double> X(n2);
-            std::copy(x.begin(), x.end(), X.begin());
+        std::vector<double> X(world.rank == 0 ? n2 : chunk);
 
+#if defined(SOLVER_BACKEND_VEXCL)
+        vex::copy(x->begin(), x->end(), X.begin());
+#elif defined(SOLVER_BACKEND_CUDA)
+        thrust::copy(x->begin(), x->end(), X.begin());
+#else
+        std::copy_n(x->data(), chunk, X.begin());
+#endif
+
+        if (world.rank == 0) {
             for(int i = 1; i < world.size; ++i)
                 MPI_Recv(&X[domain[i]], domain[i+1] - domain[i], MPI_DOUBLE, i, 42, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
@@ -782,7 +788,7 @@ int main(int argc, char *argv[]) {
                 }
             }
         } else {
-            MPI_Send(x.data(), chunk, MPI_DOUBLE, 0, 42, MPI_COMM_WORLD);
+            MPI_Send(X.data(), chunk, MPI_DOUBLE, 0, 42, MPI_COMM_WORLD);
         }
     }
 }
