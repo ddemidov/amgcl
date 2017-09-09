@@ -771,7 +771,7 @@ int main(int argc, char *argv[]) {
 #elif defined(SOLVER_BACKEND_CUDA)
         thrust::copy(x->begin(), x->end(), X.begin());
 #else
-        std::copy_n(x->data(), chunk, X.begin());
+        std::copy(x->data(), x->data() + chunk, X.begin());
 #endif
 
         if (world.rank == 0) {
