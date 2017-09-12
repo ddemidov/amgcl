@@ -34,7 +34,7 @@ if (TARGET mpi_target)
     target_link_libraries(call_mpi_lib libamgcl_mpi)
 
     if (TARGET cuda_target)
-        foreach(example runtime_sdd runtime_sdd_3d)
+        foreach(example runtime_sdd runtime_sdd_3d schur_pc_mpi)
             configure_file(
                 ${CMAKE_CURRENT_SOURCE_DIR}/${example}.cpp
                 ${CMAKE_CURRENT_BINARY_DIR}/${example}.cu
@@ -49,7 +49,7 @@ if (TARGET mpi_target)
     endif()
 
     if (TARGET vexcl_target)
-        foreach(example runtime_sdd runtime_sdd_3d)
+        foreach(example runtime_sdd runtime_sdd_3d schur_pc_mpi)
             add_mpi_example(${example}_vexcl ${example}.cpp)
             target_compile_definitions(${example}_vexcl PRIVATE SOLVER_BACKEND_VEXCL)
             target_link_libraries(${example}_vexcl amgcl vexcl_target)

@@ -16,6 +16,21 @@
 #include <boost/range/iterator_range.hpp>
 #include <boost/scope_exit.hpp>
 
+#if defined(SOLVER_BACKEND_VEXCL)
+#  include <amgcl/backend/vexcl.hpp>
+   typedef amgcl::backend::vexcl<double> Backend;
+#elif defined(SOLVER_BACKEND_CUDA)
+#  include <amgcl/backend/cuda.hpp>
+#  include <amgcl/relaxation/cusparse_ilu0.hpp>
+   typedef amgcl::backend::cuda<double> Backend;
+#else
+#  ifndef SOLVER_BACKEND_BUILTIN
+#    define SOLVER_BACKEND_BUILTIN
+#  endif
+#  include <amgcl/backend/builtin.hpp>
+   typedef amgcl::backend::builtin<double> Backend;
+#endif
+
 #include <amgcl/io/binary.hpp>
 #include <amgcl/io/mm.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
@@ -246,11 +261,24 @@ int main(int argc, char *argv[]) {
     prm.put("precond.psolver.num_def_vec", 1);
     prm.put("precond.psolver.def_vec", &dv);
 
+    Backend::params bprm;
+
+#if defined(SOLVER_BACKEND_VEXCL)
+    vex::Context ctx(vex::Filter::Env);
+    std::cout << ctx << std::endl;
+    bprm.q = ctx;
+#elif defined(SOLVER_BACKEND_CUDA)
+    cusparseCreate(&bprm.cusparse_handle);
+#endif
+
+    boost::shared_ptr<Backend::vector> f = Backend::copy_vector(rhs, bprm);
+    boost::shared_ptr<Backend::vector> x = Backend::create_vector(chunk, bprm);
+
+    amgcl::backend::clear(*x);
+
     MPI_Barrier(world);
 
     prof.tic("setup");
-    typedef amgcl::backend::builtin<double> Backend;
-
     typedef
         amgcl::mpi::make_solver<
             amgcl::mpi::schur_pressure_correction<
@@ -269,15 +297,13 @@ int main(int argc, char *argv[]) {
             amgcl::runtime::iterative_solver
             > Solver;
 
-    Solver solve(world, boost::tie(chunk, ptr, col, val), prm);
+    Solver solve(world, boost::tie(chunk, ptr, col, val), prm, bprm);
     double tm_setup = prof.toc("setup");
-
-    std::vector<double> x(chunk, 0);
 
     prof.tic("solve");
     size_t iters;
     double resid;
-    boost::tie(iters, resid) = solve(rhs, x);
+    boost::tie(iters, resid) = solve(*f, *x);
     double tm_solve = prof.toc("solve");
 
     if (world.rank == 0) {
