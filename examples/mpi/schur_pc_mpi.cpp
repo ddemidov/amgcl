@@ -242,6 +242,12 @@ int main(int argc, char *argv[]) {
     prm.put("precond.pmask", static_cast<void*>(&pm[0]));
     prm.put("precond.pmask_size", chunk);
 
+    boost::function<double(ptrdiff_t,unsigned)> dv = amgcl::mpi::constant_deflation(1);
+    prm.put("precond.psolver.num_def_vec", 1);
+    prm.put("precond.psolver.def_vec", &dv);
+
+    MPI_Barrier(world);
+
     prof.tic("setup");
     typedef amgcl::backend::builtin<double> Backend;
 
@@ -263,12 +269,8 @@ int main(int argc, char *argv[]) {
             amgcl::runtime::iterative_solver
             > Solver;
 
-    boost::function<double(ptrdiff_t,unsigned)> dv = amgcl::mpi::constant_deflation(1);
-    prm.put("precond.psolver.num_def_vec", 1);
-    prm.put("precond.psolver.def_vec", &dv);
-
     Solver solve(world, boost::tie(chunk, ptr, col, val), prm);
-    prof.toc("setup");
+    double tm_setup = prof.toc("setup");
 
     std::vector<double> x(chunk, 0);
 
@@ -276,7 +278,7 @@ int main(int argc, char *argv[]) {
     size_t iters;
     double resid;
     boost::tie(iters, resid) = solve(rhs, x);
-    prof.toc("solve");
+    double tm_solve = prof.toc("solve");
 
     if (world.rank == 0) {
         std::cout
@@ -284,5 +286,17 @@ int main(int argc, char *argv[]) {
             << "Error:      " << resid << std::endl
             << std::endl
             << prof << std::endl;
+
+#ifdef _OPENMP
+        int nt = omp_get_max_threads();
+#else
+        int nt = 1;
+#endif
+        std::ostringstream log_name;
+        log_name << "schur_" << domain.back() << "_" << nt << "_" << world.size << ".txt";
+        std::ofstream log(log_name.str().c_str(), std::ios::app);
+        log << domain.back() << "\t" << nt << "\t" << world.size
+            << "\t" << tm_setup << "\t" << tm_solve
+            << "\t" << iters << "\t" << std::endl;
     }
 }
