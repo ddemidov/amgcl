@@ -63,8 +63,9 @@ boost::tuple<size_t, double> solve(
 
     std::vector<double> rhs(n, 1), x(n, 0);
 
-    scoped_tic t1(prof, "setup");
+    prof.tic("setup");
     Solver solve(comm, A, prm);
+    prof.toc("setup");
 
     {
         scoped_tic t2(prof, "solve");
