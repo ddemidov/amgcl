@@ -97,10 +97,12 @@ solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tre
 
     tic t1(prof, "schur_complement");
 
+    prof.tic("setup");
     amgcl::make_solver<
         amgcl::preconditioner::schur_pressure_correction<USolver, PSolver>,
         amgcl::runtime::iterative_solver<Backend>
         > solve(K, prm, bprm);
+    prof.toc("setup");
 
     std::cout << solve.precond() << std::endl;
 
@@ -109,11 +111,12 @@ solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tre
     boost::shared_ptr<vector> x = Backend::create_vector(rhs.size(), bprm);
     amgcl::backend::clear(*x);
 
-    tic t2(prof, "solve");
     size_t iters;
     double error;
 
+    prof.tic("solve");
     boost::tie(iters, error) = solve(*f, *x);
+    prof.toc("solve");
 
     std::cout << "Iterations: " << iters << std::endl
               << "Error:      " << error << std::endl;
