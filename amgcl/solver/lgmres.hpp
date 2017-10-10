@@ -107,7 +107,8 @@ inline std::istream& operator>>(std::istream &in, type &p) {
     else if (val == "right")
         p = right;
     else
-        throw std::invalid_argument("Invalid preconditioning kind");
+        throw std::invalid_argument("Invalid preconditioning kind. Valid choices are: "
+                "left, right.");
 
     return in;
 }
