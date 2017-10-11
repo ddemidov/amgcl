@@ -28,7 +28,7 @@ Contents:
     tutorial
     components
     runtime
-    deflation
     examples
+    benchmarks
     bibliography
     indices
