@@ -56,7 +56,7 @@ to the linear deflation and the constant deflation correspondingly
         setp(ax.get_xticklabels(), fontsize=10)
         setp(ax.get_yticklabels(), fontsize=10)
 
-    figure(figsize=(10,12))
+    figure(figsize=(8,10))
     gs = GridSpec(4,2)
     handles = []
 
@@ -236,7 +236,7 @@ overhead of moving the generated hierarchy into the GPU memory.
         ax.get_xaxis().set_tick_params(which='minor', size=0)
         ax.get_xaxis().set_tick_params(which='minor', width=0)
 
-    figure(figsize=(10,12))
+    figure(figsize=(8,10))
     gs = GridSpec(4,2)
     handles = []
 
@@ -328,7 +328,7 @@ scaling is depicted for reference on the plots with thin gray dotted lines.
         ax.get_xaxis().set_tick_params(which='minor', size=0)
         ax.get_xaxis().set_tick_params(which='minor', width=0)
 
-    figure(figsize=(10,12))
+    figure(figsize=(8,10))
     gs = GridSpec(4,2)
     handles = []
 
@@ -483,7 +483,7 @@ overall.
             'formats' : ('i8', 'i4', 'i4', 'f8', 'f8', 'i4')
             })
 
-    figure(figsize=(10,12))
+    figure(figsize=(8,10))
     gs = GridSpec(4,2)
     handles = []
 
@@ -602,7 +602,7 @@ essentially a strong scalability test.
         ax.get_xaxis().set_tick_params(which='minor', size=0)
         ax.get_xaxis().set_tick_params(which='minor', width=0)
 
-    figure(figsize=(10,7))
+    figure(figsize=(8,6))
     gs = GridSpec(2,2)
     handles = []
 

@@ -34,7 +34,7 @@ uses Gauss-Seidel smoother.
 
     handles = []
 
-    figure(figsize=(10,8))
+    figure(figsize=(8,8))
     gs = GridSpec(2,2)
 
     def set_ticks(ax, t):
@@ -158,7 +158,7 @@ field-split approach.
 
     handles = []
 
-    figure(figsize=(10,8))
+    figure(figsize=(8,8))
     gs = GridSpec(2,2)
 
     def set_ticks(ax, t):
