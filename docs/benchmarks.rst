@@ -3,7 +3,8 @@ Benchmarks
 
 The performance of the library on shared and distributed memory systems was
 tested on two example problems in a three dimensional space: simple scalar
-Poisson problem and a non-scalar Navier-Stokes problem.
+Poisson problem and a non-scalar Navier-Stokes problem. The source code for the
+benchmarks is available at https://github.com/ddemidov/amgcl_benchmarks.
 
 The first example we consider is the classical 3D Poisson problem.  Namely, we
 look for the solution of the problem
