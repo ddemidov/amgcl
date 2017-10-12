@@ -59,5 +59,5 @@ Distributed memory benchmarks
 
 .. include:: dmem_bench.rst
 
-.. _Kratos: \footnote{\www{http://www.cimne.com/kratos/}}
+.. _Kratos: http://www.cimne.com/kratos/
 
