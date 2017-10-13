@@ -1,10 +1,11 @@
 program poisson
+    use, intrinsic :: iso_c_binding
     use amgcl
     implicit none
 
-    integer*4 :: n, n2, idx, nnz, i, j
-    integer*4, allocatable :: ptr(:), col(:)
-    real*8, allocatable :: val(:), rhs(:), x(:)
+    integer :: n, n2, idx, nnz, i, j
+    integer(c_int), allocatable :: ptr(:), col(:)
+    real(c_double), allocatable :: val(:), rhs(:), x(:)
     integer(c_size_t) :: solver, params
     type(conv_info) :: cnv
 
