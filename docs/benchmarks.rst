@@ -38,11 +38,11 @@ system of equations with a block structure of the type
         \mathbf D & \mathbf S
     \end{pmatrix}
     \begin{pmatrix}
-        \mathbf v \\ \mathbf p
+        \mathbf u \\ \mathbf p
     \end{pmatrix}
     =
     \begin{pmatrix}
-        \mathbf r_v \\ \mathbf r_p
+        \mathbf r_u \\ \mathbf r_p
     \end{pmatrix}
 
 where each of the matrix subblocks is a large sparse matrix, and the blocks
