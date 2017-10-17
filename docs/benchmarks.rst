@@ -42,7 +42,7 @@ system of equations with a block structure of the type
     \end{pmatrix}
     =
     \begin{pmatrix}
-        \mathbf r_u \\ \mathbf r_p
+        \mathbf b_u \\ \mathbf b_p
     \end{pmatrix}
 
 where each of the matrix subblocks is a large sparse matrix, and the blocks
