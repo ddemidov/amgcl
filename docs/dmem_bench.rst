@@ -53,10 +53,10 @@ to the linear deflation and the constant deflation correspondingly
         ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
         ax.get_xaxis().set_tick_params(which='minor', size=0)
         ax.get_xaxis().set_tick_params(which='minor', width=0)
-        setp(ax.get_xticklabels(), fontsize=8)
+        setp(ax.get_xticklabels(), fontsize=10, rotation=30)
         setp(ax.get_yticklabels(), fontsize=10)
 
-    figure(figsize=(8,10))
+    figure(figsize=(8,10.5))
     gs = GridSpec(4,2)
     handles = []
 
@@ -124,7 +124,7 @@ to the linear deflation and the constant deflation correspondingly
            ['OMP={}'.format(i) for i in (1, 4, 12, 24)] + ['Trilinos'],
            ncol=3, loc='lower center')
     gcf().suptitle('Weak scaling of the Poisson problem on the MareNostrum 4 cluster')
-    gcf().subplots_adjust(top=0.93, bottom=0.12)
+    gcf().subplots_adjust(top=0.93, bottom=0.15)
 
     show()
 
