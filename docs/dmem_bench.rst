@@ -53,7 +53,7 @@ to the linear deflation and the constant deflation correspondingly
         ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
         ax.get_xaxis().set_tick_params(which='minor', size=0)
         ax.get_xaxis().set_tick_params(which='minor', width=0)
-        setp(ax.get_xticklabels(), fontsize=10)
+        setp(ax.get_xticklabels(), fontsize=8)
         setp(ax.get_yticklabels(), fontsize=10)
 
     figure(figsize=(8,10))
