@@ -80,7 +80,7 @@ if (TARGET viennacl_target)
     target_link_libraries(test_solver_viennacl viennacl_target)
 endif()
 
-if (NOT WIN32)
+if (AMGCL_HAVE_PYTHON AND NOT WIN32)
     configure_file(
         ${CMAKE_CURRENT_SOURCE_DIR}/test_pyamgcl.py
         ${CMAKE_CURRENT_BINARY_DIR}/test_pyamgcl.py

@@ -1,48 +1,72 @@
-dist: trusty
 language: cpp
-compiler: g++
-
-addons:
-  coverity_scan:
-    project:
-      name: "ddemidov/amgcl"
-      description: "Build submitted via Travis CI"
-    notification_email: dennis.demidov@gmail.com
-    build_command_prepend: mkdir build-coverity && cd build-coverity && cmake ..
-    build_command: make
-    branch_pattern: coverity-scan
-  apt:
-    sources:
-    - ubuntu-toolchain-r-test
-    - boost-latest
-    packages:
-    - gcc-5
-    - g++-5
-    - libboost-chrono1.55-dev
-    - libboost-date-time1.55-dev
-    - libboost-system1.55-dev
-    - libboost-filesystem1.55-dev
-    - libboost-thread1.55-dev
-    - libboost-program-options1.55-dev
-    - libboost-test1.55-dev
-    - python-yaml
-    - lcov
-    - openmpi-bin
-    - libopenmpi-dev
-    - python3-scipy
 
 env:
   global:
-  - secure: "Hl9sa1V5YSJDYOSr9wnw109Vvm27FVTIZC5gIEiNOwdsqdzsO2JTtnk/tLmhStUvyPfJ5Vv8lxc52KFBV1DNDLIT88hxdZ8yRdg1FClVY+B30IfSjO9nKfgNtpGBozBJOfUbOZJwMxsGOdjGDq0dn667E8WcljBLeywRyxjRFvY="
+    - OMP_NUM_THREADS=4
+    - BOOST_BASENAME=boost_1_62_0
+
+matrix:
+  include:
+  - compiler: gcc
+    env:
+    - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5"
+    - BUILD_EXAMPLES=ON
+    - TEST_COVERAGE=ON
+    - TEST_PYTHON=ON
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - gcc-5
+        - g++-5
+        - lcov
+        - openmpi-bin
+        - libopenmpi-dev
+        - python3-scipy
+  - compiler: clang
+    env:
+    - BUILD_EXAMPLES=OFF
+    - TEST_COVERAGE=OFF
+    - TEST_PYTHON=OFF
+  - os: osx
+    osx_image: xcode9.1
+    env:
+    - BUILD_EXAMPLES=OFF
+    - TEST_COVERAGE=OFF
+    - TEST_PYTHON=OFF
+
+cache:
+  directories:
+  - ${HOME}/${BOOST_BASENAME}/boost
+  - ${HOME}/${BOOST_BASENAME}/stage/lib
+
+before_install:
+  - eval "${MATRIX_EVAL}"
+  - |
+    if [ "$TRAVIS_OS_NAME" = "linux" ] ; then
+      source .travis/install_boost.sh
+    fi
 
 script:
-- export CC=gcc-5 CXX=g++-5
-- mkdir -p build && cd build
-- cmake -DAMGCL_TEST_COVERAGE=ON -DAMGCL_BUILD_TESTS=ON -DAMGCL_BUILD_EXAMPLES=ON -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/python3 ..
-- make
-- for n in 1 8; do OMP_NUM_THREADS=$n ctest --output-on-failure; done
-- for d in constant linear bilinear mba harmonic; do OMP_NUM_THREADS=1 mpirun -np 16 ./examples/mpi/runtime_sdd -v ${d}; done
+  - mkdir -p build && cd build
+  - |
+    if [ "$CC" = "clang" ] ; then
+      export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:$(dirname $(which clang++))/../lib
+    fi
+  - |
+    cmake -DAMGCL_TEST_COVERAGE=${TEST_COVERAGE}   \
+          -DAMGCL_BUILD_TESTS=ON                   \
+          -DAMGCL_BUILD_EXAMPLES=${BUILD_EXAMPLES} \
+          -DAMGCL_HAVE_PYTHON=${TEST_PYTHON}       \
+          -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/python3 ..
+  - make
+  - ctest --output-on-failure
+
 after_success:
-- lcov --directory tests --base-directory ../amgcl --capture --output-file coverage.info
-- lcov --remove coverage.info '/usr*' -o coverage.info
-- bash <(curl -s https://codecov.io/bash)
+  - |
+    if [ "$TEST_COVERAGE" = "ON" ]; then
+      lcov --directory tests --base-directory ../amgcl --capture --output-file coverage.info
+      lcov --remove coverage.info '/usr*' -o coverage.info
+      bash <(curl -s https://codecov.io/bash)
+    fi
