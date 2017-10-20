@@ -266,8 +266,6 @@ if (AMGCL_MASTER_PROJECT)
     if (AMGCL_BUILD_EXAMPLES)
         add_subdirectory(lib)
         add_subdirectory(examples)
-        add_subdirectory(pyamgcl)
-
 
         #----------------------------------------------------------------------------
         # Build Fortran example
@@ -276,8 +274,16 @@ if (AMGCL_MASTER_PROJECT)
         if (AMGCL_HAVE_FORTRAN)
             add_subdirectory(fortran)
         endif()
-    endif()
 
+        #----------------------------------------------------------------------------
+        # Build Python example
+        #----------------------------------------------------------------------------
+        option(AMGCL_HAVE_PYTHON "Build Python example" OFF)
+        if (AMGCL_HAVE_PYTHON)
+            add_subdirectory(pyamgcl)
+        endif()
+    endif()
+    
     install(DIRECTORY amgcl DESTINATION include)
 
     install(TARGETS amgcl EXPORT amgclTargets)
