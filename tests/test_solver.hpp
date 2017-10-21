@@ -120,13 +120,15 @@ void test_problem(
     };
 
     amgcl::runtime::solver::type solver[] = {
-        amgcl::runtime::solver::cg,
-        amgcl::runtime::solver::bicgstab,
-        amgcl::runtime::solver::bicgstabl,
-        amgcl::runtime::solver::gmres,
-        amgcl::runtime::solver::lgmres,
-        amgcl::runtime::solver::fgmres,
-        amgcl::runtime::solver::idrs
+          amgcl::runtime::solver::cg
+        , amgcl::runtime::solver::bicgstab
+        , amgcl::runtime::solver::bicgstabl
+        , amgcl::runtime::solver::gmres
+        , amgcl::runtime::solver::lgmres
+        , amgcl::runtime::solver::fgmres
+#ifndef __APPLE__
+        , amgcl::runtime::solver::idrs
+#endif
     };
 
     typedef typename Backend::vector vector;
