@@ -92,7 +92,7 @@ template<> struct row_iterator<sparse_matrix> {
 };
 
 template<> struct row_begin_impl<sparse_matrix> {
-    typedef typename row_iterator<sparse_matrix>::type iterator;
+    typedef row_iterator<sparse_matrix>::type iterator;
     static iterator get(const sparse_matrix &A, int row) {
         return iterator(A, row);
     }
