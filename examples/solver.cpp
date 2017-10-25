@@ -430,6 +430,13 @@ int main(int argc, char *argv[]) {
          "The resulting system will have n*n*n unknowns. "
         )
         (
+         "anisotropy,a",
+         po::value<double>()->default_value(1.0),
+         "The anisotropy value for the generated Poisson value. "
+         "Used to determine problem scaling along X, Y, and Z axes: "
+         "hy = hx * a, hz = hy * a."
+        )
+        (
          "single-level,1",
          po::bool_switch()->default_value(false),
          "When specified, the AMG hierarchy is not constructed. "
@@ -526,7 +533,7 @@ int main(int argc, char *argv[]) {
         }
     } else {
         scoped_tic t(prof, "assembling");
-        rows = sample_problem(vm["size"].as<int>(), val, col, ptr, rhs);
+        rows = sample_problem(vm["size"].as<int>(), val, col, ptr, rhs, vm["anisotropy"].as<double>());
     }
 
     x.resize(rows, vm["initial"].as<double>());
