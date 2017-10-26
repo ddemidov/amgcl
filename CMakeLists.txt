@@ -127,22 +127,6 @@ endif()
 # Find VexCL
 #----------------------------------------------------------------------------
 find_package(VexCL QUIET)
-if (VexCL_FOUND)
-    add_library(vexcl_target INTERFACE)
-
-    set(VEXCL_BACKEND "OpenCL" CACHE STRING "Select VexCL backend (OpenCL/CUDA/Compute/JIT)")
-    set_property(CACHE VEXCL_BACKEND PROPERTY STRINGS "OpenCL" "CUDA" "Compute" "JIT")
-
-    if("${VEXCL_BACKEND}" STREQUAL "OpenCL")
-        target_link_libraries(vexcl_target INTERFACE VexCL::OpenCL)
-    elseif("${VEXCL_BACKEND}" STREQUAL "Compute")
-        target_link_libraries(vexcl_target INTERFACE VexCL::Compute)
-    elseif("${VEXCL_BACKEND}" STREQUAL "CUDA")
-        target_link_libraries(vexcl_target INTERFACE VexCL::CUDA)
-    elseif("${VEXCL_BACKEND}" STREQUAL "JIT")
-        target_link_libraries(vexcl_target INTERFACE VexCL::JIT)
-    endif()
-endif()
 
 #----------------------------------------------------------------------------
 # Find ViennaCL

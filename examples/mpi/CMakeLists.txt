@@ -1,14 +1,15 @@
 if (TARGET mpi_target)
+    add_library(amgcl_mpi_example INTERFACE)
+    target_link_libraries(amgcl_mpi_example INTERFACE
+        amgcl mpi_target ${Boost_PROGRAM_OPTIONS_LIBRARY})
+
+    if (TARGET pastix_target)
+        target_link_libraries(amgcl_mpi_example INTERFACE pastix_target)
+    endif()
+
     function(add_mpi_example example sources)
         add_executable(${example} ${sources})
-        target_link_libraries(${example}
-            amgcl mpi_target
-            ${Boost_PROGRAM_OPTIONS_LIBRARY}
-            )
-
-        if (TARGET pastix_target)
-            target_link_libraries(${example} pastix_target)
-        endif()
+        target_link_libraries(${example} amgcl_mpi_example)
     endfunction()
 
     if (TARGET pastix_target)
@@ -48,11 +49,11 @@ if (TARGET mpi_target)
         endforeach()
     endif()
 
-    if (TARGET vexcl_target)
+    if (VexCL_FOUND)
         foreach(example runtime_sdd runtime_sdd_3d schur_pc_mpi)
-            add_mpi_example(${example}_vexcl ${example}.cpp)
-            target_compile_definitions(${example}_vexcl PRIVATE SOLVER_BACKEND_VEXCL)
-            target_link_libraries(${example}_vexcl amgcl vexcl_target)
+            vexcl_add_executables(${example}_vexcl ${example}.cpp)
+            target_compile_definitions(${example}_vexcl INTERFACE SOLVER_BACKEND_VEXCL)
+            target_link_libraries(${example}_vexcl INTERFACE amgcl_mpi_example)
         endforeach()
     endif()
 
