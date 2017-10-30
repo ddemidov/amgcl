@@ -15,6 +15,7 @@ function(add_amgcl_example EXAMPLE SOURCES)
 endfunction()
 
 add_amgcl_example(mm2bin mm2bin.cpp)
+add_amgcl_example(bin2mm bin2mm.cpp)
 add_amgcl_example(solver solver.cpp)
 add_amgcl_example(solver_complex solver_complex.cpp)
 add_amgcl_example(crs_builder crs_builder.cpp)
