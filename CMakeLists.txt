@@ -163,14 +163,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
         set(CUDA_TARGET_ARCH "Kepler Maxwell Pascal" CACHE STRING "Target architecture(s) for CUDA")
         cuda_select_nvcc_arch_flags(CUDA_ARCH_FLAGS ${CUDA_TARGET_ARCH})
 
-        list(APPEND CUDA_NVCC_FLAGS
-            ${CUDA_ARCH_FLAGS} -Wno-deprecated-gpu-targets)
-
         if (OPENMP_FOUND)
             list(APPEND CUDA_NVCC_FLAGS -Xcompiler ${OpenMP_CXX_FLAGS})
         endif()
 
         if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+	    list(APPEND CUDA_NVCC_FLAGS
+		${CUDA_ARCH_FLAGS} -Wno-deprecated-gpu-targets)
+
             list(APPEND CUDA_NVCC_FLAGS -Xcompiler -std=c++03 -Xcompiler -Wno-vla)
         endif()
 

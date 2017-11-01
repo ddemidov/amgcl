@@ -1,4 +1,4 @@
-LIBRARY amgcl
+LIBRARY libamgcl
 EXPORTS
     amgcl_params_create
     amgcl_params_seti
