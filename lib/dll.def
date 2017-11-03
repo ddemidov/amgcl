@@ -4,6 +4,7 @@ EXPORTS
     amgcl_params_seti
     amgcl_params_setf
     amgcl_params_sets
+    amgcl_params_read_json
     amgcl_params_destroy
     amgcl_precond_create
     amgcl_precond_create_f

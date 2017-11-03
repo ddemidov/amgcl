@@ -55,6 +55,9 @@ void STDCALL amgcl_params_setf(amgclHandle prm, const char *name, float value);
 // Set floating point parameter in a parameter list.
 void STDCALL amgcl_params_sets(amgclHandle prm, const char *name, const char *value);
 
+// Read parameters from a JSON file
+void STDCALL amgcl_params_read_json(amgclHandle prm, const char *fname);
+
 // Destroy parameter list.
 void STDCALL amgcl_params_destroy(amgclHandle prm);
 
