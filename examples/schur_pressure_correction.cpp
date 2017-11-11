@@ -362,7 +362,15 @@ int main(int argc, char *argv[]) {
             int stride = std::atoi(mfile.substr(3).c_str());
             pm.resize(rows, 0);
             for(size_t i = start; i < rows; i += stride) pm[i] = 1;
-        } else {
+        } else if (mfile[0] == '<') {
+            size_t m = std::atoi(mfile.c_str()+1);
+            pm.resize(rows, 0);
+            for(size_t i = 0; i < std::min(m, rows); ++i) pm[i] = 1;
+        } else if (mfile[0] == '>') {
+            size_t m = std::atoi(mfile.c_str()+1);
+            pm.resize(rows, 0);
+            for(size_t i = std::min(m, rows); i < rows; ++i) pm[i] = 1;
+        }else {
             size_t n, m;
 
             if (binary) {
