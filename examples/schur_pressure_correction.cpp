@@ -273,7 +273,7 @@ int main(int argc, char *argv[]) {
         )
         (
          "pmask,m",
-         po::value<string>()->required(),
+         po::value<string>(),
          "The pressure mask in MatrixMarket format. Or, if the parameter has "
          "the form '%n:m', then each (n+i*m)-th variable is treated as pressure."
         )
@@ -331,7 +331,6 @@ int main(int argc, char *argv[]) {
 
         string Afile  = vm["matrix"].as<string>();
         bool   binary = vm["binary"].as<bool>();
-        string mfile  = vm["pmask"].as<string>();
 
         if (binary) {
             io::read_crs(Afile, rows, ptr, col, val);
@@ -357,34 +356,33 @@ int main(int argc, char *argv[]) {
             rhs.resize(rows, 1.0);
         }
 
-        if (mfile[0] == '%') {
-            int start  = std::atoi(mfile.substr(1).c_str());
-            int stride = std::atoi(mfile.substr(3).c_str());
-            pm.resize(rows, 0);
-            for(size_t i = start; i < rows; i += stride) pm[i] = 1;
-        } else if (mfile[0] == '<') {
-            size_t m = std::atoi(mfile.c_str()+1);
-            pm.resize(rows, 0);
-            for(size_t i = 0; i < std::min(m, rows); ++i) pm[i] = 1;
-        } else if (mfile[0] == '>') {
-            size_t m = std::atoi(mfile.c_str()+1);
-            pm.resize(rows, 0);
-            for(size_t i = std::min(m, rows); i < rows; ++i) pm[i] = 1;
-        }else {
-            size_t n, m;
+        if(vm.count("pmask")) {
+            std::string pmask = vm["pmask"].as<string>();
+            prm.put("precond.pmask_size", rows);
 
-            if (binary) {
-                io::read_dense(mfile, n, m, pm);
-            } else {
-                boost::tie(n, m) = amgcl::io::mm_reader(mfile)(pm);
+            switch (pmask[0]) {
+                case '%':
+                case '<':
+                case '>':
+                    prm.put("precond.pmask_pattern", pmask);
+                    break;
+                default:
+                    {
+                        size_t n, m;
+
+                        if (binary) {
+                            io::read_dense(pmask, n, m, pm);
+                        } else {
+                            boost::tie(n, m) = amgcl::io::mm_reader(pmask)(pm);
+                        }
+
+                        precondition(n == rows && m == 1, "Mask file has wrong size");
+
+                        prm.put("precond.pmask", static_cast<void*>(&pm[0]));
+                    }
             }
-
-            precondition(n == rows && m == 1, "Mask file has wrong size");
         }
     }
-
-    prm.put("precond.pmask", static_cast<void*>(&pm[0]));
-    prm.put("precond.pmask_size", pm.size());
 
     solve_schur(vm["ub"].as<int>(), vm["pb"].as<int>(),
             boost::tie(rows, ptr, col, val), rhs, prm);

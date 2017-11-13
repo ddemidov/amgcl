@@ -176,20 +176,14 @@ int main(int argc, char *argv[]) {
     desc.add_options()
         ("help,h", "show help")
         (
-         "binary,B",
-         po::bool_switch()->default_value(false),
-         "When specified, treat input files as binary instead of as MatrixMarket. "
-         "It is assumed the files were converted to binary format with mm2bin utility. "
-        )
-        (
          "matrix,A",
          po::value<string>()->required(),
-         "The system matrix in MatrixMarket format"
+         "The system matrix in binary format"
         )
         (
          "rhs,f",
          po::value<string>(),
-         "The right-hand side in MatrixMarket format"
+         "The right-hand side in binary format"
         )
         (
          "part,s",
@@ -198,8 +192,8 @@ int main(int argc, char *argv[]) {
         )
         (
          "pmask,m",
-         po::value<string>()->required(),
-         "The pressure mask in MatrixMarket format. Or, if the parameter has "
+         po::value<string>(),
+         "The pressure mask in binary format. Or, if the parameter has "
          "the form '%n:m', then each (n+i*m)-th variable is treated as pressure."
         )
         (
@@ -252,10 +246,21 @@ int main(int argc, char *argv[]) {
     ptrdiff_t chunk = domain[world.rank + 1] - domain[world.rank];
     prof.toc("read problem");
 
-    std::vector<char> pm(chunk, 0);
-    for(ptrdiff_t i = 0; i < chunk; i += 4) pm[i] = 1;
-    prm.put("precond.pmask", static_cast<void*>(&pm[0]));
-    prm.put("precond.pmask_size", chunk);
+    std::vector<char> pm;
+    if(vm.count("pmask")) {
+        std::string pmask = vm["pmask"].as<string>();
+        prm.put("precond.pmask_size", chunk);
+
+        switch (pmask[0]) {
+            case '%':
+            case '<':
+            case '>':
+                prm.put("precond.pmask_pattern", pmask);
+                break;
+            default:
+                precondition(false, "Pressure mask may only be set with a pattern");
+        }
+    }
 
     boost::function<double(ptrdiff_t,unsigned)> dv = amgcl::mpi::constant_deflation(1);
     prm.put("precond.psolver.num_def_vec", 1);
