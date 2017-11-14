@@ -35,6 +35,7 @@ find_package(Boost REQUIRED COMPONENTS
     serialization
     system
     thread
+    atomic
     unit_test_framework
     )
 
@@ -96,6 +97,7 @@ if (AMGCL_ASYNC_SETUP)
     target_link_libraries(amgcl INTERFACE
         ${Boost_SYSTEM_LIBRARY}
         ${Boost_THREAD_LIBRARY}
+        ${Boost_ATOMIC_LIBRARY}
         ${Boost_CHRONO_LIBRARY}
         ${Boost_DATE_TIME_LIBRARY}
         )
