@@ -82,7 +82,7 @@ boost::tuple<size_t, double> block_solve(
     ;
 
     BOOST_AUTO(A_raw, (boost::tie(rows, ptr, col, val)));
-    BOOST_AUTO(A_blk, (amgcl::adapter::block_matrix<B, value_type>(A_raw)));
+    BOOST_AUTO(A_blk, (amgcl::adapter::block_matrix<value_type>(A_raw)));
 
     boost::tuple<size_t, double> info;
 
@@ -166,7 +166,7 @@ boost::tuple<size_t, double> block_solve(
             amgcl::backend::vexcl_static_matrix_declaration<double,B>());
 
     BOOST_AUTO(A_raw, (boost::tie(rows, ptr, col, val)));
-    BOOST_AUTO(A_blk, (amgcl::adapter::block_matrix<B, value_type>(A_raw)));
+    BOOST_AUTO(A_blk, (amgcl::adapter::block_matrix<value_type>(A_raw)));
 
     boost::tuple<size_t, double> info;
 
