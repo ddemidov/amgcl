@@ -9,6 +9,13 @@ target_link_libraries(amgcl_example INTERFACE
     ${Boost_PROGRAM_OPTIONS_LIBRARY}
     )
 
+set(AMGCL_BLOCK_SIZES "3;4" CACHE STRING "Block sizes for block solvers in examples")
+set(AMGCL_BLOCK_SIZES_SEQ "")
+foreach(B ${AMGCL_BLOCK_SIZES})
+    set(AMGCL_BLOCK_SIZES_SEQ "${AMGCL_BLOCK_SIZES_SEQ}(${B})")
+endforeach()
+target_compile_definitions(amgcl_example INTERFACE "AMGCL_BLOCK_SIZES=${AMGCL_BLOCK_SIZES_SEQ}")
+
 function(add_amgcl_example EXAMPLE SOURCES)
     add_executable(${EXAMPLE} ${SOURCES})
     target_link_libraries(${EXAMPLE} amgcl_example)

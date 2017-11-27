@@ -50,6 +50,10 @@
 
 #include "sample_problem.hpp"
 
+#ifndef AMGCL_BLOCK_SIZES
+#  define AMGCL_BLOCK_SIZES (3)(4)
+#endif
+
 namespace amgcl { profiler<> prof; }
 using amgcl::prof;
 using amgcl::precondition;
@@ -327,6 +331,10 @@ boost::tuple<size_t, double> scalar_solve(
     return info;
 }
 
+#define AMGCL_CALL_BLOCK_SOLVER(z, data, B)                                    \
+  case B:                                                                      \
+    return block_solve<B, Precond>(prm, rows, ptr, col, val, rhs, x, reorder);
+
 //---------------------------------------------------------------------------
 template <template <class> class Precond>
 boost::tuple<size_t, double> solve(
@@ -345,16 +353,7 @@ boost::tuple<size_t, double> solve(
         case 1:
             return scalar_solve<Precond>(prm, rows, ptr, col, val, rhs, x, reorder);
 #if defined(SOLVER_BACKEND_BUILTIN) || defined(SOLVER_BACKEND_VEXCL)
-        case 2:
-            return block_solve<2, Precond>(prm, rows, ptr, col, val, rhs, x, reorder);
-        case 3:
-            return block_solve<3, Precond>(prm, rows, ptr, col, val, rhs, x, reorder);
-        case 4:
-            return block_solve<4, Precond>(prm, rows, ptr, col, val, rhs, x, reorder);
-        case 5:
-            return block_solve<5, Precond>(prm, rows, ptr, col, val, rhs, x, reorder);
-        case 6:
-            return block_solve<6, Precond>(prm, rows, ptr, col, val, rhs, x, reorder);
+        BOOST_PP_SEQ_FOR_EACH(AMGCL_CALL_BLOCK_SOLVER, ~, AMGCL_BLOCK_SIZES)
 #endif
         default:
             precondition(false, "Unsupported block size");
