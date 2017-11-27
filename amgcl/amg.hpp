@@ -431,6 +431,8 @@ class amg {
                 if (done) break;
                 ready_to_cycle.notify_all();
 #endif
+                if (levels.size() >= prm.max_levels) break;
+
                 A = levels.back().step_down(A, prm, bprm);
                 if (!A) {
                     // Zero-sized coarse level. Probably the system matrix on
