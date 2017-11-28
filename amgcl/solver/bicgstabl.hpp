@@ -112,6 +112,7 @@ class bicgstabl {
                 )
             : prm(prm), n(n),
               r0( Backend::create_vector(n, backend_prm) ),
+              x0( Backend::create_vector(n, backend_prm) ),
               q ( Backend::create_vector(n, backend_prm) ),
               r(prm.L + 1), u(prm.L + 1),
               tau(boost::extents[prm.L][prm.L]),
@@ -153,13 +154,13 @@ class bicgstabl {
 
             const int L = prm.L;
 
-            backend::residual(rhs, A, x, *r0);
-
             scalar_type norm_rhs = norm(rhs);
             if (norm_rhs < amgcl::detail::eps<scalar_type>(n)) {
                 backend::clear(x);
                 return boost::make_tuple(0, norm_rhs);
             }
+
+            backend::residual(rhs, A, x, *r0);
 
             scalar_type res_norm = norm(*r0);
             scalar_type eps      = std::max(prm.tol * norm_rhs, prm.abstol);
@@ -168,7 +169,8 @@ class bicgstabl {
                 return boost::make_tuple(0, res_norm / norm_rhs);
 
             backend::copy(*r0, *r[0]);
-            backend::clear( *u[0] );
+            backend::clear(*u[0]);
+            backend::clear(*x0);
             coef_type rho0 = one, alpha = zero, omega = one;
 
             size_t iter = 0;
@@ -199,7 +201,7 @@ class bicgstabl {
                     for(int i = 0; i <= j; ++i)
                         backend::axpby(-alpha, *u[i+1], one, *r[i]);
 
-                    backend::axpby(alpha, *u[0], one, x);
+                    backend::axpby(alpha, *u[0], one, *x0);
 
                     res_norm = norm(*r[j]);
                     if (res_norm <= eps) goto done;
@@ -232,13 +234,13 @@ class bicgstabl {
                 }
 
                 // Update
-                backend::axpby(gamma[0], *r[0], one, x);
+                backend::axpby(gamma[0], *r[0], one, *x0);
                 backend::axpby(-gamma1[L-1], *r[L], one, *r[0]);
                 backend::axpby(-gamma[L-1], *u[L], one, *u[0]);
 
                 for(int j = 1; j < L; ++j) {
                     backend::axpby(-gamma[j-1], *u[j], one, *u[0]);
-                    backend::axpby(gamma2[j-1], *r[j], one, x);
+                    backend::axpby(gamma2[j-1], *r[j], one, *x0);
                     backend::axpby(-gamma1[j-1], *r[j], one, *r[0]);
                 }
 
@@ -246,8 +248,8 @@ class bicgstabl {
             }
 
 done:
-            P.apply(x, *q);
-            backend::copy(*q, x);
+            P.apply(*x0, *q);
+            backend::axpby(one, *q, one, x);
             backend::residual(rhs, A, x, *r0);
             res_norm = norm(*r0);
 
@@ -286,6 +288,7 @@ done:
         size_t n;
 
         mutable boost::shared_ptr< vector > r0;
+        mutable boost::shared_ptr< vector > x0;
         mutable boost::shared_ptr< vector > q;
 
         mutable std::vector< boost::shared_ptr< vector > > r;
