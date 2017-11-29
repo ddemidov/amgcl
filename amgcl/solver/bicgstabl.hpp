@@ -129,7 +129,7 @@ class bicgstabl {
 
             params(
                     int         L       = 2,
-                    scalar_type delta   = 1e-2,
+                    scalar_type delta   = 0,
                     bool        convex  = true,
                     size_t      maxiter = 100,
                     scalar_type tol     = 1e-8
@@ -138,8 +138,6 @@ class bicgstabl {
                   maxiter(maxiter), tol(tol),
                   abstol(std::numeric_limits<scalar_type>::min())
             {
-                precondition(L > 0, "L in BiCGStab(L) should be >=1");
-                precondition(delta > 0, "delta in BiCGStab(L) should be positive");
             }
 
             params(const boost::property_tree::ptree &p)
@@ -181,6 +179,8 @@ class bicgstabl {
               Y0(prm.L + 1), YL(prm.L + 1),
               inner_product(inner_product)
         {
+            precondition(prm.L > 0, "L in BiCGStab(L) should be >=1");
+
             for(int i = 0; i <= prm.L; ++i) {
                 R[i] = Backend::create_vector(n, backend_prm);
                 U[i] = Backend::create_vector(n, backend_prm);
