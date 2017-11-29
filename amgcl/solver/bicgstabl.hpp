@@ -325,7 +325,6 @@ class bicgstabl {
                     qr.solve(L-1, L-1, MZa.strides()[0], MZa.strides()[1],
                             &MZa[1][1], &MZb[L][1], &YL[1], /*computed=*/true);
 
-                    // yt = MZb * y0
                     coef_type dot0 = zero;
                     coef_type dot1 = zero;
                     coef_type dotA = zero;
