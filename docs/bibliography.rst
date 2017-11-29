@@ -7,6 +7,7 @@ Bibliography
 .. [BrGr02] Bröker, Oliver, and Marcus J. Grote. "Sparse approximate inverse smoothers for geometric and algebraic multigrid." Applied numerical mathematics 41.1 (2002): 61-80.
 .. [CaGP73] Caretto, L. S., et al. "Two calculation procedures for steady, three-dimensional flows with recirculation." Proceedings of the third international conference on numerical methods in fluid mechanics. Springer Berlin Heidelberg, 1973.
 .. [DeSh12] Demidov, D. E., and Shevchenko, D. V. "Modification of algebraic multigrid for effective GPGPU-based solution of nonstationary hydrodynamics problems." Journal of Computational Science 3.6 (2012): 460-462.
+.. [Fokk96] Fokkema, Diederik R. "Enhanced implementation of BiCGstab (l) for solving linear systems of equations." Universiteit Utrecht. Mathematisch Instituut, 1996.
 .. [FrVu01] Frank, Jason, and Cornelis Vuik. "On the construction of deflation-based preconditioners." SIAM Journal on Scientific Computing 23.2 (2001): 442-462.
 .. [GiSo11] Van Gijzen, Martin B., and Peter Sonneveld. "Algorithm 913: An elegant IDR (s) variant that efficiently exploits biorthogonality properties." ACM Transactions on Mathematical Software (TOMS) 38.1 (2011): 5.
 .. [Saad03] Saad, Yousef. Iterative methods for sparse linear systems. Siam, 2003.
