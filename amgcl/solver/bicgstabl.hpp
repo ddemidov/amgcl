@@ -127,15 +127,9 @@ class bicgstabl {
             // Target absolute residual error.
             scalar_type abstol;
 
-            params(
-                    int         L       = 2,
-                    scalar_type delta   = 0,
-                    bool        convex  = true,
-                    size_t      maxiter = 100,
-                    scalar_type tol     = 1e-8
-                  )
-                : L(L), delta(delta), convex(convex),
-                  maxiter(maxiter), tol(tol),
+            params()
+                : L(2), delta(0), convex(true),
+                  maxiter(100), tol(1e-8),
                   abstol(std::numeric_limits<scalar_type>::min())
             {
             }

@@ -82,8 +82,8 @@ class gmres {
             /// Target absolute residual error.
             scalar_type abstol;
 
-            params(unsigned M = 30, unsigned maxiter = 100, scalar_type tol = 1e-8)
-                : M(M), maxiter(maxiter), tol(tol),
+            params()
+                : M(30), maxiter(100), tol(1e-8),
                   abstol(std::numeric_limits<scalar_type>::min())
             { }
 

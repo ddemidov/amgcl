@@ -115,17 +115,10 @@ class idrs {
             /// Target absolute residual error.
             scalar_type abstol;
 
-            params(
-                    unsigned    s           = 4,
-                    scalar_type omega       = 0.7,
-                    bool        smoothing   = false,
-                    bool        replacement = false,
-                    unsigned    maxiter     = 100,
-                    scalar_type tol         = 1e-8
-                  ) :
-                s(s), omega(omega), smoothing(smoothing),
-                replacement(replacement), maxiter(maxiter), tol(tol),
-                abstol(std::numeric_limits<scalar_type>::min())
+            params()
+                : s(4), omega(0.7), smoothing(false),
+                  replacement(false), maxiter(100), tol(1e-8),
+                  abstol(std::numeric_limits<scalar_type>::min())
             { }
 
             params(const boost::property_tree::ptree &p)

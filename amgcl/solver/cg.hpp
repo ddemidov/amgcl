@@ -87,8 +87,8 @@ class cg {
             /// Target absolute residual error.
             scalar_type abstol;
 
-            params(size_t maxiter = 100, scalar_type tol = 1e-8)
-                : maxiter(maxiter), tol(tol),
+            params()
+                : maxiter(100), tol(1e-8),
                   abstol(std::numeric_limits<scalar_type>::min())
             {}
 
