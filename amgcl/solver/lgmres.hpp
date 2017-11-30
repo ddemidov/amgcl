@@ -107,9 +107,6 @@ class lgmres {
 
         /// Solver parameters.
         struct params {
-            /// Preconditioning kind (left/right).
-            preconditioner::side::type pside;
-
             /// Number of inner GMRES iterations per each outer iteration.
             unsigned M;
 
@@ -134,6 +131,9 @@ class lgmres {
             /// Whether LGMRES should store also A*v in addition to vectors `v`.
             bool store_Av;
 
+            /// Preconditioning kind (left/right).
+            preconditioner::side::type pside;
+
             /// Maximum number of iterations.
             size_t maxiter;
 
@@ -144,18 +144,17 @@ class lgmres {
             scalar_type abstol;
 
             params()
-                : pside(preconditioner::side::right),
-                  M(30), K(3), always_reset(true),
-                  store_Av(true), maxiter(100), tol(1e-8),
+                : M(30), K(3), always_reset(true), store_Av(true),
+                  pside(preconditioner::side::right), maxiter(100), tol(1e-8),
                   abstol(std::numeric_limits<scalar_type>::min())
             { }
 
             params(const boost::property_tree::ptree &p)
-                : AMGCL_PARAMS_IMPORT_VALUE(p, pside),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, M),
+                : AMGCL_PARAMS_IMPORT_VALUE(p, M),
                   AMGCL_PARAMS_IMPORT_VALUE(p, K),
                   AMGCL_PARAMS_IMPORT_VALUE(p, always_reset),
                   AMGCL_PARAMS_IMPORT_VALUE(p, store_Av),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, pside),
                   AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
                   AMGCL_PARAMS_IMPORT_VALUE(p, tol),
                   AMGCL_PARAMS_IMPORT_VALUE(p, abstol)
@@ -164,11 +163,11 @@ class lgmres {
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
-                AMGCL_PARAMS_EXPORT_VALUE(p, path, pside);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, M);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, K);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, always_reset);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, store_Av);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, pside);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, maxiter);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, tol);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, abstol);
