@@ -76,45 +76,10 @@ THE SOFTWARE.
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/solver/detail/default_inner_product.hpp>
 #include <amgcl/solver/detail/givens_rotations.hpp>
+#include <amgcl/solver/precond_side.hpp>
 #include <amgcl/util.hpp>
 
 namespace amgcl {
-
-namespace precond {
-
-enum type {
-    left,
-    right
-};
-
-inline std::ostream& operator<<(std::ostream &os, type p) {
-    switch (p) {
-        case left:
-            return os << "left";
-        case right:
-            return os << "right";
-        default:
-            return os << "???";
-    }
-}
-
-inline std::istream& operator>>(std::istream &in, type &p) {
-    std::string val;
-    in >> val;
-
-    if (val == "left")
-        p = left;
-    else if (val == "right")
-        p = right;
-    else
-        throw std::invalid_argument("Invalid preconditioning kind. Valid choices are: "
-                "left, right.");
-
-    return in;
-}
-
-} // precond
-
 namespace solver {
 
 /** "Loose" GMRES.
@@ -143,7 +108,7 @@ class lgmres {
         /// Solver parameters.
         struct params {
             /// Preconditioning kind (left/right).
-            precond::type pside;
+            preconditioner::side::type pside;
 
             /// Number of inner GMRES iterations per each outer iteration.
             unsigned M;
@@ -179,7 +144,8 @@ class lgmres {
             scalar_type abstol;
 
             params()
-                : pside(precond::right), M(30), K(3), always_reset(true),
+                : pside(preconditioner::side::right),
+                  M(30), K(3), always_reset(true),
                   store_Av(true), maxiter(100), tol(1e-8),
                   abstol(std::numeric_limits<scalar_type>::min())
             { }
@@ -224,9 +190,6 @@ class lgmres {
               ws(prm.M + prm.K), outer_v(prm.K), outer_Av(prm.K),
               inner_product(inner_product)
         {
-            if (prm.pside == precond::right)
-                t = Backend::create_vector(n, bprm);
-
             outer_v_data.reserve(prm.K);
             for(unsigned i = 0; i < prm.K; ++i)
                 outer_v_data.push_back(Backend::create_vector(n, bprm));
@@ -263,6 +226,11 @@ class lgmres {
                 Vec2          &x
                 ) const
         {
+            namespace side = preconditioner::side;
+
+            static const scalar_type zero = math::zero<scalar_type>();
+            static const scalar_type one  = math::identity<scalar_type>();
+
             if (prm.always_reset) {
                 outer_v.clear();
                 outer_Av.clear();
@@ -274,35 +242,27 @@ class lgmres {
                 return boost::make_tuple(0, norm_rhs);
             }
 
-            scalar_type norm_r = math::zero<scalar_type>(), norm_v0;
-            scalar_type eps = std::max(prm.tol * norm_rhs, prm.abstol);
+            scalar_type norm_r = zero;
+            scalar_type eps    = std::max(prm.tol * norm_rhs, prm.abstol);
 
             unsigned iter = 0, n_outer = 0;
             while(true) {
-                backend::residual(rhs, A, x, *r);
-
-                // -- Check stopping condition
-                if ((norm_r = norm(*r)) < eps || iter >= prm.maxiter)
-                    break;
-
-                // -- Inner LGMRES iteration
-                if (prm.pside == precond::left) {
-                    P.apply(*r, *vs[0]);
-                    norm_v0 = norm(*vs[0]);
-
-                    precondition(!math::is_zero(norm_v0),
-                            "Preconditioner returned a zero vector");
-
-                    backend::axpby(math::inverse(norm_v0), *vs[0],
-                            math::zero<scalar_type>(), *vs[0]);
+                if (prm.pside == side::left) {
+                    backend::residual(rhs, A, x, *vs[0]);
+                    P.apply(*vs[0], *r);
                 } else {
-                    norm_v0 = norm_r;
-                    backend::axpby(math::inverse(norm_r), *r,
-                            math::zero<scalar_type>(), *vs[0]);
+                    backend::residual(rhs, A, x, *r);
                 }
 
+                // -- Check stopping condition
+                norm_r = norm(*r);
+                if (norm_r < eps || iter >= prm.maxiter) break;
+
+                // -- Inner LGMRES iteration
+                backend::axpby(math::inverse(norm_r), *r, zero, *vs[0]);
+
                 std::fill(s.begin(), s.end(), 0);
-                s[0] = norm_v0;
+                s[0] = norm_r;
 
                 unsigned j = 0;
                 while(true) {
@@ -352,24 +312,16 @@ class lgmres {
                     if (j < outer_Av.size()) {
                         backend::copy(*outer_Av[j], v_new);
                     } else {
-                        if (prm.pside == precond::left) {
-                            backend::spmv(math::identity<scalar_type>(), A, *z,
-                                    math::zero<scalar_type>(), *r);
-                            P.apply(*r, v_new);
-                        } else {
-                            P.apply(*z, *r);
-                            backend::spmv(math::identity<scalar_type>(), A, *r,
-                                    math::zero<scalar_type>(), v_new);
-                        }
+                        preconditioner::spmv(prm.pside, P, A, *z, v_new, *r);
                     }
 
                     for(unsigned k = 0; k <= j; ++k) {
                         H0[k][j] = H[k][j] = inner_product(v_new, *vs[k]);
-                        backend::axpby(-H[k][j], *vs[k], math::identity<scalar_type>(), v_new);
+                        backend::axpby(-H[k][j], *vs[k], one, v_new);
                     }
                     H0[j+1][j] = H[j+1][j] = norm(v_new);
 
-                    backend::axpby(math::inverse(H[j+1][j]), v_new, math::zero<scalar_type>(), v_new);
+                    backend::axpby(math::inverse(H[j+1][j]), v_new, zero, v_new);
 
                     for(unsigned k = 0; k < j; ++k)
                         detail::apply_plane_rotation(H[k][j], H[k+1][j], cs[k], sn[k]);
@@ -394,14 +346,15 @@ class lgmres {
                 }
 
                 vector &dx = *r;
-                backend::lin_comb(j, s, ws, math::zero<scalar_type>(), dx);
+                backend::lin_comb(j, s, ws, zero, dx);
 
                 // -- Apply step
-                if (prm.pside == precond::left) {
-                    backend::axpby(math::identity<scalar_type>(), dx, math::identity<scalar_type>(), x);
+                if (prm.pside == side::left) {
+                    backend::axpby(one, dx, one, x);
                 } else {
-                    P.apply(dx, *t);
-                    backend::axpby(math::identity<scalar_type>(), *t, math::identity<scalar_type>(), x);
+                    vector &tmp = *ws[0];
+                    P.apply(dx, tmp);
+                    backend::axpby(one, tmp, one, x);
                 }
 
                 // -- Store LGMRES augmented vectors
@@ -412,7 +365,7 @@ class lgmres {
                     ++n_outer;
 
                     norm_dx = math::inverse(norm_dx);
-                    backend::axpby(norm_dx, dx, math::zero<scalar_type>(), *outer_v_data[outer_slot]);
+                    backend::axpby(norm_dx, dx, zero, *outer_v_data[outer_slot]);
                     outer_v.push_back(outer_v_data[outer_slot]);
 
                     if (prm.store_Av) {
@@ -424,8 +377,7 @@ class lgmres {
                             y[k] = sum * norm_dx;
                         }
 
-                        backend::lin_comb(j+1, y, vs, math::zero<scalar_type>(),
-                                *outer_Av_data[outer_slot]);
+                        backend::lin_comb(j+1, y, vs, zero, *outer_Av_data[outer_slot]);
                         outer_Av.push_back(outer_Av_data[outer_slot]);
                     }
                 }
@@ -462,7 +414,6 @@ class lgmres {
         mutable std::vector<coef_type> s, cs, sn, y;
         boost::shared_ptr<vector> r;
         mutable std::vector< boost::shared_ptr<vector> > vs, ws;
-        mutable boost::shared_ptr<vector> t;
         mutable std::vector< boost::shared_ptr<vector> > outer_v_data, outer_Av_data;
         mutable boost::circular_buffer< boost::shared_ptr<vector> > outer_v;
         mutable boost::circular_buffer< boost::shared_ptr<vector> > outer_Av;
