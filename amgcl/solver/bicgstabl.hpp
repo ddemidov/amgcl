@@ -70,8 +70,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/solver/detail/default_inner_product.hpp>
-#include <amgcl/util.hpp>
+#include <amgcl/solver/precond_side.hpp>
 #include <amgcl/detail/qr.hpp>
+#include <amgcl/util.hpp>
 
 // std::real is not overloaded for scalar arguments pre c++11:
 namespace std {
@@ -118,6 +119,9 @@ class bicgstabl {
             // after the BiCG step instead of default MinRes
             bool convex;
 
+            // Preconditioning kind (left/right).
+            preconditioner::side::type pside;
+
             // Maximum number of iterations.
             size_t maxiter;
 
@@ -129,7 +133,7 @@ class bicgstabl {
 
             params()
                 : L(2), delta(0), convex(true),
-                  maxiter(100), tol(1e-8),
+                  pside(preconditioner::side::right), maxiter(100), tol(1e-8),
                   abstol(std::numeric_limits<scalar_type>::min())
             {
             }
@@ -138,17 +142,19 @@ class bicgstabl {
                 : AMGCL_PARAMS_IMPORT_VALUE(p, L),
                   AMGCL_PARAMS_IMPORT_VALUE(p, delta),
                   AMGCL_PARAMS_IMPORT_VALUE(p, convex),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, pside),
                   AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
                   AMGCL_PARAMS_IMPORT_VALUE(p, tol),
                   AMGCL_PARAMS_IMPORT_VALUE(p, abstol)
             {
-                AMGCL_PARAMS_CHECK(p, (L)(delta)(convex)(maxiter)(tol)(abstol));
+                AMGCL_PARAMS_CHECK(p, (L)(delta)(convex)(pside)(maxiter)(tol)(abstol));
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, L);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, delta);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, convex);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, pside);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, maxiter);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, tol);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, abstol);
@@ -205,39 +211,40 @@ class bicgstabl {
 #endif
                 ) const
         {
+            namespace side = preconditioner::side;
+
             static const coef_type one  = math::identity<coef_type>();
             static const coef_type zero = math::zero<coef_type>();
 
             const int L = prm.L;
 
-            // Check if there is a trivial solution
             scalar_type norm_rhs = norm(rhs);
+
+            // Check if there is a trivial solution
             if (norm_rhs < amgcl::detail::eps<scalar_type>(n)) {
                 backend::clear(x);
                 return boost::make_tuple(0, norm_rhs);
             }
 
-            // Check if the initial solution is good enough
-            backend::residual(rhs, A, x, *R[0]);
-            scalar_type res_norm = norm(*R[0]);
-            scalar_type eps      = std::max(prm.tol * norm_rhs, prm.abstol);
+            if (prm.pside == side::left) {
+                backend::residual(rhs, A, x, *T);
+                P.apply(*T, *B);
+            } else {
+                backend::residual(rhs, A, x, *B);
+            }
 
-            if(res_norm < eps)
-                return boost::make_tuple(0, res_norm / norm_rhs);
-
-            // Initialize
-            scalar_type zeta0 = res_norm;
-            backend::clear(*U[0]);
+            scalar_type zeta0 = norm(*B);
+            scalar_type eps = std::max(prm.tol * norm_rhs, prm.abstol);
 
             coef_type alpha = zero;
             coef_type rho0  = one;
             coef_type omega = one;
 
             // Go
-            backend::copy(x, *X);
-            backend::copy(*R[0], *B);
-            backend::copy(*R[0], *Rt);
+            backend::copy(*B, *R[0]);
+            backend::copy(*B, *Rt);
             backend::clear(*X);
+            backend::clear(*U[0]);
 
             scalar_type zeta           = zeta0;
             scalar_type rnmax_computed = zeta0;
@@ -259,8 +266,7 @@ class bicgstabl {
                     for(int i = 0; i <= j; ++i)
                         backend::axpby(one, *R[i], -beta, *U[i]);
 
-                    P.apply(*U[j], *T);
-                    backend::spmv(one, A, *T, zero, *U[j+1]);
+                    preconditioner::spmv(prm.pside, P, A, *U[j], *U[j+1], *T);
 
                     coef_type sigma = inner_product(*U[j+1], *Rt);
                     precondition(!math::is_zero(sigma),
@@ -272,8 +278,7 @@ class bicgstabl {
                     for(int i = 0; i <= j; ++i)
                         backend::axpby(-alpha, *U[i+1], one, *R[i]);
 
-                    P.apply(*R[j], *T);
-                    backend::spmv(one, A, *T, zero, *R[j+1]);
+                    preconditioner::spmv(prm.pside, P, A, *R[j], *R[j+1], *T);
 
                     zeta = norm(*R[0]);
 
@@ -379,13 +384,16 @@ class bicgstabl {
                     bool update_x = zeta < prm.delta * zeta0 && zeta0 <= rnmax_computed;
 
                     if ((zeta < prm.delta * rnmax_true && zeta <= rnmax_true) || update_x) {
-                        P.apply(*X, *T);
-                        backend::spmv(one, A, *T, zero, *R[0]);
+                        preconditioner::spmv(prm.pside, P, A, *X, *R[0], *T);
                         backend::axpby(one, *B, -one, *R[0]);
                         rnmax_true = zeta;
 
                         if (update_x) {
-                            backend::axpby(one, *T, one, x);
+                            if (prm.pside == side::left) {
+                                backend::axpby(one, *X, one, x);
+                            } else {
+                                backend::axpby(one, *T, one, x);
+                            }
                             backend::clear(*X);
                             backend::copy(*R[0], *B);
 
@@ -396,12 +404,14 @@ class bicgstabl {
             }
 
 done:
-            P.apply(*X, *T);
-            backend::axpby(one, *T, one, x);
-            backend::residual(rhs, A, x, *T);
-            res_norm = norm(*T);
+            if (prm.pside == side::left) {
+                backend::axpby(one, *X, one, x);
+            } else {
+                P.apply(*X, *T);
+                backend::axpby(one, *T, one, x);
+            }
 
-            return boost::make_tuple(iter, res_norm / norm_rhs);
+            return boost::make_tuple(iter, zeta / norm_rhs);
         }
 
         /* Computes the solution for the given right-hand side \p rhs. The
