@@ -385,9 +385,6 @@ class idrs {
             if (prm.smoothing)
                 backend::copy(*x_s, x);
 
-            backend::residual(rhs, A, x, *r);
-            res_norm = norm(*r);
-
             return boost::make_tuple(iter, res_norm / norm_rhs);
         }
 
