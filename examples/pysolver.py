@@ -46,7 +46,7 @@ args = parser.parse_args(sys.argv[1:])
 if args.A:
     with timeit('Read problem'):
         A = mmread(args.A)
-        f = mmread(args.f).flatten() if args.f else ones(A.rows())
+        f = mmread(args.f).flatten() if args.f else np.ones(A.shape[0])
 else:
     with timeit('Generate problem'):
         A,f = make_poisson(args.n)

@@ -22,7 +22,7 @@ args = parser.parse_args(sys.argv[1:])
 #----------------------------------------------------------------------------
 if args.A:
     A = mmread(args.A)
-    f = mmread(args.f).flatten() if args.f else np.ones(A.rows())
+    f = mmread(args.f).flatten() if args.f else np.ones(A.shape[0])
 else:
     A,f = make_poisson(args.n)
 
