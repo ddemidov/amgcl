@@ -173,9 +173,7 @@ class amg_precond: public precond
 };
 
 //---------------------------------------------------------------------------
-PYBIND11_PLUGIN(pyamgcl_ext) {
-    py::module m("pyamgcl_ext");
-
+PYBIND11_MODULE(pyamgcl_ext, m) {
     py::class_<precond> Precond(m, "precond");
     Precond
         .def("__repr__", &precond::repr)
@@ -206,6 +204,4 @@ PYBIND11_PLUGIN(pyamgcl_ext) {
         .def_property_readonly("iters", &solver::iterations)
         .def_property_readonly("error", &solver::residual)
         ;
-
-    return m.ptr();
 }
