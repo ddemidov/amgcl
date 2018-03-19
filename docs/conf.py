@@ -64,7 +64,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'AMGCL'
-copyright = '2012-2017, Denis Demidov <dennis.demidov@gmail.com>'
+copyright = '2012-2018, Denis Demidov <dennis.demidov@gmail.com>'
 author = 'Denis Demidov'
 
 # The version info for the project you're documenting, acts as replacement for
