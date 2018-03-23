@@ -10,3 +10,4 @@ __pycache__
 .cproject
 .pydevproject
 .sync.ffs_db
+*.bundle
