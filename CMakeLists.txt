@@ -291,7 +291,7 @@ if (AMGCL_MASTER_PROJECT)
     endif()
 
     configure_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/amgcl-config.cmake"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/amgcl-config.cmake.in"
         "${CMAKE_CURRENT_BINARY_DIR}/cmake/amgcl-config.cmake"
         COPYONLY
         )
