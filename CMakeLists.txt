@@ -186,6 +186,10 @@ endif()
 #----------------------------------------------------------------------------
 find_package(MPI)
 if (MPI_CXX_FOUND)
+    # Need this to comply with CMP004 policy:
+    string(STRIP "${MPI_CXX_LINK_FLAGS}" MPI_CXX_LINK_FLAGS)
+    string(STRIP "${MPI_CXX_LIBRARIES}" MPI_CXX_LIBRARIES)
+
     add_library(mpi_target INTERFACE)
     target_link_libraries(mpi_target INTERFACE amgcl ${MPI_CXX_LIBRARIES})
     target_include_directories(mpi_target INTERFACE ${MPI_CXX_INCLUDE_PATH})
