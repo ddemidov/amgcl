@@ -43,11 +43,6 @@ to the linear deflation and the constant deflation correspondingly
             'formats' : ('i8', 'i4', 'i4', 'f8', 'f8', 'i4')
             })
 
-    tri = loadtxt('dmem_data/mn4_trilinos_weak.dat', dtype={
-        'names'   : ('mpi', 'size', 'iters', 'setup', 'solve'),
-        'formats' : ('i4', 'i8', 'i4', 'f8', 'f8')
-        })
-
     def set_ticks(ax, t):
         ax.set_xticks(t)
         ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
@@ -85,11 +80,11 @@ to the linear deflation and the constant deflation correspondingly
 
             subplot(gs[2,k])
             loglog(c, solve, '.-')
-            ylim([1e1, 2e2])
+            ylim([5e0, 2e2])
 
             subplot(gs[3,k])
             semilogx(c, iters, '.-')
-            ylim([0, 200])
+            ylim([0, 400])
 
         subplot(gs[3,k])
         xlabel('Number of cores (MPI * OMP)')
@@ -98,8 +93,25 @@ to the linear deflation and the constant deflation correspondingly
         for j in range(2):
             set_ticks(subplot(gs[i,j]), [48 * 2**i for i in range(8)] + [19200])
 
+    for fname in ('dmem_data/mn4_trilinos_weak.dat', 'dmem_data/mn4_trilinos_weak_ddml.dat'):
+        tri = loadtxt(fname, dtype={
+            'names'   : ('mpi', 'size', 'iters', 'setup', 'solve'),
+            'formats' : ('i4', 'i8', 'i4', 'f8', 'f8')
+            })
+
+        subplot(gs[0,0])
+        handles += plot(tri['mpi'], tri['setup'] + tri['solve'], '.-')
+
+        subplot(gs[1,0])
+        plot(tri['mpi'], tri['setup'], '.-')
+
+        subplot(gs[2,0])
+        plot(tri['mpi'], tri['solve'], '.-')
+
+        subplot(gs[3,0])
+        plot(tri['mpi'], tri['iters'], '.-')
+
     subplot(gs[0,0])
-    h = plot(tri['mpi'], tri['setup'] + tri['solve'], '.-')
     title('Linear deflation')
     ylabel('Total time')
 
@@ -107,21 +119,19 @@ to the linear deflation and the constant deflation correspondingly
     title('Constant deflation')
 
     subplot(gs[1,0])
-    plot(tri['mpi'], tri['setup'], '.-')
     ylabel('Setup time')
 
     subplot(gs[2,0])
-    plot(tri['mpi'], tri['solve'], '.-')
     ylabel('Solve time')
 
     subplot(gs[3,0])
     ylabel('Iterations')
-    plot(tri['mpi'], tri['iters'], '.-')
 
     tight_layout()
 
-    figlegend(handles + h,
-           ['OMP={}'.format(i) for i in (1, 4, 12, 24)] + ['Trilinos'],
+    figlegend(handles,
+           ['OMP={}'.format(i) for i in (1, 4, 12, 24)] +
+           ['Trilinos/ML', 'Trilinos/DD-ML'],
            ncol=3, loc='lower center')
     gcf().suptitle('Weak scaling of the Poisson problem on the MareNostrum 4 cluster')
     gcf().subplots_adjust(top=0.93, bottom=0.15)
@@ -317,11 +327,6 @@ scaling is depicted for reference on the plots with thin gray dotted lines.
             'formats' : ('i8', 'i4', 'i4', 'f8', 'f8', 'i4')
             })
 
-    tri = loadtxt('dmem_data/mn4_trilinos_strong.dat', dtype={
-        'names'   : ('mpi', 'size', 'iters', 'setup', 'solve'),
-        'formats' : ('i4', 'i8', 'i4', 'f8', 'f8')
-        })
-
     def set_ticks(ax, t):
         ax.set_xticks(t)
         ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
@@ -348,7 +353,7 @@ scaling is depicted for reference on the plots with thin gray dotted lines.
 
             ax = subplot(gs[0,k])
             h = loglog(c, total, '.-')
-            ylim([1e0, 1.5e2])
+            ylim([1e0, 2e2])
             set_ticks(ax, c)
             if k == 0: handles.append(h[0])
             ideal = total[0] * c[0] / c
@@ -368,19 +373,36 @@ scaling is depicted for reference on the plots with thin gray dotted lines.
             ideal = solve[0] * c[0] / c
             if omp == 4:
                 plot(c,ideal,'k:', zorder=1, linewidth=1, alpha=0.5)
-            ylim([1e0, 1e2])
+            ylim([1e-1, 1e2])
             set_ticks(ax, c)
 
             ax = subplot(gs[3,k])
             semilogx(c, iters, '.-')
-            ylim([0,110])
+            ylim([0,300])
             set_ticks(ax, c)
 
         subplot(gs[3,k])
         xlabel('Number of cores (MPI * OMP)')
 
+    for fname in ('dmem_data/mn4_trilinos_strong.dat', 'dmem_data/mn4_trilinos_strong_ddml.dat'):
+        tri = loadtxt(fname, dtype={
+            'names'   : ('mpi', 'size', 'iters', 'setup', 'solve'),
+            'formats' : ('i4', 'i8', 'i4', 'f8', 'f8')
+            })
+
+        subplot(gs[0,0])
+        handles += plot(tri['mpi'], tri['setup'] + tri['solve'], '.-')
+
+        subplot(gs[1,0])
+        plot(tri['mpi'], tri['setup'], '.-')
+
+        subplot(gs[2,0])
+        plot(tri['mpi'], tri['solve'], '.-')
+
+        subplot(gs[3,0])
+        plot(tri['mpi'], tri['iters'], '.-')
+
     subplot(gs[0,0])
-    h = plot(tri['mpi'][1:], tri['setup'][1:] + tri['solve'][1:], '.-')
     title('Linear deflation')
     ylabel('Total time')
 
@@ -388,22 +410,20 @@ scaling is depicted for reference on the plots with thin gray dotted lines.
     title('Constant deflation')
 
     subplot(gs[1,0])
-    plot(tri['mpi'][1:], tri['setup'][1:], '.-')
     ylabel('Setup time')
 
     subplot(gs[2,0])
-    plot(tri['mpi'][1:], tri['solve'][1:], '.-')
     ylabel('Solve time')
 
     subplot(gs[3,0])
-    plot(tri['mpi'][1:], tri['iters'][1:], '.-')
     ylabel('Iterations')
+
+    figlegend(handles + hi, ['OMP={}'.format(i) for i in (1, 4, 12, 24)]
+            + ['Trilinos/ML', 'Trilinos/DD-ML', 'Ideal scaling'],
+           ncol=4, loc='lower center')
 
     tight_layout()
 
-    figlegend(handles + [h[0], hi[0]], ['OMP={}'.format(i) for i in (1, 4, 12, 24)]
-            + ['Trilinos', 'Ideal scaling'],
-           ncol=3, loc='lower center')
     gcf().suptitle('Strong scaling of the Poisson problem on the MareNostrum 4 cluster')
     gcf().subplots_adjust(top=0.93, bottom=0.12)
 
