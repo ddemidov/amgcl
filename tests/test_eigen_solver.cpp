@@ -4,6 +4,7 @@
 #include <Eigen/SparseLU>
 #include <amgcl/solver/eigen.hpp>
 #include <amgcl/backend/builtin.hpp>
+#include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/profiler.hpp>
 #include "sample_problem.hpp"
 
@@ -22,23 +23,18 @@ BOOST_AUTO_TEST_CASE(eigen_solver)
 
     size_t n = sample_problem(16, val, col, ptr, rhs);
 
-    amgcl::backend::crs<double, int> A;
+    typedef
+        amgcl::solver::EigenSolver<Eigen::SparseLU<Eigen::SparseMatrix<double, Eigen::ColMajor, int> > >
+        Solver;
 
-    A.nrows = A.ncols = n;
-    A.nnz = ptr[n];
-    A.ptr = ptr.data();
-    A.col = col.data();
-    A.val = val.data();
-    A.own_data = false;
-
-    amgcl::solver::EigenSolver<Eigen::SparseLU<Eigen::SparseMatrix<double, Eigen::ColMajor, int> > > solve( A );
+    Solver solve( boost::tie(n, ptr, col, val) );
 
     std::vector<double> x(n);
     std::vector<double> r(n);
 
     solve(rhs, x);
 
-    amgcl::backend::residual(rhs, A, x, r);
+    amgcl::backend::residual(rhs, boost::tie(n, ptr, col, val), x, r);
 
     BOOST_CHECK_SMALL(sqrt(amgcl::backend::inner_product(r, r)), 1e-8);
 }

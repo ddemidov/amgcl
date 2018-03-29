@@ -33,6 +33,9 @@ THE SOFTWARE.
 
 #include <amgcl/util.hpp>
 #include <amgcl/mpi/skyline_lu.hpp>
+#ifdef AMGCL_HAVE_EIGEN
+#  include <amgcl/mpi/eigen.hpp>
+#endif
 #ifdef AMGCL_HAVE_PASTIX
 #  include <amgcl/mpi/pastix.hpp>
 #endif
@@ -45,6 +48,9 @@ namespace mpi {
 namespace dsolver {
 enum type {
     skyline_lu
+#ifdef AMGCL_HAVE_EIGEN
+  , eigen_splu
+#endif
 #ifdef AMGCL_HAVE_PASTIX
   , pastix
 #endif
@@ -55,6 +61,10 @@ std::ostream& operator<<(std::ostream &os, type s)
     switch (s) {
         case skyline_lu:
             return os << "skyline_lu";
+#ifdef AMGCL_HAVE_EIGEN
+        case eigen_splu:
+            return os << "eigen_splu";
+#endif
 #ifdef AMGCL_HAVE_PASTIX
         case pastix:
             return os << "pastix";
@@ -71,6 +81,10 @@ std::istream& operator>>(std::istream &in, type &s)
 
     if (val == "skyline_lu")
         s = skyline_lu;
+#ifdef AMGCL_HAVE_EIGEN
+    else if (val == "eigen_splu")
+        s = eigen_splu;
+#endif
 #ifdef AMGCL_HAVE_PASTIX
     else if (val == "pastix")
         s = pastix;
@@ -78,6 +92,9 @@ std::istream& operator>>(std::istream &in, type &s)
     else
         throw std::invalid_argument("Invalid direct solver value. Valid choices are: "
                 "skyline_lu"
+#ifdef AMGCL_HAVE_EIGEN
+                ", eigen_splu"
+#endif
 #ifdef AMGCL_HAVE_PASTIX
                 ", pastix"
 #endif
@@ -102,6 +119,13 @@ class direct_solver {
                         typedef amgcl::mpi::skyline_lu<value_type> S;
                         return S::comm_size(n_global_rows, prm);
                     }
+#ifdef AMGCL_HAVE_EIGEN
+                case dsolver::eigen_splu:
+                    {
+                        typedef amgcl::mpi::eigen_splu<value_type> S;
+                        return S::comm_size(n_global_rows, prm);
+                    }
+#endif
 #ifdef AMGCL_HAVE_PASTIX
                 case dsolver::pastix:
                     {
@@ -137,6 +161,15 @@ class direct_solver {
                                 new S(mpi_comm, n_local_rows, p_ptr, p_col, p_val, prm));
                     }
                     break;
+#ifdef AMGCL_HAVE_EIGEN
+                case dsolver::eigen_splu:
+                    {
+                        typedef amgcl::mpi::eigen_splu<value_type> S;
+                        handle = static_cast<void*>(
+                                new S(mpi_comm, n_local_rows, p_ptr, p_col, p_val, prm));
+                    }
+                    break;
+#endif
 #ifdef AMGCL_HAVE_PASTIX
                 case dsolver::pastix:
                     {
@@ -160,6 +193,14 @@ class direct_solver {
                         static_cast<const S*>(handle)->operator()(rhs, x);
                     }
                     break;
+#ifdef AMGCL_HAVE_EIGEN
+                case dsolver::eigen_splu:
+                    {
+                        typedef amgcl::mpi::eigen_splu<value_type> S;
+                        static_cast<const S*>(handle)->operator()(rhs, x);
+                    }
+                    break;
+#endif
 #ifdef AMGCL_HAVE_PASTIX
                 case dsolver::pastix:
                     {
@@ -181,6 +222,14 @@ class direct_solver {
                         delete static_cast<S*>(handle);
                     }
                     break;
+#ifdef AMGCL_HAVE_EIGEN
+                case dsolver::eigen_splu:
+                    {
+                        typedef amgcl::mpi::eigen_splu<value_type> S;
+                        delete static_cast<S*>(handle);
+                    }
+                    break;
+#endif
 #ifdef AMGCL_HAVE_PASTIX
                 case dsolver::pastix:
                     {

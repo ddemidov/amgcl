@@ -114,6 +114,7 @@ if (EIGEN_INCLUDE)
         $<$<CXX_COMPILER_ID:GNU>:-Wno-int-in-bool-context>
         $<$<CXX_COMPILER_ID:Clang>:-Wno-c++11-long-long>
         )
+    target_compile_definitions(eigen_target INTERFACE AMGCL_HAVE_EIGEN)
 endif()
 
 #----------------------------------------------------------------------------

@@ -140,6 +140,9 @@ int main(int argc, char *argv[]) {
          "dir_solver,d",
          po::value<amgcl::runtime::mpi::dsolver::type>(&direct_solver)->default_value(direct_solver),
          "skyline_lu"
+#ifdef AMGCL_HAVE_EIGEN
+         ", eigen_splu"
+#endif
 #ifdef AMGCL_HAVE_PASTIX
          ", pastix"
 #endif

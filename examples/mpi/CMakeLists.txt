@@ -3,6 +3,10 @@ if (TARGET mpi_target)
     target_link_libraries(amgcl_mpi_example INTERFACE
         amgcl mpi_target ${Boost_PROGRAM_OPTIONS_LIBRARY})
 
+    if (TARGET eigen_target)
+        target_link_libraries(amgcl_mpi_example INTERFACE eigen_target)
+    endif()
+
     if (TARGET pastix_target)
         target_link_libraries(amgcl_mpi_example INTERFACE pastix_target)
     endif()

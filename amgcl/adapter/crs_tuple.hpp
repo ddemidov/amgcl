@@ -211,6 +211,48 @@ struct row_nonzeros_impl< boost::tuple<N, PRng, CRng, VRng> > {
     }
 };
 
+template < typename N, typename PRng, typename CRng, typename VRng >
+struct ptr_data_impl< boost::tuple<N, PRng, CRng, VRng> > {
+    typedef boost::tuple<N, PRng, CRng, VRng> Matrix;
+    typedef
+        typename boost::range_value<
+                    typename boost::decay<PRng>::type
+                 >::type
+        ptr_type;
+    typedef const ptr_type* type;
+    static type get(const Matrix &A) {
+        return &boost::get<1>(A)[0];
+    }
+};
+
+template < typename N, typename PRng, typename CRng, typename VRng >
+struct col_data_impl< boost::tuple<N, PRng, CRng, VRng> > {
+    typedef boost::tuple<N, PRng, CRng, VRng> Matrix;
+    typedef
+        typename boost::range_value<
+                    typename boost::decay<CRng>::type
+                 >::type
+        col_type;
+    typedef const col_type* type;
+    static type get(const Matrix &A) {
+        return &boost::get<2>(A)[0];
+    }
+};
+
+template < typename N, typename PRng, typename CRng, typename VRng >
+struct val_data_impl< boost::tuple<N, PRng, CRng, VRng> > {
+    typedef boost::tuple<N, PRng, CRng, VRng> Matrix;
+    typedef
+        typename boost::range_value<
+                    typename boost::decay<VRng>::type
+                 >::type
+        val_type;
+    typedef const val_type* type;
+    static type get(const Matrix &A) {
+        return &boost::get<3>(A)[0];
+    }
+};
+
 namespace detail {
 
 template < typename N, typename PRng, typename CRng, typename VRng >

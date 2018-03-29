@@ -34,6 +34,8 @@ THE SOFTWARE.
 #include <Eigen/Dense>
 #include <Eigen/SparseCore>
 
+#include <boost/type_traits.hpp>
+
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
 
@@ -52,12 +54,29 @@ class EigenSolver {
         EigenSolver(const Matrix &A, const params& = params())
             : n( backend::rows(A) )
         {
+            typedef
+                typename boost::remove_const<
+                    typename boost::remove_pointer<
+                        typename backend::col_data_impl<Matrix>::type
+                        >::type
+                    >::type
+                col_type;
+
+            typedef
+                typename boost::remove_const<
+                    typename boost::remove_pointer<
+                        typename backend::ptr_data_impl<Matrix>::type
+                        >::type
+                    >::type
+                ptr_type;
+
             S.compute(
                     MatrixType(
                         Eigen::MappedSparseMatrix<value_type, Eigen::RowMajor, int>(
                             backend::rows(A), backend::cols(A), backend::nonzeros(A),
-                            const_cast<int*>(A.ptr), const_cast<int*>(A.col),
-                            const_cast<value_type*>(A.val)
+                            const_cast<ptr_type*>(backend::ptr_data(A)),
+                            const_cast<col_type*>(backend::col_data(A)),
+                            const_cast<value_type*>(backend::val_data(A))
                             )
                         )
                     );

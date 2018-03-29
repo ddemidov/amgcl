@@ -616,7 +616,7 @@ template < typename V, typename C, typename P >
 struct ptr_data_impl< crs<V, C, P> > {
     typedef const P* type;
     static type get(const crs<V, C, P> &A) {
-        return A.ptr_data();
+        return &A.ptr[0];
     }
 };
 
@@ -624,7 +624,7 @@ template < typename V, typename C, typename P >
 struct col_data_impl< crs<V, C, P> > {
     typedef const C* type;
     static type get(const crs<V, C, P> &A) {
-        return A.col_data();
+        return &A.col[0];
     }
 };
 
@@ -632,7 +632,7 @@ template < typename V, typename C, typename P >
 struct val_data_impl< crs<V, C, P> > {
     typedef const V* type;
     static type get(const crs<V, C, P> &A) {
-        return A.val_data();
+        return &A.val[0];
     }
 };
 
