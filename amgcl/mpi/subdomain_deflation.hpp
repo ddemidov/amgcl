@@ -172,7 +172,7 @@ class subdomain_deflation {
                 const backend_params &bprm = backend_params()
                 )
         : comm(mpi_comm),
-          nrows(backend::rows(Astrip)), ndv(prm.num_def_vec),
+          nrows(backend::rows(Astrip)), ndv(prm.num_def_vec), uniform_ndv(true),
           dtype( datatype<value_type>() ), dv_start(comm.size + 1, 0),
           Z( ndv ), master_rank(0),
           q( backend_type::create_vector(nrows, bprm) ),
@@ -186,6 +186,14 @@ class subdomain_deflation {
             // Lets see how many deflation vectors are there.
             std::vector<ptrdiff_t> dv_size(comm.size);
             MPI_Allgather(&ndv, 1, datatype<ptrdiff_t>(), &dv_size[0], 1, datatype<ptrdiff_t>(), comm);
+
+            for(int i = 0; i < comm.size; ++i) {
+                if (dv_size[i] != ndv) {
+                    uniform_ndv = false;
+                    break;
+                }
+            }
+
             std::partial_sum(dv_size.begin(), dv_size.end(), dv_start.begin() + 1);
             nz = dv_start.back();
 
@@ -452,16 +460,26 @@ class subdomain_deflation {
             if (comm.rank == master_rank) {
                 Eptr.resize(dv_start[cgroup_end] - dv_start[cgroup_beg] + 1, 0);
 
-                MPI_Gatherv(
-                        &eptr[1], ndv, MPI_INT, &Eptr[0] + 1,
-                        const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
-                        MPI_INT, 0, slaves_comm
-                        );
+                if (uniform_ndv) {
+                    MPI_Gather(
+                            &eptr[1], ndv, MPI_INT, &Eptr[0] + 1, ndv, MPI_INT,
+                            0, slaves_comm);
+                } else {
+                    MPI_Gatherv(
+                            &eptr[1], ndv, MPI_INT, &Eptr[0] + 1,
+                            const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
+                            MPI_INT, 0, slaves_comm);
+                }
             } else {
-                MPI_Gatherv(
-                        &eptr[1], ndv, MPI_INT, NULL, NULL, NULL,
-                        MPI_INT, 0, slaves_comm
-                        );
+                if (uniform_ndv) {
+                    MPI_Gather(
+                            &eptr[1], ndv, MPI_INT, NULL, ndv, MPI_INT,
+                            0, slaves_comm);
+                } else {
+                    MPI_Gatherv(
+                            &eptr[1], ndv, MPI_INT, NULL, NULL, NULL,
+                            MPI_INT, 0, slaves_comm);
+                }
             }
 
             std::partial_sum(eptr.begin(), eptr.end(), eptr.begin());
@@ -569,9 +587,11 @@ class subdomain_deflation {
             AMGCL_TOC("finish(A*Z)");
 
             // Prepare Gatherv configuration for coarse solve
-            for(int p = cgroup_beg, i = 0, offset = dv_start[p]; p < cgroup_end; ++p, ++i) {
-                sstart[i] = dv_start[p] - offset;
-                ssize[i]  = dv_start[p + 1] - dv_start[p];
+            if (!uniform_ndv) {
+                for(int p = cgroup_beg, i = 0, offset = dv_start[p]; p < cgroup_end; ++p, ++i) {
+                    sstart[i] = dv_start[p] - offset;
+                    ssize[i]  = dv_start[p + 1] - dv_start[p];
+                }
             }
             AMGCL_TOC("setup deflation");
         }
@@ -664,6 +684,7 @@ class subdomain_deflation {
 
         communicator comm;
         ptrdiff_t nrows, ndv, nz;
+        bool uniform_ndv;
 
         MPI_Datatype dtype;
 
@@ -692,12 +713,20 @@ class subdomain_deflation {
             AMGCL_TIC("coarse solve");
             AMGCL_TIC("exchange rhs");
             if (comm.rank == master_rank) {
-                MPI_Gatherv(&f[0], ndv, dtype, &cf[0],
-                        const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
-                        dtype, 0, slaves_comm);
+                if (uniform_ndv) {
+                    MPI_Gather(&f[0], ndv, dtype, &cf[0], ndv, dtype, 0, slaves_comm);
+                } else {
+                    MPI_Gatherv(&f[0], ndv, dtype, &cf[0],
+                            const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
+                            dtype, 0, slaves_comm);
+                }
             } else {
-                MPI_Gatherv(&f[0], f.size(), dtype, NULL, NULL, NULL,
-                        dtype, 0, slaves_comm);
+                if (uniform_ndv) {
+                    MPI_Gather(&f[0], ndv, dtype, NULL, ndv, dtype, 0, slaves_comm);
+                } else {
+                    MPI_Gatherv(&f[0], f.size(), dtype, NULL, NULL, NULL,
+                            dtype, 0, slaves_comm);
+                }
             }
             AMGCL_TOC("exchange rhs");
 
@@ -707,13 +736,20 @@ class subdomain_deflation {
                 AMGCL_TOC("call solver");
 
                 AMGCL_TIC("scatter result");
-                MPI_Scatterv(&cx[0],
-                        const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
-                        dtype, &x[0], ndv, dtype, 0, slaves_comm);
+                if (uniform_ndv) {
+                    MPI_Scatter(&cx[0], ndv, dtype, &x[0], ndv, dtype, 0, slaves_comm);
+                } else {
+                    MPI_Scatterv(&cx[0],
+                            const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
+                            dtype, &x[0], ndv, dtype, 0, slaves_comm);
+                }
                 AMGCL_TOC("scatter result");
             } else {
-                MPI_Scatterv(NULL, NULL, NULL, dtype,
-                        &x[0], ndv, dtype, 0, slaves_comm);
+                if (uniform_ndv) {
+                    MPI_Scatter(NULL, ndv, dtype, &x[0], ndv, dtype, 0, slaves_comm);
+                } else {
+                    MPI_Scatterv(NULL, NULL, NULL, dtype, &x[0], ndv, dtype, 0, slaves_comm);
+                }
             }
 
             AMGCL_TOC("coarse solve");
