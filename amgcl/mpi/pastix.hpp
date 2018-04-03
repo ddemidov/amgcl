@@ -55,7 +55,7 @@ namespace mpi {
 /**
  * \sa http://pastix.gforge.inria.fr, \cite Henon2002
  */
-template <typename value_type>
+template <typename value_type, bool Distrib=false>
 class PaStiX {
     public:
         BOOST_STATIC_ASSERT_MSG( (
@@ -84,7 +84,10 @@ class PaStiX {
 
         /// The number of processes optimal for the given problem size.
         static int comm_size(int n_global_rows, const params &prm = params()) {
-            return (n_global_rows + prm.max_rows_per_process - 1) / prm.max_rows_per_process;
+            if (Distrib)
+                return (n_global_rows + prm.max_rows_per_process - 1) / prm.max_rows_per_process;
+            else
+                return 1;
         }
 
         /// Constructor.
@@ -115,6 +118,8 @@ class PaStiX {
               val(boost::begin(p_val), boost::end(p_val)),
               row(nrows), perm(nrows)
         {
+            if (!Distrib) inv_perm.resize(nrows);
+
             std::vector<int> domain = mpi::exclusive_sum(comm, nrows);
 
             // PaStiX needs 1-based matrices:
@@ -176,6 +181,7 @@ class PaStiX {
 
         // Permutation array
         std::vector<pastix_int_t> perm;
+        std::vector<pastix_int_t> inv_perm;
 
         void call_pastix(int beg, int end, value_type *x = NULL) const {
             iparm[IPARM_START_TASK] = beg;
@@ -185,25 +191,47 @@ class PaStiX {
         }
 
         void call_pastix(double *x) const {
-            d_dpastix(&pastix_data, comm, nrows,
-                    const_cast<pastix_int_t*>(&ptr[0]),
-                    const_cast<pastix_int_t*>(&col[0]),
-                    const_cast<double*      >(&val[0]),
-                    const_cast<pastix_int_t*>(&row[0]),
-                    const_cast<pastix_int_t*>(&perm[0]),
-                    NULL, x, 1, iparm, dparm
-                   );
+            if (Distrib) {
+                d_dpastix(&pastix_data, comm, nrows,
+                        const_cast<pastix_int_t*>(&ptr[0]),
+                        const_cast<pastix_int_t*>(&col[0]),
+                        const_cast<double*      >(&val[0]),
+                        const_cast<pastix_int_t*>(&row[0]),
+                        const_cast<pastix_int_t*>(&perm[0]),
+                        NULL, x, 1, iparm, dparm
+                        );
+            } else {
+                d_pastix(&pastix_data, comm, nrows,
+                        const_cast<pastix_int_t*>(&ptr[0]),
+                        const_cast<pastix_int_t*>(&col[0]),
+                        const_cast<double*      >(&val[0]),
+                        const_cast<pastix_int_t*>(&perm[0]),
+                        const_cast<pastix_int_t*>(&inv_perm[0]),
+                        x, 1, iparm, dparm
+                        );
+            }
         }
 
         void call_pastix(float *x) const {
-            s_dpastix(&pastix_data, comm, nrows,
-                    const_cast<pastix_int_t*>(&ptr[0]),
-                    const_cast<pastix_int_t*>(&col[0]),
-                    const_cast<float*       >(&val[0]),
-                    const_cast<pastix_int_t*>(&row[0]),
-                    const_cast<pastix_int_t*>(&perm[0]),
-                    NULL, x, 1, iparm, dparm
-                   );
+            if (Distrib) {
+                s_dpastix(&pastix_data, comm, nrows,
+                        const_cast<pastix_int_t*>(&ptr[0]),
+                        const_cast<pastix_int_t*>(&col[0]),
+                        const_cast<float*       >(&val[0]),
+                        const_cast<pastix_int_t*>(&row[0]),
+                        const_cast<pastix_int_t*>(&perm[0]),
+                        NULL, x, 1, iparm, dparm
+                        );
+            } else {
+                s_pastix(&pastix_data, comm, nrows,
+                        const_cast<pastix_int_t*>(&ptr[0]),
+                        const_cast<pastix_int_t*>(&col[0]),
+                        const_cast<float*       >(&val[0]),
+                        const_cast<pastix_int_t*>(&perm[0]),
+                        const_cast<pastix_int_t*>(&inv_perm[0]),
+                        x, 1, iparm, dparm
+                        );
+            }
         }
 };
 

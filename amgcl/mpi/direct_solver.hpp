@@ -52,7 +52,8 @@ enum type {
   , eigen_splu
 #endif
 #ifdef AMGCL_HAVE_PASTIX
-  , pastix
+  , dpastix
+  , spastix
 #endif
 };
 
@@ -66,8 +67,10 @@ std::ostream& operator<<(std::ostream &os, type s)
             return os << "eigen_splu";
 #endif
 #ifdef AMGCL_HAVE_PASTIX
-        case pastix:
-            return os << "pastix";
+        case dpastix:
+            return os << "dpastix";
+        case spastix:
+            return os << "spastix";
 #endif
         default:
             return os << "???";
@@ -86,8 +89,10 @@ std::istream& operator>>(std::istream &in, type &s)
         s = eigen_splu;
 #endif
 #ifdef AMGCL_HAVE_PASTIX
-    else if (val == "pastix")
-        s = pastix;
+    else if (val == "dpastix")
+        s = dpastix;
+    else if (val == "spastix")
+        s = spastix;
 #endif
     else
         throw std::invalid_argument("Invalid direct solver value. Valid choices are: "
@@ -96,7 +101,8 @@ std::istream& operator>>(std::istream &in, type &s)
                 ", eigen_splu"
 #endif
 #ifdef AMGCL_HAVE_PASTIX
-                ", pastix"
+                ", dpastix"
+                ", spastix"
 #endif
                 ".");
 
@@ -127,9 +133,14 @@ class direct_solver {
                     }
 #endif
 #ifdef AMGCL_HAVE_PASTIX
-                case dsolver::pastix:
+                case dsolver::dpastix:
                     {
-                        typedef amgcl::mpi::PaStiX<value_type> S;
+                        typedef amgcl::mpi::PaStiX<value_type,true> S;
+                        return S::comm_size(n_global_rows, prm);
+                    }
+                case dsolver::spastix:
+                    {
+                        typedef amgcl::mpi::PaStiX<value_type,false> S;
                         return S::comm_size(n_global_rows, prm);
                     }
 #endif
@@ -171,9 +182,16 @@ class direct_solver {
                     break;
 #endif
 #ifdef AMGCL_HAVE_PASTIX
-                case dsolver::pastix:
+                case dsolver::dpastix:
                     {
-                        typedef amgcl::mpi::PaStiX<value_type> S;
+                        typedef amgcl::mpi::PaStiX<value_type,true> S;
+                        handle = static_cast<void*>(
+                                new S(mpi_comm, n_local_rows, p_ptr, p_col, p_val, prm));
+                    }
+                    break;
+                case dsolver::spastix:
+                    {
+                        typedef amgcl::mpi::PaStiX<value_type,false> S;
                         handle = static_cast<void*>(
                                 new S(mpi_comm, n_local_rows, p_ptr, p_col, p_val, prm));
                     }
@@ -202,9 +220,15 @@ class direct_solver {
                     break;
 #endif
 #ifdef AMGCL_HAVE_PASTIX
-                case dsolver::pastix:
+                case dsolver::dpastix:
                     {
-                        typedef amgcl::mpi::PaStiX<value_type> S;
+                        typedef amgcl::mpi::PaStiX<value_type, true> S;
+                        static_cast<const S*>(handle)->operator()(rhs, x);
+                    }
+                    break;
+                case dsolver::spastix:
+                    {
+                        typedef amgcl::mpi::PaStiX<value_type, false> S;
                         static_cast<const S*>(handle)->operator()(rhs, x);
                     }
                     break;
@@ -231,9 +255,15 @@ class direct_solver {
                     break;
 #endif
 #ifdef AMGCL_HAVE_PASTIX
-                case dsolver::pastix:
+                case dsolver::dpastix:
                     {
-                        typedef amgcl::mpi::PaStiX<value_type> S;
+                        typedef amgcl::mpi::PaStiX<value_type, true> S;
+                        delete static_cast<S*>(handle);
+                    }
+                    break;
+                case dsolver::spastix:
+                    {
+                        typedef amgcl::mpi::PaStiX<value_type, false> S;
                         delete static_cast<S*>(handle);
                     }
                     break;
