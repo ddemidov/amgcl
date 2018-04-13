@@ -315,7 +315,7 @@ if (AMGCL_MASTER_PROJECT)
         )
 
     install(
-        FILES cmake/amgcl-config.cmake
+        FILES ${CMAKE_CURRENT_BINARY_DIR}/cmake/amgcl-config.cmake
         DESTINATION share/amgcl/cmake
         )
 endif()
