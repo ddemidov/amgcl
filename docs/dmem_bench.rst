@@ -14,23 +14,30 @@ with 16 GB RAM. The peak performance of the PizDaint cluster is 25.3 Petaflops.
 3D Poisson problem
 ^^^^^^^^^^^^^^^^^^
 
-The AMGCL implementation uses a BiCGStab(2) iterative solver preconditioned
-with subdomain deflation. Smoothed aggregation AMG is used as the local
-preconditioner.  The Trilinos implementation uses CG solver preconditioned with
-smoothed aggregation AMG with default settings.
+The AMGCL implementation uses a BiCGStab(2)
+iterative solver preconditioned with subdomain deflation, as it
+showed the best behaviour in our tests.  Smoothed aggregation AMG is used as
+the local preconditioner. The Trilinos implementation uses a CG
+solver preconditioned with smoothed aggregation AMG
+with default 'SA' settings, or domain decomposition method with
+default 'DD-ML' settings.
 
 The figure below shows weak scaling of the solution on the MareNostrum 4
 cluster. Here the problem size is chosen to be proportional to the number of
-CPU cores with about :math:`100^3` unknowns per core. The rows in the figure
-from top to bottom show total computation time, time spent on constructing the
-preconditioner, solution time, and the number of iterations. The AMGCL library
-results are labelled 'OMP=n', where n=1,4,12,24 corresponds to the number of
-OpenMP threads controlled by each MPI process. The Trilinos library uses
+CPU cores with about :math:`100^3` unknowns per core. The rows in the figure from top
+to bottom show total computation time, time spent on constructing the
+preconditioner, solution time, and the number of iterations.  The AMGCL library
+results are labelled 'OMP=n', where n=1,4,12,24 corresponds to the number
+of OpenMP threads controlled by each MPI process. The Trilinos library uses
 single-threaded MPI processes. The Trilinos data is only available for up to
-768 MPI processes, because the library runs out of memory for larger
-configurations. The AMGCL data points for 19200 cores with 'OMP=1' are missing
-for the same reason. AMGCL plots in the left and the right columns correspond
-to the linear deflation and the constant deflation correspondingly
+1536 MPI processes, which is due to the fact that only 32-bit
+version of the library was available on the cluster. The AMGCL data points for
+19200 cores with 'OMP=1' are missing because factorization of the deflated
+matrix becomes too expensive for this configuration. AMGCL plots in the
+left and the right columns correspond to the linear deflation and the constant
+deflation correspondingly. The Trilinos and Trilinos/DD-ML lines
+correspond to the smoothed AMG and domain decomposition variants accordingly
+and are depicted both in the left and the right columns for convenience.
 
 .. plot::
 
@@ -139,97 +146,99 @@ to the linear deflation and the constant deflation correspondingly
     show()
 
 In the case of ideal scaling the timing plots on this figure would be strictly
-horizontal. This is not the case here: instead, we see that AMGCL looses about
-6-8% efficiency whenever number of cores doubles. This, however, is much better
-than we managed to obtain for the Trilinos library, which looses about 36% on
-each step.
+horizontal. This is not the case here: instead, we see that both AMGCL and
+Trilinos loose about 6-8% efficiency whenever the number of cores doubles.
+The AMGCL algorithm performs about three times worse that
+the AMG-based Trilinos version, and about 2.5 times better than the domain
+decomposition based Trilinos version. This is mostly governed by the number of
+iterations each version needs to converge.
 
-If we look at the AMGCL results for the linear deflation alone, we can see that
-the ‘OMP=1’ line stops scaling properly at 1536 cores, and ‘OMP=4’ looses
-scalability at 6144 cores. We refer to the following table for the explanation.
+We observe that AMGCL scalability becomes worse at the higher number
+of cores. We refer to the following table for the explanation:
 
-+-------+---------------------+-------------------------------+------------+
-| Cores | Setup               | Solve                         | Iterations |
-+       +-------+-------------+--------+------------+---------+            +
-|       | Total | Factorize E | Total  | RHS for E  | Solve E |            |
-+=======+=======+=============+========+============+=========+============+
-| *Linear deflation, OMP=1*                                                |
-+-------+-------+-------------+--------+------------+---------+------------+
-|   384 |  3.33 |        0.04 |  49.35 |       0.82 |    0.08 |         76 |
-+-------+-------+-------------+--------+------------+---------+------------+
-|  1536 |  5.12 |        1.09 |  52.13 |       1.83 |    0.80 |         76 |
-+-------+-------+-------------+--------+------------+---------+------------+
-|  6144 | 20.39 |       15.42 |  79.23 |      31.81 |    4.30 |         54 |
-+-------+-------+-------------+--------+------------+---------+------------+
-| *Constant deflation, OMP=1*                                              |
-+-------+-------+-------------+--------+------------+---------+------------+
-|   384 |  2.88 |        0.00 |  58.52 |       0.73 |    0.01 |         98 |
-+-------+-------+-------------+--------+------------+---------+------------+
-|  1536 |  3.80 |        0.02 |  74.42 |       2.51 |    0.10 |        118 |
-+-------+-------+-------------+--------+------------+---------+------------+
-|  6144 |  5.31 |        0.24 | 130.76 |      63.52 |    0.52 |         90 |
-+-------+-------+-------------+--------+------------+---------+------------+
-| *Linear deflation, OMP=4*                                                |
-+-------+-------+-------------+--------+------------+---------+------------+
-|   384 |  3.86 |        0.00 |  49.90 |       0.15 |    0.01 |         74 |
-+-------+-------+-------------+--------+------------+---------+------------+
-|  1536 |  6.68 |        0.05 |  64.91 |       0.66 |    0.13 |         96 |
-+-------+-------+-------------+--------+------------+---------+------------+
-|  6144 |  7.36 |        0.76 |  60.74 |       2.87 |    0.79 |         82 |
-+-------+-------+-------------+--------+------------+---------+------------+
-| 19200 | 59.72 |       51.11 | 105.96 |      30.86 |    9.54 |         84 |
-+-------+-------+-------------+--------+------------+---------+------------+
-| *Constant deflation, OMP=4*                                              |
-+-------+-------+-------------+--------+------------+---------+------------+
-|   384 |  3.97 |        0.00 |  65.11 |       0.30 |    0.00 |        104 |
-+-------+-------+-------------+--------+------------+---------+------------+
-|  1536 |  6.73 |        0.00 |  76.44 |       1.01 |    0.01 |        122 |
-+-------+-------+-------------+--------+------------+---------+------------+
-|  6144 |  7.57 |        0.02 | 100.39 |       4.30 |    0.10 |        148 |
-+-------+-------+-------------+--------+------------+---------+------------+
-| 19200 | 10.08 |        0.74 | 125.41 |      48.67 |    0.83 |        106 |
-+-------+-------+-------------+--------+------------+---------+------------+
++-------+---------------------+--------+------------+
+| Cores | Setup               | Solve  | Iterations |
++       +-------+-------------+        +            +
+|       | Total | Factorize E |        |            |
++=======+=======+=============+========+============+
+| *Linear deflation, OMP=1*                         |
++-------+-------+-------------+--------+------------+
+|   384 |  4.23 |        0.02 |  54.08 |         74 |
++-------+-------+-------------+--------+------------+
+|  1536 |  6.01 |        0.64 |  57.19 |         76 |
++-------+-------+-------------+--------+------------+
+|  6144 | 13.92 |        8.41 |  48.40 |         54 |
++-------+-------+-------------+--------+------------+
+| *Constant deflation, OMP=1*                       |
++-------+-------+-------------+--------+------------+
+|   384 |  3.11 |        0.00 |  61.41 |         94 |
++-------+-------+-------------+--------+------------+
+|  1536 |  4.52 |        0.01 |  73.98 |        112 |
++-------+-------+-------------+--------+------------+
+|  6144 |  5.67 |        0.16 |  64.13 |         90 |
++-------+-------+-------------+--------+------------+
+| *Linear deflation, OMP=12*                        |
++-------+-------+-------------+--------+------------+
+|   384 |  8.35 |        0.00 |  72.68 |         96 |
++-------+-------+-------------+--------+------------+
+|  1536 |  7.95 |        0.00 |  82.22 |        106 |
++-------+-------+-------------+--------+------------+
+|  6144 | 16.08 |        0.03 |  77.00 |         96 |
++-------+-------+-------------+--------+------------+
+| 19200 | 42.09 |        1.76 |  90.74 |        104 |
++-------+-------+-------------+--------+------------+
+| *Constant deflation, OMP=12*                      |
++-------+-------+-------------+--------+------------+
+|   384 |  7.02 |        0.00 |  72.25 |        106 |
++-------+-------+-------------+--------+------------+
+|  1536 |  6.64 |        0.00 | 102.53 |        148 |
++-------+-------+-------------+--------+------------+
+|  6144 | 15.02 |        0.00 |  75.82 |        102 |
++-------+-------+-------------+--------+------------+
+| 19200 | 36.08 |        0.03 | 119.25 |        158 |
++-------+-------+-------------+--------+------------+
 
 The table presents the profiling data for the solution of the Poisson problem
 on the MareNostrum 4 cluster. The first two columns show time spent on the
 setup of the preconditioner and the solution of the problem; the third column
-shows the number of iterations required for convergence. The 'Setup' and the
-'Solve' columns are further split into subcolumns detailing time required for
-factorization and solution of the coarse system.  It is apparent from the table
-that weak scalability is affected by two factors. First, factorization of the
-coarse (deflated) matrix starts to dominate the setup phase as the number of
-subdomains (or MPI processes) grows, since we use a sparse direct solver for
-the coarse problem. Second factor is the solution of the coarse problem, which
-in our experiments is dominated by communication; namely, most of the coarse
-solve time is spent on gathering the deflated problem right-hand side for
-solution on the master MPI process.
-
-The constant deflation scales better since the deflation matrix is four times
-smaller than for a corresponding linear deflation case. Hence, the setup time
-is not affected that much by factorization of the coarse problem. The
-communication bottleneck is still present though, as is apparent from the table
-above.
+shows the number of iterations required for convergence. The 'Setup' column is
+further split into subcolumns detailing the total setup time and the time
+required for factorization of the coarse system.  It is apparent from the table
+that factorization of the coarse (deflated) matrix starts to dominate the setup
+phase as the number of subdomains (or MPI processes) grows, since we use a
+sparse direct solver for the coarse problem. This explains the fact that the
+constant deflation scales better, since the deflation matrix is four times
+smaller than for a corresponding linear deflation case.
 
 The advantage of the linear deflation is that it results in a better
 approximation of the problem on a coarse scale and hence needs less iterations
-for convergence and performs slightly better within it’s scalability limits,
-but the constant deflation eventually outperforms linear deflation as the scale
+for convergence and performs slightly better within its scalability limits, but
+the constant deflation eventually outperforms linear deflation as the scale
 grows.
+
 
 Next figure shows weak scaling of the Poisson problem on the PizDaint cluster.
 The problem size here is chosen so that each node owns about :math:`200^3`
-unknowns. We only show the results of the AMGCL library on this cluster to
-compare performance of the OpenMP and CUDA backends. Intel Xeon E5-2690 v3 CPU
-is used with the OpenMP backend, and NVIDIA Tesla P100 GPU is used with the
-CUDA backend on each compute node. The scaling behavior is similar to the
-MareNostrum 4 cluster.  We can see that the CUDA backend is about 9 times
-faster than OpenMP during solution phase and 4 times faster overall. The
-discrepancy is explained by the fact that the setup phase in AMGCL is always
-performed on the CPU, and in the case of CUDA backend it has the additional
-overhead of moving the generated hierarchy into the GPU memory.
+unknowns. On this cluster we are able to compare performance of the OpenMP and
+CUDA backends of the AMGCL library. Intel Xeon E5-2690 v3 CPU is used with the
+OpenMP backend, and NVIDIA Tesla P100 GPU is used with the CUDA backend on each
+compute node. The scaling behavior is similar to the MareNostrum 4 cluster. We
+can see that the CUDA backend is about 9 times faster than OpenMP during
+solution phase and 4 times faster overall. The discrepancy is explained by the
+fact that the setup phase in AMGCL is always performed on the CPU, and in the
+case of CUDA backend it has the additional overhead of moving the generated
+hierarchy into the GPU memory. It should be noted that this additional cost of
+setup on a GPU (and the cost of setup in general) often can amortized by
+reusing the preconditioner for different right-hand sides.  This is often
+possible for non-linear or time dependent problems.  The performance of the
+solution step of the AMGCL version with the CUDA backend here is on par with
+the Trilinos ML package. Of course, this comparison is not entirely fair to
+Trilinos, but it shows the advantages of using CUDA technology.
+
 
 .. plot::
 
+    import os
     from pylab import *
     rc('font', size=12)
 
@@ -282,9 +291,29 @@ overhead of moving the generated hierarchy into the GPU memory.
 
         ax = subplot(gs[3,k])
         semilogx(m, iters, '.-')
-        ylim([40,160])
+        ylim([0,160])
         set_ticks(ax, m)
         xlabel('Compute nodes')
+
+    for fname in ('dmem_data/daint_trilinos_weak.dat',):
+        tri = loadtxt(f'{os.path.dirname(sys.argv[0])}/{fname}', dtype={
+            'names'   : ('mpi', 'size', 'iters', 'setup', 'solve'),
+            'formats' : ('i4', 'i8', 'i4', 'f8', 'f8')
+            })
+
+        for k in (0,1):
+            subplot(gs[0,k])
+            h = plot(tri['mpi']//12, tri['setup'] + tri['solve'], '.-')
+            if k == 0: handles += h
+
+            subplot(gs[1,k])
+            plot(tri['mpi']//12, tri['setup'], '.-')
+
+            subplot(gs[2,k])
+            plot(tri['mpi']//12, tri['solve'], '.-')
+
+            subplot(gs[3,k])
+            plot(tri['mpi']//12, tri['iters'], '.-')
 
     subplot(gs[0,0])
     title('Linear deflation')
@@ -304,14 +333,14 @@ overhead of moving the generated hierarchy into the GPU memory.
 
     tight_layout()
 
-    figlegend(handles, ('GPU', 'CPU (OMP=12)'), ncol=2, loc='lower center')
+    figlegend(handles, ('GPU', 'CPU (OMP=12)', 'Trilinos'), ncol=3, loc='lower center')
     gcf().suptitle('Weak scaling of the Poisson problem on PizDaint cluster')
     gcf().subplots_adjust(top=0.93, bottom=0.1)
 
     show()
 
 
-The figure below shows strong scaling results for the MareNostrum 4 cluster.
+The following figure shows strong scaling results for the MareNostrum 4 cluster.
 The problem size is fixed to :math:`512^3` unknowns and ideally the compute
 time should decrease as we increase the number of CPU cores. The case of ideal
 scaling is depicted for reference on the plots with thin gray dotted lines.
@@ -336,11 +365,12 @@ scaling is depicted for reference on the plots with thin gray dotted lines.
     figure(figsize=(8,10))
     gs = GridSpec(4,2)
     handles = []
+    omps = set()
 
     for k,fname in enumerate(('dmem_data/mn4_linear_strong.dat', 'dmem_data/mn4_const_strong.dat')):
         data = load_data(fname)
         for omp in sorted(unique(data['omp'])):
-            if omp == 48: continue
+            omps.add(omp)
 
             d = data[data['omp'] == omp]
             c = unique(d['mpi'] * omp)
@@ -357,7 +387,7 @@ scaling is depicted for reference on the plots with thin gray dotted lines.
             set_ticks(ax, c)
             if k == 0: handles.append(h[0])
             ideal = total[0] * c[0] / c
-            if omp == 4:
+            if omp == 12:
                 hi = plot(c,ideal,'k:', zorder=1, linewidth=1, alpha=0.5)
 
             ax = subplot(gs[1,k])
@@ -371,9 +401,9 @@ scaling is depicted for reference on the plots with thin gray dotted lines.
             ax = subplot(gs[2,k])
             loglog(c, solve, '.-')
             ideal = solve[0] * c[0] / c
-            if omp == 4:
+            if omp == 12:
                 plot(c,ideal,'k:', zorder=1, linewidth=1, alpha=0.5)
-            ylim([1e-1, 1e2])
+            ylim([1e-1, 2e2])
             set_ticks(ax, c)
 
             ax = subplot(gs[3,k])
@@ -390,17 +420,20 @@ scaling is depicted for reference on the plots with thin gray dotted lines.
             'formats' : ('i4', 'i8', 'i4', 'f8', 'f8')
             })
 
-        subplot(gs[0,0])
-        handles += plot(tri['mpi'], tri['setup'] + tri['solve'], '.-')
+        for k in (0,1):
+            subplot(gs[0,k])
+            h = plot(tri['mpi'], tri['setup'] + tri['solve'], '.-')
 
-        subplot(gs[1,0])
-        plot(tri['mpi'], tri['setup'], '.-')
+            if k == 0: handles += h
 
-        subplot(gs[2,0])
-        plot(tri['mpi'], tri['solve'], '.-')
+            subplot(gs[1,k])
+            plot(tri['mpi'], tri['setup'], '.-')
 
-        subplot(gs[3,0])
-        plot(tri['mpi'], tri['iters'], '.-')
+            subplot(gs[2,k])
+            plot(tri['mpi'], tri['solve'], '.-')
+
+            subplot(gs[3,k])
+            plot(tri['mpi'], tri['iters'], '.-')
 
     subplot(gs[0,0])
     title('Linear deflation')
@@ -418,9 +451,9 @@ scaling is depicted for reference on the plots with thin gray dotted lines.
     subplot(gs[3,0])
     ylabel('Iterations')
 
-    figlegend(handles + hi, ['OMP={}'.format(i) for i in (1, 4, 12, 24)]
+    figlegend(handles + hi, ['OMP={}'.format(i) for i in sorted(omps)]
             + ['Trilinos/ML', 'Trilinos/DD-ML', 'Ideal scaling'],
-           ncol=4, loc='lower center')
+           ncol=3, loc='lower center')
 
     tight_layout()
 
@@ -430,164 +463,65 @@ scaling is depicted for reference on the plots with thin gray dotted lines.
     show()
 
 
-Here AMGCL scales much better than Trilinos, and is close to ideal for both
-kinds of deflation. As in the weak scaling case, we see a drop in scalability
-at about 1536 cores for ‘OMP=1’, but unlike before, the drop is also observable
-for the constant deflation case. This is explained by the fact that work size
-per each subdomain becomes too small to cover both setup and communication
-costs.
+Here, AMGCL demonstrates scalability slightly better than that of the Trilinos
+ML package. At 384 cores the AMGCL solution for OMP=1 is about 2.5 times slower
+than Trilinos/AMG, and 2 times faster than Trilinos/DD-ML. As is expected for a
+strong scalability benchmark, the drop in scalability at higher number of cores
+for all versions of the tests is explained by the fact that work size per each
+subdomain becomes too small to cover both setup and communication costs.
 
-The profiling data for the strong scaling case is shown in the following table,
-and it is apparent that the same factorization and coarse solve communication
-bottlenecks as in the weak scaling scenario come into play. Unfortunately, we
-were not able to obtain detailed profiling info for the constant deflation, but
-it should be obvious that in this case communication is the main limiting
-factor, as the coarse problem factorization costs much less due to reduced size
-of the deflated space.
 
-+-------+---------------------+-------------------------------+------------+
-| Cores | Setup               | Solve                         | Iterations |
-+       +-------+-------------+--------+------------+---------+            +
-|       | Total | Factorize E | Total  | RHS for E  | Solve E |            |
-+=======+=======+=============+========+============+=========+============+
-| *Linear deflation, OMP=1*                                                |
-+-------+-------+-------------+--------+------------+---------+------------+
-|   384 |  1.01 |        0.03 |  14.77 |       1.04 |    0.07 |         64 |
-+-------+-------+-------------+--------+------------+---------+------------+
-|  1536 |  1.16 |        0.76 |   5.15 |       0.71 |    0.48 |         50 |
-+-------+-------+-------------+--------+------------+---------+------------+
-|  6144 | 17.43 |       15.58 |  40.93 |      34.23 |    2.72 |         34 |
-+-------+-------+-------------+--------+------------+---------+------------+
-| *Constant deflation, OMP=1*                                              |
-+-------+-------+-------------+--------+------------+---------+------------+
-|   384 |  1.22 |             |  16.16 |            |         |         76 |
-+-------+-------+-------------+--------+------------+---------+------------+
-|  1536 |  0.55 |             |  12.92 |            |         |         72 |
-+-------+-------+-------------+--------+------------+---------+------------+
-|  6144 |  3.20 |             |  48.91 |            |         |         46 |
-+-------+-------+-------------+--------+------------+---------+------------+
-| *Linear deflation, OMP=4*                                                |
-+-------+-------+-------------+--------+------------+---------+------------+
-|   384 |  1.34 |        0.00 |  14.38 |       0.13 |    0.01 |         62 |
-+-------+-------+-------------+--------+------------+---------+------------+
-|  1536 |  0.77 |        0.03 |   4.66 |       0.40 |    0.08 |         68 |
-+-------+-------+-------------+--------+------------+---------+------------+
-|  6144 |  0.98 |        0.76 |   3.24 |       0.78 |    0.48 |         50 |
-+-------+-------+-------------+--------+------------+---------+------------+
-| *Constant deflation, OMP=4*                                              |
-+-------+-------+-------------+--------+------------+---------+------------+
-|   384 |  2.75 |             |  18.05 |            |         |         80 |
-+-------+-------+-------------+--------+------------+---------+------------+
-|  1536 |  0.55 |             |   4.63 |            |         |         76 |
-+-------+-------+-------------+--------+------------+---------+------------+
-|  6144 |  0.21 |             |   3.83 |            |         |         66 |
-+-------+-------+-------------+--------+------------+---------+------------+
+The profiling data for the strong scaling case is shown in the table below, and
+it is apparent that, as in the weak scaling scenario, the deflated matrix
+factorization becomes the bottleneck for the setup phase performance.
 
-Next figure shows strong scaling AMGCL results for OpenMP and CUDA backends on
-the PizDaint cluster. The problem size here is :math:`256^3` unknowns. The
-scalability curves show similar trends as on the MareNostrum 4 cluster, but the
-GPU scaling is a bit further from ideal due to higher overheads required for
-managing the GPU and transferring the communication data between the GPU and
-CPU memories. As in the weak scaling case, the GPU backend is about 9 times
-faster than the CPU backend during solution phase, and about 3 times faster
-overall.
-
-.. plot::
-
-    from pylab import *
-    rc('font',   size=12)
-
-    def load_data(fname):
-        return loadtxt(fname, dtype={
-            'names'   : ('size', 'omp', 'mpi', 'setup', 'solve', 'iters'),
-            'formats' : ('i8', 'i4', 'i4', 'f8', 'f8', 'i4')
-            })
-
-    figure(figsize=(8,10))
-    gs = GridSpec(4,2)
-    handles = []
-
-    marker = dict(GPU='o', CPU='d')
-
-    for k,backend,fname in (
-            (0, 'GPU', 'dmem_data/daint_gpu_linear_strong.dat'),
-            (0, 'CPU', 'dmem_data/daint_cpu_linear_strong.dat'),
-            (1, 'GPU', 'dmem_data/daint_gpu_const_strong.dat'),
-            (1, 'CPU', 'dmem_data/daint_cpu_const_strong.dat'),
-            ):
-        d = load_data(fname)
-        m = unique(d['mpi'])
-
-        setup = array([min(d[d['mpi']==i]['setup']) for i in m])
-        solve = array([min(d[d['mpi']==i]['solve']) for i in m])
-        iters = array([min(d[d['mpi']==i]['iters']) for i in m])
-        total = setup + solve
-
-        ax = subplot(gs[0,k])
-        h = loglog(m, total, '.-')
-        ylim([1e-1,1e2])
-        if backend == 'CPU':
-            ideal = total[0] * m[0] / m
-            hi = plot(m, ideal, 'k:', zorder=1, linewidth=1, alpha=0.5)
-        if k == 0: handles.append(h[0])
-
-        ax = subplot(gs[1,k])
-        loglog(m, setup, '.-')
-        if backend == 'CPU':
-            ideal = setup[0] * m[0] / m
-            plot(m, ideal, 'k:', zorder=1, linewidth=1, alpha=0.5)
-        ylim([1e-2,1e2])
-
-        ax = subplot(gs[2,k])
-        loglog(m, solve, '.-')
-        if backend == 'CPU':
-            ideal = solve[0] * m[0] / m
-            plot(m, ideal, 'k:', zorder=1, linewidth=1, alpha=0.5)
-        ylim([1e-1,1e2])
-
-        ax = subplot(gs[3,k])
-        semilogx(m, iters, '.-')
-        ylim([20, 80])
-        xlabel('Compute nodes')
-
-    for k in range(4):
-        for j in range(2):
-            ax = subplot(gs[k,j])
-            ax.set_xticks([2**i for i in (1, 3, 5, 7, 9, 11)])
-            ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
-            ax.get_xaxis().set_tick_params(which='minor', size=0)
-            ax.get_xaxis().set_tick_params(which='minor', width=0)
-
-    subplot(gs[0,0])
-    title('Linear deflation')
-    ylabel('Total time')
-
-    subplot(gs[0,1])
-    title('Constant deflation')
-
-    subplot(gs[1,0])
-    ylabel('Setup time')
-
-    subplot(gs[2,0])
-    ylabel('Solve time')
-
-    subplot(gs[3,0])
-    ylabel('Iterations')
-
-    tight_layout()
-
-    figlegend(handles + [hi[0]], ('GPU', 'CPU (OMP=12)', 'Ideal scaling'),
-            ncol=3, loc='lower center')
-    gcf().suptitle('Strong scaling of the Poisson problem on PizDaint cluster')
-    gcf().subplots_adjust(top=0.93, bottom=0.1)
-
-    show()
++-------+---------------------+--------+------------+
+| Cores | Setup               | Solve  | Iterations |
++       +-------+-------------+        +            +
+|       | Total | Factorize E |        |            |
++=======+=======+=============+========+============+
+| *Linear deflation, OMP=1*                         |
++-------+-------+-------------+--------+------------+
+|   384 |  1.27 |        0.02 |  12.39 |        101 |
++-------+-------+-------------+--------+------------+
+|  1536 |  0.97 |        0.45 |   2.93 |         78 |
++-------+-------+-------------+--------+------------+
+|  6144 |  9.09 |        8.44 |   3.61 |         58 |
++-------+-------+-------------+--------+------------+
+| *Constant deflation, OMP=1*                       |
++-------+-------+-------------+--------+------------+
+|   384 |  1.14 |        0.00 |  16.30 |        150 |
++-------+-------+-------------+--------+------------+
+|  1536 |  0.38 |        0.01 |   3.71 |        130 |
++-------+-------+-------------+--------+------------+
+|  6144 |  0.82 |        0.16 |   1.19 |         85 |
++-------+-------+-------------+--------+------------+
+| *Linear deflation, OMP=12*                        |
++-------+-------+-------------+--------+------------+
+|   384 |  2.90 |        0.00 |  16.57 |        130 |
++-------+-------+-------------+--------+------------+
+|  1536 |  1.43 |        0.00 |   4.15 |        116 |
++-------+-------+-------------+--------+------------+
+|  6144 |  0.68 |        0.03 |   1.35 |         84 |
++-------+-------+-------------+--------+------------+
+| 19200 |  1.66 |        1.29 |   1.80 |         77 |
++-------+-------+-------------+--------+------------+
+| *Constant deflation, OMP=12*                      |
++-------+-------+-------------+--------+------------+
+|   384 |  2.49 |        0.00 |  18.25 |        160 |
++-------+-------+-------------+--------+------------+
+|  1536 |  0.62 |        0.00 |   4.91 |        163 |
++-------+-------+-------------+--------+------------+
+|  6144 |  0.35 |        0.00 |   1.37 |        110 |
++-------+-------+-------------+--------+------------+
+| 19200 |  0.32 |        0.02 |   1.89 |        129 |
++-------+-------+-------------+--------+------------+
 
 An interesting observation is that convergence of the method improves with
 growing number of MPI processes. In other words, the number of iterations
 required to reach the desired tolerance decreases with as the number of
 subdomains grows, since the deflated system is able to describe the main
-problem better and better. This is especially apparent from the strong
+problem better and better.  This is especially apparent from the strong
 scalability results, where the problem size remains fixed, but is also
 observable in the weak scaling case for 'OMP=1'.
 
