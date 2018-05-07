@@ -330,23 +330,23 @@ class subdomain_deflation {
             // Create local preconditioner.
             P = boost::make_shared<LocalPrecond>( *a_loc, prm.local, bprm );
 
-            // Analyze communication pattern for A, create distributed matrix.
-            Acp = boost::make_shared< comm_pattern<backend_type> >(comm, nrows, a_rem->nnz, a_rem->col, bprm);
-            a_rem->ncols = Acp->renumber(a_rem->nnz, a_rem->col);
-            Arem = backend_type::copy_matrix(a_rem, bprm);
-            A = boost::make_shared<matrix>(*Acp, P->system_matrix(), *Arem);
+            // Create distributed matrix A.
+            A = boost::make_shared<matrix>(comm, a_loc, a_rem);
+            A->set_local(P->system_matrix_ptr());
+            A->finalize();
 
             AMGCL_TIC("remote(A*Z)");
             /* Construct remote part of AZ */
             // Exchange deflation vectors
-            std::vector<ptrdiff_t> zrecv_ptr(Acp->recv.nbr.size() + 1, 0);
+            const comm_pattern<backend_type> &Acp = A->cpat();
+            std::vector<ptrdiff_t> zrecv_ptr(Acp.recv.nbr.size() + 1, 0);
             std::vector<ptrdiff_t> zcol_ptr;
-            zcol_ptr.reserve(Acp->recv.val.size() + 1);
+            zcol_ptr.reserve(Acp.recv.val.size() + 1);
             zcol_ptr.push_back(0);
 
-            for(size_t i = 0; i < Acp->recv.nbr.size(); ++i) {
-                ptrdiff_t ncols = Acp->recv.ptr[i + 1] - Acp->recv.ptr[i];
-                ptrdiff_t nvecs = dv_size[Acp->recv.nbr[i]];
+            for(size_t i = 0; i < Acp.recv.nbr.size(); ++i) {
+                ptrdiff_t ncols = Acp.recv.ptr[i + 1] - Acp.recv.ptr[i];
+                ptrdiff_t nvecs = dv_size[Acp.recv.nbr[i]];
                 ptrdiff_t size = nvecs * ncols;
                 zrecv_ptr[i + 1] = zrecv_ptr[i] + size;
 
@@ -355,27 +355,27 @@ class subdomain_deflation {
             }
 
             std::vector<value_type> zrecv(zrecv_ptr.back());
-            std::vector<value_type> zsend(Acp->send.val.size() * ndv);
+            std::vector<value_type> zsend(Acp.send.val.size() * ndv);
 
-            for(size_t i = 0; i < Acp->recv.nbr.size(); ++i) {
+            for(size_t i = 0; i < Acp.recv.nbr.size(); ++i) {
                 ptrdiff_t begin = zrecv_ptr[i];
                 ptrdiff_t size  = zrecv_ptr[i + 1] - begin;
 
-                MPI_Irecv(&zrecv[begin], size, dtype, Acp->recv.nbr[i],
-                        tag_exc_vals, comm, &Acp->recv.req[i]);
+                MPI_Irecv(&zrecv[begin], size, dtype, Acp.recv.nbr[i],
+                        tag_exc_vals, comm, &Acp.recv.req[i]);
             }
 
-            for(size_t i = 0, k = 0; i < Acp->send.col.size(); ++i)
+            for(size_t i = 0, k = 0; i < Acp.send.col.size(); ++i)
                 for(ptrdiff_t j = 0; j < ndv; ++j, ++k)
-                    zsend[k] = prm.def_vec(Acp->send.col[i], j);
+                    zsend[k] = prm.def_vec(Acp.send.col[i], j);
 
-            for(size_t i = 0; i < Acp->send.nbr.size(); ++i)
+            for(size_t i = 0; i < Acp.send.nbr.size(); ++i)
                 MPI_Isend(
-                        &zsend[ndv * Acp->send.ptr[i]], ndv * (Acp->send.ptr[i+1] - Acp->send.ptr[i]),
-                        dtype, Acp->send.nbr[i], tag_exc_vals, comm, &Acp->send.req[i]);
+                        &zsend[ndv * Acp.send.ptr[i]], ndv * (Acp.send.ptr[i+1] - Acp.send.ptr[i]),
+                        dtype, Acp.send.nbr[i], tag_exc_vals, comm, &Acp.send.req[i]);
 
-            MPI_Waitall(Acp->recv.req.size(), &Acp->recv.req[0], MPI_STATUSES_IGNORE);
-            MPI_Waitall(Acp->send.req.size(), &Acp->send.req[0], MPI_STATUSES_IGNORE);
+            MPI_Waitall(Acp.recv.req.size(), &Acp.recv.req[0], MPI_STATUSES_IGNORE);
+            MPI_Waitall(Acp.send.req.size(), &Acp.send.req[0], MPI_STATUSES_IGNORE);
 
 #pragma omp parallel
             {
@@ -392,9 +392,9 @@ class subdomain_deflation {
                         value_type v = a.value();
 
                         // Domain the column belongs to
-                        ptrdiff_t d = Acp->recv.nbr[
-                            std::upper_bound(Acp->recv.ptr.begin(), Acp->recv.ptr.end(), c) -
-                                Acp->recv.ptr.begin() - 1];
+                        ptrdiff_t d = Acp.recv.nbr[
+                            std::upper_bound(Acp.recv.ptr.begin(), Acp.recv.ptr.end(), c) -
+                                Acp.recv.ptr.begin() - 1];
 
                         value_type *zval = &zrecv[ zcol_ptr[c] ];
                         for(ptrdiff_t j = 0, k = dv_start[d]; j < dv_size[d]; ++j, ++k) {
@@ -442,7 +442,7 @@ class subdomain_deflation {
             // Count nonzeros in E.
             std::vector<int> eptr(ndv + 1, 0);
             for(int j = 0; j < comm.size; ++j) {
-                if (j == comm.rank || Acp->talks_to(j)) {
+                if (j == comm.rank || Acp.talks_to(j)) {
                     for(int k = 0; k < ndv; ++k)
                         eptr[k + 1] += dv_size[j];
                 }
@@ -519,7 +519,7 @@ class subdomain_deflation {
             for(int i = 0; i < ndv; ++i) {
                 int row_head = eptr[i];
                 for(int j = 0; j < comm.size; ++j) {
-                    if (j == comm.rank || Acp->talks_to(j)) {
+                    if (j == comm.rank || Acp.talks_to(j)) {
                         for(int k = 0; k < dv_size[j]; ++k) {
                             int c = dv_start[j] + k;
                             ecol[row_head] = c;
@@ -579,11 +579,8 @@ class subdomain_deflation {
             AMGCL_TOC("factorize E");
 
             AMGCL_TIC("finish(A*Z)");
-            AZcp = boost::make_shared< comm_pattern<backend_type> >(comm, ndv, az_rem->nnz, az_rem->col, bprm);
-            az_rem->ncols = AZcp->renumber(az_rem->nnz, az_rem->col);
-            AZloc = backend_type::copy_matrix(az_loc, bprm);
-            AZrem = backend_type::copy_matrix(az_rem, bprm);
-            AZ = boost::make_shared<matrix>(*AZcp, *AZloc, *AZrem);
+            AZ = boost::make_shared<matrix>(comm, az_loc, az_rem);
+            AZ->finalize();
             AMGCL_TOC("finish(A*Z)");
 
             // Prepare Gatherv configuration for coarse solve
@@ -616,6 +613,10 @@ class subdomain_deflation {
             double error;
             backend::clear(x);
             boost::tie(iters, error) = (*this)(rhs, x);
+        }
+
+        boost::shared_ptr<matrix> system_matrix_ptr() const {
+            return A;
         }
 
         const matrix& system_matrix() const {
@@ -688,8 +689,6 @@ class subdomain_deflation {
 
         MPI_Datatype dtype;
 
-        boost::shared_ptr< comm_pattern<backend_type> > Acp, AZcp;
-        boost::shared_ptr<bmatrix> Arem, AZloc, AZrem;
         boost::shared_ptr<matrix> A, AZ;
         boost::shared_ptr<LocalPrecond> P;
 

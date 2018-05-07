@@ -245,7 +245,7 @@ class preconditioner {
             }
         }
 
-        const matrix& system_matrix() const {
+        boost::shared_ptr<matrix> system_matrix_ptr() const {
             switch(_class) {
                 case precond_class::amg:
                     {
@@ -253,7 +253,7 @@ class preconditioner {
                             runtime::amg<Backend>
                             Precond;
 
-                        return static_cast<Precond*>(handle)->system_matrix();
+                        return static_cast<Precond*>(handle)->system_matrix_ptr();
                     }
                 case precond_class::relaxation:
                     {
@@ -261,7 +261,7 @@ class preconditioner {
                             runtime::relaxation::as_preconditioner<Backend>
                             Precond;
 
-                        return static_cast<Precond*>(handle)->system_matrix();
+                        return static_cast<Precond*>(handle)->system_matrix_ptr();
                     }
                 case precond_class::dummy:
                     {
@@ -269,7 +269,7 @@ class preconditioner {
                             amgcl::preconditioner::dummy<Backend>
                             Precond;
 
-                        return static_cast<Precond*>(handle)->system_matrix();
+                        return static_cast<Precond*>(handle)->system_matrix_ptr();
                     }
                 case precond_class::nested:
                     {
@@ -280,11 +280,15 @@ class preconditioner {
                                 >
                             Precond;
 
-                        return static_cast<Precond*>(handle)->system_matrix();
+                        return static_cast<Precond*>(handle)->system_matrix_ptr();
                     }
                 default:
                     throw std::invalid_argument("Unsupported preconditioner class");
             }
+        }
+
+        const matrix& system_matrix() const {
+            return *system_matrix_ptr();
         }
 
         size_t size() const {

@@ -156,6 +156,10 @@ class cpr_drs {
             backend::spmv(1, *Scatter, *xp, 1, x);
         }
 
+        boost::shared_ptr<matrix> system_matrix_ptr() const {
+            return S->system_matrix_ptr();
+        }
+
         const matrix& system_matrix() const {
             return S->system_matrix();
         }

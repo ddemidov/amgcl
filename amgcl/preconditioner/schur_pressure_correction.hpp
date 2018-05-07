@@ -244,6 +244,10 @@ class schur_pressure_correction {
             backend::spmv(1, *p2x, *p, 1, x);
         }
 
+        boost::shared_ptr<matrix> system_matrix_ptr() const {
+            return K;
+        }
+
         const matrix& system_matrix() const {
             return *K;
         }

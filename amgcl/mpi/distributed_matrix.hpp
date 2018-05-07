@@ -215,7 +215,7 @@ class comm_pattern {
         }
 
         template <typename T>
-        void exchange(const T *send_val, T *recv_val) {
+        void exchange(const T *send_val, T *recv_val) const {
             for(size_t i = 0; i < recv.nbr.size(); ++i)
                 MPI_Irecv(&recv_val[recv.ptr[i]], recv.ptr[i+1] - recv.ptr[i],
                         datatype<T>(), recv.nbr[i], tag_exc_vals, comm, &recv.req[i]);
@@ -237,52 +237,146 @@ class comm_pattern {
         communicator comm;
 
         boost::unordered_map<ptrdiff_t, ptrdiff_t> idx;
-
         boost::shared_ptr<Gather> gather;
 };
 
 template <class Backend, class LocalMatrix = typename Backend::matrix, class RemoteMatrix = LocalMatrix>
 class distributed_matrix {
-    private:
-        const comm_pattern<Backend> &comm;
-        const LocalMatrix  &A_loc;
-        const RemoteMatrix &A_rem;
-
     public:
         typedef typename Backend::value_type value_type;
+        typedef typename Backend::params backend_params;
+        typedef backend::crs<value_type> build_matrix;
 
         distributed_matrix(
-                const comm_pattern<Backend> &comm,
-                const LocalMatrix           &A_loc,
-                const RemoteMatrix          &A_rem
+                communicator comm,
+                boost::shared_ptr<build_matrix> a_loc,
+                boost::shared_ptr<build_matrix> a_rem,
+                const backend_params &bprm = backend_params()
                 )
-            : comm(comm), A_loc(A_loc), A_rem(A_rem)
-        {}
+            : a_loc(a_loc), a_rem(a_rem), bprm(bprm)
+        {
+            C = boost::make_shared< comm_pattern<Backend> >(comm, a_loc->ncols, a_rem->nnz, a_rem->col, bprm);
+        }
+
+        template <class Matrix>
+        distributed_matrix(
+                communicator comm,
+                const Matrix &A,
+                const backend_params &bprm = backend_params()
+                )
+            : bprm(bprm)
+        {
+            typedef typename backend::row_iterator<Matrix>::type row_iterator;
+
+            ptrdiff_t n = backend::rows(A);
+
+            // Get sizes of each domain in comm.
+            std::vector<ptrdiff_t> domain = mpi::exclusive_sum(comm, n);
+            ptrdiff_t loc_beg = domain[comm.rank];
+            ptrdiff_t loc_end = domain[comm.rank + 1];
+
+            // Split the matrix into local and remote parts.
+            a_loc = boost::make_shared<build_matrix>();
+            a_rem = boost::make_shared<build_matrix>();
+
+            a_loc->set_size(n, n, true);
+            a_rem->set_size(n, 0, true);
+
+#pragma omp parallel for
+            for(ptrdiff_t i = 0; i < n; ++i) {
+                for(row_iterator a = backend::row_begin(A, i); a; ++a) {
+                    ptrdiff_t c = a.col();
+
+                    if (loc_beg <= c && c < loc_end)
+                        ++a_loc->ptr[i + 1];
+                    else
+                        ++a_rem->ptr[i + 1];
+                }
+            }
+
+            std::partial_sum(a_loc->ptr, a_loc->ptr + n + 1, a_loc->ptr);
+            std::partial_sum(a_rem->ptr, a_rem->ptr + n + 1, a_rem->ptr);
+
+            a_loc->set_nonzeros(a_loc->ptr[n]);
+            a_rem->set_nonzeros(a_rem->ptr[n]);
+
+#pragma omp parallel for
+            for(ptrdiff_t i = 0; i < n; ++i) {
+                ptrdiff_t loc_head = a_loc->ptr[i];
+                ptrdiff_t rem_head = a_rem->ptr[i];
+
+                for(row_iterator a = backend::row_begin(A, i); a; ++a) {
+                    ptrdiff_t  c = a.col();
+                    value_type v = a.value();
+
+                    if (loc_beg <= c && c < loc_end) {
+                        a_loc->col[loc_head] = c - loc_beg;
+                        a_loc->val[loc_head] = v;
+                        ++loc_head;
+                    } else {
+                        a_rem->col[rem_head] = c;
+                        a_rem->val[rem_head] = v;
+                        ++rem_head;
+                    }
+                }
+            }
+
+            C = boost::make_shared< comm_pattern<Backend> >(comm, n, a_rem->nnz, a_rem->col, bprm);
+        }
+
+        boost::shared_ptr<build_matrix> local() const {
+            return a_loc;
+        }
+
+        const comm_pattern<Backend>& cpat() const {
+            return *C;
+        }
+
+        void set_local(boost::shared_ptr<LocalMatrix> a) {
+            A_loc = a;
+        }
+
+        void finalize() {
+            if (!A_loc) A_loc = Backend::copy_matrix(a_loc, bprm);
+
+            a_rem->ncols = C->renumber(a_rem->nnz, a_rem->col);
+            A_rem = Backend::copy_matrix(a_rem, bprm);
+            
+            a_loc.reset();
+            a_rem.reset();
+        }
 
         template <class Vec1, class Vec2>
         void mul(value_type alpha, const Vec1 &x, value_type beta, Vec2 &y) const {
-            comm.start_exchange(x);
+            C->start_exchange(x);
 
             // Compute local part of the product.
-            backend::spmv(alpha, A_loc, x, beta, y);
+            backend::spmv(alpha, *A_loc, x, beta, y);
 
             // Compute remote part of the product.
-            comm.finish_exchange();
+            C->finish_exchange();
 
-            if (comm.needs_remote())
-                backend::spmv(alpha, A_rem, *comm.x_rem, 1, y);
+            if (C->needs_remote())
+                backend::spmv(alpha, *A_rem, *C->x_rem, 1, y);
         }
 
         template <class Vec1, class Vec2, class Vec3>
         void residual(const Vec1 &f, const Vec2 &x, Vec3 &r) const {
-            comm.start_exchange(x);
-            backend::residual(f, A_loc, x, r);
+            C->start_exchange(x);
+            backend::residual(f, *A_loc, x, r);
 
-            comm.finish_exchange();
+            C->finish_exchange();
 
-            if (comm.needs_remote())
-                backend::spmv(-1, A_rem, *comm.x_rem, 1, r);
+            if (C->needs_remote())
+                backend::spmv(-1, *A_rem, *C->x_rem, 1, r);
         }
+
+    private:
+        boost::shared_ptr< comm_pattern<Backend> > C;
+        boost::shared_ptr<LocalMatrix>  A_loc;
+        boost::shared_ptr<RemoteMatrix> A_rem;
+        boost::shared_ptr<build_matrix> a_loc, a_rem;
+        backend_params bprm;
 };
 
 } // namespace mpi

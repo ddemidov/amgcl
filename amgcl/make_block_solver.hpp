@@ -113,6 +113,10 @@ class make_block_solver {
             return (*S)(frng, xrng);
         }
 
+        boost::shared_ptr<typename Precond::matrix> system_matrix_ptr() const {
+            return S->system_matrix_ptr();
+        }
+
         typename Precond::matrix const& system_matrix() const {
             return S->system_matrix();
         }

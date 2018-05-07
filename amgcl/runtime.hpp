@@ -344,13 +344,13 @@ struct amg_apply {
 template <class Matrix>
 struct amg_system_matrix {
     void * handle;
-    mutable const Matrix * matrix;
+    mutable boost::shared_ptr<Matrix> matrix;
 
-    amg_system_matrix(void * handle) : handle(handle), matrix(0) {}
+    amg_system_matrix(void * handle) : handle(handle) {}
 
     template <class AMG>
     void process() const {
-        matrix = &(static_cast<AMG*>(handle)->system_matrix());
+        matrix = static_cast<AMG*>(handle)->system_matrix_ptr();
     }
 };
 
@@ -483,12 +483,16 @@ class amg : boost::noncopyable {
         }
 
         /** Returns the system matrix in the backend format */
-        const matrix& system_matrix() const {
+        boost::shared_ptr<matrix> system_matrix_ptr() const {
             runtime::detail::amg_system_matrix<matrix> top(handle);
             runtime::detail::process_amg<Backend>(
                     coarsening, relaxation, top
                     );
-            return *top.matrix;
+            return top.matrix;
+        }
+
+        const matrix& system_matrix() const {
+            return *system_matrix_ptr();
         }
 
         /** Returns the problem size at the finest level. */

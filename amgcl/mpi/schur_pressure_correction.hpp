@@ -229,12 +229,8 @@ class schur_pressure_correction {
 
             // Analyze communication pattern for the system matrix
             AMGCL_TIC("setup communication");
-            C = boost::make_shared<CommPattern>(comm, n, K_rem->nnz, K_rem->col, bprm);
-            K_rem->ncols = C->renumber(K_rem->nnz, K_rem->col);
-
-            this->K_loc = backend_type::copy_matrix(K_loc, bprm);
-            this->K_rem = backend_type::copy_matrix(K_rem, bprm);
-            this->K     = make_shared<matrix>(*C, *this->K_loc, *this->K_rem);
+            this->K = make_shared<matrix>(comm, K_loc, K_rem, bprm);
+            this->K->finalize();
 
             // We know what points each of our neighbors needs from us;
             // and we know if those points are pressure or flow.
@@ -244,18 +240,19 @@ class schur_pressure_correction {
             ptrdiff_t p_beg = pdomain[comm.rank];
             ptrdiff_t u_beg = udomain[comm.rank];
 
-            ptrdiff_t nsend = C->send.ptr.back(), nrecv = C->recv.ptr.back();
+            const CommPattern &C = this->K->cpat();
+            ptrdiff_t nsend = C.send.ptr.back(), nrecv = C.recv.ptr.back();
             std::vector<char>      smask(nsend), rmask(nrecv);
             std::vector<ptrdiff_t> s_idx(nsend), r_idx(nrecv);
 
             for(ptrdiff_t i = 0; i < nsend; ++i) {
-                ptrdiff_t c = C->send.col[i];
+                ptrdiff_t c = C.send.col[i];
                 smask[i] = prm.pmask[c];
                 s_idx[i] = idx[c] + (smask[i] ? p_beg : u_beg);
             }
 
-            C->exchange(&smask[0], &rmask[0]);
-            C->exchange(&s_idx[0], &r_idx[0]);
+            C.exchange(&smask[0], &rmask[0]);
+            C.exchange(&s_idx[0], &r_idx[0]);
             AMGCL_TOC("setup communication");
 
             // Fill the subblocks of the system matrix.
@@ -428,22 +425,11 @@ class schur_pressure_correction {
                 }
             }
 
-            Cpu = boost::make_shared<CommPattern>(comm, nu, Kpu_rem->nnz, Kpu_rem->col, bprm);
-            Kpu_rem->ncols = Cpu->renumber(Kpu_rem->nnz, Kpu_rem->col);
+            Kpu = make_shared<matrix>(comm, Kpu_loc, Kpu_rem, bprm);
+            Kup = make_shared<matrix>(comm, Kup_loc, Kup_rem, bprm);
 
-            this->Kpu_loc = backend_type::copy_matrix(Kpu_loc, bprm);
-            this->Kpu_rem = backend_type::copy_matrix(Kpu_rem, bprm);
-
-            Kpu = make_shared<matrix>(*Cpu, *this->Kpu_loc, *this->Kpu_rem);
-
-
-            Cup = boost::make_shared<CommPattern>(comm, np, Kup_rem->nnz, Kup_rem->col, bprm);
-            Kup_rem->ncols = Cup->renumber(Kup_rem->nnz, Kup_rem->col);
-
-            this->Kup_loc = backend_type::copy_matrix(Kup_loc, bprm);
-            this->Kup_rem = backend_type::copy_matrix(Kup_rem, bprm);
-
-            Kup = make_shared<matrix>(*Cup, *this->Kup_loc, *this->Kup_rem);
+            Kpu->finalize();
+            Kup->finalize();
             AMGCL_TOC("schur blocks");
 
             AMGCL_TIC("usolver")
@@ -553,6 +539,10 @@ class schur_pressure_correction {
             AMGCL_TOC("scatter/gather");
         }
 
+        boost::shared_ptr<matrix> system_matrix_ptr() const {
+            return K;
+        }
+
         const matrix& system_matrix() const {
             return *K;
         }
@@ -623,9 +613,6 @@ class schur_pressure_correction {
         typedef comm_pattern<backend_type> CommPattern;
         communicator comm;
 
-        boost::shared_ptr<CommPattern> C, Cup, Cpu;
-
-        boost::shared_ptr<bmatrix>  K_loc, K_rem, Kup_loc, Kup_rem, Kpu_loc, Kpu_rem;
         boost::shared_ptr<bmatrix>  x2p, x2u, p2x, u2x;
         boost::shared_ptr<matrix> K, Kpu, Kup;
         boost::shared_ptr<vector>  rhs_u, rhs_p, u, p, tmp;

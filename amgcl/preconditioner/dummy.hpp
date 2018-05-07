@@ -83,6 +83,10 @@ class dummy {
             backend::copy(rhs, x);
         }
 
+        boost::shared_ptr<matrix> system_matrix_ptr() const {
+            return A;
+        }
+
         const matrix& system_matrix() const {
             return *A;
         }

@@ -148,6 +148,10 @@ class make_solver {
             return S;
         }
 
+        boost::shared_ptr<matrix> system_matrix_ptr() const {
+            return P.system_matrix_ptr();
+        }
+
         const matrix& system_matrix() const {
             return P.system_matrix();
         }

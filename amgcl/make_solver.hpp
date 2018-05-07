@@ -206,6 +206,10 @@ class make_solver {
         }
 
         /// Returns the system matrix in the backend format.
+        boost::shared_ptr<typename Precond::matrix> system_matrix_ptr() const {
+            return P.system_matrix_ptr();
+        }
+
         typename Precond::matrix const& system_matrix() const {
             return P.system_matrix();
         }

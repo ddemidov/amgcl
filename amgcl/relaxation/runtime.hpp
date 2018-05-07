@@ -224,13 +224,13 @@ struct rap_apply {
 template <class Matrix>
 struct rap_matrix {
     void * handle;
-    const Matrix * &A;
+    boost::shared_ptr<Matrix> &A;
 
-    rap_matrix(void *handle, const Matrix * &A) : handle(handle), A(A) {}
+    rap_matrix(void *handle, boost::shared_ptr<Matrix> &A) : handle(handle), A(A) {}
 
     template <class RAP>
     void process() const {
-        A = &(static_cast<RAP*>(handle)->system_matrix());
+        A = static_cast<RAP*>(handle)->system_matrix_ptr();
     }
 };
 
@@ -295,15 +295,19 @@ class as_preconditioner {
                     );
         }
 
-        const matrix& system_matrix() const {
-            const matrix *A = 0;
+        boost::shared_ptr<matrix> system_matrix_ptr() const {
+            boost::shared_ptr<matrix> A;
 
             runtime::relaxation::detail::process_rap<Backend>(
                     relaxation,
                     runtime::relaxation::detail::rap_matrix<matrix>(handle, A)
                     );
 
-            return *A;
+            return A;
+        }
+
+        const matrix& system_matrix() const {
+            return *system_matrix_ptr();
         }
     private:
         runtime::relaxation::type relaxation;

@@ -304,8 +304,12 @@ class amg {
         }
 
         /// Returns the system matrix from the finest level.
+        boost::shared_ptr<matrix> system_matrix_ptr() const {
+            return levels.front().A;
+        }
+
         const matrix& system_matrix() const {
-            return *levels.front().A;
+            return *system_matrix_ptr();
         }
 
     private:

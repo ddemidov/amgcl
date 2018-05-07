@@ -91,6 +91,10 @@ class as_preconditioner {
         const matrix& system_matrix() const {
             return *A;
         }
+
+        boost::shared_ptr<matrix> system_matrix_ptr() const {
+            return A;
+        }
     private:
         params prm;
 
