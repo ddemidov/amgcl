@@ -260,7 +260,7 @@ class distributed_matrix {
             : a_loc(a_loc), a_rem(a_rem), bprm(bprm)
         {
             C = boost::make_shared<CommPattern>(comm, a_loc->ncols, a_rem->nnz, a_rem->col, bprm);
-            a_rem->ncols = C->renumber(a_rem->nnz, a_rem->col);
+            a_rem->ncols = C->recv.val.size();
         }
 
         template <class Matrix>
@@ -328,7 +328,7 @@ class distributed_matrix {
             }
 
             C = boost::make_shared<CommPattern>(comm, n_loc_cols, a_rem->nnz, a_rem->col, bprm);
-            a_rem->ncols = C->renumber(a_rem->nnz, a_rem->col);
+            a_rem->ncols = C->recv.val.size();
         }
 
         boost::shared_ptr<build_matrix> local() const {
@@ -348,8 +348,14 @@ class distributed_matrix {
         }
 
         void move_to_backend() {
-            if (!A_loc) A_loc = Backend::copy_matrix(a_loc, bprm);
-            if (!A_rem) A_rem = Backend::copy_matrix(a_rem, bprm);
+            if (!A_loc) {
+                A_loc = Backend::copy_matrix(a_loc, bprm);
+            }
+
+            if (!A_rem) {
+                C->renumber(a_rem->nnz, a_rem->col);
+                A_rem = Backend::copy_matrix(a_rem, bprm);
+            }
             
             a_loc.reset();
             a_rem.reset();
@@ -392,7 +398,18 @@ class distributed_matrix {
             ptrdiff_t nrows = A->a_loc->ncols;
             ptrdiff_t ncols = A->a_loc->nrows;
 
-            boost::shared_ptr<build_matrix> t_rem = backend::transpose(*A->a_rem);
+            boost::shared_ptr<build_matrix> t_rem;
+            {
+                std::vector<ptrdiff_t> tmp_col(A->a_rem->col, A->a_rem->col + A->a_rem->nnz);
+                A->C->renumber(tmp_col.size(), &tmp_col[0]);
+
+                ptrdiff_t *a_rem_col = &tmp_col[0];
+                std::swap(a_rem_col, A->a_rem->col);
+
+                t_rem = backend::transpose(*A->a_rem);
+
+                std::swap(a_rem_col, A->a_rem->col);
+            }
 
             // shift to global numbering:
             std::vector<ptrdiff_t> domain = mpi::exclusive_sum(comm, ncols);
