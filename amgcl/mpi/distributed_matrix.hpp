@@ -262,16 +262,17 @@ class distributed_matrix {
         distributed_matrix(
                 communicator comm,
                 const Matrix &A,
+                ptrdiff_t n_loc_cols,
                 const backend_params &bprm = backend_params()
                 )
             : bprm(bprm)
         {
             typedef typename backend::row_iterator<Matrix>::type row_iterator;
 
-            ptrdiff_t n = backend::rows(A);
+            ptrdiff_t n_loc_rows = backend::rows(A);
 
             // Get sizes of each domain in comm.
-            std::vector<ptrdiff_t> domain = mpi::exclusive_sum(comm, n);
+            std::vector<ptrdiff_t> domain = mpi::exclusive_sum(comm, n_loc_cols);
             ptrdiff_t loc_beg = domain[comm.rank];
             ptrdiff_t loc_end = domain[comm.rank + 1];
 
@@ -279,11 +280,11 @@ class distributed_matrix {
             a_loc = boost::make_shared<build_matrix>();
             a_rem = boost::make_shared<build_matrix>();
 
-            a_loc->set_size(n, n, true);
-            a_rem->set_size(n, 0, true);
+            a_loc->set_size(n_loc_rows, n_loc_cols, true);
+            a_rem->set_size(n_loc_rows, 0, true);
 
 #pragma omp parallel for
-            for(ptrdiff_t i = 0; i < n; ++i) {
+            for(ptrdiff_t i = 0; i < n_loc_rows; ++i) {
                 for(row_iterator a = backend::row_begin(A, i); a; ++a) {
                     ptrdiff_t c = a.col();
 
@@ -294,14 +295,14 @@ class distributed_matrix {
                 }
             }
 
-            std::partial_sum(a_loc->ptr, a_loc->ptr + n + 1, a_loc->ptr);
-            std::partial_sum(a_rem->ptr, a_rem->ptr + n + 1, a_rem->ptr);
+            std::partial_sum(a_loc->ptr, a_loc->ptr + n_loc_rows + 1, a_loc->ptr);
+            std::partial_sum(a_rem->ptr, a_rem->ptr + n_loc_rows + 1, a_rem->ptr);
 
-            a_loc->set_nonzeros(a_loc->ptr[n]);
-            a_rem->set_nonzeros(a_rem->ptr[n]);
+            a_loc->set_nonzeros(a_loc->ptr[n_loc_rows]);
+            a_rem->set_nonzeros(a_rem->ptr[n_loc_rows]);
 
 #pragma omp parallel for
-            for(ptrdiff_t i = 0; i < n; ++i) {
+            for(ptrdiff_t i = 0; i < n_loc_rows; ++i) {
                 ptrdiff_t loc_head = a_loc->ptr[i];
                 ptrdiff_t rem_head = a_rem->ptr[i];
 
@@ -321,7 +322,7 @@ class distributed_matrix {
                 }
             }
 
-            C = boost::make_shared< comm_pattern<Backend> >(comm, n, a_rem->nnz, a_rem->col, bprm);
+            C = boost::make_shared< comm_pattern<Backend> >(comm, n_loc_cols, a_rem->nnz, a_rem->col, bprm);
         }
 
         boost::shared_ptr<build_matrix> local() const {

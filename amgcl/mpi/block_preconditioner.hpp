@@ -65,7 +65,7 @@ class block_preconditioner {
                 const backend_params &bprm = backend_params()
                 )
         {
-            A = boost::make_shared<matrix>(comm, Astrip, bprm);
+            A = boost::make_shared<matrix>(comm, Astrip, backend::rows(Astrip), bprm);
             P = boost::make_shared<Precond>(A->local(), prm, bprm);
             A->set_local(P->system_matrix_ptr());
             A->finalize();
