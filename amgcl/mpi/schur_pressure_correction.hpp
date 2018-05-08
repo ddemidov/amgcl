@@ -230,7 +230,7 @@ class schur_pressure_correction {
             // Analyze communication pattern for the system matrix
             AMGCL_TIC("setup communication");
             this->K = make_shared<matrix>(comm, K_loc, K_rem, bprm);
-            this->K->finalize();
+            this->K->move_to_backend();
 
             // We know what points each of our neighbors needs from us;
             // and we know if those points are pressure or flow.
@@ -428,8 +428,8 @@ class schur_pressure_correction {
             Kpu = make_shared<matrix>(comm, Kpu_loc, Kpu_rem, bprm);
             Kup = make_shared<matrix>(comm, Kup_loc, Kup_rem, bprm);
 
-            Kpu->finalize();
-            Kup->finalize();
+            Kpu->move_to_backend();
+            Kup->move_to_backend();
             AMGCL_TOC("schur blocks");
 
             AMGCL_TIC("usolver")

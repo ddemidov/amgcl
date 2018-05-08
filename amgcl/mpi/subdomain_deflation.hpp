@@ -333,7 +333,7 @@ class subdomain_deflation {
             // Create distributed matrix A.
             A = boost::make_shared<matrix>(comm, a_loc, a_rem);
             A->set_local(P->system_matrix_ptr());
-            A->finalize();
+            A->move_to_backend();
 
             AMGCL_TIC("remote(A*Z)");
             /* Construct remote part of AZ */
@@ -580,7 +580,7 @@ class subdomain_deflation {
 
             AMGCL_TIC("finish(A*Z)");
             AZ = boost::make_shared<matrix>(comm, az_loc, az_rem);
-            AZ->finalize();
+            AZ->move_to_backend();
             AMGCL_TOC("finish(A*Z)");
 
             // Prepare Gatherv configuration for coarse solve
