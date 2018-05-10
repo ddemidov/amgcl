@@ -129,8 +129,7 @@ struct smoothed_aggr_emin {
             Af.ptr[i+1] = row_width;
         }
 
-        std::partial_sum(Af.ptr, Af.ptr + Af.nrows + 1, Af.ptr);
-        Af.set_nonzeros(Af.ptr[Af.nrows]);
+        Af.set_nonzeros(Af.scan_row_sizes());
 
 #pragma omp parallel for
         for(Idx i = 0; i < static_cast<Idx>(Af.nrows); ++i) {

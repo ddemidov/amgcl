@@ -236,8 +236,7 @@ class cpr {
                 }
             }
 
-            std::partial_sum(App->ptr, App->ptr + np + 1, App->ptr);
-            App->set_nonzeros();
+            App->set_nonzeros(App->scan_row_sizes());
 
             boost::shared_ptr<build_matrix> scatter = boost::make_shared<build_matrix>();
             scatter->set_size(n, np);

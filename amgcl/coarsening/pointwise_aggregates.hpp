@@ -222,7 +222,7 @@ class pointwise_aggregates {
                 }
             }
 
-            std::partial_sum(Ap.ptr, Ap.ptr + np + 1, Ap.ptr);
+            Ap.scan_row_sizes();
             Ap.set_nonzeros();
 
 #pragma omp parallel

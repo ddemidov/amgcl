@@ -149,7 +149,7 @@ boost::shared_ptr<Matrix> tentative_prolongation(
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i)
             P->ptr[i+1] = aggr[i] < 0 ? 0 : nullspace.cols;
 
-        std::partial_sum(P->ptr, P->ptr + n + 1, P->ptr);
+        P->scan_row_sizes();
         P->set_nonzeros();
 
         // Compute the tentative prolongation operator and null-space vectors
@@ -199,8 +199,7 @@ boost::shared_ptr<Matrix> tentative_prolongation(
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i)
             P->ptr[i+1] = (aggr[i] >= 0);
 
-        std::partial_sum(P->ptr, P->ptr + n + 1, P->ptr);
-        P->set_nonzeros(P->ptr[n]);
+        P->set_nonzeros(P->scan_row_sizes());
 
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {

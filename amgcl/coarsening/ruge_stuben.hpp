@@ -167,8 +167,7 @@ struct ruge_stuben {
             }
         }
 
-        std::partial_sum(P->ptr, P->ptr + n + 1, P->ptr);
-        P->set_nonzeros(P->ptr[n]);
+        P->set_nonzeros(P->scan_row_sizes());
 
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
@@ -308,8 +307,7 @@ struct ruge_stuben {
             for(size_t i = 0; i < nnz; ++i)
                 if (S.val[i]) ++( S.ptr[ A.col[i] + 1] );
 
-            std::partial_sum(S.ptr, S.ptr + n + 1, S.ptr);
-
+            S.scan_row_sizes();
             S.col = new Col[S.ptr[n]];
 
             for(size_t i = 0; i < n; ++i)

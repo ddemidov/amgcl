@@ -180,7 +180,7 @@ struct smoothed_aggregation {
             }
         }
 
-        std::partial_sum(P->ptr, P->ptr + n + 1, P->ptr);
+        P->scan_row_sizes();
         P->set_nonzeros();
 
 #pragma omp parallel

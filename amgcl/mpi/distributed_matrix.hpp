@@ -300,11 +300,8 @@ class distributed_matrix {
                 }
             }
 
-            std::partial_sum(a_loc->ptr, a_loc->ptr + n_loc_rows + 1, a_loc->ptr);
-            std::partial_sum(a_rem->ptr, a_rem->ptr + n_loc_rows + 1, a_rem->ptr);
-
-            a_loc->set_nonzeros(a_loc->ptr[n_loc_rows]);
-            a_rem->set_nonzeros(a_rem->ptr[n_loc_rows]);
+            a_loc->set_nonzeros(a_loc->scan_row_sizes());
+            a_rem->set_nonzeros(a_rem->scan_row_sizes());
 
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < n_loc_rows; ++i) {
@@ -430,7 +427,7 @@ class distributed_matrix {
                 row_size[i] = t_rem->ptr[i+1] - t_rem->ptr[i];
 
             // Sizes of transposed remote blocks:
-            std::vector<ptrdiff_t> block_ptr = exclusive_sum(
+            std::vector<ptrdiff_t> block_ptr = exclusive_sum(comm,
                     t_rem->ptr[C.recv.ptr[comm.rank+1]] -
                     t_rem->ptr[C.recv.ptr[comm.rank]]
                     );
@@ -482,9 +479,11 @@ class distributed_matrix {
 
             boost::shared_ptr<build_matrix> T_rem = boost::make_shared<build_matrix>();
             T_rem->set_size(nrows, 0, true);
+
             for(size_t i = 0; i < C.send.col.size(); ++i)
                 T_rem->ptr[1 + C.send.col[i]] += rem_cnt[i];
-            std::partial_sum(T_rem->ptr, T_rem->ptr + nrows + 1, T_rem->ptr);
+
+            T_rem->scan_row_sizes();
             T_rem->set_nonzeros();
 
             // 4. Finish rem_col and rem_val exchange, and

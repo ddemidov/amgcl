@@ -134,10 +134,7 @@ struct crs {
             ptr[i+1] = row_width;
         }
 
-        std::partial_sum(ptr, ptr + nrows + 1, ptr);
-
-        nnz = ptr[nrows];
-
+        nnz = scan_row_sizes();
         col = new col_type[nnz];
         val = new val_type[nnz];
 
@@ -245,6 +242,11 @@ struct crs {
         }
     }
 
+    ptr_type scan_row_sizes() {
+        std::partial_sum(ptr, ptr + nrows + 1, ptr);
+        return ptr[nrows];
+    }
+
     void set_nonzeros() {
         set_nonzeros(ptr[nrows]);
 
@@ -340,7 +342,7 @@ boost::shared_ptr< crs<V,C,P> > transpose(const crs<V, C, P> &A)
     for(size_t j = 0; j < nnz; ++j)
         ++( T->ptr[A.col[j] + 1] );
 
-    std::partial_sum(T->ptr, T->ptr + m + 1, T->ptr);
+    T->scan_row_sizes();
     T->set_nonzeros();
 
     for(size_t i = 0; i < n; i++) {

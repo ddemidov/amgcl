@@ -89,8 +89,7 @@ void spgemm_saad(const AMatrix &A, const BMatrix &B, CMatrix &C, bool sort = tru
         }
     }
 
-    std::partial_sum(C.ptr, C.ptr + A.nrows + 1, C.ptr);
-    C.set_nonzeros(C.ptr[A.nrows]);
+    C.set_nonzeros(C.scan_row_sizes());
 
 #pragma omp parallel
     {
@@ -474,8 +473,7 @@ void spgemm_rmerge(const AMatrix &A, const BMatrix &B, CMatrix &C) {
         }
     }
 
-    std::partial_sum(C.ptr, C.ptr + A.nrows + 1, C.ptr);
-    C.set_nonzeros(C.ptr[A.nrows]);
+    C.set_nonzeros(C.scan_row_sizes());
 
 #pragma omp parallel
     {

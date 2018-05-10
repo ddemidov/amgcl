@@ -323,15 +323,10 @@ class schur_pressure_correction {
                 }
             }
 
-            std::partial_sum(Kuu->ptr, Kuu->ptr + nu + 1, Kuu->ptr);
-            std::partial_sum(Kup->ptr, Kup->ptr + nu + 1, Kup->ptr);
-            std::partial_sum(Kpu->ptr, Kpu->ptr + np + 1, Kpu->ptr);
-            std::partial_sum(Kpp->ptr, Kpp->ptr + np + 1, Kpp->ptr);
-
-            Kuu->set_nonzeros(Kuu->ptr[nu]);
-            Kup->set_nonzeros(Kup->ptr[nu]);
-            Kpu->set_nonzeros(Kpu->ptr[np]);
-            Kpp->set_nonzeros(Kpp->ptr[np]);
+            Kuu->set_nonzeros(Kuu->scan_row_sizes());
+            Kup->set_nonzeros(Kup->scan_row_sizes());
+            Kpu->set_nonzeros(Kpu->scan_row_sizes());
+            Kpp->set_nonzeros(Kpp->scan_row_sizes());
 
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {

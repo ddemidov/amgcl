@@ -199,11 +199,8 @@ class schur_pressure_correction {
                 }
             }
 
-            std::partial_sum(K_loc->ptr, K_loc->ptr + n + 1, K_loc->ptr);
-            std::partial_sum(K_rem->ptr, K_rem->ptr + n + 1, K_rem->ptr);
-
-            K_loc->set_nonzeros(K_loc->ptr[n]);
-            K_rem->set_nonzeros(K_rem->ptr[n]);
+            K_loc->set_nonzeros(K_loc->scan_row_sizes());
+            K_rem->set_nonzeros(K_rem->scan_row_sizes());
 
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < n; ++i) {
@@ -321,23 +318,14 @@ class schur_pressure_correction {
                 }
             }
 
-            std::partial_sum(Kpp->ptr, Kpp->ptr + np + 1, Kpp->ptr);
-            std::partial_sum(Kuu->ptr, Kuu->ptr + nu + 1, Kuu->ptr);
+            Kpp->set_nonzeros(Kpp->scan_row_sizes());
+            Kuu->set_nonzeros(Kuu->scan_row_sizes());
 
-            std::partial_sum(Kpu_loc->ptr, Kpu_loc->ptr + np + 1, Kpu_loc->ptr);
-            std::partial_sum(Kpu_rem->ptr, Kpu_rem->ptr + np + 1, Kpu_rem->ptr);
+            Kpu_loc->set_nonzeros(Kpu_loc->scan_row_sizes());
+            Kpu_rem->set_nonzeros(Kpu_rem->scan_row_sizes());
 
-            std::partial_sum(Kup_loc->ptr, Kup_loc->ptr + nu + 1, Kup_loc->ptr);
-            std::partial_sum(Kup_rem->ptr, Kup_rem->ptr + nu + 1, Kup_rem->ptr);
-
-            Kpp->set_nonzeros(Kpp->ptr[np]);
-            Kuu->set_nonzeros(Kuu->ptr[nu]);
-
-            Kpu_loc->set_nonzeros(Kpu_loc->ptr[np]);
-            Kpu_rem->set_nonzeros(Kpu_rem->ptr[np]);
-
-            Kup_loc->set_nonzeros(Kup_loc->ptr[nu]);
-            Kup_rem->set_nonzeros(Kup_rem->ptr[nu]);
+            Kup_loc->set_nonzeros(Kup_loc->scan_row_sizes());
+            Kup_rem->set_nonzeros(Kup_rem->scan_row_sizes());
 
             // Fill subblocks of the system matrix.
             // Kpp and Kuu will be fed to the solvers constructors, so the

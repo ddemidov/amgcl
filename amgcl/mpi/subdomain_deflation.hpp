@@ -274,15 +274,10 @@ class subdomain_deflation {
             // Second pass over Astrip rows:
             // 1. Build local and remote matrix parts.
             // 2. Build local part of AZ matrix.
-            std::partial_sum(a_loc->ptr, a_loc->ptr + nrows + 1, a_loc->ptr);
-            std::partial_sum(a_rem->ptr, a_rem->ptr + nrows + 1, a_rem->ptr);
-            std::partial_sum(az_loc->ptr, az_loc->ptr + nrows + 1, az_loc->ptr);
-            std::partial_sum(az_rem->ptr, az_rem->ptr + nrows + 1, az_rem->ptr);
-
-            a_loc->set_nonzeros(a_loc->ptr[nrows]);
-            a_rem->set_nonzeros(a_rem->ptr[nrows]);
-            az_loc->set_nonzeros(az_loc->ptr[nrows]);
-            az_rem->set_nonzeros(az_rem->ptr[nrows]);
+            a_loc->set_nonzeros(a_loc->scan_row_sizes());
+            a_rem->set_nonzeros(a_rem->scan_row_sizes());
+            az_loc->set_nonzeros(az_loc->scan_row_sizes());
+            az_rem->set_nonzeros(az_rem->scan_row_sizes());
 
 #pragma omp parallel
             {
