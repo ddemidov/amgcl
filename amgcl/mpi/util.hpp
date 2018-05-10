@@ -67,14 +67,31 @@ struct datatype_impl<int> {
 };
 
 template <>
+struct datatype_impl<unsigned> {
+    static MPI_Datatype get() { return MPI_UNSIGNED; }
+};
+
+template <>
 struct datatype_impl<long long> {
     static MPI_Datatype get() { return MPI_LONG_LONG_INT; }
+};
+
+template <>
+struct datatype_impl<unsigned long long> {
+    static MPI_Datatype get() { return MPI_UNSIGNED_LONG_LONG; }
 };
 
 template <>
 struct datatype_impl<ptrdiff_t>
     : boost::conditional<
         sizeof(ptrdiff_t) == sizeof(int), datatype_impl<int>, datatype_impl<long long>
+        >::type
+{};
+
+template <>
+struct datatype_impl<size_t>
+    : boost::conditional<
+        sizeof(size_t) == sizeof(unsigned), datatype_impl<unsigned>, datatype_impl<unsigned long long>
         >::type
 {};
 
