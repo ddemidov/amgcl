@@ -331,6 +331,10 @@ class distributed_matrix {
             a_rem->ncols = C->recv.val.size();
         }
 
+        communicator comm() const {
+            return C->mpi_comm();
+        }
+
         boost::shared_ptr<build_matrix> local() const {
             return a_loc;
         }
@@ -393,11 +397,14 @@ class distributed_matrix {
             static const int tag_exc_col = 2003;
             static const int tag_exc_val = 2004;
 
-            communicator comm = A->C->mpi_comm();
+            communicator comm = A->comm();
+            CommPattern &C = *(A->C);
 
             ptrdiff_t nrows = A->a_loc->ncols;
             ptrdiff_t ncols = A->a_loc->nrows;
 
+            // Our transposed remote part becomes remote part of someone else,
+            // and the other way around.
             boost::shared_ptr<build_matrix> t_rem;
             {
                 std::vector<ptrdiff_t> tmp_col(A->a_rem->col, A->a_rem->col + A->a_rem->nnz);
@@ -411,93 +418,68 @@ class distributed_matrix {
                 std::swap(a_rem_col, A->a_rem->col);
             }
 
-            // shift to global numbering:
+            // Shift to global numbering:
             std::vector<ptrdiff_t> domain = mpi::exclusive_sum(comm, ncols);
             ptrdiff_t loc_beg = domain[comm.rank];
             for(size_t i = 0; i < t_rem->nnz; ++i)
                 t_rem->col[i] += loc_beg;
 
-            // shift from pointers to counts:
+            // Shift from row pointers to row sizes:
             std::vector<ptrdiff_t> row_size(t_rem->nrows);
             for(size_t i = 0; i < t_rem->nrows; ++i)
                 row_size[i] = t_rem->ptr[i+1] - t_rem->ptr[i];
 
-            // Our transposed remote part becomes remote part of someone else,
-            // and the other way around.
-            CommPattern &C = *(A->C);
-            std::vector<ptrdiff_t> block_ptr(C.send.nbr.size() + 1);
-            block_ptr[0] = 0;
+            // Sizes of transposed remote blocks:
+            std::vector<ptrdiff_t> block_ptr = exclusive_sum(
+                    t_rem->ptr[C.recv.ptr[comm.rank+1]] -
+                    t_rem->ptr[C.recv.ptr[comm.rank]]
+                    );
 
-            for(size_t i = 0; i < C.send.nbr.size(); ++i) {
-                MPI_Irecv(&block_ptr[i+1], 1, datatype<ptrdiff_t>(), C.send.nbr[i],
-                        tag_exc_nnz, comm, &C.send.req[i]);
-            }
-
-            for(size_t i = 0; i < C.recv.nbr.size(); ++i) {
-                ptrdiff_t nnz = t_rem->ptr[C.recv.ptr[i+1]] - t_rem->ptr[C.recv.ptr[i]];
-                MPI_Isend(&nnz, 1, datatype<ptrdiff_t>(), C.recv.nbr[i],
-                        tag_exc_nnz, comm, &C.recv.req[i]);
-            }
-
-            MPI_Waitall(C.recv.req.size(), &C.recv.req[0], MPI_STATUSES_IGNORE);
-            MPI_Waitall(C.send.req.size(), &C.send.req[0], MPI_STATUSES_IGNORE);
-
-            // Count and allocate memory for remote transposed blocks.
-            std::partial_sum(block_ptr.begin(), block_ptr.end(), block_ptr.begin());
-
+            // 2. Start exchange of rem_cnt, rem_col, rem_val
             std::vector<ptrdiff_t>  rem_cnt(C.send.col.size());
             std::vector<ptrdiff_t>  rem_col(block_ptr.back());
             std::vector<value_type> rem_val(block_ptr.back());
 
-            // Exchange remote transposed blocks.
+            std::vector<MPI_Request> recv_col_req(C.recv.req.size());
+            std::vector<MPI_Request> recv_val_req(C.recv.req.size());
+            std::vector<MPI_Request> send_col_req(C.send.req.size());
+            std::vector<MPI_Request> send_val_req(C.send.req.size());
+
             for(size_t i = 0; i < C.send.nbr.size(); ++i) {
                 MPI_Irecv(&rem_cnt[C.send.ptr[i]], C.send.ptr[i+1] - C.send.ptr[i],
                         datatype<ptrdiff_t>(), C.send.nbr[i],
                         tag_exc_cnt, comm, &C.send.req[i]);
+
+                MPI_Irecv(&rem_col[block_ptr[i]], block_ptr[i+1] - block_ptr[i],
+                        datatype<ptrdiff_t>(), C.send.nbr[i],
+                        tag_exc_col, comm, &send_col_req[i]);
+
+                MPI_Irecv(&rem_val[block_ptr[i]], block_ptr[i+1] - block_ptr[i],
+                        datatype<value_type>(), C.send.nbr[i],
+                        tag_exc_val, comm, &send_val_req[i]);
             }
 
             for(size_t i = 0; i < C.recv.nbr.size(); ++i) {
                 MPI_Isend(&row_size[C.recv.ptr[i]], C.recv.ptr[i+1] - C.recv.ptr[i],
                         datatype<ptrdiff_t>(), C.recv.nbr[i],
                         tag_exc_cnt, comm, &C.recv.req[i]);
-            }
 
-            MPI_Waitall(C.recv.req.size(), &C.recv.req[0], MPI_STATUSES_IGNORE);
-            MPI_Waitall(C.send.req.size(), &C.send.req[0], MPI_STATUSES_IGNORE);
-
-            for(size_t i = 0; i < C.send.nbr.size(); ++i) {
-                MPI_Irecv(&rem_col[block_ptr[i]], block_ptr[i+1] - block_ptr[i],
-                        datatype<ptrdiff_t>(), C.send.nbr[i],
-                        tag_exc_col, comm, &C.send.req[i]);
-            }
-
-            for(size_t i = 0; i < C.recv.nbr.size(); ++i) {
                 ptrdiff_t beg = t_rem->ptr[C.recv.ptr[i]];
                 ptrdiff_t end = t_rem->ptr[C.recv.ptr[i+1]];
+
                 MPI_Isend(&t_rem->col[beg], end - beg, datatype<ptrdiff_t>(),
-                        C.recv.nbr[i], tag_exc_col, comm, &C.recv.req[i]);
-            }
+                        C.recv.nbr[i], tag_exc_col, comm, &recv_col_req[i]);
 
-            MPI_Waitall(C.recv.req.size(), &C.recv.req[0], MPI_STATUSES_IGNORE);
-            MPI_Waitall(C.send.req.size(), &C.send.req[0], MPI_STATUSES_IGNORE);
-
-            for(size_t i = 0; i < C.send.nbr.size(); ++i) {
-                MPI_Irecv(&rem_val[block_ptr[i]], block_ptr[i+1] - block_ptr[i],
-                        datatype<value_type>(), C.send.nbr[i],
-                        tag_exc_val, comm, &C.send.req[i]);
-            }
-
-            for(size_t i = 0; i < C.recv.nbr.size(); ++i) {
-                ptrdiff_t beg = t_rem->ptr[C.recv.ptr[i]];
-                ptrdiff_t end = t_rem->ptr[C.recv.ptr[i+1]];
                 MPI_Isend(&t_rem->val[beg], end - beg, datatype<value_type>(),
-                        C.recv.nbr[i], tag_exc_val, comm, &C.recv.req[i]);
+                        C.recv.nbr[i], tag_exc_val, comm, &recv_val_req[i]);
             }
 
+            // 3. While rem_col and rem_val are in flight,
+            //    finish exchange of rem_cnt, and
+            //    start constructing our remote part:
             MPI_Waitall(C.recv.req.size(), &C.recv.req[0], MPI_STATUSES_IGNORE);
             MPI_Waitall(C.send.req.size(), &C.send.req[0], MPI_STATUSES_IGNORE);
 
-            // Contruct our remote part.
             boost::shared_ptr<build_matrix> T_rem = boost::make_shared<build_matrix>();
             T_rem->set_size(nrows, 0, true);
             for(size_t i = 0; i < C.send.col.size(); ++i)
@@ -505,7 +487,12 @@ class distributed_matrix {
             std::partial_sum(T_rem->ptr, T_rem->ptr + nrows + 1, T_rem->ptr);
             T_rem->set_nonzeros();
 
-            std::cout << comm.rank << ": nnz = " << T_rem->nnz << std::endl;
+            // 4. Finish rem_col and rem_val exchange, and
+            //    finish contruction of our remote part.
+            MPI_Waitall(recv_col_req.size(), &recv_col_req[0], MPI_STATUSES_IGNORE);
+            MPI_Waitall(recv_val_req.size(), &recv_val_req[0], MPI_STATUSES_IGNORE);
+            MPI_Waitall(send_col_req.size(), &send_col_req[0], MPI_STATUSES_IGNORE);
+            MPI_Waitall(send_val_req.size(), &send_val_req[0], MPI_STATUSES_IGNORE);
 
             for(size_t i = 0, p = 0; i < C.send.col.size(); ++i) {
                 ptrdiff_t row  = C.send.col[i];
@@ -530,6 +517,7 @@ class distributed_matrix {
 
     private:
         typedef comm_pattern<Backend> CommPattern;
+
         boost::shared_ptr<CommPattern>  C;
         boost::shared_ptr<LocalMatrix>  A_loc;
         boost::shared_ptr<RemoteMatrix> A_rem;
