@@ -1,5 +1,5 @@
-#ifndef AMGCL_MPI_SKYLINE_LU_HPP
-#define AMGCL_MPI_SKYLINE_LU_HPP
+#ifndef AMGCL_MPI_DIRECT_SOLVER_SKYLINE_LU_HPP
+#define AMGCL_MPI_DIRECT_SOLVER_SKYLINE_LU_HPP
 
 /*
 The MIT License
@@ -26,7 +26,7 @@ THE SOFTWARE.
 */
 
 /**
-\file   amgcl/mpi/skyline_lu.hpp
+\file   amgcl/mpi/direct_solver/skyline_lu.hpp
 \author Denis Demidov <dennis.demidov@gmail.com>
 \brief  MPI wrapper for Skyline LU factorization solver.
 

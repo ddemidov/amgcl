@@ -46,7 +46,7 @@ THE SOFTWARE.
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/mpi/util.hpp>
-#include <amgcl/mpi/skyline_lu.hpp>
+#include <amgcl/mpi/direct_solver/skyline_lu.hpp>
 #include <amgcl/mpi/inner_product.hpp>
 #include <amgcl/mpi/distributed_matrix.hpp>
 

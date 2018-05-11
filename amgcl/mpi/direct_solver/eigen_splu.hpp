@@ -1,5 +1,5 @@
-#ifndef AMGCL_MPI_EIGEN_SPLU_HPP
-#define AMGCL_MPI_EIGEN_SPLU_HPP
+#ifndef AMGCL_MPI_DIRECT_SOLVER_EIGEN_SPLU_HPP
+#define AMGCL_MPI_DIRECT_SOLVER_EIGEN_SPLU_HPP
 
 /*
 The MIT License
@@ -26,7 +26,7 @@ THE SOFTWARE.
 */
 
 /**
-\file   amgcl/mpi/eigen_splu.hpp
+\file   amgcl/mpi/direct_solver/eigen_splu.hpp
 \author Denis Demidov <dennis.demidov@gmail.com>
 \brief  MPI wrapper for Eigen::SparseLU solver.
 

@@ -1,5 +1,5 @@
-#ifndef AMGCL_MPI_PASTIX_HPP
-#define AMGCL_MPI_PASTIX_HPP
+#ifndef AMGCL_MPI_DIRECT_SOLVER_PASTIX_HPP
+#define AMGCL_MPI_DIRECT_SOLVER_PASTIX_HPP
 
 /*
 The MIT License
@@ -26,7 +26,7 @@ THE SOFTWARE.
 */
 
 /**
-\file   amgcl/mpi/pastix.hpp
+\file   amgcl/mpi/direct_solver/pastix.hpp
 \author Denis Demidov <dennis.demidov@gmail.com>
 \brief  Wrapper for PaStiX distributed sparse solver.
 

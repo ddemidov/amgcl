@@ -8,7 +8,7 @@
 
 #include <boost/scope_exit.hpp>
 
-#include <amgcl/mpi/pastix.hpp>
+#include <amgcl/mpi/direct_solver/pastix.hpp>
 #include <amgcl/profiler.hpp>
 
 namespace amgcl {

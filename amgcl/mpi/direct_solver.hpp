@@ -32,12 +32,12 @@ THE SOFTWARE.
  */
 
 #include <amgcl/util.hpp>
-#include <amgcl/mpi/skyline_lu.hpp>
+#include <amgcl/mpi/direct_solver/skyline_lu.hpp>
 #ifdef AMGCL_HAVE_EIGEN
-#  include <amgcl/mpi/eigen.hpp>
+#  include <amgcl/mpi/direct_solver/eigen_splu.hpp>
 #endif
 #ifdef AMGCL_HAVE_PASTIX
-#  include <amgcl/mpi/pastix.hpp>
+#  include <amgcl/mpi/direct_solver/pastix.hpp>
 #endif
 
 namespace amgcl {
