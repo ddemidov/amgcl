@@ -37,6 +37,7 @@ if (TARGET mpi_target)
     add_mpi_example(call_mpi_lib        call_mpi_lib.cpp)
     add_mpi_example(test_transpose      test_transpose.cpp)
     add_mpi_example(test_spmm           test_spmm.cpp)
+    add_mpi_example(spmm_scaling        spmm_scaling.cpp)
 
     target_link_libraries(call_mpi_lib libamgcl_mpi)
 
