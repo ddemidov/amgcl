@@ -571,14 +571,9 @@ product(
     build_matrix &B_rem = *B.remote();
 
     ptrdiff_t A_rows = A.loc_rows();
-    ptrdiff_t B_rows = B.loc_rows();
     ptrdiff_t B_cols = B.loc_cols();
 
-    std::vector<ptrdiff_t> A_dom = mpi::exclusive_sum(comm, static_cast<ptrdiff_t>(B_rows));
     std::vector<ptrdiff_t> B_dom = mpi::exclusive_sum(comm, static_cast<ptrdiff_t>(B_cols));
-
-    ptrdiff_t A_beg = A_dom[comm.rank];
-    ptrdiff_t A_end = A_dom[comm.rank + 1];
 
     ptrdiff_t B_beg = B_dom[comm.rank];
     ptrdiff_t B_end = B_dom[comm.rank + 1];
@@ -709,7 +704,7 @@ product(
 
 #pragma omp parallel
     {
-        std::vector<ptrdiff_t> loc_marker(A_end - A_beg, -1);
+        std::vector<ptrdiff_t> loc_marker(B_end - B_beg, -1);
         std::vector<ptrdiff_t> rem_marker(n_rem_cols,    -1);
 
 #pragma omp for
@@ -773,7 +768,7 @@ product(
 
 #pragma omp parallel
     {
-        std::vector<ptrdiff_t> loc_marker(A_end - A_beg, -1);
+        std::vector<ptrdiff_t> loc_marker(B_end - B_beg, -1);
         std::vector<ptrdiff_t> rem_marker(n_rem_cols,    -1);
 
 #pragma omp for
