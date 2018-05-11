@@ -677,7 +677,6 @@ product(
     }
 
     MPI_Waitall(recv_col_req.size(), &recv_col_req[0], MPI_STATUSES_IGNORE);
-    MPI_Waitall(recv_val_req.size(), &recv_val_req[0], MPI_STATUSES_IGNORE);
 
     // Build mapping from global to local column numbers in the remote part of
     // the product matrix.
@@ -695,6 +694,8 @@ product(
         if (c >= B_beg && c < B_end) continue;
         rem_idx[c] = n_rem_cols++;
     }
+
+    MPI_Waitall(recv_val_req.size(), &recv_val_req[0], MPI_STATUSES_IGNORE);
 
     // Build the product.
     boost::shared_ptr<build_matrix> C_loc = boost::make_shared<build_matrix>();
