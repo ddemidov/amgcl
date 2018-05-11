@@ -77,8 +77,7 @@ int main(int argc, char *argv[]) {
     typedef amgcl::backend::builtin<double> Backend;
     typedef amgcl::mpi::distributed_matrix<Backend> Matrix; 
 
-    boost::shared_ptr<Matrix> A = boost::make_shared<Matrix>(comm,
-            boost::tie(chunk, ptr, col, val), chunk);
+    Matrix A(comm, boost::tie(chunk, ptr, col, val), chunk);
 
     boost::shared_ptr<Matrix> B = amgcl::mpi::product(A, A);
     B->move_to_backend();

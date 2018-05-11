@@ -51,19 +51,18 @@ int main(int argc, char *argv[]) {
     typedef amgcl::backend::builtin<double> Backend;
     typedef amgcl::mpi::distributed_matrix<Backend> Matrix; 
 
-    boost::shared_ptr<Matrix> A = boost::make_shared<Matrix>(comm,
-            boost::tie(chunk, ptr, col, val), chunk);
+    Matrix A(comm, boost::tie(chunk, ptr, col, val), chunk);
 
     {
         std::ostringstream fname;
         fname << "A_loc_" << comm.rank << ".mtx";
-        amgcl::io::mm_write(fname.str(), *A->local());
+        amgcl::io::mm_write(fname.str(), *A.local());
     }
 
     {
         std::ostringstream fname;
         fname << "A_rem_" << comm.rank << ".mtx";
-        amgcl::io::mm_write(fname.str(), *A->remote());
+        amgcl::io::mm_write(fname.str(), *A.remote());
     }
 
     boost::shared_ptr<Matrix> B = transpose(A);

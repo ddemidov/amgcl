@@ -408,30 +408,30 @@ class distributed_matrix {
         }
 
         friend boost::shared_ptr<distributed_matrix>
-        transpose(boost::shared_ptr<distributed_matrix> A) {
+        transpose(const distributed_matrix &A) {
             static const int tag_cnt = 2001;
             static const int tag_col = 2002;
             static const int tag_val = 2003;
 
-            communicator comm = A->comm();
-            CommPattern &C = *(A->C);
+            communicator comm = A.comm();
+            CommPattern &C = *(A.C);
 
-            ptrdiff_t nrows = A->loc_cols();
-            ptrdiff_t ncols = A->loc_rows();
+            ptrdiff_t nrows = A.loc_cols();
+            ptrdiff_t ncols = A.loc_rows();
 
             // Our transposed remote part becomes remote part of someone else,
             // and the other way around.
             boost::shared_ptr<build_matrix> t_rem;
             {
-                std::vector<ptrdiff_t> tmp_col(A->a_rem->col, A->a_rem->col + A->a_rem->nnz);
-                A->C->renumber(tmp_col.size(), &tmp_col[0]);
+                std::vector<ptrdiff_t> tmp_col(A.a_rem->col, A.a_rem->col + A.a_rem->nnz);
+                C.renumber(tmp_col.size(), &tmp_col[0]);
 
                 ptrdiff_t *a_rem_col = &tmp_col[0];
-                std::swap(a_rem_col, A->a_rem->col);
+                std::swap(a_rem_col, A.a_rem->col);
 
-                t_rem = backend::transpose(*A->a_rem);
+                t_rem = backend::transpose(*A.a_rem);
 
-                std::swap(a_rem_col, A->a_rem->col);
+                std::swap(a_rem_col, A.a_rem->col);
             }
 
             // Shift to global numbering:
@@ -530,15 +530,12 @@ class distributed_matrix {
             // TODO: This should work correctly, but the performance may be
             // improved by reusing A's communication pattern:
             return boost::make_shared<distributed_matrix>(comm,
-                    backend::transpose(*A->a_loc), T_rem, A->bprm);
+                    backend::transpose(*A.a_loc), T_rem, A.bprm);
         }
 
         template <class B, class L, class R>
         friend boost::shared_ptr< distributed_matrix<B,L,R> >
-        product(
-                boost::shared_ptr< distributed_matrix<B,L,R> > a,
-                boost::shared_ptr< distributed_matrix<B,L,R> > b
-               );
+        product(const distributed_matrix<B,L,R> &a, const distributed_matrix<B,L,R> &b);
 
     private:
         typedef comm_pattern<Backend> CommPattern;
@@ -553,8 +550,8 @@ class distributed_matrix {
 template <class Backend, class Local, class Remote>
 boost::shared_ptr< distributed_matrix<Backend, Local, Remote> >
 product(
-        boost::shared_ptr< distributed_matrix<Backend, Local, Remote> > A,
-        boost::shared_ptr< distributed_matrix<Backend, Local, Remote> > B
+        const distributed_matrix<Backend, Local, Remote> &A,
+        const distributed_matrix<Backend, Local, Remote> &B
        )
 {
     typedef typename Backend::value_type value_type;
@@ -565,17 +562,17 @@ product(
     static const int tag_col = 3002;
     static const int tag_val = 3003;
 
-    communicator comm = A->comm();
-    CommPattern  &Acp = *A->C;
+    communicator comm = A.comm();
+    CommPattern  &Acp = *A.C;
 
-    build_matrix &A_loc = *A->local();
-    build_matrix &A_rem = *A->remote();
-    build_matrix &B_loc = *B->local();
-    build_matrix &B_rem = *B->remote();
+    build_matrix &A_loc = *A.local();
+    build_matrix &A_rem = *A.remote();
+    build_matrix &B_loc = *B.local();
+    build_matrix &B_rem = *B.remote();
 
-    ptrdiff_t A_rows = A->loc_rows();
-    ptrdiff_t B_rows = B->loc_rows();
-    ptrdiff_t B_cols = B->loc_cols();
+    ptrdiff_t A_rows = A.loc_rows();
+    ptrdiff_t B_rows = B.loc_rows();
+    ptrdiff_t B_cols = B.loc_cols();
 
     std::vector<ptrdiff_t> A_dom = mpi::exclusive_sum(comm, static_cast<ptrdiff_t>(B_rows));
     std::vector<ptrdiff_t> B_dom = mpi::exclusive_sum(comm, static_cast<ptrdiff_t>(B_cols));
@@ -871,7 +868,7 @@ product(
     // TODO: This should work correctly, but we may have enough information to
     // build C's communication pattern here and save some work:
     return boost::make_shared<distributed_matrix<Backend, Local, Remote> >(comm,
-            C_loc, C_rem, A->bprm);
+            C_loc, C_rem, A.bprm);
 }
 
 } // namespace mpi
