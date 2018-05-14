@@ -407,147 +407,9 @@ class distributed_matrix {
                 backend::spmv(-1, *A_rem, *C->x_rem, 1, r);
         }
 
-        friend boost::shared_ptr<distributed_matrix>
-        transpose(const distributed_matrix &A) {
-            static const int tag_cnt = 2001;
-            static const int tag_col = 2002;
-            static const int tag_val = 2003;
-
-            communicator comm = A.comm();
-            CommPattern &C = *(A.C);
-
-            ptrdiff_t nrows = A.loc_cols();
-            ptrdiff_t ncols = A.loc_rows();
-
-            std::vector<MPI_Request> recv_cnt_req(C.send.req.size());
-            std::vector<MPI_Request> recv_col_req(C.send.req.size());
-            std::vector<MPI_Request> recv_val_req(C.send.req.size());
-
-            std::vector<MPI_Request> send_cnt_req(C.recv.req.size());
-            std::vector<MPI_Request> send_col_req(C.recv.req.size());
-            std::vector<MPI_Request> send_val_req(C.recv.req.size());
-
-            // Our transposed remote part becomes remote part of someone else,
-            // and the other way around.
-            boost::shared_ptr<build_matrix> t_rem;
-            {
-                std::vector<ptrdiff_t> tmp_col(A.a_rem->col, A.a_rem->col + A.a_rem->nnz);
-                C.renumber(tmp_col.size(), &tmp_col[0]);
-
-                ptrdiff_t *a_rem_col = &tmp_col[0];
-                std::swap(a_rem_col, A.a_rem->col);
-
-                t_rem = backend::transpose(*A.a_rem);
-
-                std::swap(a_rem_col, A.a_rem->col);
-            }
-
-            // Shift to global numbering:
-            std::vector<ptrdiff_t> domain = mpi::exclusive_sum(comm, ncols);
-            ptrdiff_t loc_beg = domain[comm.rank];
-            for(size_t i = 0; i < t_rem->nnz; ++i)
-                t_rem->col[i] += loc_beg;
-
-            // Shift from row pointers to row sizes:
-            std::vector<ptrdiff_t> row_size(t_rem->nrows);
-            for(size_t i = 0; i < t_rem->nrows; ++i)
-                row_size[i] = t_rem->ptr[i+1] - t_rem->ptr[i];
-
-            // Sizes of transposed remote blocks:
-            // 1. Exchange rem_ptr
-            std::vector<ptrdiff_t> rem_ptr(C.send.col.size() + 1); rem_ptr[0] = 0;
-
-            for(size_t i = 0; i < C.send.nbr.size(); ++i) {
-                ptrdiff_t beg = C.send.ptr[i];
-                ptrdiff_t end = C.send.ptr[i + 1];
-
-                MPI_Irecv(&rem_ptr[beg + 1], end - beg, datatype<ptrdiff_t>(),
-                        C.send.nbr[i], tag_cnt, comm, &recv_cnt_req[i]);
-            }
-
-            for(size_t i = 0; i < C.recv.nbr.size(); ++i) {
-                ptrdiff_t beg = C.recv.ptr[i];
-                ptrdiff_t end = C.recv.ptr[i + 1];
-
-                MPI_Isend(&row_size[beg], end - beg, datatype<ptrdiff_t>(),
-                        C.recv.nbr[i], tag_cnt, comm, &send_cnt_req[i]);
-            }
-
-            MPI_Waitall(recv_cnt_req.size(), &recv_cnt_req[0], MPI_STATUSES_IGNORE);
-            std::partial_sum(rem_ptr.begin(), rem_ptr.end(), rem_ptr.begin());
-
-            // 2. Start exchange of rem_col, rem_val
-            std::vector<ptrdiff_t>  rem_col(rem_ptr.back());
-            std::vector<value_type> rem_val(rem_ptr.back());
-
-            for(size_t i = 0; i < C.send.nbr.size(); ++i) {
-                ptrdiff_t rbeg = C.send.ptr[i];
-                ptrdiff_t rend = C.send.ptr[i + 1];
-
-                ptrdiff_t cbeg = rem_ptr[rbeg];
-                ptrdiff_t cend = rem_ptr[rend];
-
-                MPI_Irecv(&rem_col[cbeg], cend - cbeg, datatype<ptrdiff_t>(),
-                        C.send.nbr[i], tag_col, comm, &recv_col_req[i]);
-
-                MPI_Irecv(&rem_val[cbeg], cend - cbeg, datatype<value_type>(),
-                        C.send.nbr[i], tag_val, comm, &recv_val_req[i]);
-            }
-
-            for(size_t i = 0; i < C.recv.nbr.size(); ++i) {
-                ptrdiff_t rbeg = C.recv.ptr[i];
-                ptrdiff_t rend = C.recv.ptr[i + 1];
-
-                ptrdiff_t cbeg = t_rem->ptr[rbeg];
-                ptrdiff_t cend = t_rem->ptr[rend];
-
-                MPI_Isend(&t_rem->col[cbeg], cend - cbeg, datatype<ptrdiff_t>(),
-                        C.recv.nbr[i], tag_col, comm, &send_col_req[i]);
-
-                MPI_Isend(&t_rem->val[cbeg], cend - cbeg, datatype<value_type>(),
-                        C.recv.nbr[i], tag_val, comm, &send_val_req[i]);
-            }
-
-            // 3. While rem_col and rem_val are in flight,
-            //    start constructing our remote part:
-            boost::shared_ptr<build_matrix> T_rem = boost::make_shared<build_matrix>();
-            T_rem->set_size(nrows, 0, true);
-
-            for(size_t i = 0; i < C.send.col.size(); ++i)
-                T_rem->ptr[1 + C.send.col[i]] += rem_ptr[i+1] - rem_ptr[i];
-
-            T_rem->scan_row_sizes();
-            T_rem->set_nonzeros();
-
-            // 4. Finish rem_col and rem_val exchange, and
-            //    finish contruction of our remote part.
-            MPI_Waitall(recv_col_req.size(), &recv_col_req[0], MPI_STATUSES_IGNORE);
-            MPI_Waitall(recv_val_req.size(), &recv_val_req[0], MPI_STATUSES_IGNORE);
-
-            for(size_t i = 0; i < C.send.col.size(); ++i) {
-                ptrdiff_t row  = C.send.col[i];
-                ptrdiff_t head = T_rem->ptr[row];
-
-                for(ptrdiff_t j = rem_ptr[i]; j < rem_ptr[i+1]; ++j, ++head) {
-                    T_rem->col[head] = rem_col[j];
-                    T_rem->val[head] = rem_val[j];
-                }
-
-                T_rem->ptr[row] = head;
-            }
-
-            std::rotate(T_rem->ptr, T_rem->ptr + nrows, T_rem->ptr + nrows + 1);
-            T_rem->ptr[0] = 0;
-
-            MPI_Waitall(send_cnt_req.size(), &send_cnt_req[0], MPI_STATUSES_IGNORE);
-            MPI_Waitall(send_col_req.size(), &send_col_req[0], MPI_STATUSES_IGNORE);
-            MPI_Waitall(send_val_req.size(), &send_val_req[0], MPI_STATUSES_IGNORE);
-
-            // TODO: This should work correctly, but the performance may be
-            // improved by reusing A's communication pattern:
-            return boost::make_shared<distributed_matrix>(comm,
-                    backend::transpose(*A.a_loc), T_rem, A.bprm);
-        }
+        template <class B, class L, class R>
+        friend boost::shared_ptr< distributed_matrix<B,L,R> >
+        transpose(const distributed_matrix<B,L,R> &A);
 
         template <class B, class L, class R>
         friend boost::shared_ptr< distributed_matrix<B,L,R> >
@@ -562,6 +424,153 @@ class distributed_matrix {
         boost::shared_ptr<build_matrix> a_loc, a_rem;
         backend_params bprm;
 };
+
+template <class Backend, class Local, class Remote>
+boost::shared_ptr< distributed_matrix<Backend, Local, Remote> >
+transpose(const distributed_matrix<Backend, Local, Remote> &A) {
+    typedef typename Backend::value_type value_type;
+    typedef comm_pattern<Backend>        CommPattern;
+    typedef backend::crs<value_type>     build_matrix;
+
+    static const int tag_cnt = 2001;
+    static const int tag_col = 2002;
+    static const int tag_val = 2003;
+
+    communicator comm = A.comm();
+    CommPattern &C = *(A.C);
+
+    ptrdiff_t nrows = A.loc_cols();
+    ptrdiff_t ncols = A.loc_rows();
+
+    std::vector<MPI_Request> recv_cnt_req(C.send.req.size());
+    std::vector<MPI_Request> recv_col_req(C.send.req.size());
+    std::vector<MPI_Request> recv_val_req(C.send.req.size());
+
+    std::vector<MPI_Request> send_cnt_req(C.recv.req.size());
+    std::vector<MPI_Request> send_col_req(C.recv.req.size());
+    std::vector<MPI_Request> send_val_req(C.recv.req.size());
+
+    // Our transposed remote part becomes remote part of someone else,
+    // and the other way around.
+    boost::shared_ptr<build_matrix> t_rem;
+    {
+        std::vector<ptrdiff_t> tmp_col(A.a_rem->col, A.a_rem->col + A.a_rem->nnz);
+        C.renumber(tmp_col.size(), &tmp_col[0]);
+
+        ptrdiff_t *a_rem_col = &tmp_col[0];
+        std::swap(a_rem_col, A.a_rem->col);
+
+        t_rem = backend::transpose(*A.a_rem);
+
+        std::swap(a_rem_col, A.a_rem->col);
+    }
+
+    // Shift to global numbering:
+    std::vector<ptrdiff_t> domain = mpi::exclusive_sum(comm, ncols);
+    ptrdiff_t loc_beg = domain[comm.rank];
+    for(size_t i = 0; i < t_rem->nnz; ++i)
+        t_rem->col[i] += loc_beg;
+
+    // Shift from row pointers to row sizes:
+    std::vector<ptrdiff_t> row_size(t_rem->nrows);
+    for(size_t i = 0; i < t_rem->nrows; ++i)
+        row_size[i] = t_rem->ptr[i+1] - t_rem->ptr[i];
+
+    // Sizes of transposed remote blocks:
+    // 1. Exchange rem_ptr
+    std::vector<ptrdiff_t> rem_ptr(C.send.col.size() + 1); rem_ptr[0] = 0;
+
+    for(size_t i = 0; i < C.send.nbr.size(); ++i) {
+        ptrdiff_t beg = C.send.ptr[i];
+        ptrdiff_t end = C.send.ptr[i + 1];
+
+        MPI_Irecv(&rem_ptr[beg + 1], end - beg, datatype<ptrdiff_t>(),
+                C.send.nbr[i], tag_cnt, comm, &recv_cnt_req[i]);
+    }
+
+    for(size_t i = 0; i < C.recv.nbr.size(); ++i) {
+        ptrdiff_t beg = C.recv.ptr[i];
+        ptrdiff_t end = C.recv.ptr[i + 1];
+
+        MPI_Isend(&row_size[beg], end - beg, datatype<ptrdiff_t>(),
+                C.recv.nbr[i], tag_cnt, comm, &send_cnt_req[i]);
+    }
+
+    MPI_Waitall(recv_cnt_req.size(), &recv_cnt_req[0], MPI_STATUSES_IGNORE);
+    std::partial_sum(rem_ptr.begin(), rem_ptr.end(), rem_ptr.begin());
+
+    // 2. Start exchange of rem_col, rem_val
+    std::vector<ptrdiff_t>  rem_col(rem_ptr.back());
+    std::vector<value_type> rem_val(rem_ptr.back());
+
+    for(size_t i = 0; i < C.send.nbr.size(); ++i) {
+        ptrdiff_t rbeg = C.send.ptr[i];
+        ptrdiff_t rend = C.send.ptr[i + 1];
+
+        ptrdiff_t cbeg = rem_ptr[rbeg];
+        ptrdiff_t cend = rem_ptr[rend];
+
+        MPI_Irecv(&rem_col[cbeg], cend - cbeg, datatype<ptrdiff_t>(),
+                C.send.nbr[i], tag_col, comm, &recv_col_req[i]);
+
+        MPI_Irecv(&rem_val[cbeg], cend - cbeg, datatype<value_type>(),
+                C.send.nbr[i], tag_val, comm, &recv_val_req[i]);
+    }
+
+    for(size_t i = 0; i < C.recv.nbr.size(); ++i) {
+        ptrdiff_t rbeg = C.recv.ptr[i];
+        ptrdiff_t rend = C.recv.ptr[i + 1];
+
+        ptrdiff_t cbeg = t_rem->ptr[rbeg];
+        ptrdiff_t cend = t_rem->ptr[rend];
+
+        MPI_Isend(&t_rem->col[cbeg], cend - cbeg, datatype<ptrdiff_t>(),
+                C.recv.nbr[i], tag_col, comm, &send_col_req[i]);
+
+        MPI_Isend(&t_rem->val[cbeg], cend - cbeg, datatype<value_type>(),
+                C.recv.nbr[i], tag_val, comm, &send_val_req[i]);
+    }
+
+    // 3. While rem_col and rem_val are in flight,
+    //    start constructing our remote part:
+    boost::shared_ptr<build_matrix> T_rem = boost::make_shared<build_matrix>();
+    T_rem->set_size(nrows, 0, true);
+
+    for(size_t i = 0; i < C.send.col.size(); ++i)
+        T_rem->ptr[1 + C.send.col[i]] += rem_ptr[i+1] - rem_ptr[i];
+
+    T_rem->scan_row_sizes();
+    T_rem->set_nonzeros();
+
+    // 4. Finish rem_col and rem_val exchange, and
+    //    finish contruction of our remote part.
+    MPI_Waitall(recv_col_req.size(), &recv_col_req[0], MPI_STATUSES_IGNORE);
+    MPI_Waitall(recv_val_req.size(), &recv_val_req[0], MPI_STATUSES_IGNORE);
+
+    for(size_t i = 0; i < C.send.col.size(); ++i) {
+        ptrdiff_t row  = C.send.col[i];
+        ptrdiff_t head = T_rem->ptr[row];
+
+        for(ptrdiff_t j = rem_ptr[i]; j < rem_ptr[i+1]; ++j, ++head) {
+            T_rem->col[head] = rem_col[j];
+            T_rem->val[head] = rem_val[j];
+        }
+
+        T_rem->ptr[row] = head;
+    }
+
+    std::rotate(T_rem->ptr, T_rem->ptr + nrows, T_rem->ptr + nrows + 1);
+    T_rem->ptr[0] = 0;
+
+    MPI_Waitall(send_cnt_req.size(), &send_cnt_req[0], MPI_STATUSES_IGNORE);
+    MPI_Waitall(send_col_req.size(), &send_col_req[0], MPI_STATUSES_IGNORE);
+    MPI_Waitall(send_val_req.size(), &send_val_req[0], MPI_STATUSES_IGNORE);
+
+    // TODO: This should work correctly, but the performance may be
+    // improved by reusing A's communication pattern:
+    return boost::make_shared< distributed_matrix<Backend, Local, Remote> >(
+            comm, backend::transpose(*A.a_loc), T_rem, A.bprm);
+}
 
 template <class Backend, class Local, class Remote>
 boost::shared_ptr< distributed_matrix<Backend, Local, Remote> >
