@@ -36,12 +36,9 @@ THE SOFTWARE.
 #include <list>
 
 #include <boost/io/ios_state.hpp>
-#include <boost/static_assert.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/foreach.hpp>
-#include <boost/tuple/tuple.hpp>
-#include <boost/static_assert.hpp>
 
 #ifdef AMGCL_ASYNC_SETUP
 #  include <boost/atomic.hpp>
