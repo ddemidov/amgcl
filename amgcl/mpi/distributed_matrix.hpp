@@ -396,6 +396,10 @@ class distributed_matrix {
             A_loc = a;
         }
 
+        const backend_params& backend_prm() const {
+            return bprm;
+        }
+
         void move_to_backend() {
             if (!A_loc) {
                 A_loc = Backend::copy_matrix(a_loc, bprm);

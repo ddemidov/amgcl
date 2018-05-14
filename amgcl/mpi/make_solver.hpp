@@ -31,6 +31,8 @@ THE SOFTWARE.
  * \brief  Iterative solver wrapper for distributed linear systmes.
  */
 
+#include <iostream>
+
 #include <boost/property_tree/ptree.hpp>
 #include <boost/shared_ptr.hpp>
 
@@ -162,6 +164,10 @@ class make_solver {
 
         size_t size() const {
             return n;
+        }
+
+        friend std::ostream& operator<<(std::ostream &os, const make_solver &M) {
+            return os << M.S << std::endl << M.P;
         }
     private:
         size_t n;
