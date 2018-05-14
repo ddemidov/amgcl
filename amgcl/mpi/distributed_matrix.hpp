@@ -165,8 +165,10 @@ class comm_pattern {
                 MPI_Isend(&rem_cols[recv.ptr[i]], recv.ptr[i+1] - recv.ptr[i],
                         datatype<ptrdiff_t>(), recv.nbr[i], tag_exc_cols, comm, &recv.req[i]);
 
+            AMGCL_TIC("MPI Wait");
             MPI_Waitall(recv.req.size(), &recv.req[0], MPI_STATUSES_IGNORE);
             MPI_Waitall(send.req.size(), &send.req[0], MPI_STATUSES_IGNORE);
+            AMGCL_TOC("MPI Wait");
 
             // Shift columns to send to local numbering:
             BOOST_FOREACH(ptrdiff_t &c, send.col) c -= loc_beg;
@@ -219,8 +221,10 @@ class comm_pattern {
         }
 
         void finish_exchange() const {
+            AMGCL_TIC("MPI Wait");
             MPI_Waitall(recv.req.size(), &recv.req[0], MPI_STATUSES_IGNORE);
             MPI_Waitall(send.req.size(), &send.req[0], MPI_STATUSES_IGNORE);
+            AMGCL_TOC("MPI Wait");
 
             if (!recv.val.empty())
                 backend::copy_to_backend(recv.val, *x_rem);
@@ -236,8 +240,10 @@ class comm_pattern {
                 MPI_Isend(const_cast<T*>(&send_val[send.ptr[i]]), send.ptr[i+1] - send.ptr[i],
                         datatype<T>(), send.nbr[i], tag_exc_vals, comm, &send.req[i]);
 
+            AMGCL_TIC("MPI Wait");
             MPI_Waitall(recv.req.size(), &recv.req[0], MPI_STATUSES_IGNORE);
             MPI_Waitall(send.req.size(), &send.req[0], MPI_STATUSES_IGNORE);
+            AMGCL_TOC("MPI Wait");
         }
 
         communicator mpi_comm() const {
@@ -464,6 +470,7 @@ class distributed_matrix {
 template <class Backend, class Local, class Remote>
 boost::shared_ptr< distributed_matrix<Backend, Local, Remote> >
 transpose(const distributed_matrix<Backend, Local, Remote> &A) {
+    AMGCL_TIC("MPI Transpose");
     typedef typename Backend::value_type value_type;
     typedef comm_pattern<Backend>        CommPattern;
     typedef backend::crs<value_type>     build_matrix;
@@ -532,7 +539,9 @@ transpose(const distributed_matrix<Backend, Local, Remote> &A) {
                 C.recv.nbr[i], tag_cnt, comm, &send_cnt_req[i]);
     }
 
+    AMGCL_TIC("MPI Wait");
     MPI_Waitall(recv_cnt_req.size(), &recv_cnt_req[0], MPI_STATUSES_IGNORE);
+    AMGCL_TOC("MPI Wait");
     std::partial_sum(rem_ptr.begin(), rem_ptr.end(), rem_ptr.begin());
 
     // 2. Start exchange of rem_col, rem_val
@@ -580,8 +589,10 @@ transpose(const distributed_matrix<Backend, Local, Remote> &A) {
 
     // 4. Finish rem_col and rem_val exchange, and
     //    finish contruction of our remote part.
+    AMGCL_TIC("MPI Wait");
     MPI_Waitall(recv_col_req.size(), &recv_col_req[0], MPI_STATUSES_IGNORE);
     MPI_Waitall(recv_val_req.size(), &recv_val_req[0], MPI_STATUSES_IGNORE);
+    AMGCL_TOC("MPI Wait");
 
     for(size_t i = 0; i < C.send.col.size(); ++i) {
         ptrdiff_t row  = C.send.col[i];
@@ -598,10 +609,13 @@ transpose(const distributed_matrix<Backend, Local, Remote> &A) {
     std::rotate(T_rem->ptr, T_rem->ptr + nrows, T_rem->ptr + nrows + 1);
     T_rem->ptr[0] = 0;
 
+    AMGCL_TIC("MPI Wait");
     MPI_Waitall(send_cnt_req.size(), &send_cnt_req[0], MPI_STATUSES_IGNORE);
     MPI_Waitall(send_col_req.size(), &send_col_req[0], MPI_STATUSES_IGNORE);
     MPI_Waitall(send_val_req.size(), &send_val_req[0], MPI_STATUSES_IGNORE);
+    AMGCL_TOC("MPI Wait");
 
+    AMGCL_TOC("MPI Transpose");
     // TODO: This should work correctly, but the performance may be
     // improved by reusing A's communication pattern:
     return boost::make_shared< distributed_matrix<Backend, Local, Remote> >(
@@ -715,7 +729,9 @@ product(
                 Acp.recv.nbr[k], tag_ptr, comm, &recv_ptr_req[k]);
     }
 
+    AMGCL_TIC("MPI Wait");
     MPI_Waitall(recv_ptr_req.size(), &recv_ptr_req[0], MPI_STATUSES_IGNORE);
+    AMGCL_TOC("MPI Wait");
 
     B_nbr.set_nonzeros(B_nbr.scan_row_sizes());
 
@@ -732,7 +748,9 @@ product(
                 Acp.recv.nbr[k], tag_val, comm, &recv_val_req[k]);
     }
 
+    AMGCL_TIC("MPI Wait");
     MPI_Waitall(recv_col_req.size(), &recv_col_req[0], MPI_STATUSES_IGNORE);
+    AMGCL_TOC("MPI Wait");
 
     // Build mapping from global to local column numbers in the remote part of
     // the product matrix.
@@ -751,7 +769,9 @@ product(
         rem_idx[c] = n_rem_cols++;
     }
 
+    AMGCL_TIC("MPI Wait");
     MPI_Waitall(recv_val_req.size(), &recv_val_req[0], MPI_STATUSES_IGNORE);
+    AMGCL_TOC("MPI Wait");
 
     // Build the product.
     boost::shared_ptr<build_matrix> C_loc = boost::make_shared<build_matrix>();
@@ -917,9 +937,11 @@ product(
         }
     }
 
+    AMGCL_TIC("MPI Wait");
     MPI_Waitall(send_ptr_req.size(), &send_ptr_req[0], MPI_STATUSES_IGNORE);
     MPI_Waitall(send_col_req.size(), &send_col_req[0], MPI_STATUSES_IGNORE);
     MPI_Waitall(send_val_req.size(), &send_val_req[0], MPI_STATUSES_IGNORE);
+    AMGCL_TOC("MPI Wait");
 
 
     // TODO: This should work correctly, but we may have enough information to
