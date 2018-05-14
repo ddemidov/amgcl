@@ -273,6 +273,14 @@ class distributed_matrix {
         {
             C = boost::make_shared<CommPattern>(comm, a_loc->ncols, a_rem->nnz, a_rem->col, bprm);
             a_rem->ncols = C->recv.val.size();
+
+            n_loc_rows = a_loc->nrows;
+            n_loc_cols = a_loc->ncols;
+            n_loc_nonzeros = a_loc->nnz + a_rem->nnz;
+
+            MPI_Allreduce(&n_loc_rows, &n_glob_rows, 1, datatype<ptrdiff_t>(), MPI_SUM, comm);
+            MPI_Allreduce(&n_loc_cols, &n_glob_cols, 1, datatype<ptrdiff_t>(), MPI_SUM, comm);
+            MPI_Allreduce(&n_loc_nonzeros, &n_glob_nonzeros, 1, datatype<ptrdiff_t>(), MPI_SUM, comm);
         }
 
         template <class Matrix>
@@ -282,16 +290,20 @@ class distributed_matrix {
                 ptrdiff_t n_loc_cols,
                 const backend_params &bprm = backend_params()
                 )
-            : bprm(bprm)
+            : bprm(bprm),
+              n_loc_rows(backend::rows(A)),
+              n_loc_cols(n_loc_cols),
+              n_loc_nonzeros(backend::nonzeros(A))
         {
             typedef typename backend::row_iterator<Matrix>::type row_iterator;
-
-            ptrdiff_t n_loc_rows = backend::rows(A);
 
             // Get sizes of each domain in comm.
             std::vector<ptrdiff_t> domain = mpi::exclusive_sum(comm, n_loc_cols);
             ptrdiff_t loc_beg = domain[comm.rank];
             ptrdiff_t loc_end = domain[comm.rank + 1];
+            n_glob_cols = domain.back();
+            MPI_Allreduce(&n_loc_rows, &n_glob_rows, 1, datatype<ptrdiff_t>(), MPI_SUM, comm);
+            MPI_Allreduce(&n_loc_nonzeros, &n_glob_nonzeros, 1, datatype<ptrdiff_t>(), MPI_SUM, comm);
 
             // Split the matrix into local and remote parts.
             a_loc = boost::make_shared<build_matrix>();
@@ -353,11 +365,27 @@ class distributed_matrix {
         }
 
         ptrdiff_t loc_rows() const {
-            return a_loc->nrows;
+            return n_loc_rows;
         }
 
         ptrdiff_t loc_cols() const {
-            return a_loc->ncols;
+            return n_loc_cols;
+        }
+
+        ptrdiff_t loc_nonzeros() const {
+            return n_loc_nonzeros;
+        }
+
+        ptrdiff_t glob_rows() const {
+            return n_glob_rows;
+        }
+
+        ptrdiff_t glob_cols() const {
+            return n_glob_cols;
+        }
+
+        ptrdiff_t glob_nonzeros() const {
+            return n_glob_nonzeros;
         }
 
         const comm_pattern<Backend>& cpat() const {
@@ -423,6 +451,10 @@ class distributed_matrix {
         boost::shared_ptr<RemoteMatrix> A_rem;
         boost::shared_ptr<build_matrix> a_loc, a_rem;
         backend_params bprm;
+
+        ptrdiff_t n_loc_rows, n_glob_rows;
+        ptrdiff_t n_loc_cols, n_glob_cols;
+        ptrdiff_t n_loc_nonzeros, n_glob_nonzeros;
 };
 
 template <class Backend, class Local, class Remote>
