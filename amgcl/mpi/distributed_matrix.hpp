@@ -950,6 +950,25 @@ product(
             C_loc, C_rem, A.bprm);
 }
 
+template <class Backend, class Local, class Remote, class T>
+void scale(distributed_matrix<Backend, Local, Remote> &A, T s) {
+    typedef typename Backend::value_type value_type;
+    typedef backend::crs<value_type> build_matrix;
+
+    build_matrix &A_loc = *A.local();
+    build_matrix &A_rem = *A.remote();
+
+    ptrdiff_t n = A_loc.nrows;
+
+#pragma omp parallel for
+        for(ptrdiff_t i = 0; i < n; ++i) {
+            for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j)
+                A_loc.val[j] *= scale;
+            for(ptrdiff_t j = A_rem.ptr[i], e = A_rem.ptr[i+1]; j < e; ++j)
+                A_rem.val[j] *= scale;
+        }
+}
+
 } // namespace mpi
 
 namespace backend {

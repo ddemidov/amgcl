@@ -43,14 +43,11 @@ boost::shared_ptr<Matrix> scaled_galerkin(
         const Matrix &A,
         const Matrix &P,
         const Matrix &R,
-        float scale
+        float s
         )
 {
         boost::shared_ptr<Matrix> a = galerkin(A, P, R);
-
-        for(size_t i = 0; i < a->nnz; ++i)
-            a->val[i] *= scale;
-
+        scale(*a, s);
         return a;
 }
 

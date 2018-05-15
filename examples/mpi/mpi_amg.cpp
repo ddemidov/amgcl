@@ -10,7 +10,8 @@
 #include <amgcl/mpi/util.hpp>
 #include <amgcl/mpi/make_solver.hpp>
 #include <amgcl/mpi/amg.hpp>
-#include <amgcl/mpi/coarsening/aggregation.hpp>
+#include <amgcl/coarsening/smoothed_aggregation.hpp>
+#include <amgcl/mpi/coarsening/local.hpp>
 #include <amgcl/mpi/relaxation/spai0.hpp>
 #include <amgcl/solver/bicgstab.hpp>
 
@@ -151,7 +152,9 @@ int main(int argc, char *argv[]) {
         amgcl::mpi::make_solver<
             amgcl::mpi::amg<
                 Backend,
-                amgcl::mpi::coarsening::aggregation,
+                amgcl::mpi::coarsening::local<
+                    amgcl::coarsening::smoothed_aggregation
+                    >,
                 amgcl::mpi::relaxation::spai0
                 >,
             amgcl::solver::bicgstab

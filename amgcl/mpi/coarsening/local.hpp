@@ -1,5 +1,5 @@
-#ifndef AMGCL_MPI_COARSENING_AGGREGATION_HPP
-#define AMGCL_MPI_COARSENING_AGGREGATION_HPP
+#ifndef AMGCL_MPI_COARSENING_LOCAL_HPP
+#define AMGCL_MPI_COARSENING_LOCAL_HPP
 
 /*
 The MIT License
@@ -26,9 +26,9 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/mpi/coarsening/aggregation.hpp
+ * \file   amgcl/mpi/coarsening/local.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
- * \brief  Distributed memory non-smoothed aggregation coarsening.
+ * \brief  Distributed memory coarsening based on a local scheme.
  */
 
 #include <boost/tuple/tuple.hpp>
@@ -45,8 +45,9 @@ namespace amgcl {
 namespace mpi {
 namespace coarsening {
 
-struct aggregation {
-    typedef amgcl::coarsening::aggregation::params params;
+template <class LocalBase>
+struct local {
+    typedef typename LocalBase::params params;
 
     template <class Backend, class LM, class RM>
     static boost::tuple<
@@ -58,9 +59,9 @@ struct aggregation {
         typedef typename Backend::value_type value_type;
         typedef backend::crs<value_type>     build_matrix;
 
-        // Use local part of A with shared-memory version of aggregation.
+        // Use local part of A with local coarsening:
         boost::shared_ptr<build_matrix> P_loc, R_loc;
-        boost::tie(P_loc, R_loc) = amgcl::coarsening::aggregation::transfer_operators(*A.local(), prm);
+        boost::tie(P_loc, R_loc) = LocalBase::transfer_operators(*A.local(), prm);
 
         boost::shared_ptr<build_matrix> P_rem = boost::make_shared<build_matrix>();
         boost::shared_ptr<build_matrix> R_rem = boost::make_shared<build_matrix>();
@@ -83,26 +84,7 @@ struct aggregation {
             const params &prm
             )
     {
-        typedef typename Backend::value_type value_type;
-        typedef backend::crs<value_type> build_matrix;
-        typedef distributed_matrix<Backend, LM, RM> DM;
-
-        boost::shared_ptr<DM> G = mpi::product(R, *mpi::product(A, P));
-        build_matrix &G_loc = *G->local();
-        build_matrix &G_rem = *G->remote();
-
-        ptrdiff_t n = G->loc_rows();
-        float scale = 1 / prm.over_interp;
-
-#pragma omp parallel for
-        for(ptrdiff_t i = 0; i < n; ++i) {
-            for(ptrdiff_t j = G_loc.ptr[i], e = G_loc.ptr[i+1]; j < e; ++j)
-                G_loc.val[j] *= scale;
-            for(ptrdiff_t j = G_rem.ptr[i], e = G_rem.ptr[i+1]; j < e; ++j)
-                G_rem.val[j] *= scale;
-        }
-
-        return G;
+        return LocalBase::coarse_operator(A, P, R, prm);
     }
 };
 

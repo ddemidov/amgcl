@@ -361,12 +361,10 @@ boost::shared_ptr< crs<V,C,P> > transpose(const crs<V, C, P> &A)
 }
 
 /// Matrix-matrix product.
-template <class MatrixA, class MatrixB>
-boost::shared_ptr< crs< typename value_type<MatrixA>::type > >
-product(const MatrixA &A, const MatrixB &B, bool sort = false) {
-    typedef typename value_type<MatrixA>::type  V;
-
-    boost::shared_ptr< crs<V> > C = boost::make_shared< crs<V> >();
+template <class Val, class Col, class Ptr>
+boost::shared_ptr< crs<Val, Col, Ptr> >
+product(const crs<Val,Col,Ptr> &A, const crs<Val,Col,Ptr> &B, bool sort = false) {
+    boost::shared_ptr< crs<Val,Col,Ptr> > C = boost::make_shared< crs<Val,Col,Ptr> >();
 
 #ifdef _OPENMP
     int nt = omp_get_max_threads();
@@ -381,6 +379,19 @@ product(const MatrixA &A, const MatrixB &B, bool sort = false) {
     }
 
     return C;
+}
+
+
+/// Scale matrix values.
+template<class Val, class Col, class Ptr, class T>
+void scale(crs<Val, Col, Ptr> &A, T s) {
+    ptrdiff_t n = backend::rows(A);
+
+#pragma omp parallel for
+    for(ptrdiff_t i = 0; i < n; ++i) {
+        for(ptrdiff_t j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j)
+            A.val[j] *= s;
+    }
 }
 
 /// Diagonal of a matrix
