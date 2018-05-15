@@ -45,14 +45,14 @@ namespace amgcl {
 namespace mpi {
 namespace coarsening {
 
-template <class LocalBase>
+template <class Backend, template <class> class LocalBase>
 struct local {
-    typedef typename LocalBase::params params;
-    LocalBase base;
+    typedef typename LocalBase<Backend>::params params;
+    LocalBase<Backend> base;
 
     local(const params &prm = params()) : base(prm) {}
 
-    template <class Backend, class LM, class RM>
+    template <class LM, class RM>
     boost::tuple<
         boost::shared_ptr< distributed_matrix<Backend, LM, RM> >,
         boost::shared_ptr< distributed_matrix<Backend, LM, RM> >
@@ -78,7 +78,7 @@ struct local {
                 );
     }
 
-    template <class Backend, class LM, class RM>
+    template <class LM, class RM>
     boost::shared_ptr< distributed_matrix<Backend, LM, RM> >
     coarse_operator(
             const distributed_matrix<Backend, LM, RM> &A,

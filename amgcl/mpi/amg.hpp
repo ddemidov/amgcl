@@ -51,7 +51,7 @@ namespace mpi {
 template <
     class Backend,
     class Coarsening,
-    template <class> class Relax
+    class Relaxation
     >
 class amg {
     public:
@@ -59,13 +59,12 @@ class amg {
         typedef typename Backend::params                   backend_params;
         typedef typename Backend::value_type               value_type;
         typedef typename math::scalar_of<value_type>::type scalar_type;
-        typedef Relax<Backend>                             relax_type;
         typedef distributed_matrix<Backend>                matrix;
         typedef typename Backend::vector                   vector;
 
         struct params {
             typedef typename Coarsening::params coarsening_params;
-            typedef typename relax_type::params relax_params;
+            typedef typename Relaxation::params relax_params;
 
             coarsening_params coarsening;   ///< Coarsening parameters.
             relax_params      relax;        ///< Relaxation parameters.
@@ -190,7 +189,7 @@ class amg {
         struct level {
             boost::shared_ptr<matrix>     A, P, R;
             boost::shared_ptr<vector>     f, u, t;
-            boost::shared_ptr<relax_type> relax;
+            boost::shared_ptr<Relaxation> relax;
 
             level() {}
 
@@ -202,14 +201,22 @@ class amg {
                 : A(A),
                   f(Backend::create_vector(A->loc_rows(), bprm)),
                   u(Backend::create_vector(A->loc_rows(), bprm)),
-                  t(Backend::create_vector(A->loc_rows(), bprm)),
-                  relax(boost::make_shared<relax_type>(*A, prm.relax, bprm))
+                  t(Backend::create_vector(A->loc_rows(), bprm))
             {
+                sort_rows(*A->local());
+                sort_rows(*A->remote());
+
+                relax = boost::make_shared<Relaxation>(*A, prm.relax, bprm);
             }
 
             boost::shared_ptr<matrix> step_down(Coarsening &C)
             {
                 boost::tie(P, R) = C.transfer_operators(*A);
+
+                sort_rows(*P->local());
+                sort_rows(*P->remote());
+                sort_rows(*R->local());
+                sort_rows(*R->remote());
 
                 if (P->glob_cols() == 0) {
                     // Zero-sized coarse level in amgcl (diagonal matrix?)
@@ -264,12 +271,12 @@ class amg {
             ++nxt;
 
             if (nxt == end) {
-                lvl->relax->apply_pre(*lvl->A, rhs, x, *lvl->t, prm.relax);
-                lvl->relax->apply_post(*lvl->A, rhs, x, *lvl->t, prm.relax);
+                lvl->relax->apply_pre(*lvl->A, rhs, x, *lvl->t);
+                lvl->relax->apply_post(*lvl->A, rhs, x, *lvl->t);
             } else {
                 for (size_t j = 0; j < prm.ncycle; ++j) {
                     for(size_t i = 0; i < prm.npre; ++i)
-                        lvl->relax->apply_pre(*lvl->A, rhs, x, *lvl->t, prm.relax);
+                        lvl->relax->apply_pre(*lvl->A, rhs, x, *lvl->t);
 
                     backend::residual(rhs, *lvl->A, x, *lvl->t);
 
@@ -281,16 +288,16 @@ class amg {
                     backend::spmv(math::identity<scalar_type>(), *lvl->P, *nxt->u, math::identity<scalar_type>(), x);
 
                     for(size_t i = 0; i < prm.npost; ++i)
-                        lvl->relax->apply_post(*lvl->A, rhs, x, *lvl->t, prm.relax);
+                        lvl->relax->apply_post(*lvl->A, rhs, x, *lvl->t);
                 }
             }
         }
 
-    template <class B, class C, template <class> class R>
+    template <class B, class C, class R>
     friend std::ostream& operator<<(std::ostream &os, const amg<B, C, R> &a);
 };
 
-template <class B, class C, template <class> class R>
+template <class B, class C, class R>
 std::ostream& operator<<(std::ostream &os, const amg<B, C, R> &a)
 {
     typedef typename amg<B, C, R>::level level;

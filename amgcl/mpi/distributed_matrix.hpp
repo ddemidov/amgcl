@@ -370,6 +370,14 @@ class distributed_matrix {
             return a_rem;
         }
 
+        boost::shared_ptr<LocalMatrix> local_backend() const {
+            return A_loc;
+        }
+
+        boost::shared_ptr<RemoteMatrix> remote_backend() const {
+            return A_rem;
+        }
+
         ptrdiff_t loc_rows() const {
             return n_loc_rows;
         }

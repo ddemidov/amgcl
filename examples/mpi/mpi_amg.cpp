@@ -17,7 +17,7 @@
 #include <amgcl/coarsening/runtime.hpp>
 #include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/mpi/coarsening/local.hpp>
-#include <amgcl/mpi/relaxation/spai0.hpp>
+#include <amgcl/mpi/relaxation/local.hpp>
 
 #include <amgcl/profiler.hpp>
 
@@ -182,9 +182,11 @@ int main(int argc, char *argv[]) {
             amgcl::mpi::amg<
                 Backend,
                 amgcl::mpi::coarsening::local<
-                    amgcl::runtime::coarsening::wrapper<Backend>
+                    Backend, amgcl::runtime::coarsening::wrapper
                     >,
-                amgcl::mpi::relaxation::spai0
+                amgcl::mpi::relaxation::local<
+                    Backend, amgcl::runtime::relaxation::wrapper
+                    >
                 >,
             amgcl::runtime::solver::wrapper
             >
