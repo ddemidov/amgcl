@@ -8,6 +8,12 @@
 #include <amgcl/mpi/distributed_matrix.hpp>
 #include <amgcl/io/mm.hpp>
 
+#include <amgcl/profiler.hpp>
+
+namespace amgcl {
+    profiler<> prof;
+}
+
 void assemble(
         int n, int beg, int end,
         std::vector<int>    &ptr,

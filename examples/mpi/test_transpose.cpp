@@ -7,6 +7,11 @@
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/mpi/distributed_matrix.hpp>
 #include <amgcl/io/mm.hpp>
+#include <amgcl/profiler.hpp>
+
+namespace amgcl {
+    profiler<> prof;
+}
 
 int main(int argc, char *argv[]) {
     MPI_Init(&argc, &argv);

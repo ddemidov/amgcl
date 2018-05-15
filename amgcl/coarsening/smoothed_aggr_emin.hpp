@@ -52,6 +52,7 @@ namespace coarsening {
  * \ingroup coarsening
  * \sa \cite Sala2008
  */
+template <class Backend>
 struct smoothed_aggr_emin {
     typedef pointwise_aggregates Aggregates;
 

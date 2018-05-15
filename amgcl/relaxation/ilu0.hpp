@@ -78,11 +78,12 @@ struct ilu0 {
             AMGCL_PARAMS_EXPORT_VALUE(p, path, damping);
             AMGCL_PARAMS_EXPORT_CHILD(p, path, solve);
         }
-    };
+    } prm;
 
     /// \copydoc amgcl::relaxation::damped_jacobi::damped_jacobi
     template <class Matrix>
     ilu0( const Matrix &A, const params &prm, const typename Backend::params &bprm)
+      : prm(prm)
     {
         typedef typename backend::builtin<value_type>::matrix build_matrix;
         const size_t n = backend::rows(A);
@@ -177,8 +178,7 @@ struct ilu0 {
     /// \copydoc amgcl::relaxation::damped_jacobi::apply_pre
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_pre(
-            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
-            const params &prm
+            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp
             ) const
     {
         backend::residual(rhs, A, x, tmp);
@@ -189,8 +189,7 @@ struct ilu0 {
     /// \copydoc amgcl::relaxation::damped_jacobi::apply_post
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_post(
-            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
-            const params &prm
+            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp
             ) const
     {
         backend::residual(rhs, A, x, tmp);
@@ -200,7 +199,7 @@ struct ilu0 {
 
     /// \copydoc amgcl::relaxation::damped_jacobi::apply_post
     template <class Matrix, class VectorRHS, class VectorX>
-    void apply(const Matrix&, const VectorRHS &rhs, VectorX &x, const params&) const
+    void apply(const Matrix&, const VectorRHS &rhs, VectorX &x) const
     {
         backend::copy(rhs, x);
         ilu->solve(x);

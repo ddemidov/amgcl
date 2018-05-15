@@ -71,7 +71,7 @@ struct damped_jacobi {
         void get(boost::property_tree::ptree &p, const std::string &path) const {
             AMGCL_PARAMS_EXPORT_VALUE(p, path, damping);
         }
-    };
+    } prm;
 
     boost::shared_ptr<typename Backend::matrix_diagonal> dia;
 
@@ -84,10 +84,10 @@ struct damped_jacobi {
     template <class Matrix>
     damped_jacobi(
             const Matrix &A,
-            const params&,
+            const params &prm,
             const typename Backend::params &backend_prm
             )
-        : dia( Backend::copy_vector( diagonal(A, true), backend_prm ) )
+        : prm(prm), dia( Backend::copy_vector( diagonal(A, true), backend_prm ) )
     { }
 
     /// Apply pre-relaxation
@@ -100,8 +100,7 @@ struct damped_jacobi {
      */
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_pre(
-            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
-            const params &prm
+            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp
             ) const
     {
         backend::residual(rhs, A, x, tmp);
@@ -118,8 +117,7 @@ struct damped_jacobi {
      */
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_post(
-            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
-            const params &prm
+            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp
             ) const
     {
         backend::residual(rhs, A, x, tmp);
@@ -127,7 +125,7 @@ struct damped_jacobi {
     }
 
     template <class Matrix, class VectorRHS, class VectorX>
-    void apply(const Matrix&, const VectorRHS &rhs, VectorX &x, const params&) const
+    void apply(const Matrix&, const VectorRHS &rhs, VectorX &x) const
     {
         backend::vmul(math::identity<scalar_type>(), *dia, rhs, math::zero<scalar_type>(), x);
     }

@@ -3,7 +3,10 @@
 #include <boost/type_traits.hpp>
 #include <boost/static_assert.hpp>
 
-#include <amgcl/runtime.hpp>
+#include <amgcl/amg.hpp>
+#include <amgcl/solver/runtime.hpp>
+#include <amgcl/coarsening/runtime.hpp>
+#include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/mpi/direct_solver.hpp>
 #include <amgcl/mpi/subdomain_deflation.hpp>
 #include <amgcl/backend/builtin.hpp>
@@ -17,8 +20,8 @@ typedef boost::property_tree::ptree                       Params;
 
 typedef
     amgcl::mpi::subdomain_deflation<
-        amgcl::runtime::amg<Backend>,
-        amgcl::runtime::iterative_solver,
+        amgcl::amg<Backend, amgcl::runtime::coarsening::wrapper, amgcl::runtime::relaxation::wrapper>,
+        amgcl::runtime::solver::wrapper,
         amgcl::runtime::mpi::direct_solver<double>
     > Solver;
 

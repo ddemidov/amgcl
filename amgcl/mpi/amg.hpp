@@ -207,16 +207,16 @@ class amg {
             {
             }
 
-            boost::shared_ptr<matrix> step_down(params &prm)
+            boost::shared_ptr<matrix> step_down(Coarsening &C)
             {
-                boost::tie(P, R) = Coarsening::transfer_operators(*A, prm.coarsening);
+                boost::tie(P, R) = C.transfer_operators(*A);
 
                 if (P->glob_cols() == 0) {
                     // Zero-sized coarse level in amgcl (diagonal matrix?)
                     return boost::shared_ptr<matrix>();
                 }
 
-                return Coarsening::coarse_operator(*A, *P, *R, prm.coarsening);
+                return C.coarse_operator(*A, *P, *R);
             }
 
             void move_to_backend() {
@@ -235,11 +235,13 @@ class amg {
             mpi::precondition(A->comm(), A->glob_rows() == A->glob_cols(),
                     "Matrix should be square!");
 
+            Coarsening C(prm.coarsening);
+
             while(A->glob_rows() > prm.coarse_enough && levels.size() < prm.max_levels) {
                 levels.push_back( level(A, prm, bprm) );
                 if (levels.size() >= prm.max_levels) break;
 
-                A = levels.back().step_down(prm);
+                A = levels.back().step_down(C);
                 levels.back().move_to_backend();
 
                 if (!A) {

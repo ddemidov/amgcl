@@ -963,9 +963,9 @@ void scale(distributed_matrix<Backend, Local, Remote> &A, T s) {
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < n; ++i) {
             for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j)
-                A_loc.val[j] *= scale;
+                A_loc.val[j] *= s;
             for(ptrdiff_t j = A_rem.ptr[i], e = A_rem.ptr[i+1]; j < e; ++j)
-                A_rem.val[j] *= scale;
+                A_rem.val[j] *= s;
         }
 }
 

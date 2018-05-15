@@ -31,8 +31,18 @@ THE SOFTWARE.
  * \brief  Gauss-Seidel relaxation scheme.
  */
 
+#include <numeric>
+
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
+#include <boost/foreach.hpp>
+
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/util.hpp>
+
+#ifdef _OPENMP
+#  include <omp.h>
+#endif
 
 namespace amgcl {
 namespace relaxation {
@@ -82,7 +92,7 @@ struct gauss_seidel {
     /// \copydoc amgcl::relaxation::damped_jacobi::apply_pre
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_pre(
-            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP&, const params&
+            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP&
             ) const
     {
         if (is_serial)
@@ -94,7 +104,7 @@ struct gauss_seidel {
     /// \copydoc amgcl::relaxation::damped_jacobi::apply_post
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_post(
-            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP&, const params&
+            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP&
             ) const
     {
         if (is_serial)
@@ -104,7 +114,7 @@ struct gauss_seidel {
     }
 
     template <class Matrix, class VectorRHS, class VectorX>
-    void apply(const Matrix &A, const VectorRHS &rhs, VectorX &x, const params&) const
+    void apply(const Matrix &A, const VectorRHS &rhs, VectorX &x) const
     {
         backend::clear(x);
         if (is_serial) {

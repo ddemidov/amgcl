@@ -30,7 +30,10 @@
 #endif
 
 #include <amgcl/make_solver.hpp>
-#include <amgcl/runtime.hpp>
+#include <amgcl/amg.hpp>
+#include <amgcl/solver/runtime.hpp>
+#include <amgcl/coarsening/runtime.hpp>
+#include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/preconditioner/schur_pressure_correction.hpp>
 #include <amgcl/preconditioner/runtime.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
@@ -105,7 +108,7 @@ solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tre
     prof.tic("setup");
     amgcl::make_solver<
         amgcl::preconditioner::schur_pressure_correction<USolver, PSolver>,
-        amgcl::runtime::iterative_solver<Backend>
+        amgcl::runtime::solver::wrapper<Backend>
         > solve(K, prm, bprm);
     prof.toc("setup");
 
@@ -133,7 +136,7 @@ solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tre
         BBackend;                                                              \
     typedef amgcl::make_block_solver<                                          \
         amgcl::runtime::preconditioner<BBackend>,                              \
-        amgcl::runtime::iterative_solver<BBackend> >                           \
+        amgcl::runtime::solver::wrapper<BBackend> >                            \
         PSolver;                                                               \
     solve_schur<USolver, PSolver>(K, rhs, prm);                                \
   } break;
@@ -148,7 +151,7 @@ void solve_schur(int pb, const Matrix &K, const std::vector<double> &rhs, boost:
                 typedef
                     amgcl::make_solver<
                         amgcl::runtime::preconditioner<Backend>,
-                        amgcl::runtime::iterative_solver<Backend>
+                        amgcl::runtime::solver::wrapper<Backend>
                         >
                     PSolver;
                 solve_schur<USolver, PSolver>(K, rhs, prm);
@@ -168,7 +171,7 @@ void solve_schur(int pb, const Matrix &K, const std::vector<double> &rhs, boost:
         BBackend;                                                              \
     typedef amgcl::make_block_solver<                                          \
         amgcl::runtime::preconditioner<BBackend>,                              \
-        amgcl::runtime::iterative_solver<BBackend> >                           \
+        amgcl::runtime::solver::wrapper<BBackend> >                            \
         USolver;                                                               \
     solve_schur<USolver>(pb, K, rhs, prm);                                     \
   } break;
@@ -186,7 +189,7 @@ void solve_schur(int ub, int pb, const Matrix &K, const std::vector<double> &rhs
                 typedef
                     amgcl::make_solver<
                         amgcl::runtime::preconditioner<Backend>,
-                        amgcl::runtime::iterative_solver<Backend>
+                        amgcl::runtime::solver::wrapper<Backend>
                         >
                     USolver;
                 solve_schur<USolver>(pb, K, rhs, prm);

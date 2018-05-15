@@ -26,16 +26,19 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/runtime.hpp
+ * \file   amgcl/preconditioner/runtime.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
  * \brief  Runtime-configurable wrappers around amgcl classes.
  */
 
 #include <boost/property_tree/ptree.hpp>
-#include <amgcl/runtime.hpp>
+#include <amgcl/solver/runtime.hpp>
+#include <amgcl/coarsening/runtime.hpp>
 #include <amgcl/relaxation/runtime.hpp>
+#include <amgcl/relaxation/as_preconditioner.hpp>
 #include <amgcl/preconditioner/dummy.hpp>
 #include <amgcl/make_solver.hpp>
+#include <amgcl/amg.hpp>
 
 namespace amgcl {
 namespace runtime {
@@ -111,7 +114,7 @@ class preconditioner {
                 case precond_class::amg:
                     {
                         typedef
-                            runtime::amg<Backend>
+                            amgcl::amg<Backend, runtime::coarsening::wrapper, runtime::relaxation::wrapper>
                             Precond;
 
                         handle = static_cast<void*>(new Precond(A, prm, bprm));
@@ -120,7 +123,7 @@ class preconditioner {
                 case precond_class::relaxation:
                     {
                         typedef
-                            runtime::relaxation::as_preconditioner<Backend>
+                            amgcl::relaxation::as_preconditioner<Backend, runtime::relaxation::wrapper>
                             Precond;
 
                         handle = static_cast<void*>(new Precond(A, prm, bprm));
@@ -140,7 +143,7 @@ class preconditioner {
                         typedef
                             make_solver<
                                 preconditioner,
-                                runtime::iterative_solver<Backend>
+                                runtime::solver::wrapper<Backend>
                                 >
                             Precond;
 
@@ -157,7 +160,7 @@ class preconditioner {
                 case precond_class::amg:
                     {
                         typedef
-                            runtime::amg<Backend>
+                            amgcl::amg<Backend, runtime::coarsening::wrapper, runtime::relaxation::wrapper>
                             Precond;
 
                         delete static_cast<Precond*>(handle);
@@ -166,7 +169,7 @@ class preconditioner {
                 case precond_class::relaxation:
                     {
                         typedef
-                            runtime::relaxation::as_preconditioner<Backend>
+                            amgcl::relaxation::as_preconditioner<Backend, runtime::relaxation::wrapper>
                             Precond;
 
                         delete static_cast<Precond*>(handle);
@@ -186,7 +189,7 @@ class preconditioner {
                         typedef
                             make_solver<
                                 preconditioner,
-                                runtime::iterative_solver<Backend>
+                                runtime::solver::wrapper<Backend>
                                 >
                             Precond;
 
@@ -204,7 +207,7 @@ class preconditioner {
                 case precond_class::amg:
                     {
                         typedef
-                            runtime::amg<Backend>
+                            amgcl::amg<Backend, runtime::coarsening::wrapper, runtime::relaxation::wrapper>
                             Precond;
 
                         static_cast<Precond*>(handle)->apply(rhs, x);
@@ -213,7 +216,7 @@ class preconditioner {
                 case precond_class::relaxation:
                     {
                         typedef
-                            runtime::relaxation::as_preconditioner<Backend>
+                            amgcl::relaxation::as_preconditioner<Backend, runtime::relaxation::wrapper>
                             Precond;
 
                         static_cast<Precond*>(handle)->apply(rhs, x);
@@ -233,7 +236,7 @@ class preconditioner {
                         typedef
                             make_solver<
                                 preconditioner,
-                                runtime::iterative_solver<Backend>
+                                runtime::solver::wrapper<Backend>
                                 >
                             Precond;
 
@@ -250,7 +253,7 @@ class preconditioner {
                 case precond_class::amg:
                     {
                         typedef
-                            runtime::amg<Backend>
+                            amgcl::amg<Backend, runtime::coarsening::wrapper, runtime::relaxation::wrapper>
                             Precond;
 
                         return static_cast<Precond*>(handle)->system_matrix_ptr();
@@ -258,7 +261,7 @@ class preconditioner {
                 case precond_class::relaxation:
                     {
                         typedef
-                            runtime::relaxation::as_preconditioner<Backend>
+                            amgcl::relaxation::as_preconditioner<Backend, runtime::relaxation::wrapper>
                             Precond;
 
                         return static_cast<Precond*>(handle)->system_matrix_ptr();
@@ -276,7 +279,7 @@ class preconditioner {
                         typedef
                             make_solver<
                                 preconditioner,
-                                runtime::iterative_solver<Backend>
+                                runtime::solver::wrapper<Backend>
                                 >
                             Precond;
 
@@ -301,7 +304,7 @@ class preconditioner {
                 case precond_class::amg:
                     {
                         typedef
-                            runtime::amg<Backend>
+                            amgcl::amg<Backend, runtime::coarsening::wrapper, runtime::relaxation::wrapper>
                             Precond;
 
                         return os << *static_cast<Precond*>(p.handle);
@@ -309,7 +312,7 @@ class preconditioner {
                 case precond_class::relaxation:
                     {
                         typedef
-                            runtime::relaxation::as_preconditioner<Backend>
+                            amgcl::relaxation::as_preconditioner<Backend, runtime::relaxation::wrapper>
                             Precond;
 
                         return os << *static_cast<Precond*>(p.handle);
@@ -327,7 +330,7 @@ class preconditioner {
                         typedef
                             make_solver<
                                 preconditioner,
-                                runtime::iterative_solver<Backend>
+                                runtime::solver::wrapper<Backend>
                                 >
                             Precond;
 

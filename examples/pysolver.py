@@ -38,7 +38,6 @@ parser.add_argument('-n,--size',   dest='n', type=int, default=64, help='The siz
 parser.add_argument('-o,--out',    dest='x', help='Output file name')
 parser.add_argument('-p,--precond', dest='p', help='preconditioner parameters: key1=val1 key2=val2', nargs='+', default=[])
 parser.add_argument('-s,--solver',  dest='s', help='solver parameters: key1=val1 key2=val2', nargs='+', default=[])
-parser.add_argument('-1,--single-level', dest='single', help='Use single level relaxation as preconditioner', action='store_true', default=False)
 
 args = parser.parse_args(sys.argv[1:])
 
@@ -57,7 +56,7 @@ s_prm = {p[0]: p[1] for p in map(lambda s: s.split('='), args.s)}
 
 # Create solver/preconditioner pair
 with timeit('Setup solver'):
-    S = amg.solver(amg.relaxation(A, p_prm) if args.single else amg.amg(A, p_prm), s_prm)
+    S = amg.solver(amg.amgcl(A, p_prm), s_prm)
 print(S)
 
 # Solve the system for the RHS

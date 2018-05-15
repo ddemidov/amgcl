@@ -73,7 +73,7 @@ namespace amgcl {
  */
 template <
     class Backend,
-    class Coarsening,
+    template <class> class Coarsening,
     template <class> class Relax
     >
 class amg {
@@ -83,6 +83,8 @@ class amg {
         typedef typename Backend::value_type value_type;
         typedef typename Backend::matrix     matrix;
         typedef typename Backend::vector     vector;
+
+        typedef Coarsening<Backend>          coarsening_type;
         typedef Relax<Backend>               relax_type;
 
         typedef typename backend::builtin<value_type>::matrix build_matrix;
@@ -98,7 +100,7 @@ class amg {
          * component of the method as well as some universal parameters.
          */
         struct params {
-            typedef typename Coarsening::params coarsening_params;
+            typedef typename coarsening_type::params coarsening_params;
             typedef typename relax_type::params relax_params;
 
             coarsening_params coarsening;   ///< Coarsening parameters.
@@ -345,7 +347,7 @@ class amg {
 
             boost::shared_ptr<build_matrix> step_down(
                     boost::shared_ptr<build_matrix> A,
-                    Coarsening &C, const backend_params &bprm)
+                    coarsening_type &C, const backend_params &bprm)
             {
                 AMGCL_TIC("transfer operators");
                 boost::shared_ptr<build_matrix> P, R;
@@ -419,7 +421,7 @@ class amg {
 
             bool direct_coarse_solve = true;
 
-            Coarsening C(prm.coarsening);
+            coarsening_type C(prm.coarsening);
 
             while( backend::rows(*A) > prm.coarse_enough && levels.size() < prm.max_levels) {
                 {
@@ -516,15 +518,15 @@ class amg {
                     AMGCL_TOC("coarse");
                 } else {
                     AMGCL_TIC("relax");
-                    lvl->relax->apply_pre(*lvl->A, rhs, x, *lvl->t, prm.relax);
-                    lvl->relax->apply_post(*lvl->A, rhs, x, *lvl->t, prm.relax);
+                    lvl->relax->apply_pre(*lvl->A, rhs, x, *lvl->t);
+                    lvl->relax->apply_post(*lvl->A, rhs, x, *lvl->t);
                     AMGCL_TOC("relax");
                 }
             } else {
                 for (size_t j = 0; j < prm.ncycle; ++j) {
                     AMGCL_TIC("relax");
                     for(size_t i = 0; i < prm.npre; ++i)
-                        lvl->relax->apply_pre(*lvl->A, rhs, x, *lvl->t, prm.relax);
+                        lvl->relax->apply_pre(*lvl->A, rhs, x, *lvl->t);
                     AMGCL_TOC("relax");
 
                     backend::residual(rhs, *lvl->A, x, *lvl->t);
@@ -538,18 +540,18 @@ class amg {
 
                     AMGCL_TIC("relax");
                     for(size_t i = 0; i < prm.npost; ++i)
-                        lvl->relax->apply_post(*lvl->A, rhs, x, *lvl->t, prm.relax);
+                        lvl->relax->apply_post(*lvl->A, rhs, x, *lvl->t);
                     AMGCL_TOC("relax");
                 }
             }
         }
 
-    template <class B, class C, template <class> class R>
+    template <class B, template <class> class C, template <class> class R>
     friend std::ostream& operator<<(std::ostream &os, const amg<B, C, R> &a);
 };
 
 /// Sends information about the AMG hierarchy to output stream.
-template <class B, class C, template <class> class R>
+template <class B, template <class> class C, template <class> class R>
 std::ostream& operator<<(std::ostream &os, const amg<B, C, R> &a)
 {
     typedef typename amg<B, C, R>::level level;

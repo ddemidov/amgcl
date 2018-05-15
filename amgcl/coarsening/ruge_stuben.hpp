@@ -51,6 +51,8 @@ namespace coarsening {
  * \ingroup coarsening
  * \sa \cite Stuben1999
  */
+
+template <class Backend>
 struct ruge_stuben {
     /// Coarsening parameters.
     struct params {

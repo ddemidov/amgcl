@@ -61,12 +61,12 @@ struct ilu0< backend::cuda<real> > {
         void get(boost::property_tree::ptree &p, const std::string &path) const {
             AMGCL_PARAMS_EXPORT_VALUE(p, path, damping);
         }
-    };
+    } prm;
 
     /// \copydoc amgcl::relaxation::damped_jacobi::damped_jacobi
     template <class Matrix>
     ilu0( const Matrix &A, const params &, const typename Backend::params &bprm)
-        : handle(bprm.cusparse_handle),
+        : prm(prm), handle(bprm.cusparse_handle),
           n(backend::rows(A)), nnz(backend::nonzeros(A)),
           ptr(A.ptr, A.ptr + n+1),
           col(A.col, A.col + nnz),
@@ -223,8 +223,7 @@ struct ilu0< backend::cuda<real> > {
     /// \copydoc amgcl::relaxation::damped_jacobi::apply_pre
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_pre(
-            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
-            const params &prm
+            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp
             ) const
     {
         backend::residual(rhs, A, x, tmp);
@@ -235,8 +234,7 @@ struct ilu0< backend::cuda<real> > {
     /// \copydoc amgcl::relaxation::damped_jacobi::apply_post
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_post(
-            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
-            const params &prm
+            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp
             ) const
     {
         backend::residual(rhs, A, x, tmp);
@@ -245,7 +243,7 @@ struct ilu0< backend::cuda<real> > {
     }
 
     template <class Matrix, class VectorRHS, class VectorX>
-    void apply(const Matrix &A, const VectorRHS &rhs, VectorX &x, const params &prm) const
+    void apply(const Matrix &A, const VectorRHS &rhs, VectorX &x) const
     {
         backend::copy(rhs, x);
         solve(x);

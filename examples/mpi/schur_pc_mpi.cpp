@@ -34,7 +34,11 @@
 #include <amgcl/io/binary.hpp>
 #include <amgcl/io/mm.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
-#include <amgcl/runtime.hpp>
+#include <amgcl/amg.hpp>
+#include <amgcl/solver/runtime.hpp>
+#include <amgcl/coarsening/runtime.hpp>
+#include <amgcl/relaxation/runtime.hpp>
+#include <amgcl/relaxation/as_preconditioner.hpp>
 #include <amgcl/mpi/make_solver.hpp>
 #include <amgcl/mpi/schur_pressure_correction.hpp>
 #include <amgcl/mpi/block_preconditioner.hpp>
@@ -289,17 +293,17 @@ int main(int argc, char *argv[]) {
             amgcl::mpi::schur_pressure_correction<
                 amgcl::mpi::make_solver<
                     amgcl::mpi::block_preconditioner<
-                        amgcl::runtime::relaxation::as_preconditioner<Backend>
+                        amgcl::relaxation::as_preconditioner<Backend, amgcl::runtime::relaxation::wrapper>
                         >,
-                    amgcl::runtime::iterative_solver
+                    amgcl::runtime::solver::wrapper
                     >,
                 amgcl::mpi::subdomain_deflation<
-                    amgcl::runtime::amg<Backend>,
-                    amgcl::runtime::iterative_solver,
+                    amgcl::amg<Backend, amgcl::runtime::coarsening::wrapper, amgcl::runtime::relaxation::wrapper>,
+                    amgcl::runtime::solver::wrapper,
                     amgcl::runtime::mpi::direct_solver<double>
                     >
                 >,
-            amgcl::runtime::iterative_solver
+            amgcl::runtime::solver::wrapper
             > Solver;
 
     Solver solve(world, boost::tie(chunk, ptr, col, val), prm, bprm);

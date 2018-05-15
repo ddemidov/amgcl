@@ -7,7 +7,11 @@
 #include <boost/foreach.hpp>
 
 #include <amgcl/make_solver.hpp>
-#include <amgcl/runtime.hpp>
+#include <amgcl/amg.hpp>
+#include <amgcl/solver/runtime.hpp>
+#include <amgcl/coarsening/runtime.hpp>
+#include <amgcl/relaxation/runtime.hpp>
+#include <amgcl/relaxation/as_preconditioner.hpp>
 #include <amgcl/preconditioner/cpr.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/io/mm.hpp>
@@ -29,16 +33,16 @@ void solve_cpr(const Matrix &K, const std::vector<double> &rhs, boost::property_
     typedef amgcl::backend::builtin<double> Backend;
 
     typedef
-        amgcl::runtime::amg<Backend>
+        amgcl::amg<Backend, amgcl::runtime::coarsening::wrapper, amgcl::runtime::relaxation::wrapper>
         PPrecond;
 
     typedef
-        amgcl::runtime::relaxation::as_preconditioner<Backend>
+        amgcl::relaxation::as_preconditioner<Backend, amgcl::runtime::relaxation::wrapper>
         SPrecond;
 
     amgcl::make_solver<
         amgcl::preconditioner::cpr<PPrecond, SPrecond>,
-        amgcl::runtime::iterative_solver<Backend>
+        amgcl::runtime::solver::wrapper<Backend>
         > solve(K, prm);
 
     std::cout << solve.precond() << std::endl;

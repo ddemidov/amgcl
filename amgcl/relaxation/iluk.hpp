@@ -83,11 +83,12 @@ struct iluk {
             AMGCL_PARAMS_EXPORT_VALUE(p, path, damping);
             AMGCL_PARAMS_EXPORT_CHILD(p, path, solve);
         }
-    };
+    } prm;
 
     /// \copydoc amgcl::relaxation::damped_jacobi::damped_jacobi
     template <class Matrix>
     iluk( const Matrix &A, const params &prm, const typename Backend::params &bprm)
+      : prm(prm)
     {
         typedef typename backend::builtin<value_type>::matrix build_matrix;
         typedef typename backend::row_iterator<Matrix>::type row_iterator;
@@ -156,8 +157,7 @@ struct iluk {
     /// \copydoc amgcl::relaxation::damped_jacobi::apply_pre
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_pre(
-            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
-            const params &prm
+            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp
             ) const
     {
         backend::residual(rhs, A, x, tmp);
@@ -168,8 +168,7 @@ struct iluk {
     /// \copydoc amgcl::relaxation::damped_jacobi::apply_post
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_post(
-            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
-            const params &prm
+            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp
             ) const
     {
         backend::residual(rhs, A, x, tmp);
@@ -178,7 +177,7 @@ struct iluk {
     }
 
     template <class Matrix, class VectorRHS, class VectorX>
-    void apply(const Matrix&, const VectorRHS &rhs, VectorX &x, const params&) const
+    void apply(const Matrix&, const VectorRHS &rhs, VectorX &x) const
     {
         backend::copy(rhs, x);
         ilu->solve(x);

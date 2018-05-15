@@ -30,7 +30,11 @@
 
 #include <amgcl/mpi/direct_solver.hpp>
 #include <amgcl/mpi/subdomain_deflation.hpp>
-#include <amgcl/runtime.hpp>
+#include <amgcl/amg.hpp>
+#include <amgcl/solver/runtime.hpp>
+#include <amgcl/coarsening/runtime.hpp>
+#include <amgcl/relaxation/runtime.hpp>
+#include <amgcl/relaxation/as_preconditioner.hpp>
 #include <amgcl/profiler.hpp>
 
 #include "domain_partition.hpp"
@@ -324,8 +328,8 @@ int main(int argc, char *argv[]) {
         prof.tic("setup");
         typedef
             amgcl::mpi::subdomain_deflation<
-                amgcl::runtime::relaxation::as_preconditioner< Backend >,
-                amgcl::runtime::iterative_solver,
+                amgcl::relaxation::as_preconditioner<Backend, amgcl::runtime::relaxation::wrapper >,
+                amgcl::runtime::solver::wrapper,
                 amgcl::runtime::mpi::direct_solver<double>
             > SDD;
 
@@ -342,8 +346,8 @@ int main(int argc, char *argv[]) {
         prof.tic("setup");
         typedef
             amgcl::mpi::subdomain_deflation<
-                amgcl::runtime::amg< Backend >,
-                amgcl::runtime::iterative_solver,
+                amgcl::amg<Backend, amgcl::runtime::coarsening::wrapper, amgcl::runtime::relaxation::wrapper>,
+                amgcl::runtime::solver::wrapper,
                 amgcl::runtime::mpi::direct_solver<double>
             > SDD;
 

@@ -43,7 +43,7 @@ class solver(pyamgcl_ext.solver):
         else:
             raise "Wrong number of arguments"
 
-class amg(pyamgcl_ext.amg):
+class amgcl(pyamgcl_ext.amgcl):
     """
     Algebraic multigrid hierarchy to be used as a preconditioner
     """
@@ -59,22 +59,4 @@ class amg(pyamgcl_ext.amg):
         Acsr = A.tocsr()
         self.shape = A.shape
 
-        pyamgcl_ext.amg.__init__(self, Acsr.indptr, Acsr.indices, Acsr.data, prm)
-
-class relaxation(pyamgcl_ext.relaxation):
-    """
-    Single-level relaxation to be used as a preconditioner
-    """
-    def __init__(self, A, prm={}):
-        """
-        Creates algebraic multigrid hierarchy to be used as preconditioner.
-
-        Parameters
-        ----------
-        A     The system matrix in scipy.sparse format
-        prm   Dictionary with amgcl parameters
-        """
-        Acsr = A.tocsr()
-        self.shape = A.shape
-
-        pyamgcl_ext.relaxation.__init__(self, Acsr.indptr, Acsr.indices, Acsr.data, prm)
+        pyamgcl_ext.amgcl.__init__(self, Acsr.indptr, Acsr.indices, Acsr.data, prm)

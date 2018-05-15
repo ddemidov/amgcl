@@ -10,7 +10,8 @@
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 
-#include <amgcl/runtime.hpp>
+#include <amgcl/solver/runtime.hpp>
+#include <amgcl/preconditioner/runtime.hpp>
 #include <amgcl/make_solver.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 
@@ -77,7 +78,7 @@ struct precond {
 
 //---------------------------------------------------------------------------
 class solver
-    : public amgcl::runtime::iterative_solver<amgcl::backend::builtin<double> >
+    : public amgcl::runtime::solver::wrapper<amgcl::backend::builtin<double> >
 {
     public:
         solver(const precond &P, py::dict prm)
@@ -124,7 +125,7 @@ class solver
         }
 
     private:
-        typedef amgcl::runtime::iterative_solver<amgcl::backend::builtin<double> > S;
+        typedef amgcl::runtime::solver::wrapper<amgcl::backend::builtin<double> > S;
 
         const precond &P;
 
@@ -183,12 +184,8 @@ PYBIND11_MODULE(pyamgcl_ext, m) {
 
     typedef amgcl::backend::builtin<double> Backend;
 
-    typedef amg_precond<amgcl::runtime::amg<Backend>> AMG;
-    py::class_<AMG>(m, "amg", Precond)
-        .def(py::init<py::array_t<int>, py::array_t<int>, py::array_t<double>, py::dict>());
-
-    typedef amg_precond<amgcl::runtime::relaxation::as_preconditioner<Backend>> Relaxation;
-    py::class_<Relaxation>(m, "relaxation", Precond)
+    typedef amg_precond<amgcl::runtime::preconditioner<Backend>> AMG;
+    py::class_<AMG>(m, "amgcl", Precond)
         .def(py::init<py::array_t<int>, py::array_t<int>, py::array_t<double>, py::dict>());
 
     py::class_<solver>(m, "solver")

@@ -371,7 +371,7 @@ template <class Backend, template <class> class Relaxation, class Enable = void>
 struct relaxation_is_supported : boost::true_type {};
 
 /// Is the coarsening supported by the backend?
-template <class Backend, class Coarsening, class Enable = void>
+template <class Backend, template <class> class Coarsening, class Enable = void>
 struct coarsening_is_supported : boost::true_type {};
 
 /// Linear combination of vectors

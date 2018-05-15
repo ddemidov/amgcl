@@ -77,7 +77,7 @@ class chebyshev {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, degree);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, lower);
             }
-        };
+        } prm;
 
         /// \copydoc amgcl::relaxation::damped_jacobi::damped_jacobi
         template <class Matrix>
@@ -134,8 +134,7 @@ class chebyshev {
         /// \copydoc amgcl::relaxation::damped_jacobi::apply_pre
         template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
         void apply_pre(
-                const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
-                const params&
+                const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp
                 ) const
         {
             static const scalar_type one  = math::identity<scalar_type>();
@@ -148,8 +147,7 @@ class chebyshev {
         /// \copydoc amgcl::relaxation::damped_jacobi::apply_post
         template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
         void apply_post(
-                const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
-                const params&
+                const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp
                 ) const
         {
             static const scalar_type one  = math::identity<scalar_type>();
@@ -161,7 +159,7 @@ class chebyshev {
 
         /// \copydoc amgcl::relaxation::damped_jacobi::apply_post
         template <class Matrix, class VectorRHS, class VectorX>
-        void apply(const Matrix &A, const VectorRHS &rhs, VectorX &x, const params&) const
+        void apply(const Matrix &A, const VectorRHS &rhs, VectorX &x) const
         {
             solve(A, rhs, x);
         }

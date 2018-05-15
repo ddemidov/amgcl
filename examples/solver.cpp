@@ -38,9 +38,12 @@
    typedef amgcl::backend::builtin<double> Backend;
 #endif
 
-#include <amgcl/runtime.hpp>
+#include <amgcl/relaxation/runtime.hpp>
+#include <amgcl/coarsening/runtime.hpp>
+#include <amgcl/solver/runtime.hpp>
 #include <amgcl/preconditioner/runtime.hpp>
 #include <amgcl/make_solver.hpp>
+#include <amgcl/amg.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/adapter/reorder.hpp>
 #include <amgcl/io/mm.hpp>
@@ -80,7 +83,7 @@ boost::tuple<size_t, double> block_solve(
 
     typedef amgcl::make_solver<
         Precond<BBackend>,
-        amgcl::runtime::iterative_solver<BBackend>
+        amgcl::runtime::solver::wrapper<BBackend>
         > Solver;
 
     ;
@@ -156,7 +159,7 @@ boost::tuple<size_t, double> block_solve(
 
     typedef amgcl::make_solver<
         Precond<BBackend>,
-        amgcl::runtime::iterative_solver<BBackend>
+        amgcl::runtime::solver::wrapper<BBackend>
         > Solver;
 
     typename BBackend::params bprm;
@@ -263,7 +266,7 @@ boost::tuple<size_t, double> scalar_solve(
 
     typedef amgcl::make_solver<
         Precond<Backend>,
-        amgcl::runtime::iterative_solver<Backend>
+        amgcl::runtime::solver::wrapper<Backend>
         > Solver;
 
     typedef Backend::vector vector;

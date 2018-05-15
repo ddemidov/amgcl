@@ -126,8 +126,7 @@ struct spai1 {
     /// \copydoc amgcl::relaxation::damped_jacobi::apply_pre
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_pre(
-            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
-            const params&
+            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp
             ) const
     {
         backend::residual(rhs, A, x, tmp);
@@ -137,8 +136,7 @@ struct spai1 {
     /// \copydoc amgcl::relaxation::damped_jacobi::apply_post
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_post(
-            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
-            const params&
+            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp
             ) const
     {
         backend::residual(rhs, A, x, tmp);
@@ -146,7 +144,7 @@ struct spai1 {
     }
 
     template <class Matrix, class VectorRHS, class VectorX>
-    void apply(const Matrix&, const VectorRHS &rhs, VectorX &x, const params&) const
+    void apply(const Matrix&, const VectorRHS &rhs, VectorX &x) const
     {
         backend::spmv(math::identity<scalar_type>(), *M, rhs, math::zero<scalar_type>(), x);
     }

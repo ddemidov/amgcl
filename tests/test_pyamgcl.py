@@ -48,39 +48,24 @@ class TestPyAMGCL(unittest.TestCase):
 
         for stype in ('bicgstab', 'lgmres'):
             for rtype in ('spai0', 'ilu0'):
-                for P in (
-                        amg.amg(A, prm={'relax.type': rtype}),
-                        amg.relaxation(A, prm={'type': rtype})
-                        ):
-                    # Setup solver
-                    solve = amg.solver(P, prm=dict(type=stype, tol=1e-3, maxiter=1000))
+                P = amg.amgcl(A, prm={'relax.type': rtype})
+                # Setup solver
+                solve = amg.solver(P, prm=dict(type=stype, tol=1e-3, maxiter=1000))
 
-                    # Solve
-                    x = solve(rhs)
-
-                    # Check residual
-                    self.assertTrue(norm(rhs - A * x) / norm(rhs) < 1e-3)
-
-                    # Solve again, now provide system matrix explicitly
-                    x = solve(A, rhs)
-
-                    # Check residual
-                    self.assertTrue(norm(rhs - A * x) / norm(rhs) < 1e-3)
+                # Solve
+                x = solve(rhs)
 
     def test_preconditioner(self):
         A, rhs = make_problem(100)
 
         for rtype in ('spai0', 'ilu0'):
-            for P in (
-                    amg.amg(A, prm={'relax.type': rtype}),
-                    amg.relaxation(A, prm={'type': rtype})
-                    ):
-                # Solve
-                x,info = bicgstab(A, rhs, M=P, tol=1e-3)
-                self.assertTrue(info == 0)
+            P = amg.amgcl(A, prm={'relax.type': rtype})
+            # Solve
+            x,info = bicgstab(A, rhs, M=P, tol=1e-3)
+            self.assertTrue(info == 0)
 
-                # Check residual
-                self.assertTrue(norm(rhs - A * x) / norm(rhs) < 1e-3)
+            # Check residual
+            self.assertTrue(norm(rhs - A * x) / norm(rhs) < 1e-3)
 
 if __name__ == "__main__":
     unittest.main()

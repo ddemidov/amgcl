@@ -85,7 +85,7 @@ class as_preconditioner {
 #endif
                 ) const
         {
-            S->apply(*A, rhs, x, prm);
+            S->apply(*A, rhs, x);
         }
 
         const matrix& system_matrix() const {

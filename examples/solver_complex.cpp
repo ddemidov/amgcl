@@ -10,9 +10,12 @@
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/value_type/complex.hpp>
 
-#include <amgcl/runtime.hpp>
+#include <amgcl/solver/runtime.hpp>
+#include <amgcl/coarsening/runtime.hpp>
+#include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/preconditioner/runtime.hpp>
 #include <amgcl/make_solver.hpp>
+#include <amgcl/amg.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/io/mm.hpp>
 
@@ -43,7 +46,7 @@ boost::tuple<size_t, double> solve(
 
     typedef amgcl::make_solver<
         Precond<Backend>,
-        amgcl::runtime::iterative_solver<Backend>
+        amgcl::runtime::solver::wrapper<Backend>
         > Solver;
 
     prof.tic("setup");

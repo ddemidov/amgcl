@@ -68,6 +68,7 @@ namespace coarsening {
 /**
  * \ingroup coarsening
  */
+template <class Backend>
 struct aggregation {
     typedef pointwise_aggregates Aggregates;
 

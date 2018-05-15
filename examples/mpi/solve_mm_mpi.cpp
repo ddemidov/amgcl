@@ -16,7 +16,10 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
-#include <amgcl/runtime.hpp>
+#include <amgcl/amg.hpp>
+#include <amgcl/solver/runtime.hpp>
+#include <amgcl/coarsening/runtime.hpp>
+#include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/mpi/subdomain_deflation.hpp>
 #include <amgcl/mpi/direct_solver.hpp>
 #include <amgcl/profiler.hpp>
@@ -306,8 +309,12 @@ int main(int argc, char *argv[]) {
     prof.tic("setup");
     typedef
         amgcl::mpi::subdomain_deflation<
-            amgcl::runtime::amg< amgcl::backend::builtin<double> >,
-            amgcl::runtime::iterative_solver,
+            amgcl::amg<
+                amgcl::backend::builtin<double>,
+                amgcl::runtime::coarsening::wrapper,
+                amgcl::runtime::relaxation::wrapper
+                >,
+            amgcl::runtime::solver::wrapper,
             amgcl::runtime::mpi::direct_solver<double>
         > SDD;
 

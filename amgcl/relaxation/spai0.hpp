@@ -86,8 +86,7 @@ struct spai0 {
     /// \copydoc amgcl::relaxation::damped_jacobi::apply_pre
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_pre(
-            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
-            const params&
+            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp
             ) const
     {
         static const scalar_type one = math::identity<scalar_type>();
@@ -98,8 +97,7 @@ struct spai0 {
     /// \copydoc amgcl::relaxation::damped_jacobi::apply_post
     template <class Matrix, class VectorRHS, class VectorX, class VectorTMP>
     void apply_post(
-            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp,
-            const params&
+            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp
             ) const
     {
         static const scalar_type one = math::identity<scalar_type>();
@@ -108,7 +106,7 @@ struct spai0 {
     }
 
     template <class Matrix, class VectorRHS, class VectorX>
-    void apply( const Matrix&, const VectorRHS &rhs, VectorX &x, const params&) const
+    void apply( const Matrix&, const VectorRHS &rhs, VectorX &x) const
     {
         backend::vmul(math::identity<scalar_type>(), *M, rhs, math::zero<scalar_type>(), x);
     }

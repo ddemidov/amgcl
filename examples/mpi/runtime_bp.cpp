@@ -12,7 +12,8 @@
 #include <boost/scope_exit.hpp>
 
 #include <amgcl/backend/builtin.hpp>
-#include <amgcl/runtime.hpp>
+#include <amgcl/solver/runtime.hpp>
+#include <amgcl/preconditioner/runtime.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/mpi/make_solver.hpp>
 #include <amgcl/mpi/block_preconditioner.hpp>
@@ -56,7 +57,7 @@ boost::tuple<size_t, double> solve(
 
     typedef amgcl::mpi::make_solver<
         amgcl::mpi::block_preconditioner< Precond<Backend> >,
-        amgcl::runtime::iterative_solver
+        amgcl::runtime::solver::wrapper
         > Solver;
 
     const size_t n = amgcl::backend::rows(A);
@@ -216,13 +217,11 @@ int main(int argc, char *argv[]) {
 
     bool single_level = vm["single-level"].as<bool>();
 
-    if (single_level) {
-        boost::tie(iters, error) = solve<amgcl::runtime::relaxation::as_preconditioner>(
-                world, prm, boost::tie(chunk, ptr, col, val));
-    } else {
-        boost::tie(iters, error) = solve<amgcl::runtime::amg>(
-                world, prm, boost::tie(chunk, ptr, col, val));
-    }
+    if (single_level)
+        prm.put("precond.class", "relaxation");
+
+    boost::tie(iters, error) = solve<amgcl::runtime::preconditioner>(
+            world, prm, boost::tie(chunk, ptr, col, val));
 
     if (world.rank == 0) {
         std::cout

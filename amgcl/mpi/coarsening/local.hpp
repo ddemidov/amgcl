@@ -48,20 +48,23 @@ namespace coarsening {
 template <class LocalBase>
 struct local {
     typedef typename LocalBase::params params;
+    LocalBase base;
+
+    local(const params &prm = params()) : base(prm) {}
 
     template <class Backend, class LM, class RM>
-    static boost::tuple<
+    boost::tuple<
         boost::shared_ptr< distributed_matrix<Backend, LM, RM> >,
         boost::shared_ptr< distributed_matrix<Backend, LM, RM> >
         >
-    transfer_operators(const distributed_matrix<Backend, LM, RM> &A, params &prm) {
+    transfer_operators(const distributed_matrix<Backend, LM, RM> &A) {
         typedef distributed_matrix<Backend, LM, RM> DM;
         typedef typename Backend::value_type value_type;
         typedef backend::crs<value_type>     build_matrix;
 
         // Use local part of A with local coarsening:
         boost::shared_ptr<build_matrix> P_loc, R_loc;
-        boost::tie(P_loc, R_loc) = LocalBase::transfer_operators(*A.local(), prm);
+        boost::tie(P_loc, R_loc) = base.transfer_operators(*A.local());
 
         boost::shared_ptr<build_matrix> P_rem = boost::make_shared<build_matrix>();
         boost::shared_ptr<build_matrix> R_rem = boost::make_shared<build_matrix>();
@@ -76,15 +79,14 @@ struct local {
     }
 
     template <class Backend, class LM, class RM>
-    static boost::shared_ptr< distributed_matrix<Backend, LM, RM> >
+    boost::shared_ptr< distributed_matrix<Backend, LM, RM> >
     coarse_operator(
             const distributed_matrix<Backend, LM, RM> &A,
             const distributed_matrix<Backend, LM, RM> &P,
-            const distributed_matrix<Backend, LM, RM> &R,
-            const params &prm
-            )
+            const distributed_matrix<Backend, LM, RM> &R
+            ) const
     {
-        return LocalBase::coarse_operator(A, P, R, prm);
+        return base.coarse_operator(A, P, R);
     }
 };
 

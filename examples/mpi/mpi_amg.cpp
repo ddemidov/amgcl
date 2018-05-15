@@ -1,8 +1,11 @@
 #include <iostream>
 #include <vector>
+#include <string>
 
 #include <boost/scope_exit.hpp>
 #include <boost/program_options.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
@@ -10,10 +13,11 @@
 #include <amgcl/mpi/util.hpp>
 #include <amgcl/mpi/make_solver.hpp>
 #include <amgcl/mpi/amg.hpp>
-#include <amgcl/coarsening/smoothed_aggregation.hpp>
+#include <amgcl/solver/runtime.hpp>
+#include <amgcl/coarsening/runtime.hpp>
+#include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/mpi/coarsening/local.hpp>
 #include <amgcl/mpi/relaxation/spai0.hpp>
-#include <amgcl/solver/bicgstab.hpp>
 
 #include <amgcl/profiler.hpp>
 
@@ -52,7 +56,6 @@ int main(int argc, char *argv[]) {
         std::cout << "World size: " << comm.size << std::endl;
 
     // Read configuration from command line
-    ptrdiff_t n = 128;
 
     namespace po = boost::program_options;
     po::options_description desc("Options");
@@ -61,8 +64,20 @@ int main(int argc, char *argv[]) {
         ("help,h", "show help")
         (
          "size,n",
-         po::value<ptrdiff_t>(&n)->default_value(n),
+         po::value<ptrdiff_t>()->default_value(128),
          "domain size"
+        )
+        ("prm-file,P",
+         po::value<std::string>(),
+         "Parameter file in json format. "
+        )
+        (
+         "prm,p",
+         po::value< std::vector<std::string> >()->multitoken(),
+         "Parameters specified as name=value pairs. "
+         "May be provided multiple times. Examples:\n"
+         "  -p solver.tol=1e-3\n"
+         "  -p precond.coarse_enough=300"
         )
         ;
 
@@ -71,9 +86,22 @@ int main(int argc, char *argv[]) {
     po::notify(vm);
 
     if (vm.count("help")) {
-        std::cout << desc << std::endl;
+        if (comm.rank == 0) std::cout << desc << std::endl;
         return 0;
     }
+
+    boost::property_tree::ptree prm;
+    if (vm.count("prm-file")) {
+        read_json(vm["prm-file"].as<std::string>(), prm);
+    }
+
+    if (vm.count("prm")) {
+        BOOST_FOREACH(std::string v, vm["prm"].as<std::vector<std::string> >()) {
+            amgcl::put(prm, v);
+        }
+    }
+
+    ptrdiff_t n = vm["size"].as<ptrdiff_t>();
 
     boost::array<ptrdiff_t, 3> lo = { {0,   0,   0  } };
     boost::array<ptrdiff_t, 3> hi = { {n-1, n-1, n-1} };
@@ -147,22 +175,23 @@ int main(int argc, char *argv[]) {
     }
     prof.toc("assemble");
 
-    typedef amgcl::backend::builtin<double>         Backend;
+    typedef amgcl::backend::builtin<double> Backend;
+
     typedef 
         amgcl::mpi::make_solver<
             amgcl::mpi::amg<
                 Backend,
                 amgcl::mpi::coarsening::local<
-                    amgcl::coarsening::smoothed_aggregation
+                    amgcl::runtime::coarsening::wrapper<Backend>
                     >,
                 amgcl::mpi::relaxation::spai0
                 >,
-            amgcl::solver::bicgstab
+            amgcl::runtime::solver::wrapper
             >
         Solver;
 
     prof.tic("setup");
-    Solver solve(comm, boost::tie(chunk, ptr, col, val));
+    Solver solve(comm, boost::tie(chunk, ptr, col, val), prm);
     prof.toc("setup");
 
     if (comm.rank == 0) {

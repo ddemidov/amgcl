@@ -8,8 +8,11 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
-#include <amgcl/runtime.hpp>
+#include <amgcl/relaxation/runtime.hpp>
+#include <amgcl/coarsening/runtime.hpp>
+#include <amgcl/solver/runtime.hpp>
 #include <amgcl/make_solver.hpp>
+#include <amgcl/amg.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 
@@ -24,8 +27,8 @@ namespace amgcl {
 
 //---------------------------------------------------------------------------
 typedef amgcl::backend::builtin<double>           Backend;
-typedef amgcl::runtime::amg<Backend>              AMG;
-typedef amgcl::runtime::iterative_solver<Backend> ISolver;
+typedef amgcl::amg<Backend, amgcl::runtime::coarsening::wrapper, amgcl::runtime::relaxation::wrapper> AMG;
+typedef amgcl::runtime::solver::wrapper<Backend>  ISolver;
 typedef amgcl::make_solver<AMG, ISolver>          Solver;
 typedef boost::property_tree::ptree               Params;
 
@@ -124,7 +127,7 @@ void STDCALL amgcl_precond_apply(amgclHandle handle, const double *rhs, double *
 {
     AMG *amg = static_cast<AMG*>(handle);
 
-    size_t n = amg->size();
+    size_t n = amgcl::backend::rows(amg->system_matrix());
 
     boost::iterator_range<double*> x_range =
         boost::make_iterator_range(x, x + n);

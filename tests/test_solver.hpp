@@ -1,7 +1,11 @@
 #ifndef TESTS_TEST_SOLVER_HPP
 #define TESTS_TEST_SOLVER_HPP
 
-#include <amgcl/runtime.hpp>
+#include <amgcl/amg.hpp>
+#include <amgcl/solver/runtime.hpp>
+#include <amgcl/coarsening/runtime.hpp>
+#include <amgcl/relaxation/runtime.hpp>
+#include <amgcl/relaxation/as_preconditioner.hpp>
 #include <amgcl/make_solver.hpp>
 #include <amgcl/adapter/zero_copy.hpp>
 #include <amgcl/profiler.hpp>
@@ -33,8 +37,8 @@ void test_solver(
     prm.put("solver.type",             solver);
 
     amgcl::make_solver<
-        amgcl::runtime::amg<Backend>,
-        amgcl::runtime::iterative_solver<Backend>
+        amgcl::amg<Backend, amgcl::runtime::coarsening::wrapper, amgcl::runtime::relaxation::wrapper>,
+        amgcl::runtime::solver::wrapper<Backend>
         > solve(A, prm);
 
     std::cout << solve.precond() << std::endl;
@@ -68,8 +72,8 @@ void test_rap(
     prm.put("solver.type",  solver);
 
     amgcl::make_solver<
-        amgcl::runtime::relaxation::as_preconditioner<Backend>,
-        amgcl::runtime::iterative_solver<Backend>
+        amgcl::relaxation::as_preconditioner<Backend, amgcl::runtime::relaxation::wrapper>,
+        amgcl::runtime::solver::wrapper<Backend>
         > solve(A, prm);
 
     std::cout << "Using " << relaxation << " as preconditioner" << std::endl;
