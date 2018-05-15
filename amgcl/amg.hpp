@@ -345,12 +345,11 @@ class amg {
 
             boost::shared_ptr<build_matrix> step_down(
                     boost::shared_ptr<build_matrix> A,
-                    params &prm, const backend_params &bprm)
+                    Coarsening &C, const backend_params &bprm)
             {
                 AMGCL_TIC("transfer operators");
                 boost::shared_ptr<build_matrix> P, R;
-                boost::tie(P, R) = Coarsening::transfer_operators(
-                        *A, prm.coarsening);
+                boost::tie(P, R) = C.transfer_operators(*A);
 
                 if(backend::cols(*P) == 0) {
                     // Zero-sized coarse level in amgcl (diagonal matrix?)
@@ -367,7 +366,7 @@ class amg {
                 AMGCL_TOC("move to backend");
 
                 AMGCL_TIC("coarse operator");
-                A = Coarsening::coarse_operator(*A, *P, *R, prm.coarsening);
+                A = C.coarse_operator(*A, *P, *R);
                 sort_rows(*A);
                 AMGCL_TOC("coarse operator");
 
@@ -420,6 +419,8 @@ class amg {
 
             bool direct_coarse_solve = true;
 
+            Coarsening C(prm.coarsening);
+
             while( backend::rows(*A) > prm.coarse_enough && levels.size() < prm.max_levels) {
                 {
 #ifdef AMGCL_ASYNC_SETUP
@@ -434,7 +435,7 @@ class amg {
 #endif
                 if (levels.size() >= prm.max_levels) break;
 
-                A = levels.back().step_down(A, prm, bprm);
+                A = levels.back().step_down(A, C, bprm);
                 if (!A) {
                     // Zero-sized coarse level. Probably the system matrix on
                     // this level is diagonal, should be easily solvable with a

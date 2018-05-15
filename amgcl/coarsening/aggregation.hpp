@@ -109,7 +109,9 @@ struct aggregation {
             AMGCL_PARAMS_EXPORT_CHILD(p, path, nullspace);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, over_interp);
         }
-    };
+    } prm;
+
+    aggregation(const params &prm = params()) : prm(prm) {}
 
     /// Creates transfer operators for the given system matrix.
     /**
@@ -118,12 +120,11 @@ struct aggregation {
      * \returns   A tuple of prolongation and restriction operators.
      */
     template <class Matrix>
-    static boost::tuple<
+    boost::tuple<
         boost::shared_ptr<Matrix>,
         boost::shared_ptr<Matrix>
         >
-    transfer_operators(const Matrix &A, params &prm)
-    {
+    transfer_operators(const Matrix &A) {
         const size_t n = rows(A);
 
         AMGCL_TIC("aggregates");
@@ -150,14 +151,8 @@ struct aggregation {
      * \returns System matrix for the coarser level.
      */
     template <class Matrix>
-    static boost::shared_ptr<Matrix>
-    coarse_operator(
-            const Matrix &A,
-            const Matrix &P,
-            const Matrix &R,
-            const params &prm
-            )
-    {
+    boost::shared_ptr<Matrix>
+    coarse_operator(const Matrix &A, const Matrix &P, const Matrix &R) const {
         return detail::scaled_galerkin(A, P, R, 1 / prm.over_interp);
     }
 };

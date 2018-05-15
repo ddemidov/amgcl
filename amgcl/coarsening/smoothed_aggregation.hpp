@@ -122,13 +122,14 @@ struct smoothed_aggregation {
             AMGCL_PARAMS_EXPORT_VALUE(p, path, estimate_spectral_radius);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, power_iters);
         }
-    };
+    } prm;
+
+    smoothed_aggregation(const params &prm = params()) : prm(prm) {}
 
     /// \copydoc amgcl::coarsening::aggregation::transfer_operators
     template <class Matrix>
-    static boost::tuple< boost::shared_ptr<Matrix>, boost::shared_ptr<Matrix> >
-    transfer_operators(const Matrix &A, params &prm)
-    {
+    boost::tuple< boost::shared_ptr<Matrix>, boost::shared_ptr<Matrix> >
+    transfer_operators(const Matrix &A) {
         typedef typename backend::value_type<Matrix>::type value_type;
         typedef typename math::scalar_of<value_type>::type scalar_type;
 
@@ -240,14 +241,8 @@ struct smoothed_aggregation {
 
     /// \copydoc amgcl::coarsening::aggregation::coarse_operator
     template <class Matrix>
-    static boost::shared_ptr<Matrix>
-    coarse_operator(
-            const Matrix &A,
-            const Matrix &P,
-            const Matrix &R,
-            const params&
-            )
-    {
+    boost::shared_ptr<Matrix>
+    coarse_operator(const Matrix &A, const Matrix &P, const Matrix &R) const {
         return detail::galerkin(A, P, R);
     }
 

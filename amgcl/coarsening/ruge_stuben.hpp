@@ -94,13 +94,14 @@ struct ruge_stuben {
             AMGCL_PARAMS_EXPORT_VALUE(p, path, do_trunc);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, eps_trunc);
         }
-    };
+    } prm;
+
+    ruge_stuben(const params &prm = params()) : prm(prm) {}
 
     /// \copydoc amgcl::coarsening::aggregation::transfer_operators
     template <class Matrix>
-    static boost::tuple< boost::shared_ptr<Matrix>, boost::shared_ptr<Matrix> >
-    transfer_operators(const Matrix &A, const params &prm)
-    {
+    boost::tuple< boost::shared_ptr<Matrix>, boost::shared_ptr<Matrix> >
+    transfer_operators(const Matrix &A) const {
         typedef typename backend::value_type<Matrix>::type Val;
         typedef typename math::scalar_of<Val>::type        Scalar;
 
@@ -243,14 +244,8 @@ struct ruge_stuben {
 
     /// \copydoc amgcl::coarsening::aggregation::coarse_operator
     template <class Matrix>
-    static boost::shared_ptr<Matrix>
-    coarse_operator(
-            const Matrix &A,
-            const Matrix &P,
-            const Matrix &R,
-            const params&
-            )
-    {
+    boost::shared_ptr<Matrix>
+    coarse_operator(const Matrix &A, const Matrix &P, const Matrix &R) const {
         return detail::galerkin(A, P, R);
     }
 
