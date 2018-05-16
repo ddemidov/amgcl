@@ -85,7 +85,7 @@ class comm_pattern {
             AMGCL_TIC("communication pattern");
             // Get domain boundaries
             std::vector<ptrdiff_t> domain = mpi::exclusive_sum(comm, n_loc_cols);
-            ptrdiff_t loc_beg = domain[comm.rank];
+            loc_beg = domain[comm.rank];
 
             // Renumber remote columns,
             // find out how many remote values we need from each process.
@@ -249,6 +249,11 @@ class comm_pattern {
         communicator mpi_comm() const {
             return comm;
         }
+
+        ptrdiff_t loc_col_shift() const {
+            return loc_beg;
+        }
+
     private:
         typedef typename Backend::gather Gather;
 
@@ -260,6 +265,7 @@ class comm_pattern {
 
         boost::unordered_map<ptrdiff_t, boost::tuple<int, int> > idx;
         boost::shared_ptr<Gather> gather;
+        ptrdiff_t loc_beg;
 };
 
 template <class Backend, class LocalMatrix = typename Backend::matrix, class RemoteMatrix = LocalMatrix>
@@ -384,6 +390,10 @@ class distributed_matrix {
 
         ptrdiff_t loc_cols() const {
             return n_loc_cols;
+        }
+
+        ptrdiff_t loc_col_shift() const {
+            return C->loc_col_shift();
         }
 
         ptrdiff_t loc_nonzeros() const {

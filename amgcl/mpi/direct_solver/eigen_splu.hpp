@@ -65,7 +65,8 @@ class eigen_splu : public solver_base< value_type, eigen_splu<value_type> > {
         typedef backend::crs<value_type> build_matrix;
 
         /// Constructor.
-        eigen_splu(communicator comm, const build_matrix &A,
+        template <class Matrix>
+        eigen_splu(communicator comm, const Matrix &A,
                 const params &prm = params()) : prm(prm)
         {
             static_cast<Base*>(this)->init(comm, A);
@@ -85,7 +86,7 @@ class eigen_splu : public solver_base< value_type, eigen_splu<value_type> > {
          * \param x   The solution.
          */
         template <class Vec1, class Vec2>
-        void operator()(const Vec1 &rhs, Vec2 &x) const {
+        void solve(const Vec1 &rhs, Vec2 &x) const {
             (*S)(rhs, x);
         }
     private:

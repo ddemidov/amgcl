@@ -44,6 +44,7 @@ THE SOFTWARE.
 #include <amgcl/value_type/interface.hpp>
 #include <amgcl/mpi/util.hpp>
 #include <amgcl/mpi/distributed_matrix.hpp>
+#include <amgcl/mpi/direct_solver/skyline_lu.hpp>
 
 namespace amgcl {
 namespace mpi {
@@ -51,7 +52,8 @@ namespace mpi {
 template <
     class Backend,
     class Coarsening,
-    class Relaxation
+    class Relaxation,
+    class DirectSolver = direct::skyline_lu<typename Backend::value_type>
     >
 class amg {
     public:
@@ -63,11 +65,13 @@ class amg {
         typedef typename Backend::vector                   vector;
 
         struct params {
-            typedef typename Coarsening::params coarsening_params;
-            typedef typename Relaxation::params relax_params;
+            typedef typename Coarsening::params   coarsening_params;
+            typedef typename Relaxation::params   relax_params;
+            typedef typename DirectSolver::params direct_params;
 
             coarsening_params coarsening;   ///< Coarsening parameters.
             relax_params      relax;        ///< Relaxation parameters.
+            direct_params     direct;       ///< Direct solver parameters.
 
             /// Specifies when level is coarse enough to be solved directly.
             /**
@@ -76,6 +80,13 @@ class amg {
              * stopped and the linear system is solved directly at this level.
              */
             unsigned coarse_enough;
+
+            /// Use direct solver at the coarsest level.
+            /**
+             * When set, the coarsest level is solved with a direct solver.
+             * Otherwise a smoother is used as a solver.
+             */
+            bool direct_coarse;
 
             /// Maximum number of levels.
             /** If this number is reached while the size of the last level is
@@ -97,7 +108,7 @@ class amg {
             unsigned pre_cycles;
 
             params() :
-                coarse_enough(1024),
+                coarse_enough(1024), direct_coarse(true),
                 max_levels( std::numeric_limits<unsigned>::max() ),
                 npre(1), npost(1), ncycle(1), pre_cycles(1)
             {}
@@ -105,15 +116,17 @@ class amg {
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, coarsening),
                   AMGCL_PARAMS_IMPORT_CHILD(p, relax),
+                  AMGCL_PARAMS_IMPORT_CHILD(p, direct),
                   AMGCL_PARAMS_IMPORT_VALUE(p, coarse_enough),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, direct_coarse),
                   AMGCL_PARAMS_IMPORT_VALUE(p, max_levels),
                   AMGCL_PARAMS_IMPORT_VALUE(p, npre),
                   AMGCL_PARAMS_IMPORT_VALUE(p, npost),
                   AMGCL_PARAMS_IMPORT_VALUE(p, ncycle),
                   AMGCL_PARAMS_IMPORT_VALUE(p, pre_cycles)
             {
-                AMGCL_PARAMS_CHECK(p, (coarsening)(relax)(coarse_enough)
-                        (max_levels)(npre)(npost)(ncycle)(pre_cycles));
+                AMGCL_PARAMS_CHECK(p, (coarsening)(relax)(direct)(coarse_enough)
+                        (direct_coarse)(max_levels)(npre)(npost)(ncycle)(pre_cycles));
 
                 amgcl::precondition(max_levels > 0, "max_levels should be positive");
             }
@@ -125,7 +138,9 @@ class amg {
             {
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, coarsening);
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, relax);
+                AMGCL_PARAMS_EXPORT_CHILD(p, path, direct);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, coarse_enough);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, direct_coarse);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, max_levels);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, npre);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, npost);
@@ -179,7 +194,7 @@ class amg {
 
         /// Returns the system matrix from the finest level.
         boost::shared_ptr<matrix> system_matrix_ptr() const {
-            return levels.front().A;
+            return A;
         }
 
         const matrix& system_matrix() const {
@@ -187,54 +202,88 @@ class amg {
         }
     private:
         struct level {
-            boost::shared_ptr<matrix>     A, P, R;
-            boost::shared_ptr<vector>     f, u, t;
-            boost::shared_ptr<Relaxation> relax;
+            ptrdiff_t nrows, nnz;
+
+            boost::shared_ptr<matrix>       A, P, R;
+            boost::shared_ptr<vector>       f, u, t;
+            boost::shared_ptr<Relaxation>   relax;
+            boost::shared_ptr<DirectSolver> solve;
 
             level() {}
 
             level(
-                    boost::shared_ptr<matrix> A,
+                    boost::shared_ptr<matrix> a,
                     params &prm,
-                    const backend_params &bprm
+                    const backend_params &bprm,
+                    bool direct = false
                  )
-                : A(A),
-                  f(Backend::create_vector(A->loc_rows(), bprm)),
-                  u(Backend::create_vector(A->loc_rows(), bprm)),
-                  t(Backend::create_vector(A->loc_rows(), bprm))
+                : nrows(a->glob_rows()), nnz(a->glob_nonzeros()),
+                  f(Backend::create_vector(a->loc_rows(), bprm)),
+                  u(Backend::create_vector(a->loc_rows(), bprm))
             {
-                sort_rows(*A->local());
-                sort_rows(*A->remote());
 
-                relax = boost::make_shared<Relaxation>(*A, prm.relax, bprm);
+                sort_rows(*a->local());
+                sort_rows(*a->remote());
+
+                if (direct) {
+                    AMGCL_TIC("direct solver");
+                    solve = boost::make_shared<DirectSolver>(a->comm(), *a, prm.direct);
+                    AMGCL_TOC("direct solver");
+                } else {
+                    A = a;
+                    t = Backend::create_vector(a->loc_rows(), bprm);
+
+                    AMGCL_TIC("relaxation");
+                    relax = boost::make_shared<Relaxation>(*a, prm.relax, bprm);
+                    AMGCL_TOC("relaxation");
+                }
             }
 
             boost::shared_ptr<matrix> step_down(Coarsening &C)
             {
+                AMGCL_TIC("transfer operators");
                 boost::tie(P, R) = C.transfer_operators(*A);
 
+                AMGCL_TIC("sort");
                 sort_rows(*P->local());
                 sort_rows(*P->remote());
                 sort_rows(*R->local());
                 sort_rows(*R->remote());
+                AMGCL_TOC("sort");
+                AMGCL_TOC("transfer operators");
 
                 if (P->glob_cols() == 0) {
                     // Zero-sized coarse level in amgcl (diagonal matrix?)
                     return boost::shared_ptr<matrix>();
                 }
 
-                return C.coarse_operator(*A, *P, *R);
+                AMGCL_TIC("coarse operator");
+                boost::shared_ptr<matrix> A_ = C.coarse_operator(*A, *P, *R);
+                AMGCL_TOC("coarse operator");
+
+                return A_;
             }
 
             void move_to_backend() {
+                AMGCL_TIC("move to backend");
                 if (A) A->move_to_backend();
                 if (P) P->move_to_backend();
                 if (R) R->move_to_backend();
+                AMGCL_TOC("move to backend");
+            }
+
+            ptrdiff_t rows() const {
+                return nrows;
+            }
+
+            ptrdiff_t nonzeros() const {
+                return nnz;
             }
         };
 
         typedef typename std::list<level>::const_iterator level_iterator;
 
+        boost::shared_ptr<matrix> A;
         std::list<level> levels;
 
         void init(boost::shared_ptr<matrix> A, const backend_params &bprm)
@@ -242,7 +291,9 @@ class amg {
             mpi::precondition(A->comm(), A->glob_rows() == A->glob_cols(),
                     "Matrix should be square!");
 
+            this->A = A;
             Coarsening C(prm.coarsening);
+            bool direct_coarse = prm.direct_coarse;
 
             while(A->glob_rows() > prm.coarse_enough && levels.size() < prm.max_levels) {
                 levels.push_back( level(A, prm, bprm) );
@@ -255,14 +306,24 @@ class amg {
                     // Zero-sized coarse level. Probably the system matrix on
                     // this level is diagonal, should be easily solvable with a
                     // couple of smoother iterations.
+                    direct_coarse = false;
                     break;
                 }
             }
 
+            if (!A || A->loc_rows() > prm.coarse_enough) {
+                // The coarse matrix is still too big to be solved directly.
+                direct_coarse = false;
+            }
+
             if (A) {
-                levels.push_back(level(A, prm, bprm));
+                levels.push_back(level(A, prm, bprm, direct_coarse));
                 levels.back().move_to_backend();
             }
+
+            AMGCL_TIC("move to backend");
+            this->A->move_to_backend();
+            AMGCL_TOC("move to backend");
         }
 
         template <class Vec1, class Vec2>
@@ -271,12 +332,22 @@ class amg {
             ++nxt;
 
             if (nxt == end) {
-                lvl->relax->apply_pre(*lvl->A, rhs, x, *lvl->t);
-                lvl->relax->apply_post(*lvl->A, rhs, x, *lvl->t);
+                if (lvl->solve) {
+                    AMGCL_TIC("direct solver");
+                    (*lvl->solve)(rhs, x);
+                    AMGCL_TOC("direct solver");
+                } else {
+                    AMGCL_TIC("relax");
+                    lvl->relax->apply_pre(*lvl->A, rhs, x, *lvl->t);
+                    lvl->relax->apply_post(*lvl->A, rhs, x, *lvl->t);
+                    AMGCL_TOC("relax");
+                }
             } else {
                 for (size_t j = 0; j < prm.ncycle; ++j) {
+                    AMGCL_TIC("relax");
                     for(size_t i = 0; i < prm.npre; ++i)
                         lvl->relax->apply_pre(*lvl->A, rhs, x, *lvl->t);
+                    AMGCL_TOC("relax");
 
                     backend::residual(rhs, *lvl->A, x, *lvl->t);
 
@@ -287,45 +358,47 @@ class amg {
 
                     backend::spmv(math::identity<scalar_type>(), *lvl->P, *nxt->u, math::identity<scalar_type>(), x);
 
+                    AMGCL_TIC("relax");
                     for(size_t i = 0; i < prm.npost; ++i)
                         lvl->relax->apply_post(*lvl->A, rhs, x, *lvl->t);
+                    AMGCL_TOC("relax");
                 }
             }
         }
 
-    template <class B, class C, class R>
-    friend std::ostream& operator<<(std::ostream &os, const amg<B, C, R> &a);
+    template <class B, class C, class R, class D>
+    friend std::ostream& operator<<(std::ostream &os, const amg<B, C, R, D> &a);
 };
 
-template <class B, class C, class R>
-std::ostream& operator<<(std::ostream &os, const amg<B, C, R> &a)
+template <class B, class C, class R, class D>
+std::ostream& operator<<(std::ostream &os, const amg<B, C, R, D> &a)
 {
-    typedef typename amg<B, C, R>::level level;
+    typedef typename amg<B, C, R, D>::level level;
     boost::io::ios_all_saver stream_state(os);
 
     size_t sum_dof = 0;
     size_t sum_nnz = 0;
 
     BOOST_FOREACH(const level &lvl, a.levels) {
-        sum_dof += lvl.A->glob_rows();
-        sum_nnz += lvl.A->glob_nonzeros();
+        sum_dof += lvl.rows();
+        sum_nnz += lvl.nonzeros();
     }
 
     os << "Number of levels:    "   << a.levels.size()
         << "\nOperator complexity: " << std::fixed << std::setprecision(2)
-        << 1.0 * sum_nnz / a.levels.front().A->glob_nonzeros()
+        << 1.0 * sum_nnz / a.levels.front().nonzeros()
         << "\nGrid complexity:     " << std::fixed << std::setprecision(2)
-        << 1.0 * sum_dof / a.levels.front().A->glob_rows()
+        << 1.0 * sum_dof / a.levels.front().rows()
         << "\n\nlevel     unknowns       nonzeros\n"
         << "---------------------------------\n";
 
     size_t depth = 0;
     BOOST_FOREACH(const level &lvl, a.levels) {
         os << std::setw(5)  << depth++
-           << std::setw(13) << lvl.A->glob_rows()
-           << std::setw(15) << lvl.A->glob_nonzeros() << " ("
+           << std::setw(13) << lvl.rows()
+           << std::setw(15) << lvl.nonzeros() << " ("
            << std::setw(5) << std::fixed << std::setprecision(2)
-           << 100.0 * lvl.A->glob_nonzeros() / sum_nnz
+           << 100.0 * lvl.nonzeros() / sum_nnz
            << "%)" << std::endl;
     }
 

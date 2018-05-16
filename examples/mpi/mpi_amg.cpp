@@ -16,6 +16,7 @@
 #include <amgcl/solver/runtime.hpp>
 #include <amgcl/coarsening/runtime.hpp>
 #include <amgcl/relaxation/runtime.hpp>
+#include <amgcl/mpi/direct_solver/runtime.hpp>
 #include <amgcl/mpi/coarsening/local.hpp>
 #include <amgcl/mpi/relaxation/local.hpp>
 
@@ -186,7 +187,8 @@ int main(int argc, char *argv[]) {
                     >,
                 amgcl::mpi::relaxation::local<
                     Backend, amgcl::runtime::relaxation::wrapper
-                    >
+                    >,
+                amgcl::runtime::mpi::direct::solver<double>
                 >,
             amgcl::runtime::solver::wrapper
             >

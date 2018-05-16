@@ -32,6 +32,7 @@ THE SOFTWARE.
 */
 
 #include <amgcl/mpi/util.hpp>
+#include <amgcl/mpi/distributed_matrix.hpp>
 
 namespace amgcl {
 namespace mpi {
@@ -147,6 +148,38 @@ class solver_base {
                         NULL, NULL, NULL, datatype<value_type>(),
                         0, slaves_comm);
             }
+        }
+
+        template <class B, class L, class R>
+        void init(communicator comm, const distributed_matrix<B,L,R> &A) {
+            const build_matrix &A_loc = *A.local();
+            const build_matrix &A_rem = *A.remote();
+
+            build_matrix a;
+
+            a.set_size(A.loc_rows(), A.glob_cols(), false);
+            a.set_nonzeros(A_loc.nnz + A_rem.nnz);
+            a.ptr[0] = 0;
+
+            for(size_t i = 0, head = 0; i < A_loc.nrows; ++i) {
+                ptrdiff_t shift = A.loc_col_shift();
+
+                for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j) {
+                    a.col[head] = A_loc.col[j] + shift;
+                    a.val[head] = A_loc.val[j];
+                    ++head;
+                }
+
+                for(ptrdiff_t j = A_rem.ptr[i], e = A_rem.ptr[i+1]; j < e; ++j) {
+                    a.col[head] = A_rem.col[j];
+                    a.val[head] = A_rem.val[j];
+                    ++head;
+                }
+
+                a.ptr[i+1] = head;
+            }
+
+            init(comm, a);
         }
 
         virtual ~solver_base() {

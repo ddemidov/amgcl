@@ -88,7 +88,8 @@ class pastix : public solver_base< value_type, pastix<value_type, Distrib> > {
         };
 
         /// Constructor.
-        pastix(communicator comm, const build_matrix &A,
+        template <class Matrix>
+        pastix(communicator comm, const Matrix &A,
                 const params &prm = params()) : prm(prm)
         {
             static_cast<Base*>(this)->init(comm, A);
@@ -147,7 +148,7 @@ class pastix : public solver_base< value_type, pastix<value_type, Distrib> > {
          * \param x   The solution.
          */
         template <class Vec1, class Vec2>
-        void operator()(const Vec1 &rhs, Vec2 &x) const {
+        void solve(const Vec1 &rhs, Vec2 &x) const {
             for(int i = 0; i < nrows; ++i) x[i] = rhs[i];
             call_pastix(API_TASK_SOLVE, API_TASK_SOLVE, &x[0]);
         }

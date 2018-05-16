@@ -111,10 +111,10 @@ std::istream& operator>>(std::istream &in, type &s)
 template <class value_type>
 class solver {
     public:
-        typedef backend::crs<value_type> build_matrix;
         typedef boost::property_tree::ptree params;
 
-        solver(MPI_Comm mpi_comm, const build_matrix &A, params prm = params())
+        template <class Matrix>
+        solver(MPI_Comm mpi_comm, const Matrix &A, params prm = params())
             : s(prm.get("type", skyline_lu))
         {
             if (!prm.erase("type")) AMGCL_PARAM_MISSING("type");

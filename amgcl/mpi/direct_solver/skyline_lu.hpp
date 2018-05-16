@@ -58,7 +58,8 @@ class skyline_lu : public solver_base< value_type, skyline_lu<value_type> > {
         typedef backend::crs<value_type> build_matrix;
 
         /// Constructor.
-        skyline_lu(communicator comm, const build_matrix &A,
+        template <class Matrix>
+        skyline_lu(communicator comm, const Matrix &A,
                 const params &prm = params()
                 ) : prm(prm)
         {
