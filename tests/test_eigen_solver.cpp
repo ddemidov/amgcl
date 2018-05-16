@@ -22,19 +22,20 @@ BOOST_AUTO_TEST_CASE(eigen_solver)
     std::vector<double> rhs;
 
     size_t n = sample_problem(16, val, col, ptr, rhs);
+    amgcl::backend::crs<double> A(boost::tie(n, ptr, col, val));
 
     typedef
         amgcl::solver::EigenSolver<Eigen::SparseLU<Eigen::SparseMatrix<double, Eigen::ColMajor, int> > >
         Solver;
 
-    Solver solve( boost::tie(n, ptr, col, val) );
+    Solver solve(A);
 
     std::vector<double> x(n);
     std::vector<double> r(n);
 
     solve(rhs, x);
 
-    amgcl::backend::residual(rhs, boost::tie(n, ptr, col, val), x, r);
+    amgcl::backend::residual(rhs, A, x, r);
 
     BOOST_CHECK_SMALL(sqrt(amgcl::backend::inner_product(r, r)), 1e-8);
 }

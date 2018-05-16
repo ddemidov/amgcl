@@ -43,7 +43,7 @@
 #include <amgcl/mpi/schur_pressure_correction.hpp>
 #include <amgcl/mpi/block_preconditioner.hpp>
 #include <amgcl/mpi/subdomain_deflation.hpp>
-#include <amgcl/mpi/direct_solver.hpp>
+#include <amgcl/mpi/direct_solver/runtime.hpp>
 #include <amgcl/profiler.hpp>
 
 namespace amgcl {
@@ -300,7 +300,7 @@ int main(int argc, char *argv[]) {
                 amgcl::mpi::subdomain_deflation<
                     amgcl::amg<Backend, amgcl::runtime::coarsening::wrapper, amgcl::runtime::relaxation::wrapper>,
                     amgcl::runtime::solver::wrapper,
-                    amgcl::runtime::mpi::direct_solver<double>
+                    amgcl::runtime::mpi::direct::solver<double>
                     >
                 >,
             amgcl::runtime::solver::wrapper

@@ -21,7 +21,7 @@
 #include <amgcl/coarsening/runtime.hpp>
 #include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/mpi/subdomain_deflation.hpp>
-#include <amgcl/mpi/direct_solver.hpp>
+#include <amgcl/mpi/direct_solver/runtime.hpp>
 #include <amgcl/profiler.hpp>
 
 namespace amgcl {
@@ -209,7 +209,7 @@ int main(int argc, char *argv[]) {
     amgcl::runtime::coarsening::type    coarsening       = amgcl::runtime::coarsening::smoothed_aggregation;
     amgcl::runtime::relaxation::type    relaxation       = amgcl::runtime::relaxation::spai0;
     amgcl::runtime::solver::type        iterative_solver = amgcl::runtime::solver::bicgstabl;
-    amgcl::runtime::mpi::dsolver::type  direct_solver    = amgcl::runtime::mpi::dsolver::skyline_lu;
+    amgcl::runtime::mpi::direct::type   direct_solver    = amgcl::runtime::mpi::direct::skyline_lu;
     std::string parameter_file;
     std::string A_file    = "A.mtx";
     std::string rhs_file  = "b.mtx";
@@ -238,7 +238,7 @@ int main(int argc, char *argv[]) {
         )
         (
          "dir_solver,d",
-         po::value<amgcl::runtime::mpi::dsolver::type>(&direct_solver)->default_value(direct_solver),
+         po::value<amgcl::runtime::mpi::direct::type>(&direct_solver)->default_value(direct_solver),
          "skyline_lu"
 #ifdef AMGCL_HAVE_PASTIX
          ", pastix"
@@ -315,7 +315,7 @@ int main(int argc, char *argv[]) {
                 amgcl::runtime::relaxation::wrapper
                 >,
             amgcl::runtime::solver::wrapper,
-            amgcl::runtime::mpi::direct_solver<double>
+            amgcl::runtime::mpi::direct::solver<double>
         > SDD;
 
     boost::function<double(ptrdiff_t,unsigned)> dv = amgcl::mpi::constant_deflation(block_size);
