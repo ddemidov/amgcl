@@ -404,55 +404,82 @@ class subdomain_deflation {
             AMGCL_TIC("assemble E");
 
             // Count nonzeros in E.
+            std::vector<int> nbrs; // processes we are talking to
+            nbrs.reserve(1 + Acp.send.nbr.size() + Acp.recv.nbr.size());
+            std::set_union(
+                    Acp.send.nbr.begin(), Acp.send.nbr.end(),
+                    Acp.recv.nbr.begin(), Acp.recv.nbr.end(),
+                    nbrs.begin());
+            nbrs.push_back(comm.rank);
+
             build_matrix E;
-            E.set_size(ndv, nz, true);
-            for(int j = 0; j < comm.size; ++j) {
-                if (j == comm.rank || Acp.talks_to(j)) {
-                    for(int k = 0; k < ndv; ++k)
-                        E.ptr[k + 1] += dv_size[j];
-                }
+            E.set_size(ndv, nz, false);
+
+            {
+                ptrdiff_t nnz = 0;
+                BOOST_FOREACH(int j, nbrs) nnz += dv_size[j];
+                for(int k = 0; k <= ndv; ++k)
+                    E.ptr[k] = k * nnz;
             }
-            E.set_nonzeros(E.scan_row_sizes());
+            E.set_nonzeros(E.nnz = E.ptr[ndv]);
 
             // Build local strip of E.
-            boost::multi_array<value_type, 2> erow(boost::extents[ndv][nz]);
+#ifdef _OPENMP
+            int nthreads = omp_get_max_threads();
+#else
+            int nthreads = 1;
+#endif
+            boost::multi_array<value_type, 3> erow(boost::extents[nthreads][ndv][nz]);
             std::fill_n(erow.data(), erow.num_elements(), 0);
 
             {
-                ptrdiff_t loc_dv_start = dv_start[comm.rank];
-                std::vector<value_type> z(ndv);
-                for(ptrdiff_t i = 0; i < nrows; ++i) {
-                    for(ptrdiff_t j = 0; j < ndv; ++j)
-                        z[j] = prm.def_vec(i,j);
+                ptrdiff_t dv_offset = dv_start[comm.rank];
+#pragma omp parallel
+                {
+#ifdef _OPENMP
+                    const int tid = omp_get_thread_num();
+#else
+                    const int tid = 0;
+#endif
+                    std::vector<value_type> z(ndv);
 
-                    for(row_iterator2 a = backend::row_begin(*az_loc, i); a; ++a) {
-                        ptrdiff_t  c = a.col() + loc_dv_start;
-                        value_type v = a.value();
-
+#pragma omp for
+                    for(ptrdiff_t i = 0; i < nrows; ++i) {
                         for(ptrdiff_t j = 0; j < ndv; ++j)
-                            erow[j][c] += v * z[j];
-                    }
+                            z[j] = prm.def_vec(i,j);
 
-                    for(row_iterator2 a = backend::row_begin(*az_rem, i); a; ++a) {
-                        ptrdiff_t  c = a.col();
-                        value_type v = a.value();
+                        for(ptrdiff_t k = az_loc->ptr[i], e = az_loc->ptr[i+1]; k < e; ++k) {
+                            ptrdiff_t  c = az_loc->col[k] + dv_offset;
+                            value_type v = az_loc->val[k];
 
-                        for(ptrdiff_t j = 0; j < ndv; ++j)
-                            erow[j][c] += v * z[j];
+                            for(ptrdiff_t j = 0; j < ndv; ++j)
+                                erow[tid][j][c] += v * z[j];
+                        }
+
+                        for(ptrdiff_t k = az_rem->ptr[i], e = az_rem->ptr[i+1]; k < e; ++k) {
+                            ptrdiff_t  c = az_rem->col[k];
+                            value_type v = az_rem->val[k];
+
+                            for(ptrdiff_t j = 0; j < ndv; ++j)
+                                erow[tid][j][c] += v * z[j];
+                        }
                     }
                 }
             }
 
             for(int i = 0; i < ndv; ++i) {
                 int row_head = E.ptr[i];
-                for(int j = 0; j < comm.size; ++j) {
-                    if (j == comm.rank || Acp.talks_to(j)) {
-                        for(int k = 0; k < dv_size[j]; ++k) {
-                            int c = dv_start[j] + k;
-                            E.col[row_head] = c;
-                            E.val[row_head] = erow[i][c];
-                            ++row_head;
-                        }
+                BOOST_FOREACH(int j, nbrs) {
+                    for(int k = 0; k < dv_size[j]; ++k) {
+                        int c = dv_start[j] + k;
+                        value_type v = math::zero<value_type>();
+                        for(int t = 0; t < nthreads; ++t)
+                            v += erow[t][i][c];
+
+                        E.col[row_head] = c;
+                        E.val[row_head] = v;
+
+                        ++row_head;
                     }
                 }
             }
