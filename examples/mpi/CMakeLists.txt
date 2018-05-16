@@ -16,10 +16,6 @@ if (TARGET mpi_target)
         target_link_libraries(${example} amgcl_mpi_example)
     endfunction()
 
-    if (TARGET pastix_target)
-        add_mpi_example(check_pastix check_pastix.cpp)
-    endif()
-
     if (TARGET metis_target)
         add_executable(partition partition.cpp)
         target_link_Libraries(partition
@@ -29,6 +25,7 @@ if (TARGET mpi_target)
             )
     endif()
 
+    add_mpi_example(check_direct        check_direct.cpp)
     add_mpi_example(runtime_sdd         runtime_sdd.cpp)
     add_mpi_example(runtime_sdd_3d      runtime_sdd_3d.cpp)
     add_mpi_example(runtime_bp          runtime_bp.cpp)

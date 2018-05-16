@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    const int n = vm["size"].as<ptrdiff_t>();
+    const int n = vm["size"].as<int>();
     const int n2 = n * n;
 
     using amgcl::prof;
