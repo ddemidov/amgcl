@@ -179,24 +179,18 @@ class comm_pattern {
             AMGCL_TOC("communication pattern");
         }
 
-        int domain(ptrdiff_t col) {
-            return boost::get<0>(idx[col]);
+        int domain(ptrdiff_t col) const {
+            return boost::get<0>(idx.at(col));
         }
 
-        int local_index(ptrdiff_t col) {
-            return boost::get<1>(idx[col]);
+        int local_index(ptrdiff_t col) const {
+            return boost::get<1>(idx.at(col));
         }
 
         size_t renumber(size_t n, ptrdiff_t *col) {
             for(size_t i = 0; i < n; ++i)
                 col[i] = boost::get<1>(idx[col[i]]);
             return recv.val.size();
-        }
-
-        bool talks_to(int rank) const {
-            return
-                std::binary_search(send.nbr.begin(), send.nbr.end(), rank) ||
-                std::binary_search(recv.nbr.begin(), recv.nbr.end(), rank);
         }
 
         bool needs_remote() const {
