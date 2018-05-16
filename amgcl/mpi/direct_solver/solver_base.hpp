@@ -168,9 +168,10 @@ class solver_base {
 
             if (comm.rank == group_master) {
                 if (uniform_n) {
-                    MPI_Gather(&f[0], n, T, &cons_f[0], n, T, 0, slaves_comm);
+                    MPI_Gather(const_cast<value_type*>(&f[0]), n, T,
+                            &cons_f[0], n, T, 0, slaves_comm);
                 } else {
-                    MPI_Gatherv(&f[0], n, T, &cons_f[0],
+                    MPI_Gatherv(const_cast<value_type*>(&f[0]), n, T, &cons_f[0],
                             const_cast<int*>(&count[0]), const_cast<int*>(&displ[0]),
                             T, 0, slaves_comm);
                 }
@@ -186,10 +187,10 @@ class solver_base {
                 }
             } else {
                 if (uniform_n) {
-                    MPI_Gather(&f[0], n, T, NULL, n, T, 0, slaves_comm);
+                    MPI_Gather(const_cast<value_type*>(&f[0]), n, T, NULL, n, T, 0, slaves_comm);
                     MPI_Scatter(NULL, n, T, &x[0], n, T, 0, slaves_comm);
                 } else {
-                    MPI_Gatherv(&f[0], n, T, NULL, NULL, NULL, T, 0, slaves_comm);
+                    MPI_Gatherv(const_cast<value_type*>(&f[0]), n, T, NULL, NULL, NULL, T, 0, slaves_comm);
                     MPI_Scatterv(NULL, NULL, NULL, T, &x[0], n, T, 0, slaves_comm);
                 }
             }
