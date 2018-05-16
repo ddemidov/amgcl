@@ -28,7 +28,7 @@
    typedef amgcl::backend::builtin<double> Backend;
 #endif
 
-#include <amgcl/mpi/direct_solver.hpp>
+#include <amgcl/mpi/direct_solver/runtime.hpp>
 #include <amgcl/mpi/subdomain_deflation.hpp>
 #include <amgcl/amg.hpp>
 #include <amgcl/solver/runtime.hpp>
@@ -104,7 +104,7 @@ int main(int argc, char *argv[]) {
     amgcl::runtime::coarsening::type   coarsening       = amgcl::runtime::coarsening::smoothed_aggregation;
     amgcl::runtime::relaxation::type   relaxation       = amgcl::runtime::relaxation::spai0;
     amgcl::runtime::solver::type       iterative_solver = amgcl::runtime::solver::bicgstabl;
-    amgcl::runtime::mpi::dsolver::type direct_solver    = amgcl::runtime::mpi::dsolver::skyline_lu;
+    amgcl::runtime::mpi::direct::type  direct_solver    = amgcl::runtime::mpi::direct::skyline_lu;
 
     bool just_relax = false;
     bool symm_dirichlet = true;
@@ -142,7 +142,7 @@ int main(int argc, char *argv[]) {
         )
         (
          "dir_solver,d",
-         po::value<amgcl::runtime::mpi::dsolver::type>(&direct_solver)->default_value(direct_solver),
+         po::value<amgcl::runtime::mpi::direct::type>(&direct_solver)->default_value(direct_solver),
          "skyline_lu"
 #ifdef AMGCL_HAVE_EIGEN
          ", eigen_splu"
@@ -330,7 +330,7 @@ int main(int argc, char *argv[]) {
             amgcl::mpi::subdomain_deflation<
                 amgcl::relaxation::as_preconditioner<Backend, amgcl::runtime::relaxation::wrapper >,
                 amgcl::runtime::solver::wrapper,
-                amgcl::runtime::mpi::direct_solver<double>
+                amgcl::runtime::mpi::direct::solver<double>
             > SDD;
 
         SDD solve(world, boost::tie(chunk, ptr, col, val), prm, bprm);
@@ -348,7 +348,7 @@ int main(int argc, char *argv[]) {
             amgcl::mpi::subdomain_deflation<
                 amgcl::amg<Backend, amgcl::runtime::coarsening::wrapper, amgcl::runtime::relaxation::wrapper>,
                 amgcl::runtime::solver::wrapper,
-                amgcl::runtime::mpi::direct_solver<double>
+                amgcl::runtime::mpi::direct::solver<double>
             > SDD;
 
         SDD solve(world, boost::tie(chunk, ptr, col, val), prm, bprm);

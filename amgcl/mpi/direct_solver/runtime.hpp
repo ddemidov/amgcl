@@ -1,5 +1,5 @@
-#ifndef AMGCL_MPI_DIRECT_SOLVER_HPP
-#define AMGCL_MPI_DIRECT_SOLVER_HPP
+#ifndef AMGCL_MPI_DIRECT_SOLVER_RUNTIME_HPP
+#define AMGCL_MPI_DIRECT_SOLVER_RUNTIME_HPP
 
 /*
 The MIT License
@@ -26,7 +26,7 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/mpi/direct_solver.hpp
+ * \file   amgcl/mpi/direct_solver/runtime.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
  * \brief  Runtime wrapper for distributed direct solvers.
  */
@@ -43,9 +43,8 @@ THE SOFTWARE.
 namespace amgcl {
 namespace runtime {
 namespace mpi {
+namespace direct {
 
-/// Direct solvers.
-namespace dsolver {
 enum type {
     skyline_lu
 #ifdef AMGCL_HAVE_EIGEN
@@ -108,175 +107,128 @@ std::istream& operator>>(std::istream &in, type &s)
 
     return in;
 }
-} // namespace dsolver
 
 template <class value_type>
-class direct_solver {
+class solver {
     public:
+        typedef backend::crs<value_type> build_matrix;
         typedef boost::property_tree::ptree params;
 
-        static int comm_size(int n_global_rows, params prm = params()) {
-            dsolver::type s = prm.get("type", dsolver::skyline_lu);
-            if (!prm.erase("type")) AMGCL_PARAM_MISSING("type");
-
-            switch (s) {
-                case dsolver::skyline_lu:
-                    {
-                        typedef amgcl::mpi::skyline_lu<value_type> S;
-                        return S::comm_size(n_global_rows, prm);
-                    }
-#ifdef AMGCL_HAVE_EIGEN
-                case dsolver::eigen_splu:
-                    {
-                        typedef amgcl::mpi::eigen_splu<value_type> S;
-                        return S::comm_size(n_global_rows, prm);
-                    }
-#endif
-#ifdef AMGCL_HAVE_PASTIX
-                case dsolver::dpastix:
-                    {
-                        typedef amgcl::mpi::PaStiX<value_type,true> S;
-                        return S::comm_size(n_global_rows, prm);
-                    }
-                case dsolver::spastix:
-                    {
-                        typedef amgcl::mpi::PaStiX<value_type,false> S;
-                        return S::comm_size(n_global_rows, prm);
-                    }
-#endif
-                default:
-                    amgcl::precondition(false, "Unsupported direct solver type");
-            }
-
-            return 1;
-        }
-
-        template <class PRng, class CRng, class VRng>
-        direct_solver(
-                MPI_Comm mpi_comm,
-                int n_local_rows,
-                const PRng &p_ptr,
-                const CRng &p_col,
-                const VRng &p_val,
-                params prm = params()
-                )
-            : solver(prm.get("type", dsolver::skyline_lu))
+        solver(MPI_Comm mpi_comm, const build_matrix &A, params prm = params())
+            : s(prm.get("type", skyline_lu))
         {
             if (!prm.erase("type")) AMGCL_PARAM_MISSING("type");
 
-            switch (solver) {
-                case dsolver::skyline_lu:
+            switch (s) {
+                case skyline_lu:
                     {
-                        typedef amgcl::mpi::skyline_lu<value_type> S;
-                        handle = static_cast<void*>(
-                                new S(mpi_comm, n_local_rows, p_ptr, p_col, p_val, prm));
+                        typedef amgcl::mpi::direct::skyline_lu<value_type> S;
+                        handle = static_cast<void*>(new S(mpi_comm, A, prm));
                     }
                     break;
 #ifdef AMGCL_HAVE_EIGEN
-                case dsolver::eigen_splu:
+                case eigen_splu:
                     {
-                        typedef amgcl::mpi::eigen_splu<value_type> S;
-                        handle = static_cast<void*>(
-                                new S(mpi_comm, n_local_rows, p_ptr, p_col, p_val, prm));
+                        typedef amgcl::mpi::direct::eigen_splu<value_type> S;
+                        handle = static_cast<void*>(new S(mpi_comm, A, prm));
                     }
                     break;
 #endif
 #ifdef AMGCL_HAVE_PASTIX
-                case dsolver::dpastix:
+                case dpastix:
                     {
-                        typedef amgcl::mpi::PaStiX<value_type,true> S;
-                        handle = static_cast<void*>(
-                                new S(mpi_comm, n_local_rows, p_ptr, p_col, p_val, prm));
+                        typedef amgcl::mpi::direct::pastix<value_type,true> S;
+                        handle = static_cast<void*>(new S(mpi_comm, A, prm));
                     }
                     break;
-                case dsolver::spastix:
+                case spastix:
                     {
-                        typedef amgcl::mpi::PaStiX<value_type,false> S;
-                        handle = static_cast<void*>(
-                                new S(mpi_comm, n_local_rows, p_ptr, p_col, p_val, prm));
+                        typedef amgcl::mpi::direct::pastix<value_type,false> S;
+                        handle = static_cast<void*>(new S(mpi_comm, A, prm));
                     }
                     break;
 #endif
                 default:
-                    amgcl::precondition(false, "Unsupported direct solver type");
+                    throw std::invalid_argument("Unsupported direct solver type");
             }
         }
 
         template <class Vec1, class Vec2>
         void operator()(const Vec1 &rhs, Vec2 &x) const {
-            switch (solver) {
-                case dsolver::skyline_lu:
+            switch (s) {
+                case skyline_lu:
                     {
-                        typedef amgcl::mpi::skyline_lu<value_type> S;
+                        typedef amgcl::mpi::direct::skyline_lu<value_type> S;
                         static_cast<const S*>(handle)->operator()(rhs, x);
                     }
                     break;
 #ifdef AMGCL_HAVE_EIGEN
-                case dsolver::eigen_splu:
+                case eigen_splu:
                     {
-                        typedef amgcl::mpi::eigen_splu<value_type> S;
+                        typedef amgcl::mpi::direct::eigen_splu<value_type> S;
                         static_cast<const S*>(handle)->operator()(rhs, x);
                     }
                     break;
 #endif
 #ifdef AMGCL_HAVE_PASTIX
-                case dsolver::dpastix:
+                case dpastix:
                     {
-                        typedef amgcl::mpi::PaStiX<value_type, true> S;
+                        typedef amgcl::mpi::direct::pastix<value_type, true> S;
                         static_cast<const S*>(handle)->operator()(rhs, x);
                     }
                     break;
-                case dsolver::spastix:
+                case spastix:
                     {
-                        typedef amgcl::mpi::PaStiX<value_type, false> S;
+                        typedef amgcl::mpi::direct::pastix<value_type, false> S;
                         static_cast<const S*>(handle)->operator()(rhs, x);
                     }
                     break;
 #endif
                 default:
-                    amgcl::precondition(false, "Unsupported direct solver type");
+                    throw std::invalid_argument("Unsupported direct solver type");
             }
         }
 
-        ~direct_solver() {
-            switch (solver) {
-                case dsolver::skyline_lu:
+        ~solver() {
+            switch (s) {
+                case skyline_lu:
                     {
-                        typedef amgcl::mpi::skyline_lu<value_type> S;
+                        typedef amgcl::mpi::direct::skyline_lu<value_type> S;
                         delete static_cast<S*>(handle);
                     }
                     break;
 #ifdef AMGCL_HAVE_EIGEN
-                case dsolver::eigen_splu:
+                case eigen_splu:
                     {
-                        typedef amgcl::mpi::eigen_splu<value_type> S;
+                        typedef amgcl::mpi::direct::eigen_splu<value_type> S;
                         delete static_cast<S*>(handle);
                     }
                     break;
 #endif
 #ifdef AMGCL_HAVE_PASTIX
-                case dsolver::dpastix:
+                case dpastix:
                     {
-                        typedef amgcl::mpi::PaStiX<value_type, true> S;
+                        typedef amgcl::mpi::direct::pastix<value_type, true> S;
                         delete static_cast<S*>(handle);
                     }
                     break;
-                case dsolver::spastix:
+                case spastix:
                     {
-                        typedef amgcl::mpi::PaStiX<value_type, false> S;
+                        typedef amgcl::mpi::direct::pastix<value_type, false> S;
                         delete static_cast<S*>(handle);
                     }
                     break;
 #endif
                 default:
-                    amgcl::precondition(false, "Unsupported direct solver type");
+                    break;
             }
         }
     private:
-        dsolver::type solver;
+        direct::type s;
         void *handle;
 };
 
+} // namespace direct
 } // namespace mpi
 } // namespace runtime
 } // namespace amgcl

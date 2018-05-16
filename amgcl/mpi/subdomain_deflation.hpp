@@ -111,7 +111,7 @@ sdd_projected_matrix<SDD, Matrix> make_sdd_projected_matrix(const SDD &S, const 
 template <
     class LocalPrecond,
     template <class, class> class IterativeSolver,
-    class DirectSolver = mpi::skyline_lu<typename LocalPrecond::backend_type::value_type>
+    class DirectSolver = mpi::direct::skyline_lu<typename LocalPrecond::backend_type::value_type>
     >
 class subdomain_deflation {
     public:
@@ -172,10 +172,9 @@ class subdomain_deflation {
                 const backend_params &bprm = backend_params()
                 )
         : comm(mpi_comm),
-          nrows(backend::rows(Astrip)), ndv(prm.num_def_vec), uniform_ndv(true),
+          nrows(backend::rows(Astrip)), ndv(prm.num_def_vec),
           dtype( datatype<value_type>() ), dv_start(comm.size + 1, 0),
-          Z( ndv ), master_rank(0),
-          q( backend_type::create_vector(nrows, bprm) ),
+          Z( ndv ), q( backend_type::create_vector(nrows, bprm) ),
           S(nrows, prm.isolver, bprm, mpi::inner_product(mpi_comm))
         {
             AMGCL_TIC("setup deflation");
@@ -186,13 +185,6 @@ class subdomain_deflation {
             // Lets see how many deflation vectors are there.
             std::vector<ptrdiff_t> dv_size(comm.size);
             MPI_Allgather(&ndv, 1, datatype<ptrdiff_t>(), &dv_size[0], 1, datatype<ptrdiff_t>(), comm);
-
-            for(int i = 0; i < comm.size; ++i) {
-                if (dv_size[i] != ndv) {
-                    uniform_ndv = false;
-                    break;
-                }
-            }
 
             std::partial_sum(dv_size.begin(), dv_size.end(), dv_start.begin() + 1);
             nz = dv_start.back();
@@ -408,77 +400,19 @@ class subdomain_deflation {
             AMGCL_TOC("remote(A*Z)");
 
 
-            /* Build deflated matrix E. */
+            /* Build solver for the deflated matrix E. */
             AMGCL_TIC("assemble E");
-            // Who is responsible for solution of coarse problem
-            int nmasters = std::min(comm.size, DirectSolver::comm_size(nz, prm.dsolver));
-            int nslaves  = (comm.size + nmasters - 1) / nmasters;
-            int cgroup_beg = 0, cgroup_end = 0;
-            std::vector<int> slaves(nmasters + 1, 0);
-            for(int p = 1; p <= nmasters; ++p) {
-                slaves[p] = std::min(p * nslaves, comm.size);
-                if (slaves[p-1] <= comm.rank && comm.rank < slaves[p]) {
-                    cgroup_beg  = slaves[p - 1];
-                    cgroup_end  = slaves[p];
-                    master_rank = slaves[p-1];
-                    nslaves     = cgroup_end - cgroup_beg;
-                }
-            }
-
-            // Communicator for masters (used to solve the coarse problem):
-            MPI_Comm_split(comm,
-                    comm.rank == master_rank ? 0 : MPI_UNDEFINED,
-                    comm.rank, &masters_comm
-                    );
-
-            // Communicator for slaves (used to send/recv coarse data):
-            MPI_Comm_split(comm, master_rank, comm.rank, &slaves_comm);
 
             // Count nonzeros in E.
-            std::vector<int> eptr(ndv + 1, 0);
+            build_matrix E;
+            E.set_size(ndv, nz, true);
             for(int j = 0; j < comm.size; ++j) {
                 if (j == comm.rank || Acp.talks_to(j)) {
                     for(int k = 0; k < ndv; ++k)
-                        eptr[k + 1] += dv_size[j];
+                        E.ptr[k + 1] += dv_size[j];
                 }
             }
-
-            sstart.resize(nslaves);
-            ssize.resize(nslaves);
-            for(int p = cgroup_beg, i = 0, offset = dv_start[p]; p < cgroup_end; ++p, ++i) {
-                sstart[i] = dv_start[p] - offset;
-                ssize[i]  = dv_start[p + 1] - dv_start[p];
-            }
-
-
-            std::vector<int> Eptr;
-            if (comm.rank == master_rank) {
-                Eptr.resize(dv_start[cgroup_end] - dv_start[cgroup_beg] + 1, 0);
-
-                if (uniform_ndv) {
-                    MPI_Gather(
-                            &eptr[1], ndv, MPI_INT, &Eptr[0] + 1, ndv, MPI_INT,
-                            0, slaves_comm);
-                } else {
-                    MPI_Gatherv(
-                            &eptr[1], ndv, MPI_INT, &Eptr[0] + 1,
-                            const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
-                            MPI_INT, 0, slaves_comm);
-                }
-            } else {
-                if (uniform_ndv) {
-                    MPI_Gather(
-                            &eptr[1], ndv, MPI_INT, NULL, ndv, MPI_INT,
-                            0, slaves_comm);
-                } else {
-                    MPI_Gatherv(
-                            &eptr[1], ndv, MPI_INT, NULL, NULL, NULL,
-                            MPI_INT, 0, slaves_comm);
-                }
-            }
-
-            std::partial_sum(eptr.begin(), eptr.end(), eptr.begin());
-            std::partial_sum(Eptr.begin(), Eptr.end(), Eptr.begin());
+            E.set_nonzeros(E.scan_row_sizes());
 
             // Build local strip of E.
             boost::multi_array<value_type, 2> erow(boost::extents[ndv][nz]);
@@ -509,89 +443,30 @@ class subdomain_deflation {
                 }
             }
 
-            std::vector<int>        ecol(eptr.back());
-            std::vector<value_type> eval(eptr.back());
             for(int i = 0; i < ndv; ++i) {
-                int row_head = eptr[i];
+                int row_head = E.ptr[i];
                 for(int j = 0; j < comm.size; ++j) {
                     if (j == comm.rank || Acp.talks_to(j)) {
                         for(int k = 0; k < dv_size[j]; ++k) {
                             int c = dv_start[j] + k;
-                            ecol[row_head] = c;
-                            eval[row_head] = erow[i][c];
+                            E.col[row_head] = c;
+                            E.val[row_head] = erow[i][c];
                             ++row_head;
                         }
                     }
                 }
             }
-
-            // Exchange strips of E.
-            std::vector<int>        Ecol;
-            std::vector<value_type> Eval;
-            if (comm.rank == master_rank) {
-                Ecol.resize(Eptr.back());
-                Eval.resize(Eptr.back());
-
-                for(int p = cgroup_beg, i = 0, offset = dv_start[p]; p < cgroup_end; ++p, ++i) {
-                    sstart[i] = Eptr[dv_start[p]     - offset];
-                    ssize[i]  = Eptr[dv_start[p + 1] - offset] - sstart[i];
-                }
-
-                MPI_Gatherv(
-                        &ecol[0], ecol.size(), MPI_INT, &Ecol[0],
-                        const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
-                        MPI_INT, 0, slaves_comm
-                        );
-
-                MPI_Gatherv(
-                        &eval[0], eval.size(), dtype, &Eval[0],
-                        const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
-                        dtype, 0, slaves_comm
-                        );
-            } else {
-                MPI_Gatherv(
-                        &ecol[0], ecol.size(), MPI_INT, NULL, NULL, NULL,
-                        MPI_INT, 0, slaves_comm
-                        );
-
-                MPI_Gatherv(
-                        &eval[0], eval.size(), dtype, NULL, NULL, NULL,
-                        dtype, 0, slaves_comm
-                        );
-            }
             AMGCL_TOC("assemble E");
 
-            // Prepare E factorization.
             AMGCL_TIC("factorize E");
-            if (comm.rank == master_rank) {
-                E = boost::make_shared<DirectSolver>(
-                        masters_comm, Eptr.size() - 1, Eptr, Ecol, Eval, prm.dsolver
-                        );
-
-                cf.resize(Eptr.size() - 1);
-                cx.resize(Eptr.size() - 1);
-            }
+            this->E = boost::make_shared<DirectSolver>(comm, E, prm.dsolver);
             AMGCL_TOC("factorize E");
 
             AMGCL_TIC("finish(A*Z)");
             AZ = boost::make_shared<matrix>(comm, az_loc, az_rem);
             AZ->move_to_backend();
             AMGCL_TOC("finish(A*Z)");
-
-            // Prepare Gatherv configuration for coarse solve
-            if (!uniform_ndv) {
-                for(int p = cgroup_beg, i = 0, offset = dv_start[p]; p < cgroup_end; ++p, ++i) {
-                    sstart[i] = dv_start[p] - offset;
-                    ssize[i]  = dv_start[p + 1] - dv_start[p];
-                }
-            }
             AMGCL_TOC("setup deflation");
-        }
-
-        ~subdomain_deflation() {
-            E.reset();
-            if (masters_comm != MPI_COMM_NULL) MPI_Comm_free(&masters_comm);
-            if (slaves_comm  != MPI_COMM_NULL) MPI_Comm_free(&slaves_comm);
         }
 
         template <class Vec1, class Vec2>
@@ -680,21 +555,17 @@ class subdomain_deflation {
 
         communicator comm;
         ptrdiff_t nrows, ndv, nz;
-        bool uniform_ndv;
 
         MPI_Datatype dtype;
 
         boost::shared_ptr<matrix> A, AZ;
         boost::shared_ptr<LocalPrecond> P;
 
-        mutable std::vector<value_type> df, dx, cf, cx;
+        mutable std::vector<value_type> df, dx;
         std::vector<ptrdiff_t> dv_start;
-        std::vector<int> sstart, ssize;
 
         std::vector< boost::shared_ptr<vector> > Z;
 
-        MPI_Comm masters_comm, slaves_comm;
-        int master_rank;
         boost::shared_ptr<DirectSolver> E;
 
         boost::shared_ptr<vector> q;
@@ -705,47 +576,7 @@ class subdomain_deflation {
         void coarse_solve(std::vector<value_type> &f, std::vector<value_type> &x) const
         {
             AMGCL_TIC("coarse solve");
-            AMGCL_TIC("exchange rhs");
-            if (comm.rank == master_rank) {
-                if (uniform_ndv) {
-                    MPI_Gather(&f[0], ndv, dtype, &cf[0], ndv, dtype, 0, slaves_comm);
-                } else {
-                    MPI_Gatherv(&f[0], ndv, dtype, &cf[0],
-                            const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
-                            dtype, 0, slaves_comm);
-                }
-            } else {
-                if (uniform_ndv) {
-                    MPI_Gather(&f[0], ndv, dtype, NULL, ndv, dtype, 0, slaves_comm);
-                } else {
-                    MPI_Gatherv(&f[0], f.size(), dtype, NULL, NULL, NULL,
-                            dtype, 0, slaves_comm);
-                }
-            }
-            AMGCL_TOC("exchange rhs");
-
-            if (comm.rank == master_rank) {
-                AMGCL_TIC("call solver");
-                (*E)(cf, cx);
-                AMGCL_TOC("call solver");
-
-                AMGCL_TIC("scatter result");
-                if (uniform_ndv) {
-                    MPI_Scatter(&cx[0], ndv, dtype, &x[0], ndv, dtype, 0, slaves_comm);
-                } else {
-                    MPI_Scatterv(&cx[0],
-                            const_cast<int*>(&ssize[0]), const_cast<int*>(&sstart[0]),
-                            dtype, &x[0], ndv, dtype, 0, slaves_comm);
-                }
-                AMGCL_TOC("scatter result");
-            } else {
-                if (uniform_ndv) {
-                    MPI_Scatter(NULL, ndv, dtype, &x[0], ndv, dtype, 0, slaves_comm);
-                } else {
-                    MPI_Scatterv(NULL, NULL, NULL, dtype, &x[0], ndv, dtype, 0, slaves_comm);
-                }
-            }
-
+            (*E)(f, x);
             AMGCL_TOC("coarse solve");
         }
 

@@ -36,16 +36,23 @@ distributed direct solver interface but always works sequentially.
 
 #include <mpi.h>
 
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
+
 #include <Eigen/SparseLU>
+#include <amgcl/backend/builtin.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/solver/eigen.hpp>
+#include <amgcl/mpi/util.hpp>
+#include <amgcl/mpi/direct_solver/solver_base.hpp>
 
 namespace amgcl {
 namespace mpi {
+namespace direct {
 
 /// Provides distributed direct solver interface for Skyline LU solver.
 template <typename value_type>
-class eigen_splu {
+class eigen_splu : public solver_base< value_type, eigen_splu<value_type> > {
     public:
         typedef
             amgcl::solver::EigenSolver<
@@ -54,37 +61,23 @@ class eigen_splu {
                     >
                 >
             Solver;
-
         typedef typename Solver::params params;
+        typedef backend::crs<value_type> build_matrix;
 
-        /// The number of processes optimal for the given problem size.
-        static int comm_size(int /*n_global_rows*/, const params& = params()) {
+        /// Constructor.
+        eigen_splu(communicator comm, const build_matrix &A,
+                const params &prm = params()) : prm(prm)
+        {
+            static_cast<Base*>(this)->init(comm, A);
+        }
+
+        int comm_size(int /*n*/) const {
             return 1;
         }
 
-        /// Constructor.
-        /**
-         * \param comm MPI communicator containing processes to participate in
-         *        solution of the problem. The number of processes in
-         *        communicator should be (but not necessarily) equal to the
-         *        result of comm_size().
-         * \param n_local_rows Number of matrix rows belonging to the calling
-         *        process.
-         * \param ptr Start of each row in col and val arrays.
-         * \param col Column numbers of nonzero elements.
-         * \param val Values of nonzero elements.
-         * \param prm Solver parameters.
-         */
-        template <class PRng, class CRng, class VRng>
-        eigen_splu(
-                MPI_Comm,
-                int n_local_rows,
-                const PRng &ptr,
-                const CRng &col,
-                const VRng &val,
-                const params &prm = params()
-                ) : S( boost::tie(n_local_rows, ptr, col, val), prm )
-        {}
+        void init(communicator, const build_matrix &A) {
+            S = boost::make_shared<Solver>(A, prm);
+        }
 
         /// Solves the problem for the given right-hand side.
         /**
@@ -93,13 +86,16 @@ class eigen_splu {
          */
         template <class Vec1, class Vec2>
         void operator()(const Vec1 &rhs, Vec2 &x) const {
-            S(rhs, x);
+            (*S)(rhs, x);
         }
     private:
-        solver::skyline_lu<value_type> S;
+        typedef solver_base< value_type, eigen_splu<value_type> > Base;
+        params prm;
+        boost::shared_ptr<Solver> S;
 };
 
-}
-}
+} // namespace direct
+} // namespace mpi
+} // namespace amgcl
 
 #endif

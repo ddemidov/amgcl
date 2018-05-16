@@ -42,7 +42,9 @@ See http://pastix.gforge.inria.fr
 #include <boost/foreach.hpp>
 
 #include <amgcl/util.hpp>
+#include <amgcl/backend/builtin.hpp>
 #include <amgcl/mpi/util.hpp>
+#include <amgcl/mpi/direct_solver/solver_base.hpp>
 
 extern "C" {
 #include <pastix.h>
@@ -50,19 +52,22 @@ extern "C" {
 
 namespace amgcl {
 namespace mpi {
+namespace direct {
 
-/// Provides distributed direct solver interface for PaStiX solver.
+/// Provides distributed direct solver interface for pastix solver.
 /**
  * \sa http://pastix.gforge.inria.fr, \cite Henon2002
  */
 template <typename value_type, bool Distrib=false>
-class PaStiX {
+class pastix : public solver_base< value_type, pastix<value_type, Distrib> > {
     public:
         BOOST_STATIC_ASSERT_MSG( (
                  boost::is_same<value_type, float >::value ||
                  boost::is_same<value_type, double>::value
-                ), "Unsupported value type for PaStiX solver"
+                ), "Unsupported value type for pastix solver"
                 );
+
+        typedef backend::crs<value_type> build_matrix;
 
         struct params {
             int max_rows_per_process;
@@ -82,42 +87,28 @@ class PaStiX {
             }
         };
 
-        /// The number of processes optimal for the given problem size.
-        static int comm_size(int n_global_rows, const params &prm = params()) {
-            if (Distrib)
-                return (n_global_rows + prm.max_rows_per_process - 1) / prm.max_rows_per_process;
-            else
-                return 1;
+        /// Constructor.
+        pastix(communicator comm, const build_matrix &A,
+                const params &prm = params()) : prm(prm)
+        {
+            static_cast<Base*>(this)->init(comm, A);
         }
 
-        /// Constructor.
-        /**
-         * \param comm MPI communicator containing processes to participate in
-         *        solution of the problem. The number of processes in
-         *        communicator should be (but not necessarily) equal to the
-         *        result of comm_size().
-         * \param n_local_rows Number of matrix rows belonging to the calling
-         *        process.
-         * \param ptr Start of each row in col and val arrays.
-         * \param col Column numbers of nonzero elements.
-         * \param val Values of nonzero elements.
-         * \param prm Solver parameters.
-         */
-        template <class PRng, class CRng, class VRng>
-        PaStiX(
-                MPI_Comm mpi_comm,
-                int n_local_rows,
-                const PRng &p_ptr,
-                const CRng &p_col,
-                const VRng &p_val,
-                const params& = params()
-                )
-            : comm(mpi_comm), nrows(n_local_rows), pastix_data(0),
-              ptr(boost::begin(p_ptr), boost::end(p_ptr)),
-              col(boost::begin(p_col), boost::end(p_col)),
-              val(boost::begin(p_val), boost::end(p_val)),
-              row(nrows), perm(nrows)
-        {
+        int comm_size(int n) const {
+            return Distrib ? (n + prm.max_rows_per_process - 1) / prm.max_rows_per_process : 1;
+        }
+
+        void init(communicator C, const build_matrix &A) {
+            comm = C;
+            nrows = A.nrows;
+            pastix_data = 0;
+            ptr.assign(A.ptr, A.ptr + A.nrows);
+            col.assign(A.col, A.col + A.nnz);
+            val.assign(A.val, A.val + A.nnz);
+
+            row.resize(nrows);
+            perm.resize(nrows);
+
             if (!Distrib) inv_perm.resize(nrows);
 
             std::vector<int> domain = mpi::exclusive_sum(comm, nrows);
@@ -146,7 +137,7 @@ class PaStiX {
         }
 
         /// Cleans up internal PaStiX data.
-        ~PaStiX() {
+        ~pastix() {
             call_pastix(API_TASK_CLEAN, API_TASK_CLEAN);
         }
 
@@ -161,6 +152,8 @@ class PaStiX {
             call_pastix(API_TASK_SOLVE, API_TASK_SOLVE, &x[0]);
         }
     private:
+        typedef solver_base< value_type, pastix<value_type, Distrib> > Base;
+        params prm;
         amgcl::mpi::communicator comm;
 
         int nrows;
@@ -235,7 +228,9 @@ class PaStiX {
         }
 };
 
-}
-}
+} // namespace direct
+} // namespace mpi
+} // namespace amgcl
+
 
 #endif

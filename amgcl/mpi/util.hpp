@@ -111,6 +111,8 @@ struct communicator {
     int      rank;
     int      size;
 
+    communicator() {}
+
     communicator(MPI_Comm comm) : comm(comm) {
         MPI_Comm_rank(comm, &rank);
         MPI_Comm_size(comm, &size);
