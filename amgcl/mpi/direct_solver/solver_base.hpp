@@ -103,7 +103,7 @@ class solver_base {
 
                     for(int i = 0, j = group_beg; j < group_end; ++i, ++j) {
                         count[i] = domain[j+1] - domain[j];
-                        displ[i] = i ? displ[i-1] + count[i] : 0;
+                        displ[i] = i ? displ[i-1] + count[i-1] : 0;
                     }
 
                     MPI_Gatherv(&widths[0], n, datatype<ptrdiff_t>(),
@@ -118,7 +118,7 @@ class solver_base {
 
                 for(int i = 0, j = group_beg, d0 = domain[group_beg]; j < group_end; ++i, ++j) {
                     nnz_count[i] = A.ptr[domain[j+1] - d0] - A.ptr[domain[j] - d0];
-                    nnz_displ[i] = i ? nnz_displ[i-1] + nnz_count[i] : 0;
+                    nnz_displ[i] = i ? nnz_displ[i-1] + nnz_count[i-1] : 0;
                 }
 
                 MPI_Gatherv(&Astrip.col[0], Astrip.nnz, datatype<ptrdiff_t>(),

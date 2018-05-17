@@ -90,7 +90,7 @@ class pastix : public solver_base< value_type, pastix<value_type, Distrib> > {
         /// Constructor.
         template <class Matrix>
         pastix(communicator comm, const Matrix &A,
-                const params &prm = params()) : prm(prm)
+                const params &prm = params()) : prm(prm), pastix_data(0)
         {
             static_cast<Base*>(this)->init(comm, A);
         }
@@ -102,8 +102,7 @@ class pastix : public solver_base< value_type, pastix<value_type, Distrib> > {
         void init(communicator C, const build_matrix &A) {
             comm = C;
             nrows = A.nrows;
-            pastix_data = 0;
-            ptr.assign(A.ptr, A.ptr + A.nrows);
+            ptr.assign(A.ptr, A.ptr + A.nrows + 1);
             col.assign(A.col, A.col + A.nnz);
             val.assign(A.val, A.val + A.nnz);
 
@@ -126,7 +125,11 @@ class pastix : public solver_base< value_type, pastix<value_type, Distrib> > {
             call_pastix(API_TASK_INIT, API_TASK_INIT);
 
             // Factorize the matrix.
+#ifdef NDEBUG
             iparm[IPARM_VERBOSE        ] = API_VERBOSE_NOT;
+#else
+            iparm[IPARM_VERBOSE        ] = API_VERBOSE_YES;
+#endif
             iparm[IPARM_RHS_MAKING     ] = API_RHS_B;
             iparm[IPARM_SYM            ] = API_SYM_NO;
             iparm[IPARM_FACTORIZATION  ] = API_FACT_LU;
@@ -139,7 +142,7 @@ class pastix : public solver_base< value_type, pastix<value_type, Distrib> > {
 
         /// Cleans up internal PaStiX data.
         ~pastix() {
-            call_pastix(API_TASK_CLEAN, API_TASK_CLEAN);
+            if(pastix_data) call_pastix(API_TASK_CLEAN, API_TASK_CLEAN);
         }
 
         /// Solves the problem for the given right-hand side.
