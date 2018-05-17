@@ -154,17 +154,19 @@ struct crs {
         nrows(other.nrows), ncols(other.ncols), nnz(other.nnz),
         ptr(0), col(0), val(0), own_data(true)
     {
-        ptr = new ptr_type[nrows + 1];
-        col = new col_type[nnz];
-        val = new val_type[nnz];
+        if (other.ptr && other.col && other.val) {
+            ptr = new ptr_type[nrows + 1];
+            col = new col_type[nnz];
+            val = new val_type[nnz];
 
-        ptr[0] = other.ptr[0];
+            ptr[0] = other.ptr[0];
 #pragma omp parallel for
-        for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(nrows); ++i) {
-            ptr[i+1] = other.ptr[i+1];
-            for(ptr_type j = other.ptr[i]; j < other.ptr[i+1]; ++j) {
-                col[j] = other.col[j];
-                val[j] = other.val[j];
+            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(nrows); ++i) {
+                ptr[i+1] = other.ptr[i+1];
+                for(ptr_type j = other.ptr[i]; j < other.ptr[i+1]; ++j) {
+                    col[j] = other.col[j];
+                    val[j] = other.val[j];
+                }
             }
         }
     }
@@ -190,17 +192,19 @@ struct crs {
         ncols = other.ncols;
         nnz   = other.nnz;
 
-        ptr = new ptr_type[nrows + 1];
-        col = new col_type[nnz];
-        val = new val_type[nnz];
+        if (other.ptr && other.col && other.val) {
+            ptr = new ptr_type[nrows + 1];
+            col = new col_type[nnz];
+            val = new val_type[nnz];
 
-        ptr[0] = other.ptr[0];
+            ptr[0] = other.ptr[0];
 #pragma omp parallel for
-        for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(nrows); ++i) {
-            ptr[i+1] = other.ptr[i+1];
-            for(ptr_type j = other.ptr[i]; j < other.ptr[i+1]; ++j) {
-                col[j] = other.col[j];
-                val[j] = other.val[j];
+            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(nrows); ++i) {
+                ptr[i+1] = other.ptr[i+1];
+                for(ptr_type j = other.ptr[i]; j < other.ptr[i+1]; ++j) {
+                    col[j] = other.col[j];
+                    val[j] = other.val[j];
+                }
             }
         }
     }
