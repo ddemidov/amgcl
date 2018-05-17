@@ -34,7 +34,6 @@ find_package(Boost REQUIRED COMPONENTS
     program_options
     serialization
     system
-    filesystem
     thread
     atomic
     unit_test_framework
