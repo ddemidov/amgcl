@@ -71,6 +71,18 @@ class block_preconditioner {
             A->move_to_backend();
         }
 
+        block_preconditioner(
+                communicator,
+                boost::shared_ptr<matrix> A,
+                const params &prm = params(),
+                const backend_params &bprm = backend_params()
+                ) : A(A)
+        {
+            P = boost::make_shared<Precond>(A->local(), prm, bprm);
+            A->set_local(P->system_matrix_ptr());
+            A->move_to_backend();
+        }
+
         boost::shared_ptr<matrix> system_matrix_ptr() const {
             return A;
         }

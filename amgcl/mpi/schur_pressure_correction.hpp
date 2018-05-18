@@ -155,20 +155,31 @@ class schur_pressure_correction {
                 )
             : prm(prm), comm(mpi_comm)
         {
-            typedef typename backend::row_iterator<Matrix>::type row_iterator;
+            this->K = boost::make_shared<matrix>(comm, K, backend::rows(K), bprm);
+            init(bprm);
+        }
+
+        schur_pressure_correction(
+                MPI_Comm mpi_comm,
+                boost::shared_ptr<matrix> K,
+                const params &prm = params(),
+                const backend_params &bprm = backend_params()
+                )
+            : prm(prm), comm(mpi_comm), K(K)
+        {
+            init(bprm);
+        }
+
+        void init(const backend_params &bprm) {
             using boost::tie;
             using boost::make_tuple;
             using boost::shared_ptr;
             using boost::make_shared;
 
-            // Get sizes of each domain in comm.
-            AMGCL_TIC("domain sizes");
-            ptrdiff_t n = backend::rows(K);
-            std::vector<ptrdiff_t> domain = mpi::exclusive_sum(comm, n);
+            build_matrix &K_loc = *K->local();
+            build_matrix &K_rem = *K->remote();
 
-            ptrdiff_t loc_beg = domain[comm.rank];
-            ptrdiff_t loc_end = domain[comm.rank + 1];
-            AMGCL_TOC("domain sizes");
+            ptrdiff_t n = K->loc_rows();
 
             // Count pressure and flow variables.
             AMGCL_TIC("count pressure/flow vars");
@@ -179,56 +190,7 @@ class schur_pressure_correction {
                 idx[i] = (prm.pmask[i] ? np++ : nu++);
             AMGCL_TOC("count pressure/flow vars");
 
-            // Split the matrix into local and remote parts.
-            AMGCL_TIC("split local/remote");
-            shared_ptr<build_matrix> K_loc = make_shared<build_matrix>();
-            shared_ptr<build_matrix> K_rem = make_shared<build_matrix>();
-
-            K_loc->set_size(n, n, true);
-            K_rem->set_size(n, 0, true); // number of columns is unknown at this point
-
-#pragma omp parallel for
-            for(ptrdiff_t i = 0; i < n; ++i) {
-                for(row_iterator a = backend::row_begin(K, i); a; ++a) {
-                    ptrdiff_t c = a.col();
-
-                    if (loc_beg <= c && c < loc_end)
-                        ++K_loc->ptr[i+1];
-                    else
-                        ++K_rem->ptr[i+1];
-                }
-            }
-
-            K_loc->set_nonzeros(K_loc->scan_row_sizes());
-            K_rem->set_nonzeros(K_rem->scan_row_sizes());
-
-#pragma omp parallel for
-            for(ptrdiff_t i = 0; i < n; ++i) {
-                ptrdiff_t loc_head = K_loc->ptr[i];
-                ptrdiff_t rem_head = K_rem->ptr[i];
-
-                for(row_iterator a = backend::row_begin(K, i); a; ++a) {
-                    ptrdiff_t  c = a.col();
-                    value_type v = a.value();
-
-                    if (loc_beg <= c && c < loc_end) {
-                        K_loc->col[loc_head] = c - loc_beg;
-                        K_loc->val[loc_head] = v;
-                        ++loc_head;
-                    } else {
-                        K_rem->col[rem_head] = c;
-                        K_rem->val[rem_head] = v;
-                        ++rem_head;
-                    }
-                }
-            }
-            AMGCL_TOC("split local/remote");
-
-            // Analyze communication pattern for the system matrix
             AMGCL_TIC("setup communication");
-            this->K = make_shared<matrix>(comm, K_loc, K_rem, bprm);
-            this->K->move_to_backend();
-
             // We know what points each of our neighbors needs from us;
             // and we know if those points are pressure or flow.
             // We can immediately provide them with our renumbering scheme.
@@ -253,25 +215,30 @@ class schur_pressure_correction {
             AMGCL_TOC("setup communication");
 
             // Fill the subblocks of the system matrix.
-            // Kpp and Kpp have to be constructed as whole strips, and
-            // Kup and Kpu may be split to local/remote parts immediately.
             // K_rem->col may be used as direct indices into rmask and r_idx.
             AMGCL_TIC("schur blocks");
-            shared_ptr<build_matrix> Kpp = make_shared<build_matrix>();
-            shared_ptr<build_matrix> Kuu = make_shared<build_matrix>();
+            this->K->move_to_backend();
+
+            shared_ptr<build_matrix> Kpp_loc = make_shared<build_matrix>();
+            shared_ptr<build_matrix> Kpp_rem = make_shared<build_matrix>();
+            shared_ptr<build_matrix> Kuu_loc = make_shared<build_matrix>();
+            shared_ptr<build_matrix> Kuu_rem = make_shared<build_matrix>();
 
             shared_ptr<build_matrix> Kpu_loc = make_shared<build_matrix>();
             shared_ptr<build_matrix> Kpu_rem = make_shared<build_matrix>();
             shared_ptr<build_matrix> Kup_loc = make_shared<build_matrix>();
             shared_ptr<build_matrix> Kup_rem = make_shared<build_matrix>();
 
-            Kpp->set_size(np, pdomain.back(), true);
-            Kuu->set_size(nu, udomain.back(), true);
+            Kpp_loc->set_size(np, np, true);
+            Kpp_rem->set_size(np, 0, true);
+
+            Kuu_loc->set_size(nu, nu, true);
+            Kuu_rem->set_size(nu, 0, true);
 
             Kpu_loc->set_size(np, nu, true);
-            Kup_loc->set_size(nu, np, true);
-
             Kpu_rem->set_size(np, 0, true);
+
+            Kup_loc->set_size(nu, np, true);
             Kup_rem->set_size(nu, 0, true);
 
 #pragma omp parallel for
@@ -281,12 +248,12 @@ class schur_pressure_correction {
                 ptrdiff_t ci = idx[i];
                 char      pi = prm.pmask[i];
 
-                for(row_iterator a = row_begin(*K_loc, i); a; ++a) {
+                for(row_iterator a = row_begin(K_loc, i); a; ++a) {
                     char pj = prm.pmask[a.col()];
 
                     if (pi) {
                         if (pj) {
-                            ++Kpp->ptr[ci + 1];
+                            ++Kpp_loc->ptr[ci + 1];
                         } else {
                             ++Kpu_loc->ptr[ci + 1];
                         }
@@ -294,17 +261,17 @@ class schur_pressure_correction {
                         if (pj) {
                             ++Kup_loc->ptr[ci + 1];
                         } else {
-                            ++Kuu->ptr[ci + 1];
+                            ++Kuu_loc->ptr[ci + 1];
                         }
                     }
                 }
 
-                for(row_iterator a = row_begin(*K_rem, i); a; ++a) {
+                for(row_iterator a = row_begin(K_rem, i); a; ++a) {
                     char pj = rmask[a.col()];
 
                     if (pi) {
                         if (pj) {
-                            ++Kpp->ptr[ci + 1];
+                            ++Kpp_rem->ptr[ci + 1];
                         } else {
                             ++Kpu_rem->ptr[ci + 1];
                         }
@@ -312,14 +279,17 @@ class schur_pressure_correction {
                         if (pj) {
                             ++Kup_rem->ptr[ci + 1];
                         } else {
-                            ++Kuu->ptr[ci + 1];
+                            ++Kuu_rem->ptr[ci + 1];
                         }
                     }
                 }
             }
 
-            Kpp->set_nonzeros(Kpp->scan_row_sizes());
-            Kuu->set_nonzeros(Kuu->scan_row_sizes());
+            Kpp_loc->set_nonzeros(Kpp_loc->scan_row_sizes());
+            Kpp_rem->set_nonzeros(Kpp_rem->scan_row_sizes());
+
+            Kuu_loc->set_nonzeros(Kuu_loc->scan_row_sizes());
+            Kuu_rem->set_nonzeros(Kuu_rem->scan_row_sizes());
 
             Kpu_loc->set_nonzeros(Kpu_loc->scan_row_sizes());
             Kpu_rem->set_nonzeros(Kpu_rem->scan_row_sizes());
@@ -328,10 +298,6 @@ class schur_pressure_correction {
             Kup_rem->set_nonzeros(Kup_rem->scan_row_sizes());
 
             // Fill subblocks of the system matrix.
-            // Kpp and Kuu will be fed to the solvers constructors, so the
-            // columns should have global numeration.
-            // Kpu and Kup are only needed as distributed matrices, so their
-            // local and remote parts are constructed explicitly.
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < n; ++i) {
                 typedef typename backend::row_iterator<build_matrix>::type row_iterator;
@@ -339,32 +305,34 @@ class schur_pressure_correction {
                 ptrdiff_t ci = idx[i];
                 char      pi = prm.pmask[i];
 
-                ptrdiff_t pp_head = 0, uu_head = 0;
+                ptrdiff_t pp_loc_head = 0, pp_rem_head = 0;
+                ptrdiff_t uu_loc_head = 0, uu_rem_head = 0;
                 ptrdiff_t pu_loc_head = 0, pu_rem_head = 0;
                 ptrdiff_t up_loc_head = 0, up_rem_head = 0;
 
                 if(pi) {
-                    pp_head = Kpp->ptr[ci];
+                    pp_loc_head = Kpp_loc->ptr[ci];
+                    pp_rem_head = Kpp_rem->ptr[ci];
                     pu_loc_head = Kpu_loc->ptr[ci];
                     pu_rem_head = Kpu_rem->ptr[ci];
                 } else {
-                    uu_head = Kuu->ptr[ci];
+                    uu_loc_head = Kuu_loc->ptr[ci];
+                    uu_rem_head = Kuu_rem->ptr[ci];
                     up_loc_head = Kup_loc->ptr[ci];
                     up_rem_head = Kup_rem->ptr[ci];
                 }
 
-                for(row_iterator a = row_begin(*K_loc, i); a; ++a) {
+                for(row_iterator a = row_begin(K_loc, i); a; ++a) {
                     ptrdiff_t  j = a.col();
                     value_type v = a.value();
                     char      pj = prm.pmask[j];
                     ptrdiff_t cj = idx[j];
-                    ptrdiff_t loc_beg = pj ? p_beg : u_beg;
 
                     if (pi) {
                         if (pj) {
-                            Kpp->col[pp_head] = cj + loc_beg;
-                            Kpp->val[pp_head] = v;
-                            ++pp_head;
+                            Kpp_loc->col[pp_loc_head] = cj;
+                            Kpp_loc->val[pp_loc_head] = v;
+                            ++pp_loc_head;
                         } else {
                             Kpu_loc->col[pu_loc_head] = cj;
                             Kpu_loc->val[pu_loc_head] = v;
@@ -376,14 +344,14 @@ class schur_pressure_correction {
                             Kup_loc->val[up_loc_head] = v;
                             ++up_loc_head;
                         } else {
-                            Kuu->col[uu_head] = cj + loc_beg;
-                            Kuu->val[uu_head] = v;
-                            ++uu_head;
+                            Kuu_loc->col[uu_loc_head] = cj;
+                            Kuu_loc->val[uu_loc_head] = v;
+                            ++uu_loc_head;
                         }
                     }
                 }
 
-                for(row_iterator a = row_begin(*K_rem, i); a; ++a) {
+                for(row_iterator a = row_begin(K_rem, i); a; ++a) {
                     ptrdiff_t  j = a.col();
                     value_type v = a.value();
                     char      pj = rmask[j];
@@ -391,9 +359,9 @@ class schur_pressure_correction {
 
                     if (pi) {
                         if (pj) {
-                            Kpp->col[pp_head] = cj;
-                            Kpp->val[pp_head] = v;
-                            ++pp_head;
+                            Kpp_rem->col[pp_rem_head] = cj;
+                            Kpp_rem->val[pp_rem_head] = v;
+                            ++pp_rem_head;
                         } else {
                             Kpu_rem->col[pu_rem_head] = cj;
                             Kpu_rem->val[pu_rem_head] = v;
@@ -405,13 +373,16 @@ class schur_pressure_correction {
                             Kup_rem->val[up_rem_head] = v;
                             ++up_rem_head;
                         } else {
-                            Kuu->col[uu_head] = cj;
-                            Kuu->val[uu_head] = v;
-                            ++uu_head;
+                            Kuu_rem->col[uu_rem_head] = cj;
+                            Kuu_rem->val[uu_rem_head] = v;
+                            ++uu_rem_head;
                         }
                     }
                 }
             }
+
+            boost::shared_ptr<matrix> Kpp = boost::make_shared<matrix>(comm, Kpp_loc, Kpp_rem, bprm);
+            boost::shared_ptr<matrix> Kuu = boost::make_shared<matrix>(comm, Kuu_loc, Kuu_rem, bprm);
 
             Kpu = make_shared<matrix>(comm, Kpu_loc, Kpu_rem, bprm);
             Kup = make_shared<matrix>(comm, Kup_loc, Kup_rem, bprm);
@@ -421,10 +392,10 @@ class schur_pressure_correction {
             AMGCL_TOC("schur blocks");
 
             AMGCL_TIC("usolver")
-            U = make_shared<USolver>(mpi_comm, *Kuu, prm.usolver, bprm);
+            U = make_shared<USolver>(comm, Kuu, prm.usolver, bprm);
             AMGCL_TOC("usolver")
             AMGCL_TIC("psolver")
-            P = make_shared<PSolver>(mpi_comm, *Kpp, prm.psolver, bprm);
+            P = make_shared<PSolver>(comm, Kpp, prm.psolver, bprm);
             AMGCL_TOC("psolver")
 
             AMGCL_TIC("other");
@@ -441,12 +412,10 @@ class schur_pressure_correction {
 
 #pragma omp parallel
                 for(ptrdiff_t i = 0; i < nu; ++i) {
-                    // Keep in mind Kuu has global column numeration:
-                    ptrdiff_t dia = i + u_beg;
                     value_type v = math::zero<value_type>();
-                    for(ptrdiff_t j = Kuu->ptr[i], e = Kuu->ptr[i+1]; j < e; ++j) {
-                        if (Kuu->col[j] == dia) {
-                            v = math::inverse(Kuu->val[j]);
+                    for(ptrdiff_t j = Kuu_loc->ptr[i], e = Kuu_loc->ptr[i+1]; j < e; ++j) {
+                        if (Kuu_loc->col[j] == i) {
+                            v = math::inverse(Kuu_loc->val[j]);
                         }
                     }
                     (*M)[i] = v;

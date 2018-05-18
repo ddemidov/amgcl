@@ -92,6 +92,17 @@ class make_solver {
         {}
 
         make_solver(
+                MPI_Comm comm, boost::shared_ptr<matrix> A,
+                const params &prm = params(),
+                const backend_params &bprm = backend_params()
+                ) :
+            prm(prm), n(A->loc_rows()),
+            P(comm, A, prm.precond, bprm),
+            S(n, prm.solver, bprm, mpi::inner_product(comm))
+        {
+        }
+
+        make_solver(
                 MPI_Comm comm, boost::shared_ptr<build_matrix> A,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()

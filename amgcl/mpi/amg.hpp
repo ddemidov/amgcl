@@ -160,6 +160,16 @@ class amg {
             init(boost::make_shared<matrix>(comm, A, backend::rows(A), bprm), bprm);
         }
 
+        amg(
+                communicator,
+                boost::shared_ptr<matrix> A,
+                const params &prm = params(),
+                const backend_params &bprm = backend_params()
+           ) : prm(prm)
+        {
+            init(A, bprm);
+        }
+
         template <class Vec1, class Vec2>
         void cycle(
                 const Vec1 &rhs,

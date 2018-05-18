@@ -166,21 +166,44 @@ class subdomain_deflation {
 
         template <class Matrix>
         subdomain_deflation(
-                MPI_Comm mpi_comm,
+                communicator comm,
                 const Matrix &Astrip,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
                 )
-        : comm(mpi_comm),
+        : comm(comm),
           nrows(backend::rows(Astrip)), ndv(prm.num_def_vec),
           dtype( datatype<value_type>() ), dv_start(comm.size + 1, 0),
           Z( ndv ), q( backend_type::create_vector(nrows, bprm) ),
-          S(nrows, prm.isolver, bprm, mpi::inner_product(mpi_comm))
+          S(nrows, prm.isolver, bprm, mpi::inner_product(comm))
+        {
+            A = boost::make_shared<matrix>(comm, Astrip, nrows, bprm);
+            init(prm, bprm);
+        }
+
+        subdomain_deflation(
+                communicator comm,
+                boost::shared_ptr<matrix> A,
+                const params &prm = params(),
+                const backend_params &bprm = backend_params()
+                )
+        : comm(comm),
+          nrows(A->loc_rows()), ndv(prm.num_def_vec),
+          dtype( datatype<value_type>() ), A(A), dv_start(comm.size + 1, 0),
+          Z( ndv ), q( backend_type::create_vector(nrows, bprm) ),
+          S(nrows, prm.isolver, bprm, mpi::inner_product(comm))
+        {
+            init(prm, bprm);
+        }
+
+        void init(
+                const params &prm = params(),
+                const backend_params &bprm = backend_params()
+                )
         {
             AMGCL_TIC("setup deflation");
             typedef backend::crs<value_type, ptrdiff_t>                build_matrix;
-            typedef typename backend::row_iterator<Matrix>::type       row_iterator1;
-            typedef typename backend::row_iterator<build_matrix>::type row_iterator2;
+            typedef typename backend::row_iterator<build_matrix>::type row_iterator;
 
             // Lets see how many deflation vectors are there.
             std::vector<ptrdiff_t> dv_size(comm.size);
@@ -193,15 +216,13 @@ class subdomain_deflation {
             dx.resize(ndv);
             dd = backend_type::create_vector(ndv, bprm);
 
-            boost::shared_ptr<build_matrix> a_loc  = boost::make_shared<build_matrix>();
-            boost::shared_ptr<build_matrix> a_rem  = boost::make_shared<build_matrix>();
             boost::shared_ptr<build_matrix> az_loc = boost::make_shared<build_matrix>();
             boost::shared_ptr<build_matrix> az_rem = boost::make_shared<build_matrix>();
 
-            // Get sizes of each domain in comm.
-            std::vector<ptrdiff_t> domain = mpi::exclusive_sum(comm, nrows);
-            ptrdiff_t loc_beg = domain[comm.rank];
-            ptrdiff_t loc_end = domain[comm.rank + 1];
+            boost::shared_ptr<build_matrix> a_loc = A->local();
+            boost::shared_ptr<build_matrix> a_rem = A->remote();
+
+            const comm_pattern<backend_type> &Acp = A->cpat();
 
             // Fill deflation vectors.
             AMGCL_TIC("copy deflation vectors");
@@ -217,115 +238,57 @@ class subdomain_deflation {
             AMGCL_TOC("copy deflation vectors");
 
             AMGCL_TIC("first pass");
-            // First pass over Astrip rows:
-            // 1. Count local and remote nonzeros
-            a_loc->set_size(nrows, nrows, true);
             az_loc->set_size(nrows, ndv, true);
-            // ncols for remote parts are not known at this point,
-            // will update later:
-            a_rem->set_size(nrows, 0, true);
+            az_loc->set_nonzeros(nrows * dv_size[comm.rank]);
             az_rem->set_size(nrows, 0, true);
-
+            // 1. Build local part of AZ matrix.
+            // 2. Count remote nonzeros
 #pragma omp parallel
             {
-                std::vector<ptrdiff_t> marker(nz, -1);
+                std::vector<ptrdiff_t> marker(comm.size, -1);
 
 #pragma omp for
                 for(ptrdiff_t i = 0; i < nrows; ++i) {
-                    for(row_iterator1 a = backend::row_begin(Astrip, i); a; ++a) {
-                        ptrdiff_t c = a.col();
+                    ptrdiff_t az_loc_head = i * ndv;
+                    az_loc->ptr[i+1] = az_loc_head + ndv;
 
-#ifdef AMGCL_SANITY_CHECK
-                        precondition(comm, c >= 0 && c < domain.back(), "Column number is out of bounds");
-#endif
+                    for(ptrdiff_t j = 0; j < ndv; ++j) {
+                        az_loc->col[az_loc_head + j] = j;
+                        az_loc->val[az_loc_head + j] = math::zero<value_type>();
+                    }
 
-                        ptrdiff_t d = comm.rank; // domain the column belongs to
-                        bool local = (loc_beg <= c && c < loc_end);
+                    for(ptrdiff_t j = a_loc->ptr[i], e = a_loc->ptr[i+1]; j < e; ++j) {
+                        ptrdiff_t  c = a_loc->col[j];
+                        value_type v = a_loc->val[j];
 
-                        if (local) {
-                            ++a_loc->ptr[i+1];
-                        } else {
-                            ++a_rem->ptr[i+1];
-                            d = std::upper_bound(domain.begin(), domain.end(), c) - domain.begin() - 1;
-                        }
+                        for(ptrdiff_t j = 0; j < ndv; ++j)
+                            az_loc->val[az_loc_head + j] += v * prm.def_vec(c, j);
+                    }
+
+                    for(ptrdiff_t j = a_rem->ptr[i], e = a_rem->ptr[i+1]; j < e; ++j) {
+                        int d = Acp.domain(a_rem->col[j]);
 
                         if (marker[d] != i) {
                             marker[d] = i;
-
-                            if (local)
-                                az_loc->ptr[i+1] += dv_size[d];
-                            else
-                                az_rem->ptr[i+1] += dv_size[d];
+                            az_rem->ptr[i+1] += dv_size[d];
                         }
                     }
                 }
             }
+            az_rem->set_nonzeros(az_rem->scan_row_sizes());
             AMGCL_TOC("first pass");
 
-            AMGCL_TIC("second pass");
-            // Second pass over Astrip rows:
-            // 1. Build local and remote matrix parts.
-            // 2. Build local part of AZ matrix.
-            a_loc->set_nonzeros(a_loc->scan_row_sizes());
-            a_rem->set_nonzeros(a_rem->scan_row_sizes());
-            az_loc->set_nonzeros(az_loc->scan_row_sizes());
-            az_rem->set_nonzeros(az_rem->scan_row_sizes());
-
-#pragma omp parallel
-            {
-                std::vector<ptrdiff_t> marker(ndv, -1);
-
-#pragma omp for
-                for(ptrdiff_t i = 0; i < nrows; ++i) {
-                    ptrdiff_t a_loc_head = a_loc->ptr[i];
-                    ptrdiff_t a_rem_head = a_rem->ptr[i];
-
-                    ptrdiff_t az_loc_head = az_loc->ptr[i];
-                    ptrdiff_t az_loc_tail = az_loc_head;
-
-                    for(row_iterator1 a = backend::row_begin(Astrip, i); a; ++a) {
-                        ptrdiff_t  c = a.col();
-                        value_type v = a.value();
-
-                        if (loc_beg <= c && c < loc_end) {
-                            ptrdiff_t loc_c = c - loc_beg;
-                            a_loc->col[a_loc_head] = loc_c;
-                            a_loc->val[a_loc_head] = v;
-                            ++a_loc_head;
-
-                            for(ptrdiff_t j = 0; j < ndv; ++j) {
-                                if (marker[j] < az_loc_head) {
-                                    marker[j] = az_loc_tail;
-                                    assert(az_loc_tail < az_loc->nnz);
-                                    az_loc->col[az_loc_tail] = j;
-                                    az_loc->val[az_loc_tail] = v * prm.def_vec(loc_c, j);
-                                    ++az_loc_tail;
-                                } else {
-                                    az_loc->val[marker[j]] += v * prm.def_vec(loc_c, j);
-                                }
-                            }
-                        } else {
-                            a_rem->col[a_rem_head] = c;
-                            a_rem->val[a_rem_head] = v;
-                            ++a_rem_head;
-                        }
-                    }
-                }
-            }
-            AMGCL_TOC("second pass");
-
             // Create local preconditioner.
+            AMGCL_TIC("local preconditioner");
             P = boost::make_shared<LocalPrecond>( *a_loc, prm.local, bprm );
+            AMGCL_TOC("local preconditioner");
 
-            // Create distributed matrix A.
-            A = boost::make_shared<matrix>(comm, a_loc, a_rem);
             A->set_local(P->system_matrix_ptr());
             A->move_to_backend();
 
             AMGCL_TIC("remote(A*Z)");
             /* Construct remote part of AZ */
             // Exchange deflation vectors
-            const comm_pattern<backend_type> &Acp = A->cpat();
             std::vector<ptrdiff_t> zrecv_ptr(Acp.recv.nbr.size() + 1, 0);
             std::vector<ptrdiff_t> zcol_ptr;
             zcol_ptr.reserve(Acp.recv.val.size() + 1);
@@ -374,7 +337,7 @@ class subdomain_deflation {
                     ptrdiff_t az_rem_head = az_rem->ptr[i];
                     ptrdiff_t az_rem_tail = az_rem_head;
 
-                    for(row_iterator2 a = backend::row_begin(*a_rem, i); a; ++a) {
+                    for(row_iterator a = backend::row_begin(*a_rem, i); a; ++a) {
                         ptrdiff_t  c = a.col();
                         value_type v = a.value();
 
@@ -398,7 +361,6 @@ class subdomain_deflation {
                 }
             }
             AMGCL_TOC("remote(A*Z)");
-
 
             /* Build solver for the deflated matrix E. */
             AMGCL_TIC("assemble E");
