@@ -371,7 +371,7 @@ class subdomain_deflation {
             std::set_union(
                     Acp.send.nbr.begin(), Acp.send.nbr.end(),
                     Acp.recv.nbr.begin(), Acp.recv.nbr.end(),
-                    nbrs.begin());
+                    std::back_inserter(nbrs));
             nbrs.push_back(comm.rank);
 
             build_matrix E;
