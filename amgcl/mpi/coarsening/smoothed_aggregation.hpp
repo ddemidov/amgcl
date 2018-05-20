@@ -111,6 +111,12 @@ struct smoothed_aggregation {
 
                 for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j) {
                     ptrdiff_t c = A_loc.col[j];
+
+                    if (c != i && !aggr.strong_connection[j]) {
+                        Af_loc[j] = math::zero<value_type>();
+                        continue;
+                    }
+
                     if (c == i) {
                         Af_loc[j] = (1 - omega) * math::identity<value_type>();
                     } else {

@@ -806,10 +806,14 @@ product(
             ptrdiff_t rem_cols = 0;
 
             for(ptrdiff_t ja = A_loc.ptr[ia], ea = A_loc.ptr[ia + 1]; ja < ea; ++ja) {
-                ptrdiff_t ca = A_loc.col[ja];
+                ptrdiff_t  ca = A_loc.col[ja];
+                value_type va = A_loc.val[ja];
+                if (math::is_zero(va)) continue;
 
                 for(ptrdiff_t jb = B_loc.ptr[ca], eb = B_loc.ptr[ca+1]; jb < eb; ++jb) {
-                    ptrdiff_t cb = B_loc.col[jb];
+                    ptrdiff_t  cb = B_loc.col[jb];
+                    value_type vb = B_loc.val[jb];
+                    if (math::is_zero(vb)) continue;
 
                     if (loc_marker[cb] != ia) {
                         loc_marker[cb]  = ia;
@@ -818,7 +822,9 @@ product(
                 }
 
                 for(ptrdiff_t jb = B_rem.ptr[ca], eb = B_rem.ptr[ca+1]; jb < eb; ++jb) {
-                    ptrdiff_t cb = rem_idx[B_rem.col[jb]];
+                    ptrdiff_t  cb = rem_idx[B_rem.col[jb]];
+                    value_type vb = B_rem.val[jb];
+                    if (math::is_zero(vb)) continue;
 
                     if (rem_marker[cb] != ia) {
                         rem_marker[cb]  = ia;
@@ -828,10 +834,14 @@ product(
             }
 
             for(ptrdiff_t ja = A_rem.ptr[ia], ea = A_rem.ptr[ia + 1]; ja < ea; ++ja) {
-                ptrdiff_t ca = Acp.local_index(A_rem.col[ja]);
+                ptrdiff_t  ca = Acp.local_index(A_rem.col[ja]);
+                value_type va = A_rem.val[ja];
+                if (math::is_zero(va)) continue;
 
                 for(ptrdiff_t jb = B_nbr.ptr[ca], eb = B_nbr.ptr[ca+1]; jb < eb; ++jb) {
-                    ptrdiff_t cb = B_nbr.col[jb];
+                    ptrdiff_t  cb = B_nbr.col[jb];
+                    value_type vb = B_nbr.val[jb];
+                    if (math::is_zero(vb)) continue;
 
                     if (cb >= B_beg && cb < B_end) {
                         cb -= B_beg;
@@ -872,12 +882,14 @@ product(
             ptrdiff_t rem_end = rem_beg;
 
             for(ptrdiff_t ja = A_loc.ptr[ia], ea = A_loc.ptr[ia + 1]; ja < ea; ++ja) {
-                ptrdiff_t ca  = A_loc.col[ja];
+                ptrdiff_t  ca  = A_loc.col[ja];
                 value_type va = A_loc.val[ja];
+                if (math::is_zero(va)) continue;
 
                 for(ptrdiff_t jb = B_loc.ptr[ca], eb = B_loc.ptr[ca+1]; jb < eb; ++jb) {
                     ptrdiff_t  cb = B_loc.col[jb];
                     value_type vb = B_loc.val[jb];
+                    if (math::is_zero(vb)) continue;
 
                     if (loc_marker[cb] < loc_beg) {
                         loc_marker[cb] = loc_end;
@@ -895,6 +907,7 @@ product(
                     ptrdiff_t  gb = B_rem.col[jb];
                     ptrdiff_t  cb = rem_idx[gb];
                     value_type vb = B_rem.val[jb];
+                    if (math::is_zero(vb)) continue;
 
                     if (rem_marker[cb] < rem_beg) {
                         rem_marker[cb] = rem_end;
@@ -912,10 +925,12 @@ product(
             for(ptrdiff_t ja = A_rem.ptr[ia], ea = A_rem.ptr[ia + 1]; ja < ea; ++ja) {
                 ptrdiff_t  ca = Acp.local_index(A_rem.col[ja]);
                 value_type va = A_rem.val[ja];
+                if (math::is_zero(va)) continue;
 
                 for(ptrdiff_t jb = B_nbr.ptr[ca], eb = B_nbr.ptr[ca+1]; jb < eb; ++jb) {
                     ptrdiff_t  gb = B_nbr.col[jb];
                     value_type vb = B_nbr.val[jb];
+                    if (math::is_zero(vb)) continue;
 
                     if (gb >= B_beg && gb < B_end) {
                         ptrdiff_t cb = gb - B_beg;
