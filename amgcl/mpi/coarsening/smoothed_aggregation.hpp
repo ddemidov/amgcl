@@ -90,7 +90,7 @@ struct smoothed_aggregation {
         }
 
         // Temporarily substitute nonzeros of A with those of the filtered matrix,
-        // and use it to obtained the smoothed prolongation operator:
+        // and use it to obtain the smoothed prolongation operator:
         boost::shared_ptr<DM> P;
         AMGCL_TIC("smoothing");
         {
