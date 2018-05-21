@@ -123,16 +123,16 @@ struct plain_aggregates {
         const size_t n = rows(A);
 
         /* 1. Get strong connections */
-        std::vector<value_type> dia = diagonal(A);
+        boost::shared_ptr< backend::numa_vector<value_type> > dia = diagonal(A);
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-            value_type eps_dia_i = eps_squared * dia[i];
+            value_type eps_dia_i = eps_squared * (*dia)[i];
 
             for(ptrdiff_t j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
                 ptrdiff_t c = A.col[j];
                 value_type v = A.val[j];
 
-                strong_connection[j] = (c != i) && (eps_dia_i * dia[c] < v * v);
+                strong_connection[j] = (c != i) && (eps_dia_i * (*dia)[c] < v * v);
             }
         }
 

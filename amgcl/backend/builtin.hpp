@@ -398,27 +398,6 @@ void scale(crs<Val, Col, Ptr> &A, T s) {
     }
 }
 
-/// Diagonal of a matrix
-template < typename V, typename C, typename P >
-std::vector<V> diagonal(const crs<V, C, P> &A, bool invert = false)
-{
-    typedef typename crs<V, C, P>::row_iterator row_iterator;
-    const size_t n = rows(A);
-    std::vector<V> dia(n);
-
-#pragma omp parallel for
-    for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-        for(row_iterator a = A.row_begin(i); a; ++a) {
-            if (a.col() == i) {
-                dia[i] = invert ? math::inverse(a.value()) : a.value();
-                break;
-            }
-        }
-    }
-
-    return dia;
-}
-
 /** NUMA-aware vector container. */
 template <class T>
 class numa_vector {
@@ -501,6 +480,27 @@ class numa_vector {
         size_t n;
         T *p;
 };
+
+/// Diagonal of a matrix
+template < typename V, typename C, typename P >
+boost::shared_ptr< numa_vector<V> > diagonal(const crs<V, C, P> &A, bool invert = false)
+{
+    typedef typename crs<V, C, P>::row_iterator row_iterator;
+    const size_t n = rows(A);
+    boost::shared_ptr< numa_vector<V> > dia = boost::make_shared< numa_vector<V> >(n, false);
+
+#pragma omp parallel for
+    for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
+        for(row_iterator a = A.row_begin(i); a; ++a) {
+            if (a.col() == i) {
+                (*dia)[i] = invert ? math::inverse(a.value()) : a.value();
+                break;
+            }
+        }
+    }
+
+    return dia;
+}
 
 /**
  * The builtin backend does not have any dependencies except for the
