@@ -200,7 +200,7 @@ class schur_pressure_correction {
             ptrdiff_t u_beg = udomain[comm.rank];
 
             const CommPattern &C = this->K->cpat();
-            ptrdiff_t nsend = C.send.ptr.back(), nrecv = C.recv.ptr.back();
+            ptrdiff_t nsend = C.send.count(), nrecv = C.recv.count();
             std::vector<char>      smask(nsend), rmask(nrecv);
             std::vector<ptrdiff_t> s_idx(nsend), r_idx(nrecv);
 

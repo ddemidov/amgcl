@@ -291,7 +291,7 @@ class subdomain_deflation {
             // Exchange deflation vectors
             std::vector<ptrdiff_t> zrecv_ptr(Acp.recv.nbr.size() + 1, 0);
             std::vector<ptrdiff_t> zcol_ptr;
-            zcol_ptr.reserve(Acp.recv.val.size() + 1);
+            zcol_ptr.reserve(Acp.recv.count() + 1);
             zcol_ptr.push_back(0);
 
             for(size_t i = 0; i < Acp.recv.nbr.size(); ++i) {
@@ -305,7 +305,7 @@ class subdomain_deflation {
             }
 
             std::vector<value_type> zrecv(zrecv_ptr.back());
-            std::vector<value_type> zsend(Acp.send.val.size() * ndv);
+            std::vector<value_type> zsend(Acp.send.count() * ndv);
 
             for(size_t i = 0; i < Acp.recv.nbr.size(); ++i) {
                 ptrdiff_t begin = zrecv_ptr[i];
@@ -315,7 +315,7 @@ class subdomain_deflation {
                         tag_exc_vals, comm, &Acp.recv.req[i]);
             }
 
-            for(size_t i = 0, k = 0; i < Acp.send.col.size(); ++i)
+            for(size_t i = 0, k = 0; i < Acp.send.count(); ++i)
                 for(ptrdiff_t j = 0; j < ndv; ++j, ++k)
                     zsend[k] = prm.def_vec(Acp.send.col[i], j);
 
