@@ -265,13 +265,15 @@ struct crs {
         }
     }
 
-    void set_nonzeros(size_t n) {
+    void set_nonzeros(size_t n, bool need_values = true) {
         precondition(!col && !val, "matrix data has already been allocated!");
 
         nnz = n;
 
         col = new col_type[nnz];
-        val = new val_type[nnz];
+
+        if (need_values)
+            val = new val_type[nnz];
     }
 
     ~crs() {
