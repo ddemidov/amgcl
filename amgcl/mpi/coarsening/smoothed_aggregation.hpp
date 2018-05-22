@@ -103,11 +103,11 @@ struct smoothed_aggregation {
                 value_type D = math::zero<value_type>();
 
                 for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j) {
-                    if (A_loc.col[j] == i) {
-                        D = -omega * math::inverse(A_loc.val[j]);
-                        break;
-                    }
+                    if (A_loc.col[j] == i || !aggr.strong_connection[j])
+                        D += A_loc.val[j];
                 }
+
+                D = -omega * math::inverse(D);
 
                 for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j) {
                     ptrdiff_t c = A_loc.col[j];

@@ -122,7 +122,7 @@ struct smoothed_aggr_emin {
                 if (c == i)
                     D += v;
                 else if (!aggr.strong_connection[j]) {
-                    D -= v;
+                    D += v;
                     --row_width;
                 }
             }

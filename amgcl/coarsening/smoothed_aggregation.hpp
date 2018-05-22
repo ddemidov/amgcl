@@ -197,12 +197,10 @@ struct smoothed_aggregation {
                 // diagonal minus its weak connections.
                 value_type dia = math::zero<value_type>();
                 for(ptrdiff_t j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
-                    if (A.col[j] == i)
+                    if (A.col[j] == i || !aggr.strong_connection[j])
                         dia += A.val[j];
-                    else if (!aggr.strong_connection[j])
-                        dia -= A.val[j];
                 }
-                dia = math::inverse(dia);
+                dia = -omega * math::inverse(dia);
 
                 ptrdiff_t row_beg = P->ptr[i];
                 ptrdiff_t row_end = row_beg;
@@ -214,7 +212,7 @@ struct smoothed_aggregation {
 
                     value_type va = (ca == i)
                         ? static_cast<value_type>(static_cast<scalar_type>(1 - omega) * math::identity<value_type>())
-                        : static_cast<value_type>(static_cast<scalar_type>(-omega) * dia * A.val[ja]);
+                        : dia * A.val[ja]);
 
                     for(ptrdiff_t jp = P_tent->ptr[ca], ep = P_tent->ptr[ca+1]; jp < ep; ++jp) {
                         ptrdiff_t cp = P_tent->col[jp];
