@@ -16,3 +16,4 @@ Bibliography
 .. [Stue99] Stüben, Klaus. Algebraic multigrid (AMG): an introduction with applications. GMD-Forschungszentrum Informationstechnik, 1999.
 .. [Stue07] Stüben, Klaus, et al. "Algebraic multigrid methods (AMG) for the efficient solution of fully implicit formulations in reservoir simulation." SPE Reservoir Simulation Symposium. Society of Petroleum Engineers, 2007.
 .. [TrOS01] Trottenberg, U., Oosterlee, C., and Schüller, A. Multigrid. Academic Press, London, 2001.
+.. [VaMB96] Vaněk, Petr, Jan Mandel, and Marian Brezina. "Algebraic multigrid by smoothed aggregation for second and fourth order elliptic problems." Computing 56.3 (1996): 179-196.
