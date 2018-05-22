@@ -245,7 +245,7 @@ class subdomain_deflation {
             // 2. Count remote nonzeros
 #pragma omp parallel
             {
-                std::vector<ptrdiff_t> marker(comm.size, -1);
+                std::vector<ptrdiff_t> marker(Acp.recv.nbr.size(), -1);
 
 #pragma omp for
                 for(ptrdiff_t i = 0; i < nrows; ++i) {
