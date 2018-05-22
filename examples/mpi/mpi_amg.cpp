@@ -17,8 +17,7 @@
 #include <amgcl/coarsening/runtime.hpp>
 #include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/mpi/direct_solver/runtime.hpp>
-#include <amgcl/mpi/coarsening/local.hpp>
-#include <amgcl/mpi/coarsening/smoothed_aggregation.hpp>
+#include <amgcl/mpi/coarsening/smoothed_pmis.hpp>
 #include <amgcl/mpi/relaxation/local.hpp>
 
 #include <amgcl/profiler.hpp>
@@ -183,7 +182,7 @@ int main(int argc, char *argv[]) {
         amgcl::mpi::make_solver<
             amgcl::mpi::amg<
                 Backend,
-                amgcl::mpi::coarsening::smoothed_aggregation<Backend>,
+                amgcl::mpi::coarsening::smoothed_pmis<Backend>,
                 amgcl::mpi::relaxation::local<
                     Backend, amgcl::runtime::relaxation::wrapper
                     >,

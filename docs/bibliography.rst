@@ -1,6 +1,7 @@
 Bibliography
 ============
 
+.. [Adam98] Adams, Mark. "A parallel maximal independent set algorithm", in Proceedings 5th copper mountain conference on iterative methods, 1998.
 .. [AnCD15] Anzt, Hartwig, Edmond Chow, and Jack Dongarra. "Iterative sparse triangular solves for preconditioning." European Conference on Parallel Processing. Springer Berlin Heidelberg, 2015. 
 .. [Barr94] Barrett, Richard, et al. Templates for the solution of linear systems: building blocks for iterative methods. Vol. 43. Siam, 1994.
 .. [BaJM05] Baker, A. H., Jessup, E. R., & Manteuffel, T. (2005). A technique for accelerating the convergence of restarted GMRES. SIAM Journal on Matrix Analysis and Applications, 26(4), 962-984.
