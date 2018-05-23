@@ -72,6 +72,7 @@ struct smoothed_pmis {
         communicator comm = A.comm();
 
         // 1. Create filtered matrix
+        AMGCL_TIC("filtered matrix");
         ptrdiff_t n = A.loc_rows();
 
         const build_matrix &A_loc = *A.local();
@@ -175,14 +176,18 @@ struct smoothed_pmis {
         }
 
         boost::shared_ptr<DM> Af = boost::make_shared<DM>(comm, Af_loc, Af_rem, A.backend_prm());
+        AMGCL_TOC("filtered matrix");
 
         // 2. Get symbolic square of the filtered matrix.
+        AMGCL_TIC("symbolic square");
         boost::shared_ptr<DM> S = product(*Af, *Af, /*compute_values*/false);
         const build_matrix &S_loc = *S->local();
         const build_matrix &S_rem = *S->remote();
         const comm_pattern<Backend> &Sp = S->cpat();
+        AMGCL_TOC("symbolic square");
 
         // 3. Apply PMIS algorithm to the symbolic square.
+        AMGCL_TIC("PMIS");
         const ptrdiff_t undone   = -2;
         const ptrdiff_t deleted  = -1;
 
@@ -364,8 +369,10 @@ struct smoothed_pmis {
                 break;
             }
         }
+        AMGCL_TOC("PMIS");
 
         // 4. Form tentative prolongation operator.
+        AMGCL_TIC("tentative prolongation");
         boost::shared_ptr<build_matrix> P_loc = boost::make_shared<build_matrix>();
         boost::shared_ptr<build_matrix> P_rem = boost::make_shared<build_matrix>();
 
@@ -403,9 +410,12 @@ struct smoothed_pmis {
         }
 
         boost::shared_ptr<DM> P_tent = boost::make_shared<DM>(comm, P_loc, P_rem, A.backend_prm());
+        AMGCL_TOC("tentative prolongation");
 
         // 5. Smooth tentative prolongation with the filtered matrix.
+        AMGCL_TIC("smoothing");
         boost::shared_ptr<DM> P = product(*Af, *P_tent);
+        AMGCL_TOC("smoothing");
 
         return boost::make_tuple(P, transpose(*P));
     }
