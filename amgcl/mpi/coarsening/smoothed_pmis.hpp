@@ -186,19 +186,17 @@ struct smoothed_pmis {
         const ptrdiff_t undone   = -2;
         const ptrdiff_t deleted  = -1;
 
-        ptrdiff_t n_undone = 0, nbnd = 0;
+        ptrdiff_t n_undone = 0;
         std::vector<int>       loc_owner(n, -1);
         std::vector<ptrdiff_t> loc_state(n, undone);
         std::vector<ptrdiff_t> rem_state(Sp.recv.count(), undone);
         std::vector<ptrdiff_t> send_state(Sp.send.count());
 
         // Remove lonely nodes.
-#pragma omp parallel for reduction(+:nbnd,n_undone)
+#pragma omp parallel for reduction(+:n_undone)
         for(ptrdiff_t i = 0; i < n; ++i) {
             ptrdiff_t wl = S_loc.ptr[i+1] - S_loc.ptr[i];
             ptrdiff_t wr = S_rem.ptr[i+1] - S_rem.ptr[i];
-
-            if (wr) ++nbnd;
 
             if (wl + wr == 1) {
                 loc_state[i] = deleted;
@@ -215,11 +213,6 @@ struct smoothed_pmis {
             send_state[i] = loc_state[Sp.send.col[i]];
         Sp.exchange(&send_state[0], &rem_state[0]);
 
-        // Mark interface points
-        std::vector<ptrdiff_t> boundary; boundary.reserve(nbnd);
-        for(ptrdiff_t i = 0; i < n; ++i)
-            if (S_rem.ptr[i+1] > S_rem.ptr[i]) boundary.push_back(i);
-
         std::vector< std::vector<ptrdiff_t> > send_pts(Sp.recv.nbr.size());
         std::vector<ptrdiff_t> recv_pts;
 
@@ -233,66 +226,93 @@ struct smoothed_pmis {
                 send_pts[i].clear();
 
             if (n_undone) {
-                BOOST_FOREACH(ptrdiff_t i, boundary) {
+                for(ptrdiff_t i = 0; i < n; ++i) {
                     if (loc_state[i] != undone) continue;
 
-                    bool selectable = true;
-                    for(ptrdiff_t j = S_rem.ptr[i], e = S_rem.ptr[i+1]; j < e; ++j) {
-                        int d,c;
-                        boost::tie(d,c) = Sp.remote_info(S_rem.col[j]);
+                    if (S_rem.ptr[i+1] > S_rem.ptr[i]) {
+                        // Boundary points
+                        bool selectable = true;
+                        for(ptrdiff_t j = S_rem.ptr[i], e = S_rem.ptr[i+1]; j < e; ++j) {
+                            int d,c;
+                            boost::tie(d,c) = Sp.remote_info(S_rem.col[j]);
 
-                        if (rem_state[c] == undone && Sp.recv.nbr[d] > comm.rank) {
-                            selectable = false;
-                            break;
+                            if (rem_state[c] == undone && Sp.recv.nbr[d] > comm.rank) {
+                                selectable = false;
+                                break;
+                            }
                         }
-                    }
 
-                    if (!selectable) continue;
+                        if (!selectable) continue;
 
-                    ptrdiff_t id = naggr++;
-                    loc_owner[i] = comm.rank;
-                    loc_state[i] = id;
-                    --n_undone;
+                        ptrdiff_t id = naggr++;
+                        loc_owner[i] = comm.rank;
+                        loc_state[i] = id;
+                        --n_undone;
 
-                    // Af gives immediate neighbors
-                    for(ptrdiff_t j = Af_loc->ptr[i], e = Af_loc->ptr[i+1]; j < e; ++j) {
-                        ptrdiff_t c = Af_loc->col[j];
-                        if (c != i) {
-                            if (loc_state[c] == undone) --n_undone;
-                            loc_owner[c] = comm.rank;
-                            loc_state[c] = id;
+                        // Af gives immediate neighbors
+                        for(ptrdiff_t j = Af_loc->ptr[i], e = Af_loc->ptr[i+1]; j < e; ++j) {
+                            ptrdiff_t c = Af_loc->col[j];
+                            if (c != i) {
+                                if (loc_state[c] == undone) --n_undone;
+                                loc_owner[c] = comm.rank;
+                                loc_state[c] = id;
+                            }
                         }
-                    }
 
-                    for(ptrdiff_t j = Af_rem->ptr[i], e = Af_rem->ptr[i+1]; j < e; ++j) {
-                        ptrdiff_t c = Af_rem->col[j];
-                        int d,k;
-                        boost::tie(d,k) = Sp.remote_info(c);
+                        for(ptrdiff_t j = Af_rem->ptr[i], e = Af_rem->ptr[i+1]; j < e; ++j) {
+                            ptrdiff_t c = Af_rem->col[j];
+                            int d,k;
+                            boost::tie(d,k) = Sp.remote_info(c);
 
-                        rem_state[k] = id;
-                        send_pts[d].push_back(c);
-                        send_pts[d].push_back(id);
-                    }
-
-                    // S gives removed neighbors
-                    for(ptrdiff_t j = S_loc.ptr[i], e = S_loc.ptr[i+1]; j < e; ++j) {
-                        ptrdiff_t c = S_loc.col[j];
-                        if (c != i && loc_state[c] == undone) {
-                            loc_owner[c] = comm.rank;
-                            loc_state[c] = id;
-                            --n_undone;
-                        }
-                    }
-
-                    for(ptrdiff_t j = S_rem.ptr[i], e = S_rem.ptr[i+1]; j < e; ++j) {
-                        ptrdiff_t c = S_rem.col[j];
-                        int d,k;
-                        boost::tie(d,k) = Sp.remote_info(c);
-
-                        if (rem_state[k] == undone) {
                             rem_state[k] = id;
                             send_pts[d].push_back(c);
                             send_pts[d].push_back(id);
+                        }
+
+                        // S gives removed neighbors
+                        for(ptrdiff_t j = S_loc.ptr[i], e = S_loc.ptr[i+1]; j < e; ++j) {
+                            ptrdiff_t c = S_loc.col[j];
+                            if (c != i && loc_state[c] == undone) {
+                                loc_owner[c] = comm.rank;
+                                loc_state[c] = id;
+                                --n_undone;
+                            }
+                        }
+
+                        for(ptrdiff_t j = S_rem.ptr[i], e = S_rem.ptr[i+1]; j < e; ++j) {
+                            ptrdiff_t c = S_rem.col[j];
+                            int d,k;
+                            boost::tie(d,k) = Sp.remote_info(c);
+
+                            if (rem_state[k] == undone) {
+                                rem_state[k] = id;
+                                send_pts[d].push_back(c);
+                                send_pts[d].push_back(id);
+                            }
+                        }
+                    } else {
+                        // Inner points
+                        ptrdiff_t id = naggr++;
+                        loc_owner[i] = comm.rank;
+                        loc_state[i] = id;
+                        --n_undone;
+
+                        for(ptrdiff_t j = Af_loc->ptr[i], e = Af_loc->ptr[i+1]; j < e; ++j) {
+                            ptrdiff_t c = Af_loc->col[j];
+                            if (c != i) {
+                                if (loc_state[c] == undone) --n_undone;
+                                loc_owner[c] = comm.rank;
+                                loc_state[c] = id;
+                            }
+                        }
+
+                        for(ptrdiff_t j = S_loc.ptr[i], e = S_loc.ptr[i+1]; j < e; ++j) {
+                            ptrdiff_t c = S_loc.col[j];
+                            if (c != i && loc_state[c] == undone) {
+                                loc_owner[c] = comm.rank;
+                                loc_state[c] = id;
+                                --n_undone;
+                            }
                         }
                     }
                 }
@@ -330,36 +350,6 @@ struct smoothed_pmis {
                 MPI_Wait(&send_cnt_req[i], MPI_STATUS_IGNORE);
                 if (!npts) continue;
                 MPI_Wait(&send_pts_req[i], MPI_STATUS_IGNORE);
-            }
-
-            if (n_undone) {
-                for(ptrdiff_t i = 0; i < n; ++i) {
-                    if (S_rem.ptr[i+1] > S_rem.ptr[i]) continue;
-                    if (loc_state[i] != undone) continue;
-
-                    ptrdiff_t id = naggr++;
-                    loc_owner[i] = comm.rank;
-                    loc_state[i] = id;
-                    --n_undone;
-
-                    for(ptrdiff_t j = Af_loc->ptr[i], e = Af_loc->ptr[i+1]; j < e; ++j) {
-                        ptrdiff_t c = Af_loc->col[j];
-                        if (c != i) {
-                            if (loc_state[c] == undone) --n_undone;
-                            loc_owner[c] = comm.rank;
-                            loc_state[c] = id;
-                        }
-                    }
-
-                    for(ptrdiff_t j = S_loc.ptr[i], e = S_loc.ptr[i+1]; j < e; ++j) {
-                        ptrdiff_t c = S_loc.col[j];
-                        if (c != i && loc_state[c] == undone) {
-                            loc_owner[c] = comm.rank;
-                            loc_state[c] = id;
-                            --n_undone;
-                        }
-                    }
-                }
             }
 
 
