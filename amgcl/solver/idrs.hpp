@@ -315,7 +315,7 @@ class idrs {
 
                     // New column of M = P'*G  (first k-1 entries are zero)
                     for(unsigned i = k; i < prm.s; ++i)
-                        M[i][k] = backend::inner_product(*G[k], *P[i]);
+                        M[i][k] = inner_product(*G[k], *P[i]);
 
                     precondition(!math::is_zero(M[k][k]), "IDR(s) breakdown: zero M[k,k]");
 
