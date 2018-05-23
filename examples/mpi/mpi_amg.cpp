@@ -8,6 +8,7 @@
 #include <boost/property_tree/json_parser.hpp>
 
 #include <amgcl/backend/builtin.hpp>
+#include <amgcl/value_type/static_matrix.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 
 #include <amgcl/mpi/util.hpp>
@@ -28,6 +29,14 @@
 namespace amgcl {
     profiler<> prof;
 }
+
+namespace math = amgcl::math;
+
+//typedef amgcl::static_matrix<double, 2, 2>       val_type;
+typedef double val_type;
+
+typedef typename math::rhs_of<val_type>::type    rhs_type;
+typedef typename math::scalar_of<val_type>::type scalar;
 
 struct renumbering {
     const domain_partition<3> &part;
@@ -50,17 +59,17 @@ template <template <class> class Coarsening>
 void solve(
     const std::vector<ptrdiff_t> &ptr,
     const std::vector<ptrdiff_t> &col,
-    const std::vector<double>    &val,
+    const std::vector<val_type>  &val,
     const boost::property_tree::ptree &prm
     )
 {
-    typedef amgcl::backend::builtin<double> Backend;
+    typedef amgcl::backend::builtin<val_type> Backend;
     typedef
         amgcl::mpi::make_solver<
             amgcl::mpi::amg<
                 Backend, Coarsening<Backend>,
                 amgcl::mpi::relaxation::spai0<Backend>,
-                amgcl::runtime::mpi::direct::solver<double>
+                amgcl::runtime::mpi::direct::solver<val_type>
                 >,
             amgcl::runtime::solver::wrapper
             >
@@ -80,7 +89,7 @@ void solve(
         std::cout << solve << std::endl;
     }
 
-    std::vector<double> f(n, 1), x(n, 0);
+    std::vector<rhs_type> f(n, math::constant<rhs_type>(1)), x(n, math::zero<rhs_type>());
     int    iters;
     double error;
 
@@ -180,7 +189,7 @@ int main(int argc, char *argv[]) {
     prof.tic("assemble");
     std::vector<ptrdiff_t> ptr;
     std::vector<ptrdiff_t> col;
-    std::vector<double>    val;
+    std::vector<val_type>  val;
 
     ptr.reserve(chunk + 1);
     col.reserve(chunk * 7);
@@ -188,7 +197,7 @@ int main(int argc, char *argv[]) {
 
     ptr.push_back(0);
 
-    const double h2i  = (n - 1) * (n - 1);
+    const val_type h2i = (n - 1) * (n - 1) * math::identity<val_type>();
 
     for(ptrdiff_t k = lo[2]; k <= hi[2]; ++k) {
         for(ptrdiff_t j = lo[1]; j <= hi[1]; ++j) {

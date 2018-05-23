@@ -41,6 +41,8 @@ namespace direct {
 template <class value_type, class Solver>
 class solver_base {
     public:
+        typedef typename math::scalar_of<value_type>::type scalar_type;
+        typedef typename math::rhs_of<value_type>::type    rhs_type;
         typedef backend::crs<value_type> build_matrix;
 
         solver_base() {}
@@ -197,14 +199,14 @@ class solver_base {
 
         template <class VecF, class VecX>
         void operator()(const VecF &f, VecX &x) const {
-            static const MPI_Datatype T = datatype<value_type>();
+            static const MPI_Datatype T = datatype<rhs_type>();
 
             if (comm.rank == group_master) {
                 if (uniform_n) {
-                    MPI_Gather(const_cast<value_type*>(&f[0]), n, T,
+                    MPI_Gather(const_cast<rhs_type*>(&f[0]), n, T,
                             &cons_f[0], n, T, 0, slaves_comm);
                 } else {
-                    MPI_Gatherv(const_cast<value_type*>(&f[0]), n, T, &cons_f[0],
+                    MPI_Gatherv(const_cast<rhs_type*>(&f[0]), n, T, &cons_f[0],
                             const_cast<int*>(&count[0]), const_cast<int*>(&displ[0]),
                             T, 0, slaves_comm);
                 }
@@ -220,10 +222,10 @@ class solver_base {
                 }
             } else {
                 if (uniform_n) {
-                    MPI_Gather(const_cast<value_type*>(&f[0]), n, T, NULL, n, T, 0, slaves_comm);
+                    MPI_Gather(const_cast<rhs_type*>(&f[0]), n, T, NULL, n, T, 0, slaves_comm);
                     MPI_Scatter(NULL, n, T, &x[0], n, T, 0, slaves_comm);
                 } else {
-                    MPI_Gatherv(const_cast<value_type*>(&f[0]), n, T, NULL, NULL, NULL, T, 0, slaves_comm);
+                    MPI_Gatherv(const_cast<rhs_type*>(&f[0]), n, T, NULL, NULL, NULL, T, 0, slaves_comm);
                     MPI_Scatterv(NULL, NULL, NULL, T, &x[0], n, T, 0, slaves_comm);
                 }
             }
@@ -236,7 +238,7 @@ class solver_base {
         int          group_master;
         MPI_Comm     masters_comm, slaves_comm;
         std::vector<int> count, displ;
-        mutable std::vector<value_type> cons_f, cons_x;
+        mutable std::vector<rhs_type> cons_f, cons_x;
 };
 
 } // namespace direct

@@ -114,7 +114,7 @@ class solver {
         typedef boost::property_tree::ptree params;
 
         template <class Matrix>
-        solver(MPI_Comm mpi_comm, const Matrix &A, params prm = params())
+        solver(MPI_Comm comm, const Matrix &A, params prm = params())
             : s(prm.get("type", skyline_lu))
         {
             if (!prm.erase("type")) AMGCL_PARAM_MISSING("type");
@@ -123,14 +123,14 @@ class solver {
                 case skyline_lu:
                     {
                         typedef amgcl::mpi::direct::skyline_lu<value_type> S;
-                        handle = static_cast<void*>(new S(mpi_comm, A, prm));
+                        handle = static_cast<void*>(new S(comm, A, prm));
                     }
                     break;
 #ifdef AMGCL_HAVE_EIGEN
                 case eigen_splu:
                     {
                         typedef amgcl::mpi::direct::eigen_splu<value_type> S;
-                        handle = static_cast<void*>(new S(mpi_comm, A, prm));
+                        do_construct<S, value_type>(comm, A, prm);
                     }
                     break;
 #endif
@@ -138,13 +138,13 @@ class solver {
                 case dpastix:
                     {
                         typedef amgcl::mpi::direct::pastix<value_type,true> S;
-                        handle = static_cast<void*>(new S(mpi_comm, A, prm));
+                        do_construct<S, value_type>(comm, A, prm);
                     }
                     break;
                 case spastix:
                     {
                         typedef amgcl::mpi::direct::pastix<value_type,false> S;
-                        handle = static_cast<void*>(new S(mpi_comm, A, prm));
+                        do_construct<S, value_type>(comm, A, prm);
                     }
                     break;
 #endif
@@ -166,7 +166,7 @@ class solver {
                 case eigen_splu:
                     {
                         typedef amgcl::mpi::direct::eigen_splu<value_type> S;
-                        static_cast<const S*>(handle)->operator()(rhs, x);
+                        do_solve<S, value_type>(rhs, x);
                     }
                     break;
 #endif
@@ -174,13 +174,13 @@ class solver {
                 case dpastix:
                     {
                         typedef amgcl::mpi::direct::pastix<value_type, true> S;
-                        static_cast<const S*>(handle)->operator()(rhs, x);
+                        do_solve<S, value_type>(rhs, x);
                     }
                     break;
                 case spastix:
                     {
                         typedef amgcl::mpi::direct::pastix<value_type, false> S;
-                        static_cast<const S*>(handle)->operator()(rhs, x);
+                        do_solve<S, value_type>(rhs, x);
                     }
                     break;
 #endif
@@ -201,7 +201,7 @@ class solver {
                 case eigen_splu:
                     {
                         typedef amgcl::mpi::direct::eigen_splu<value_type> S;
-                        delete static_cast<S*>(handle);
+                        do_destruct<S, value_type>();
                     }
                     break;
 #endif
@@ -209,13 +209,13 @@ class solver {
                 case dpastix:
                     {
                         typedef amgcl::mpi::direct::pastix<value_type, true> S;
-                        delete static_cast<S*>(handle);
+                        do_destruct<S, value_type>();
                     }
                     break;
                 case spastix:
                     {
                         typedef amgcl::mpi::direct::pastix<value_type, false> S;
-                        delete static_cast<S*>(handle);
+                        do_destruct<S, value_type>();
                     }
                     break;
 #endif
@@ -226,6 +226,59 @@ class solver {
     private:
         direct::type s;
         void *handle;
+
+        template <class S, class V, class Matrix>
+        typename boost::enable_if_c<
+            boost::is_same<V, float>::value || boost::is_same<V, double>::value,
+            void
+        >::type
+        do_construct(MPI_Comm comm, const Matrix &A, const params &prm) {
+            handle = static_cast<void*>(new S(comm, A, prm));
+        }
+
+        template <class S, class V, class Matrix>
+        typename boost::disable_if_c<
+            boost::is_same<V, float>::value || boost::is_same<V, double>::value,
+            void
+        >::type
+        do_construct(MPI_Comm, const Matrix&, const params&) {
+            throw std::logic_error("The direct solver does not support the value type");
+        }
+
+        template <class S, class V, class Vec1, class Vec2>
+        typename boost::enable_if_c<
+            boost::is_same<V, float>::value || boost::is_same<V, double>::value,
+            void
+        >::type
+        do_solve(const Vec1 &rhs, Vec2 &x) const {
+            static_cast<const S*>(handle)->operator()(rhs, x);
+        }
+
+        template <class S, class V, class Vec1, class Vec2>
+        typename boost::disable_if_c<
+            boost::is_same<V, float>::value || boost::is_same<V, double>::value,
+            void
+        >::type
+        do_solve(const Vec1&, Vec2&) const {
+            throw std::logic_error("The direct solver does not support the value type");
+        }
+
+        template <class S, class V>
+        typename boost::enable_if_c<
+            boost::is_same<V, float>::value || boost::is_same<V, double>::value,
+            void
+        >::type
+        do_destruct() {
+            delete static_cast<S*>(handle);
+        }
+
+        template <class S, class V>
+        typename boost::disable_if_c<
+            boost::is_same<V, float>::value || boost::is_same<V, double>::value,
+            void
+        >::type
+        do_destruct() {
+        }
 };
 
 } // namespace direct

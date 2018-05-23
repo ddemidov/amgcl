@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include <mpi.h>
 
 #include <amgcl/backend/builtin.hpp>
+#include <amgcl/value_type/interface.hpp>
 #include <amgcl/mpi/util.hpp>
 #include <amgcl/util.hpp>
 
@@ -46,15 +47,21 @@ struct inner_product {
     inner_product(MPI_Comm comm) : comm(comm) {}
 
     template <class Vec1, class Vec2>
-    typename backend::value_type<Vec1>::type
+    typename math::inner_product_impl<
+        typename backend::value_type<Vec1>::type
+        >::return_type
     operator()(const Vec1 &x, const Vec2 &y) const {
         AMGCL_TIC("inner product");
         typedef typename backend::value_type<Vec1>::type value_type;
+        typedef typename math::inner_product_impl<value_type>::return_type coef_type;
+        typedef typename math::scalar_of<value_type>::type scalar;
 
-        value_type lsum = backend::inner_product(x, y);
-        value_type gsum;
+        const int size = sizeof(coef_type) / sizeof(scalar);
 
-        MPI_Allreduce(&lsum, &gsum, 1, datatype<value_type>(), MPI_SUM, comm);
+        coef_type lsum = backend::inner_product(x, y);
+        coef_type gsum;
+
+        MPI_Allreduce(&lsum, &gsum, size, datatype<scalar>(), MPI_SUM, comm);
 
         AMGCL_TOC("inner product");
         return gsum;
