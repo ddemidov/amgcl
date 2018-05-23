@@ -51,6 +51,10 @@ Bi-orthogonality Properties. ACM Transactions on Mathematical Software, Vol.
 #include <amgcl/solver/detail/default_inner_product.hpp>
 #include <amgcl/util.hpp>
 
+#ifdef MPI_VERSION
+#  include <amgcl/mpi/util.hpp>
+#endif
+
 #ifdef _OPENMP
 #  include <omp.h>
 #endif
@@ -178,15 +182,23 @@ class idrs {
             {
                 std::vector<rhs_type> p(n);
 
+#ifdef MPI_VERSION
+                int pid = amgcl::mpi::communicator(MPI_COMM_WORLD).rank;
+#else
+                int pid = 0;
+#endif
+
 #pragma omp parallel
                 {
 #ifdef _OPENMP
                     int tid = omp_get_thread_num();
+                    int nt = omp_get_max_threads();
 #else
                     int tid = 0;
+                    int nt = 1;
 #endif
 
-                    boost::random::mt19937 rng(tid);
+                    boost::random::mt19937 rng(pid * nt + tid);
                     boost::random::normal_distribution<scalar_type> rnd;
 
                     for(unsigned j = 0; j < prm.s; ++j) {
