@@ -32,6 +32,8 @@ THE SOFTWARE.
 #include <boost/make_shared.hpp>
 #include <boost/unordered_map.hpp>
 #include <boost/foreach.hpp>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_real_distribution.hpp>
 
 #include <mpi.h>
 
@@ -477,6 +479,10 @@ class distributed_matrix {
         friend boost::shared_ptr< distributed_matrix<B,L,R> >
         product(const distributed_matrix<B,L,R> &a, const distributed_matrix<B,L,R> &b,
                 bool compute_values);
+
+        template <class B, class L, class R>
+        typename math::scalar_of<typename B::value_type>::type
+        spectral_radius(const distributed_matrix<B,L,R> &a, int power_iters);
 
     private:
         typedef comm_pattern<Backend> CommPattern;
@@ -991,6 +997,146 @@ product(
     // build C's communication pattern here and save some work:
     return boost::make_shared<distributed_matrix<Backend, Local, Remote> >(comm,
             C_loc, C_rem, A.bprm);
+}
+
+template <class Backend, class Local, class Remote>
+typename math::scalar_of<typename Backend::value_type>::type
+spectral_radius(const distributed_matrix<Backend,Local,Remote> &A, int power_iters)
+{
+    typedef typename Backend::value_type               value_type;
+    typedef typename math::rhs_of<value_type>::type    rhs_type;
+    typedef typename math::scalar_of<value_type>::type scalar_type;
+    typedef backend::crs<value_type>                   build_matrix;
+
+    communicator comm = A.comm();
+
+    const build_matrix &A_loc = *A.local();
+    const build_matrix &A_rem = *A.remote();
+    const comm_pattern<Backend> &C = A.cpat();
+
+    const ptrdiff_t n = A_loc.nrows;
+
+    backend::numa_vector<value_type> D(n, false);
+    backend::numa_vector<rhs_type>   b0(n, false), b1(n, false);
+    backend::numa_vector<ptrdiff_t>  rem_col(A_rem.nnz, false);
+
+    // Fill the initial vector with random values.
+    // Also extract the inverted matrix diagonal values.
+    scalar_type b0_loc_norm = 0;
+
+#pragma omp parallel
+    {
+#ifdef _OPENMP
+        int tid = omp_get_thread_num();
+        int nt  = omp_get_max_threads();
+#else
+        int tid = 0;
+        int nt  = 1;
+#endif
+        boost::random::mt11213b rng(comm.size * nt + tid);
+        boost::random::uniform_real_distribution<scalar_type> rnd(-1, 1);
+
+        scalar_type t_norm = 0;
+
+#pragma omp for nowait
+        for(ptrdiff_t i = 0; i < n; ++i) {
+            rhs_type v = math::constant<rhs_type>(rnd(rng));
+
+            b0[i] = v;
+            t_norm += math::norm(math::inner_product(v,v));
+
+            for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j) {
+                if (A_loc.col[j] == i) {
+                    D[i] = math::inverse(A_loc.val[j]);
+                    break;
+                }
+            }
+
+            for(ptrdiff_t j = A_rem.ptr[i], e = A_rem.ptr[i+1]; j < e; ++j) {
+                rem_col[j] = C.local_index(A_rem.col[j]);
+            }
+        }
+
+#pragma omp critical
+        b0_loc_norm += t_norm;
+    }
+
+    scalar_type b0_norm;
+    MPI_Allreduce(&b0_loc_norm, &b0_norm, 1, datatype<scalar_type>(), MPI_SUM, comm);
+
+    // Normalize b0
+    b0_norm = 1 / sqrt(b0_norm);
+#pragma omp parallel for
+    for(ptrdiff_t i = 0; i < n; ++i) {
+        b0[i] = b0_norm * b0[i];
+    }
+
+    std::vector<rhs_type> b0_send(C.send.count());
+    std::vector<rhs_type> b0_recv(C.recv.count());
+
+    for(size_t i = 0, m = C.send.count(); i < m; ++i)
+        b0_send[i] = b0[C.send.col[i]];
+    C.exchange(&b0_send[0], &b0_recv[0]);
+
+    scalar_type radius = 1;
+
+    for(int iter = 0; iter < power_iters;) {
+        // b1 = (D * A) * b0
+        // b1_norm = ||b1||
+        // radius = <b1,b0>
+        scalar_type b1_loc_norm = 0;
+        scalar_type loc_radius = 0;
+
+#pragma omp parallel
+        {
+            scalar_type t_norm = 0;
+            scalar_type t_radi = 0;
+
+#pragma omp for nowait
+            for(ptrdiff_t i = 0; i < n; ++i) {
+                rhs_type s = math::zero<rhs_type>();
+
+                for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j)
+                    s += A_loc.val[j] * b0[A_loc.col[j]];
+
+                for(ptrdiff_t j = A_rem.ptr[i], e = A_rem.ptr[i+1]; j < e; ++j)
+                    s += A_rem.val[j] * b0_recv[rem_col[j]];
+
+                s = D[i] * s;
+
+                t_norm += math::norm(math::inner_product(s, s));
+                t_radi += math::norm(math::inner_product(s, b0[i]));
+
+                b1[i] = s;
+            }
+
+#pragma omp critical
+            {
+                b1_loc_norm += t_norm;
+                loc_radius  += t_radi;
+            }
+        }
+
+        MPI_Allreduce(&loc_radius, &radius, 1, datatype<scalar_type>(), MPI_SUM, comm);
+
+        if (++iter < power_iters) {
+            scalar_type b1_norm;
+            MPI_Allreduce(&b1_loc_norm, &b1_norm, 1, datatype<scalar_type>(), MPI_SUM, comm);
+
+            // b0 = b1 / b1_norm
+            b1_norm = 1 / sqrt(b1_norm);
+#pragma omp parallel for
+            for(ptrdiff_t i = 0; i < n; ++i) {
+                b0[i] = b1_norm * b1[i];
+            }
+
+            for(size_t i = 0, m = C.send.count(); i < m; ++i)
+                b0_send[i] = b0[C.send.col[i]];
+            C.exchange(&b0_send[0], &b0_recv[0]);
+        }
+    }
+
+    return radius < 0 ? static_cast<scalar_type>(2) : radius;
 }
 
 template <class Backend, class Local, class Remote, class T>

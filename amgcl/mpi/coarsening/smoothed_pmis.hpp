@@ -100,7 +100,7 @@ struct smoothed_pmis {
 
         scalar_type omega = prm.relax;
         if (prm.estimate_spectral_radius) {
-            omega *= static_cast<scalar_type>(4.0/3) / Base::spectral_radius(A_loc, prm.power_iters);
+            omega *= static_cast<scalar_type>(4.0/3) / spectral_radius(A, prm.power_iters);
         } else {
             omega *= static_cast<scalar_type>(2.0/3);
         }
