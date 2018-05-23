@@ -36,6 +36,7 @@ THE SOFTWARE.
 #include <numeric>
 
 #include <boost/type_traits.hpp>
+#include <amgcl/value_type/interface.hpp>
 
 #include <mpi.h>
 
@@ -44,7 +45,21 @@ namespace mpi {
 
 /// Converts C type to MPI datatype.
 template <class T, class Enable = void>
-struct datatype_impl;
+struct datatype_impl {
+    static MPI_Datatype get() {
+        static const MPI_Datatype t = create();
+        return t;
+    }
+
+    static MPI_Datatype create() {
+        typedef typename math::scalar_of<T>::type S;
+        MPI_Datatype t;
+        int n = sizeof(T) / sizeof(S);
+        MPI_Type_contiguous(n, datatype_impl<S>::get(), &t);
+        MPI_Type_commit(&t);
+        return t;
+    }
+};
 
 template <>
 struct datatype_impl<float> {

@@ -4,6 +4,7 @@
 #include <boost/scope_exit.hpp>
 
 #include <amgcl/backend/builtin.hpp>
+#include <amgcl/value_type/static_matrix.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/mpi/distributed_matrix.hpp>
 #include <amgcl/io/mm.hpp>
@@ -14,11 +15,14 @@ namespace amgcl {
     profiler<> prof;
 }
 
+namespace math = amgcl::math;
+
+template <class Val>
 void assemble(
         int n, int beg, int end,
-        std::vector<int>    &ptr,
-        std::vector<int>    &col,
-        std::vector<double> &val
+        std::vector<int> &ptr,
+        std::vector<int> &col,
+        std::vector<Val> &val
         )
 {
     int chunk = end - beg;
@@ -30,31 +34,29 @@ void assemble(
     for(int j = beg, i = 0; j < end; ++j, ++i) {
         if (j > 0) {
             col.push_back(j - 1);
-            val.push_back(-1);
+            val.push_back(-math::identity<Val>());
         }
 
         col.push_back(j);
-        val.push_back(2);
+        val.push_back(2 * math::identity<Val>());
 
         if (j+1 < n) {
             col.push_back(j+1);
-            val.push_back(-1);
+            val.push_back(-math::identity<Val>());
         }
 
         if (j+5 < n) {
             col.push_back(j+5);
-            val.push_back(-0.1);
+            val.push_back(-0.1 * math::identity<Val>());
         }
 
         ptr.push_back(col.size());
     }
 }
 
-int main(int argc, char *argv[]) {
-    MPI_Init(&argc, &argv);
-    BOOST_SCOPE_EXIT(void) {
-        MPI_Finalize();
-    } BOOST_SCOPE_EXIT_END
+template <class Val>
+void test() {
+    typedef typename math::rhs_of<Val>::type Rhs;
 
     amgcl::mpi::communicator comm(MPI_COMM_WORLD);
 
@@ -72,15 +74,15 @@ int main(int argc, char *argv[]) {
 
     std::vector<int>    ptr;
     std::vector<int>    col;
-    std::vector<double> val;
-    std::vector<double> x(chunk);
-    std::vector<double> y(chunk);
+    std::vector<Val> val;
+    std::vector<Rhs> x(chunk);
+    std::vector<Rhs> y(chunk);
 
     assemble(n, chunk_beg, chunk_end, ptr, col, val);
 
-    for(int i = 0; i < chunk; ++i) x[i] = drand48();
+    for(int i = 0; i < chunk; ++i) x[i] = math::constant<Rhs>(drand48());
 
-    typedef amgcl::backend::builtin<double> Backend;
+    typedef amgcl::backend::builtin<Val> Backend;
     typedef amgcl::mpi::distributed_matrix<Backend> Matrix; 
 
     Matrix A(comm, boost::tie(chunk, ptr, col, val), chunk);
@@ -90,22 +92,32 @@ int main(int argc, char *argv[]) {
 
     amgcl::backend::spmv(1, *B, x, 0, y);
 
-    std::vector<double> X(n), R(n);
-    MPI_Gatherv(&x[0], chunk, MPI_DOUBLE, &X[0], &chunks[0], &displ[0], MPI_DOUBLE, 0, comm);
-    MPI_Gatherv(&y[0], chunk, MPI_DOUBLE, &R[0], &chunks[0], &displ[0], MPI_DOUBLE, 0, comm);
+    std::vector<Rhs> X(n), R(n);
+    MPI_Gatherv(&x[0], chunk, amgcl::mpi::datatype<Rhs>(), &X[0], &chunks[0], &displ[0], amgcl::mpi::datatype<Rhs>(), 0, comm);
+    MPI_Gatherv(&y[0], chunk, amgcl::mpi::datatype<Rhs>(), &R[0], &chunks[0], &displ[0], amgcl::mpi::datatype<Rhs>(), 0, comm);
 
     if (comm.rank == 0) {
-        std::vector<double> Y(n);
+        std::vector<Rhs> Y(n);
         assemble(n, 0, n, ptr, col, val);
 
-        amgcl::backend::crs<double> A( boost::tie(n, ptr, col, val) );
+        amgcl::backend::crs<Val> A( boost::tie(n, ptr, col, val) );
         amgcl::backend::spmv(1, *amgcl::backend::product(A, A), X, 0, Y);
 
         double s = 0;
         for(int i = 0; i < n; ++i) {
-            double d = R[i] - Y[i];
+            double d = math::norm(R[i] - Y[i]);
             s += d * d;
         }
         std::cout << "Error: " << s << std::endl;
     }
+}
+
+int main(int argc, char *argv[]) {
+    MPI_Init(&argc, &argv);
+    BOOST_SCOPE_EXIT(void) {
+        MPI_Finalize();
+    } BOOST_SCOPE_EXIT_END
+
+    test< double >();
+    test< amgcl::static_matrix<double,2,2> >();
 }

@@ -54,6 +54,8 @@ template <class Backend>
 class comm_pattern {
     public:
         typedef typename Backend::value_type value_type;
+        typedef typename math::rhs_of<value_type>::type rhs_type;
+        typedef typename math::scalar_of<value_type>::type scalar_type;
         typedef typename Backend::matrix matrix;
         typedef typename Backend::vector vector;
         typedef typename Backend::params backend_params;
@@ -67,7 +69,7 @@ class comm_pattern {
                 return col.size();
             }
 
-            mutable std::vector<value_type>  val;
+            mutable std::vector<rhs_type>    val;
             mutable std::vector<MPI_Request> req;
         } send;
 
@@ -79,7 +81,7 @@ class comm_pattern {
                 return val.size();
             }
 
-            mutable std::vector<value_type>  val;
+            mutable std::vector<rhs_type>    val;
             mutable std::vector<MPI_Request> req;
         } recv;
 
@@ -216,7 +218,7 @@ class comm_pattern {
             // Start receiving ghost values from our neighbours.
             for(size_t i = 0; i < recv.nbr.size(); ++i)
                 MPI_Irecv(&recv.val[recv.ptr[i]], recv.ptr[i+1] - recv.ptr[i],
-                        datatype<value_type>(), recv.nbr[i], tag_exc_vals, comm, &recv.req[i]);
+                        datatype<rhs_type>(), recv.nbr[i], tag_exc_vals, comm, &recv.req[i]);
 
             // Start sending our data to neighbours.
             if (!send.val.empty()) {
@@ -224,7 +226,7 @@ class comm_pattern {
 
                 for(size_t i = 0; i < send.nbr.size(); ++i)
                     MPI_Isend(&send.val[send.ptr[i]], send.ptr[i+1] - send.ptr[i],
-                            datatype<value_type>(), send.nbr[i], tag_exc_vals, comm, &send.req[i]);
+                            datatype<rhs_type>(), send.nbr[i], tag_exc_vals, comm, &send.req[i]);
             }
         }
 
@@ -280,6 +282,8 @@ template <class Backend, class LocalMatrix = typename Backend::matrix, class Rem
 class distributed_matrix {
     public:
         typedef typename Backend::value_type value_type;
+        typedef typename math::rhs_of<value_type>::type rhs_type;
+        typedef typename math::scalar_of<value_type>::type scalar_type;
         typedef typename Backend::params backend_params;
         typedef backend::crs<value_type> build_matrix;
 
@@ -449,8 +453,8 @@ class distributed_matrix {
             a_rem.reset();
         }
 
-        template <class Vec1, class Vec2>
-        void mul(value_type alpha, const Vec1 &x, value_type beta, Vec2 &y) const {
+        template <class A, class VecX, class B, class VecY>
+        void mul(A alpha, const VecX &x, B beta, VecY &y) const {
             C->start_exchange(x);
 
             // Compute local part of the product.
