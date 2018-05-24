@@ -203,9 +203,9 @@ class comm_pattern {
             return idx.at(col);
         }
 
-        size_t renumber(size_t n, ptrdiff_t *col) {
+        size_t renumber(size_t n, ptrdiff_t *col) const {
             for(size_t i = 0; i < n; ++i)
-                col[i] = boost::get<1>(idx[col[i]]);
+                col[i] = boost::get<1>(idx.at(col[i]));
             return recv.count();
         }
 
@@ -478,6 +478,7 @@ class distributed_matrix {
                 backend::spmv(-1, *A_rem, *C->x_rem, 1, r);
         }
 
+        /*
         template <class B, class L, class R>
         friend boost::shared_ptr< distributed_matrix<B,L,R> >
         transpose(const distributed_matrix<B,L,R> &A);
@@ -490,7 +491,7 @@ class distributed_matrix {
         template <class B, class L, class R>
         typename math::scalar_of<typename B::value_type>::type
         spectral_radius(const distributed_matrix<B,L,R> &a, int power_iters);
-
+        */
     private:
         typedef comm_pattern<Backend> CommPattern;
 
@@ -518,10 +519,13 @@ transpose(const distributed_matrix<Backend, Local, Remote> &A) {
     static const int tag_val = 2003;
 
     communicator comm = A.comm();
-    CommPattern &C = *(A.C);
+    const CommPattern &C = A.cpat();
 
-    ptrdiff_t nrows = A.loc_cols();
-    ptrdiff_t ncols = A.loc_rows();
+    build_matrix &A_loc = *A.local();
+    build_matrix &A_rem = *A.remote();
+
+    ptrdiff_t nrows = A_loc.ncols;
+    ptrdiff_t ncols = A_loc.nrows;
 
     std::vector<MPI_Request> recv_cnt_req(C.send.req.size());
     std::vector<MPI_Request> recv_col_req(C.send.req.size());
@@ -535,15 +539,15 @@ transpose(const distributed_matrix<Backend, Local, Remote> &A) {
     // and the other way around.
     boost::shared_ptr<build_matrix> t_ptr;
     {
-        std::vector<ptrdiff_t> tmp_col(A.a_rem->col, A.a_rem->col + A.a_rem->nnz);
+        std::vector<ptrdiff_t> tmp_col(A_rem.col, A_rem.col + A_rem.nnz);
         C.renumber(tmp_col.size(), &tmp_col[0]);
 
         ptrdiff_t *a_rem_col = &tmp_col[0];
-        std::swap(a_rem_col, A.a_rem->col);
+        std::swap(a_rem_col, A_rem.col);
 
-        t_ptr = backend::transpose(*A.a_rem);
+        t_ptr = backend::transpose(A_rem);
 
-        std::swap(a_rem_col, A.a_rem->col);
+        std::swap(a_rem_col, A_rem.col);
     }
     build_matrix &t_rem = *t_ptr;
 
@@ -656,18 +660,16 @@ transpose(const distributed_matrix<Backend, Local, Remote> &A) {
     AMGCL_TOC("MPI Wait");
 
     AMGCL_TOC("MPI Transpose");
-    // TODO: This should work correctly, but the performance may be
-    // improved by reusing A's communication pattern:
+
     return boost::make_shared< distributed_matrix<Backend, Local, Remote> >(
-            comm, backend::transpose(*A.a_loc), T_ptr, A.bprm);
+            comm, backend::transpose(A_loc), T_ptr, A.backend_prm());
 }
 
 template <class Backend, class Local, class Remote>
 boost::shared_ptr< distributed_matrix<Backend, Local, Remote> >
 product(
         const distributed_matrix<Backend, Local, Remote> &A,
-        const distributed_matrix<Backend, Local, Remote> &B,
-        bool compute_values = true
+        const distributed_matrix<Backend, Local, Remote> &B
        )
 {
     typedef typename Backend::value_type value_type;
@@ -679,7 +681,7 @@ product(
     static const int tag_val = 3003;
 
     communicator comm = A.comm();
-    CommPattern  &Acp = *A.C;
+    const CommPattern &Acp = A.cpat();
 
     build_matrix &A_loc = *A.local();
     build_matrix &A_rem = *A.remote();
@@ -728,7 +730,7 @@ product(
         MPI_Isend(m.ptr, m.nrows, datatype<ptrdiff_t>(),
                 Acp.send.nbr[k], tag_ptr, comm, &send_ptr_req[k]);
 
-        m.set_nonzeros(m.nnz, compute_values);
+        m.set_nonzeros(m.nnz);
 
         for(ptrdiff_t i = 0, ii = beg, head = 0; ii < end; ++i, ++ii) {
             ptrdiff_t r = Acp.send.col[ii];
@@ -736,23 +738,22 @@ product(
             // Contribution of the local part:
             for(ptrdiff_t j = B_loc.ptr[r]; j < B_loc.ptr[r+1]; ++j) {
                 m.col[head] = B_loc.col[j] + B_beg;
-                if (compute_values) m.val[head] = B_loc.val[j];
+                m.val[head] = B_loc.val[j];
                 ++head;
             }
 
             // Contribution of the remote part:
             for(ptrdiff_t j = B_rem.ptr[r]; j < B_rem.ptr[r+1]; ++j) {
                 m.col[head] = B_rem.col[j];
-                if (compute_values) m.val[head] = B_rem.val[j];
+                m.val[head] = B_rem.val[j];
                 ++head;
             }
         }
 
         MPI_Isend(m.col, m.nnz, datatype<ptrdiff_t>(),
                 Acp.send.nbr[k], tag_col, comm, &send_col_req[k]);
-        if (compute_values)
-            MPI_Isend(m.val, m.nnz, datatype<value_type>(),
-                    Acp.send.nbr[k], tag_val, comm, &send_val_req[k]);
+        MPI_Isend(m.val, m.nnz, datatype<value_type>(),
+                Acp.send.nbr[k], tag_val, comm, &send_val_req[k]);
     }
 
     // Receive rows of B in block format from our neighbors:
@@ -775,7 +776,7 @@ product(
     MPI_Waitall(recv_ptr_req.size(), &recv_ptr_req[0], MPI_STATUSES_IGNORE);
     AMGCL_TOC("MPI Wait");
 
-    B_nbr.set_nonzeros(B_nbr.scan_row_sizes(), compute_values);
+    B_nbr.set_nonzeros(B_nbr.scan_row_sizes());
 
     for(size_t k = 0; k < nrecv; ++k) {
         ptrdiff_t rbeg = Acp.recv.ptr[k];
@@ -787,9 +788,8 @@ product(
         MPI_Irecv(&B_nbr.col[cbeg], cend - cbeg, datatype<ptrdiff_t>(),
                 Acp.recv.nbr[k], tag_col, comm, &recv_col_req[k]);
 
-        if (compute_values)
-            MPI_Irecv(&B_nbr.val[cbeg], cend - cbeg, datatype<value_type>(),
-                    Acp.recv.nbr[k], tag_val, comm, &recv_val_req[k]);
+        MPI_Irecv(&B_nbr.val[cbeg], cend - cbeg, datatype<value_type>(),
+                Acp.recv.nbr[k], tag_val, comm, &recv_val_req[k]);
     }
 
     AMGCL_TIC("MPI Wait");
@@ -813,11 +813,9 @@ product(
         rem_idx[c] = n_rem_cols++;
     }
 
-    if (compute_values) {
-        AMGCL_TIC("MPI Wait");
-        MPI_Waitall(recv_val_req.size(), &recv_val_req[0], MPI_STATUSES_IGNORE);
-        AMGCL_TOC("MPI Wait");
-    }
+    AMGCL_TIC("MPI Wait");
+    MPI_Waitall(recv_val_req.size(), &recv_val_req[0], MPI_STATUSES_IGNORE);
+    AMGCL_TOC("MPI Wait");
 
     // Build the product.
     boost::shared_ptr<build_matrix> c_loc = boost::make_shared<build_matrix>();
@@ -832,6 +830,7 @@ product(
     C_loc.ptr[0] = 0;
     C_rem.ptr[0] = 0;
 
+    AMGCL_TIC("analyze");
 #pragma omp parallel
     {
         std::vector<ptrdiff_t> loc_marker(B_end - B_beg, -1);
@@ -844,11 +843,9 @@ product(
 
             for(ptrdiff_t ja = A_loc.ptr[ia], ea = A_loc.ptr[ia + 1]; ja < ea; ++ja) {
                 ptrdiff_t  ca = A_loc.col[ja];
-                if (compute_values && math::is_zero(A_loc.val[ja])) continue;
 
                 for(ptrdiff_t jb = B_loc.ptr[ca], eb = B_loc.ptr[ca+1]; jb < eb; ++jb) {
                     ptrdiff_t  cb = B_loc.col[jb];
-                    if (compute_values && math::is_zero(B_loc.val[jb])) continue;
 
                     if (loc_marker[cb] != ia) {
                         loc_marker[cb]  = ia;
@@ -858,7 +855,6 @@ product(
 
                 for(ptrdiff_t jb = B_rem.ptr[ca], eb = B_rem.ptr[ca+1]; jb < eb; ++jb) {
                     ptrdiff_t  cb = rem_idx[B_rem.col[jb]];
-                    if (compute_values && math::is_zero(B_rem.val[jb])) continue;
 
                     if (rem_marker[cb] != ia) {
                         rem_marker[cb]  = ia;
@@ -869,11 +865,9 @@ product(
 
             for(ptrdiff_t ja = A_rem.ptr[ia], ea = A_rem.ptr[ia + 1]; ja < ea; ++ja) {
                 ptrdiff_t  ca = Acp.local_index(A_rem.col[ja]);
-                if (compute_values && math::is_zero(A_rem.val[ja])) continue;
 
                 for(ptrdiff_t jb = B_nbr.ptr[ca], eb = B_nbr.ptr[ca+1]; jb < eb; ++jb) {
                     ptrdiff_t  cb = B_nbr.col[jb];
-                    if (compute_values && math::is_zero(B_nbr.val[jb])) continue;
 
                     if (cb >= B_beg && cb < B_end) {
                         cb -= B_beg;
@@ -897,10 +891,12 @@ product(
             C_rem.ptr[ia + 1] = rem_cols;
         }
     }
+    AMGCL_TOC("analyze");
 
-    C_loc.set_nonzeros(C_loc.scan_row_sizes(), compute_values);
-    C_rem.set_nonzeros(C_rem.scan_row_sizes(), compute_values);
+    C_loc.set_nonzeros(C_loc.scan_row_sizes());
+    C_rem.set_nonzeros(C_rem.scan_row_sizes());
 
+    AMGCL_TIC("compute");
 #pragma omp parallel
     {
         std::vector<ptrdiff_t> loc_marker(B_end - B_beg, -1);
@@ -915,23 +911,20 @@ product(
 
             for(ptrdiff_t ja = A_loc.ptr[ia], ea = A_loc.ptr[ia + 1]; ja < ea; ++ja) {
                 ptrdiff_t  ca = A_loc.col[ja];
-                value_type va = compute_values ? A_loc.val[ja] : math::zero<value_type>();
-                if (compute_values && math::is_zero(va)) continue ;
+                value_type va = A_loc.val[ja];
 
                 for(ptrdiff_t jb = B_loc.ptr[ca], eb = B_loc.ptr[ca+1]; jb < eb; ++jb) {
                     ptrdiff_t  cb = B_loc.col[jb];
-                    value_type vb = compute_values ? B_loc.val[jb] : math::zero<value_type>();
-                    if (compute_values && math::is_zero(vb)) continue;
+                    value_type vb = B_loc.val[jb];
 
                     if (loc_marker[cb] < loc_beg) {
                         loc_marker[cb] = loc_end;
 
                         C_loc.col[loc_end] = cb;
-                        if (compute_values)
-                            C_loc.val[loc_end] = va * vb;
+                        C_loc.val[loc_end] = va * vb;
 
                         ++loc_end;
-                    } else if (compute_values) {
+                    } else {
                         C_loc.val[loc_marker[cb]] += va * vb;
                     }
                 }
@@ -939,17 +932,16 @@ product(
                 for(ptrdiff_t jb = B_rem.ptr[ca], eb = B_rem.ptr[ca+1]; jb < eb; ++jb) {
                     ptrdiff_t  gb = B_rem.col[jb];
                     ptrdiff_t  cb = rem_idx[gb];
-                    value_type vb = compute_values ? B_rem.val[jb] : math::zero<value_type>();
-                    if (compute_values && math::is_zero(vb)) continue;
+                    value_type vb = B_rem.val[jb];
 
                     if (rem_marker[cb] < rem_beg) {
                         rem_marker[cb] = rem_end;
 
                         C_rem.col[rem_end] = gb;
-                        if (compute_values) C_rem.val[rem_end] = va * vb;
+                        C_rem.val[rem_end] = va * vb;
 
                         ++rem_end;
-                    } else if (compute_values) {
+                    } else {
                         C_rem.val[rem_marker[cb]] += va * vb;
                     }
                 }
@@ -957,13 +949,11 @@ product(
 
             for(ptrdiff_t ja = A_rem.ptr[ia], ea = A_rem.ptr[ia + 1]; ja < ea; ++ja) {
                 ptrdiff_t  ca = Acp.local_index(A_rem.col[ja]);
-                value_type va = compute_values ? A_rem.val[ja] : math::zero<value_type>();
-                if (compute_values && math::is_zero(va)) continue ;
+                value_type va = A_rem.val[ja];
 
                 for(ptrdiff_t jb = B_nbr.ptr[ca], eb = B_nbr.ptr[ca+1]; jb < eb; ++jb) {
                     ptrdiff_t  gb = B_nbr.col[jb];
-                    value_type vb = compute_values ? B_nbr.val[jb]: math::zero<value_type>();
-                    if (compute_values && math::is_zero(vb)) continue;
+                    value_type vb = B_nbr.val[jb];
 
                     if (gb >= B_beg && gb < B_end) {
                         ptrdiff_t cb = gb - B_beg;
@@ -972,10 +962,10 @@ product(
                             loc_marker[cb] = loc_end;
 
                             C_loc.col[loc_end] = cb;
-                            if (compute_values) C_loc.val[loc_end] = va * vb;
+                            C_loc.val[loc_end] = va * vb;
 
                             ++loc_end;
-                        } else if (compute_values) {
+                        } else {
                             C_loc.val[loc_marker[cb]] += va * vb;
                         }
                     } else {
@@ -985,10 +975,10 @@ product(
                             rem_marker[cb] = rem_end;
 
                             C_rem.col[rem_end] = gb;
-                            if (compute_values) C_rem.val[rem_end] = va * vb;
+                            C_rem.val[rem_end] = va * vb;
 
                             ++rem_end;
-                        } else if (compute_values) {
+                        } else {
                             C_rem.val[rem_marker[cb]] += va * vb;
                         }
                     }
@@ -996,19 +986,310 @@ product(
             }
         }
     }
+    AMGCL_TOC("compute");
 
     AMGCL_TIC("MPI Wait");
     MPI_Waitall(send_ptr_req.size(), &send_ptr_req[0], MPI_STATUSES_IGNORE);
     MPI_Waitall(send_col_req.size(), &send_col_req[0], MPI_STATUSES_IGNORE);
-    if (compute_values)
-        MPI_Waitall(send_val_req.size(), &send_val_req[0], MPI_STATUSES_IGNORE);
+    MPI_Waitall(send_val_req.size(), &send_val_req[0], MPI_STATUSES_IGNORE);
     AMGCL_TOC("MPI Wait");
 
-
-    // TODO: This should work correctly, but we may have enough information to
-    // build C's communication pattern here and save some work:
     return boost::make_shared<distributed_matrix<Backend, Local, Remote> >(comm,
-            c_loc, c_rem, A.bprm);
+            c_loc, c_rem, A.backend_prm());
+}
+
+// Do not compute values, and do not touch inner points.
+template <class Backend, class Local, class Remote>
+boost::shared_ptr< distributed_matrix<Backend, Local, Remote> >
+symb_product(
+        const distributed_matrix<Backend, Local, Remote> &A,
+        const distributed_matrix<Backend, Local, Remote> &B
+       )
+{
+    typedef typename Backend::value_type value_type;
+    typedef comm_pattern<Backend>        CommPattern;
+    typedef backend::crs<value_type>     build_matrix;
+
+    static const int tag_ptr = 3001;
+    static const int tag_col = 3002;
+
+    communicator comm = A.comm();
+    const CommPattern &Acp = A.cpat();
+
+    build_matrix &A_loc = *A.local();
+    build_matrix &A_rem = *A.remote();
+    build_matrix &B_loc = *B.local();
+    build_matrix &B_rem = *B.remote();
+
+    ptrdiff_t A_rows = A.loc_rows();
+    ptrdiff_t B_cols = B.loc_cols();
+
+    std::vector<ptrdiff_t> B_dom = mpi::exclusive_sum(comm, static_cast<ptrdiff_t>(B_cols));
+
+    ptrdiff_t B_beg = B_dom[comm.rank];
+    ptrdiff_t B_end = B_dom[comm.rank + 1];
+
+    size_t nrecv = Acp.recv.nbr.size();
+    size_t nsend = Acp.send.nbr.size();
+
+    // Create blocked matrix to send to each domain
+    // that needs data from us:
+    std::vector<MPI_Request> send_ptr_req(nsend);
+    std::vector<MPI_Request> send_col_req(nsend);
+
+    std::vector<build_matrix> send_rows(nsend);
+
+    for(size_t k = 0; k < nsend; ++k) {
+        ptrdiff_t beg = Acp.send.ptr[k];
+        ptrdiff_t end = Acp.send.ptr[k + 1];
+
+        ptrdiff_t nr = end - beg;
+
+        build_matrix &m = send_rows[k];
+        m.set_size(nr, 0, true);
+
+        for(ptrdiff_t i = 0, ii = beg; ii < end; ++i, ++ii) {
+            ptrdiff_t r = Acp.send.col[ii];
+
+            ptrdiff_t w =
+                (B_loc.ptr[r + 1] - B_loc.ptr[r]) +
+                (B_rem.ptr[r + 1] - B_rem.ptr[r]);
+
+            m.ptr[i] = w;
+            m.nnz += w;
+        }
+
+        MPI_Isend(m.ptr, m.nrows, datatype<ptrdiff_t>(),
+                Acp.send.nbr[k], tag_ptr, comm, &send_ptr_req[k]);
+
+        m.set_nonzeros(m.nnz, false);
+
+        for(ptrdiff_t i = 0, ii = beg, head = 0; ii < end; ++i, ++ii) {
+            ptrdiff_t r = Acp.send.col[ii];
+
+            // Contribution of the local part:
+            for(ptrdiff_t j = B_loc.ptr[r]; j < B_loc.ptr[r+1]; ++j) {
+                m.col[head++] = B_loc.col[j] + B_beg;
+            }
+
+            // Contribution of the remote part:
+            for(ptrdiff_t j = B_rem.ptr[r]; j < B_rem.ptr[r+1]; ++j) {
+                m.col[head++] = B_rem.col[j];
+            }
+        }
+
+        MPI_Isend(m.col, m.nnz, datatype<ptrdiff_t>(),
+                Acp.send.nbr[k], tag_col, comm, &send_col_req[k]);
+    }
+
+    // Receive rows of B in block format from our neighbors:
+    std::vector<MPI_Request> recv_ptr_req(nrecv);
+    std::vector<MPI_Request> recv_col_req(nrecv);
+
+    build_matrix B_nbr;
+    B_nbr.set_size(Acp.recv.count(), 0, true);
+
+    for(size_t k = 0; k < nrecv; ++k) {
+        ptrdiff_t beg = Acp.recv.ptr[k];
+        ptrdiff_t end = Acp.recv.ptr[k + 1];
+
+        MPI_Irecv(&B_nbr.ptr[beg + 1], end - beg, datatype<ptrdiff_t>(),
+                Acp.recv.nbr[k], tag_ptr, comm, &recv_ptr_req[k]);
+    }
+
+    AMGCL_TIC("MPI Wait");
+    MPI_Waitall(recv_ptr_req.size(), &recv_ptr_req[0], MPI_STATUSES_IGNORE);
+    AMGCL_TOC("MPI Wait");
+
+    B_nbr.set_nonzeros(B_nbr.scan_row_sizes(), false);
+
+    for(size_t k = 0; k < nrecv; ++k) {
+        ptrdiff_t rbeg = Acp.recv.ptr[k];
+        ptrdiff_t rend = Acp.recv.ptr[k + 1];
+
+        ptrdiff_t cbeg = B_nbr.ptr[rbeg];
+        ptrdiff_t cend = B_nbr.ptr[rend];
+
+        MPI_Irecv(&B_nbr.col[cbeg], cend - cbeg, datatype<ptrdiff_t>(),
+                Acp.recv.nbr[k], tag_col, comm, &recv_col_req[k]);
+    }
+
+    AMGCL_TIC("MPI Wait");
+    MPI_Waitall(recv_col_req.size(), &recv_col_req[0], MPI_STATUSES_IGNORE);
+    AMGCL_TOC("MPI Wait");
+
+    // Build mapping from global to local column numbers in the remote part of
+    // the product matrix.
+    std::vector<ptrdiff_t> rem_cols(B_rem.nnz + B_nbr.nnz);
+
+    std::copy(B_nbr.col, B_nbr.col + B_nbr.nnz,
+            std::copy(B_rem.col, B_rem.col + B_rem.nnz, rem_cols.begin()));
+
+    std::sort(rem_cols.begin(), rem_cols.end());
+    rem_cols.erase(std::unique(rem_cols.begin(), rem_cols.end()), rem_cols.end());
+
+    ptrdiff_t n_rem_cols = 0;
+    boost::unordered_map<ptrdiff_t, int> rem_idx(2 * rem_cols.size());
+    BOOST_FOREACH(ptrdiff_t c, rem_cols) {
+        if (c >= B_beg && c < B_end) continue;
+        rem_idx[c] = n_rem_cols++;
+    }
+
+    // Build the product.
+    boost::shared_ptr<build_matrix> c_loc = boost::make_shared<build_matrix>();
+    boost::shared_ptr<build_matrix> c_rem = boost::make_shared<build_matrix>();
+
+    build_matrix &C_loc = *c_loc;
+    build_matrix &C_rem = *c_rem;
+
+    C_loc.set_size(A_rows, B_cols, false);
+    C_rem.set_size(A_rows, 0,      false);
+
+    C_loc.ptr[0] = 0;
+    C_rem.ptr[0] = 0;
+
+    AMGCL_TIC("analyze");
+#pragma omp parallel
+    {
+        std::vector<ptrdiff_t> loc_marker(B_end - B_beg, -1);
+        std::vector<ptrdiff_t> rem_marker(n_rem_cols,    -1);
+
+#pragma omp for
+        for(ptrdiff_t ia = 0; ia < A_rows; ++ia) {
+            ptrdiff_t loc_cols = 0;
+            ptrdiff_t rem_cols = 0;
+
+            for(ptrdiff_t ja = A_loc.ptr[ia], ea = A_loc.ptr[ia + 1]; ja < ea; ++ja) {
+                ptrdiff_t  ca = A_loc.col[ja];
+
+                for(ptrdiff_t jb = B_loc.ptr[ca], eb = B_loc.ptr[ca+1]; jb < eb; ++jb) {
+                    ptrdiff_t  cb = B_loc.col[jb];
+
+                    if (loc_marker[cb] != ia) {
+                        loc_marker[cb]  = ia;
+                        ++loc_cols;
+                    }
+                }
+
+                for(ptrdiff_t jb = B_rem.ptr[ca], eb = B_rem.ptr[ca+1]; jb < eb; ++jb) {
+                    ptrdiff_t  cb = rem_idx[B_rem.col[jb]];
+
+                    if (rem_marker[cb] != ia) {
+                        rem_marker[cb]  = ia;
+                        ++rem_cols;
+                    }
+                }
+            }
+
+            for(ptrdiff_t ja = A_rem.ptr[ia], ea = A_rem.ptr[ia + 1]; ja < ea; ++ja) {
+                ptrdiff_t  ca = Acp.local_index(A_rem.col[ja]);
+
+                for(ptrdiff_t jb = B_nbr.ptr[ca], eb = B_nbr.ptr[ca+1]; jb < eb; ++jb) {
+                    ptrdiff_t  cb = B_nbr.col[jb];
+
+                    if (cb >= B_beg && cb < B_end) {
+                        cb -= B_beg;
+
+                        if (loc_marker[cb] != ia) {
+                            loc_marker[cb]  = ia;
+                            ++loc_cols;
+                        }
+                    } else {
+                        cb = rem_idx[cb];
+
+                        if (rem_marker[cb] != ia) {
+                            rem_marker[cb]  = ia;
+                            ++rem_cols;
+                        }
+                    }
+                }
+            }
+
+            C_rem.ptr[ia + 1] = rem_cols;
+            C_loc.ptr[ia + 1] = rem_cols ? loc_cols : 0;
+        }
+    }
+    AMGCL_TOC("analyze");
+
+    C_loc.set_nonzeros(C_loc.scan_row_sizes(), false);
+    C_rem.set_nonzeros(C_rem.scan_row_sizes(), false);
+
+    AMGCL_TIC("compute");
+#pragma omp parallel
+    {
+        std::vector<ptrdiff_t> loc_marker(B_end - B_beg, -1);
+        std::vector<ptrdiff_t> rem_marker(n_rem_cols,    -1);
+
+#pragma omp for
+        for(ptrdiff_t ia = 0; ia < A_rows; ++ia) {
+            ptrdiff_t loc_beg = C_loc.ptr[ia];
+            ptrdiff_t rem_beg = C_rem.ptr[ia];
+            ptrdiff_t loc_end = loc_beg;
+            ptrdiff_t rem_end = rem_beg;
+
+            if (rem_beg == C_rem.ptr[ia+1]) continue;
+
+            for(ptrdiff_t ja = A_loc.ptr[ia], ea = A_loc.ptr[ia + 1]; ja < ea; ++ja) {
+                ptrdiff_t  ca = A_loc.col[ja];
+
+                for(ptrdiff_t jb = B_loc.ptr[ca], eb = B_loc.ptr[ca+1]; jb < eb; ++jb) {
+                    ptrdiff_t  cb = B_loc.col[jb];
+
+                    if (loc_marker[cb] < loc_beg) {
+                        loc_marker[cb] = loc_end;
+                        C_loc.col[loc_end] = cb;
+                        ++loc_end;
+                    }
+                }
+
+                for(ptrdiff_t jb = B_rem.ptr[ca], eb = B_rem.ptr[ca+1]; jb < eb; ++jb) {
+                    ptrdiff_t  gb = B_rem.col[jb];
+                    ptrdiff_t  cb = rem_idx[gb];
+
+                    if (rem_marker[cb] < rem_beg) {
+                        rem_marker[cb] = rem_end;
+                        C_rem.col[rem_end] = gb;
+                        ++rem_end;
+                    }
+                }
+            }
+
+            for(ptrdiff_t ja = A_rem.ptr[ia], ea = A_rem.ptr[ia + 1]; ja < ea; ++ja) {
+                ptrdiff_t  ca = Acp.local_index(A_rem.col[ja]);
+
+                for(ptrdiff_t jb = B_nbr.ptr[ca], eb = B_nbr.ptr[ca+1]; jb < eb; ++jb) {
+                    ptrdiff_t  gb = B_nbr.col[jb];
+
+                    if (gb >= B_beg && gb < B_end) {
+                        ptrdiff_t cb = gb - B_beg;
+
+                        if (loc_marker[cb] < loc_beg) {
+                            loc_marker[cb] = loc_end;
+                            C_loc.col[loc_end] = cb;
+                            ++loc_end;
+                        }
+                    } else {
+                        ptrdiff_t cb = rem_idx[gb];
+
+                        if (rem_marker[cb] < rem_beg) {
+                            rem_marker[cb] = rem_end;
+                            C_rem.col[rem_end] = gb;
+                            ++rem_end;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    AMGCL_TOC("compute");
+
+    AMGCL_TIC("MPI Wait");
+    MPI_Waitall(send_ptr_req.size(), &send_ptr_req[0], MPI_STATUSES_IGNORE);
+    MPI_Waitall(send_col_req.size(), &send_col_req[0], MPI_STATUSES_IGNORE);
+    AMGCL_TOC("MPI Wait");
+
+    return boost::make_shared<distributed_matrix<Backend, Local, Remote> >(comm,
+            c_loc, c_rem, A.backend_prm());
 }
 
 template <class Backend, class Local, class Remote>

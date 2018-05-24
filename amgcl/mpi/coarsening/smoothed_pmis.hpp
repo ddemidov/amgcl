@@ -241,7 +241,7 @@ struct smoothed_pmis {
 
         // 1. Get symbolic square of the filtered matrix.
         AMGCL_TIC("symbolic square");
-        boost::shared_ptr<DM> S = product(Af, Af, /*compute_values*/false);
+        boost::shared_ptr<DM> S = symb_product(Af, Af);
         const build_matrix &S_loc = *S->local();
         const build_matrix &S_rem = *S->remote();
         const comm_pattern<Backend> &Sp = S->cpat();
@@ -261,7 +261,7 @@ struct smoothed_pmis {
         // Remove lonely nodes.
 #pragma omp parallel for reduction(+:n_undone)
         for(ptrdiff_t i = 0; i < n; ++i) {
-            ptrdiff_t wl = S_loc.ptr[i+1] - S_loc.ptr[i];
+            ptrdiff_t wl = Af_loc.ptr[i+1] - Af_loc.ptr[i];
             ptrdiff_t wr = S_rem.ptr[i+1] - S_rem.ptr[i];
 
             if (wl + wr == 1) {
@@ -286,6 +286,8 @@ struct smoothed_pmis {
         std::vector<MPI_Request> send_pts_req(Sp.recv.nbr.size());
 
         ptrdiff_t naggr = 0;
+
+        std::vector<ptrdiff_t> nbr;
 
         while(true) {
             for(size_t i = 0; i < Sp.recv.nbr.size(); ++i)
@@ -363,8 +365,12 @@ struct smoothed_pmis {
                         loc_state[i] = id;
                         --n_undone;
 
+                        nbr.clear();
+
                         for(ptrdiff_t j = Af_loc.ptr[i], e = Af_loc.ptr[i+1]; j < e; ++j) {
                             ptrdiff_t c = Af_loc.col[j];
+                            nbr.push_back(c);
+
                             if (c != i) {
                                 if (loc_state[c] == undone) --n_undone;
                                 loc_owner[c] = comm.rank;
@@ -372,12 +378,14 @@ struct smoothed_pmis {
                             }
                         }
 
-                        for(ptrdiff_t j = S_loc.ptr[i], e = S_loc.ptr[i+1]; j < e; ++j) {
-                            ptrdiff_t c = S_loc.col[j];
-                            if (c != i && loc_state[c] == undone) {
-                                loc_owner[c] = comm.rank;
-                                loc_state[c] = id;
-                                --n_undone;
+                        BOOST_FOREACH(ptrdiff_t k, nbr) {
+                            for(ptrdiff_t j = Af_loc.ptr[k], e = Af_loc.ptr[k+1]; j < e; ++j) {
+                                ptrdiff_t c = Af_loc.col[j];
+                                if (c != k && loc_state[c] == undone) {
+                                    loc_owner[c] = comm.rank;
+                                    loc_state[c] = id;
+                                    --n_undone;
+                                }
                             }
                         }
                     }
