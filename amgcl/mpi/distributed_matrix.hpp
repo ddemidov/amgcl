@@ -1159,28 +1159,6 @@ symb_product(
             ptrdiff_t loc_cols = 0;
             ptrdiff_t rem_cols = 0;
 
-            for(ptrdiff_t ja = A_loc.ptr[ia], ea = A_loc.ptr[ia + 1]; ja < ea; ++ja) {
-                ptrdiff_t  ca = A_loc.col[ja];
-
-                for(ptrdiff_t jb = B_loc.ptr[ca], eb = B_loc.ptr[ca+1]; jb < eb; ++jb) {
-                    ptrdiff_t  cb = B_loc.col[jb];
-
-                    if (loc_marker[cb] != ia) {
-                        loc_marker[cb]  = ia;
-                        ++loc_cols;
-                    }
-                }
-
-                for(ptrdiff_t jb = B_rem.ptr[ca], eb = B_rem.ptr[ca+1]; jb < eb; ++jb) {
-                    ptrdiff_t  cb = rem_idx[B_rem.col[jb]];
-
-                    if (rem_marker[cb] != ia) {
-                        rem_marker[cb]  = ia;
-                        ++rem_cols;
-                    }
-                }
-            }
-
             for(ptrdiff_t ja = A_rem.ptr[ia], ea = A_rem.ptr[ia + 1]; ja < ea; ++ja) {
                 ptrdiff_t  ca = Acp.local_index(A_rem.col[ja]);
 
@@ -1202,6 +1180,36 @@ symb_product(
                             ++rem_cols;
                         }
                     }
+                }
+            }
+
+            for(ptrdiff_t ja = A_loc.ptr[ia], ea = A_loc.ptr[ia + 1]; ja < ea; ++ja) {
+                ptrdiff_t  ca = A_loc.col[ja];
+
+                for(ptrdiff_t jb = B_rem.ptr[ca], eb = B_rem.ptr[ca+1]; jb < eb; ++jb) {
+                    ptrdiff_t  cb = rem_idx[B_rem.col[jb]];
+
+                    if (rem_marker[cb] != ia) {
+                        rem_marker[cb]  = ia;
+                        ++rem_cols;
+                    }
+                }
+
+            }
+
+            if (rem_cols) {
+                for(ptrdiff_t ja = A_loc.ptr[ia], ea = A_loc.ptr[ia + 1]; ja < ea; ++ja) {
+                    ptrdiff_t  ca = A_loc.col[ja];
+
+                    for(ptrdiff_t jb = B_loc.ptr[ca], eb = B_loc.ptr[ca+1]; jb < eb; ++jb) {
+                        ptrdiff_t  cb = B_loc.col[jb];
+
+                        if (loc_marker[cb] != ia) {
+                            loc_marker[cb]  = ia;
+                            ++loc_cols;
+                        }
+                    }
+
                 }
             }
 
