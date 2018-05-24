@@ -104,7 +104,7 @@ struct smoothed_aggregation {
         // estimation.
         int power_iters;
 
-        params() : relax(1.0f), estimate_spectral_radius(true), power_iters(5) { }
+        params() : relax(1.0f), estimate_spectral_radius(false), power_iters(5) { }
 
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_CHILD(p, aggr),
@@ -141,7 +141,6 @@ struct smoothed_aggregation {
         prm.aggr.eps_strong *= 0.5;
         AMGCL_TOC("aggregates");
 
-        AMGCL_TIC("interpolation");
         boost::shared_ptr<Matrix> P_tent = tentative_prolongation<Matrix>(
                 n, aggr.count, aggr.id, prm.nullspace, prm.aggr.block_size
                 );
@@ -156,6 +155,7 @@ struct smoothed_aggregation {
             omega *= static_cast<scalar_type>(2.0/3);
         }
 
+        AMGCL_TIC("smoothing");
 #pragma omp parallel
         {
             std::vector<ptrdiff_t> marker(P->ncols, -1);
@@ -230,7 +230,7 @@ struct smoothed_aggregation {
                 }
             }
         }
-        AMGCL_TOC("interpolation");
+        AMGCL_TOC("smoothing");
 
         if (prm.nullspace.cols > 0)
             prm.aggr.block_size = prm.nullspace.cols;
@@ -252,6 +252,7 @@ struct smoothed_aggregation {
     typename math::scalar_of<typename backend::value_type<Matrix>::type>::type
     spectral_radius(const Matrix &A, int power_iters)
     {
+        AMGCL_TIC("spectral radius");
         typedef typename backend::value_type<Matrix>::type   value_type;
         typedef typename math::rhs_of<value_type>::type      rhs_type;
         typedef typename math::scalar_of<value_type>::type   scalar_type;
@@ -347,6 +348,7 @@ struct smoothed_aggregation {
                 }
             }
         }
+        AMGCL_TOC("spectral radius");
 
         return radius < 0 ? static_cast<scalar_type>(2) : radius;
     }

@@ -1015,6 +1015,7 @@ template <class Backend, class Local, class Remote>
 typename math::scalar_of<typename Backend::value_type>::type
 spectral_radius(const distributed_matrix<Backend,Local,Remote> &A, int power_iters)
 {
+    AMGCL_TIC("spectral radius");
     typedef typename Backend::value_type               value_type;
     typedef typename math::rhs_of<value_type>::type    rhs_type;
     typedef typename math::scalar_of<value_type>::type scalar_type;
@@ -1147,6 +1148,7 @@ spectral_radius(const distributed_matrix<Backend,Local,Remote> &A, int power_ite
             C.exchange(&b0_send[0], &b0_recv[0]);
         }
     }
+    AMGCL_TOC("spectral radius");
 
     return radius < 0 ? static_cast<scalar_type>(2) : radius;
 }
