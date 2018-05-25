@@ -15,12 +15,10 @@
 #include <amgcl/mpi/make_solver.hpp>
 #include <amgcl/mpi/amg.hpp>
 #include <amgcl/solver/runtime.hpp>
-#include <amgcl/coarsening/runtime.hpp>
-#include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/mpi/direct_solver/runtime.hpp>
 #include <amgcl/mpi/coarsening/smoothed_aggregation.hpp>
 #include <amgcl/mpi/coarsening/smoothed_pmis.hpp>
-#include <amgcl/mpi/relaxation/spai0.hpp>
+#include <amgcl/mpi/relaxation/runtime.hpp>
 
 #include <amgcl/profiler.hpp>
 
@@ -68,7 +66,7 @@ void solve(
         amgcl::mpi::make_solver<
             amgcl::mpi::amg<
                 Backend, Coarsening<Backend>,
-                amgcl::mpi::relaxation::spai0<Backend>,
+                amgcl::runtime::mpi::relaxation<Backend>,
                 amgcl::runtime::mpi::direct::solver<val_type>
                 >,
             amgcl::runtime::solver::wrapper
