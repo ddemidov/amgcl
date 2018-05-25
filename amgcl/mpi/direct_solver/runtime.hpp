@@ -153,6 +153,10 @@ class solver {
             }
         }
 
+        static size_t coarse_enough() {
+            return 3000 / math::static_rows<value_type>::value;
+        }
+
         template <class Vec1, class Vec2>
         void operator()(const Vec1 &rhs, Vec2 &x) const {
             switch (s) {

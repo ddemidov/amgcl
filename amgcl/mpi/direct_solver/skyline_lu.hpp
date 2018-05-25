@@ -66,6 +66,10 @@ class skyline_lu : public solver_base< value_type, skyline_lu<value_type> > {
             static_cast<Base*>(this)->init(comm, A);
         }
 
+        static size_t coarse_enough() {
+            return Solver::coarse_enough();
+        }
+
         int comm_size(int /*n*/) const {
             return 1;
         }

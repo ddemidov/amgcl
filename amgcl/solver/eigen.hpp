@@ -50,6 +50,10 @@ class EigenSolver {
 
         typedef amgcl::detail::empty_params params;
 
+        static size_t coarse_enough() {
+            return 3000 / math::static_rows<value_type>::value;
+        }
+
         template <class Matrix>
         EigenSolver(const Matrix &A, const params& = params())
             : n( backend::rows(A) )

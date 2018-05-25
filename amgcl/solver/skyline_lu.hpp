@@ -90,7 +90,9 @@ class skyline_lu {
 
         typedef amgcl::detail::empty_params params;
 
-        static size_t coarse_enough() { return 3000 / math::static_rows<value_type>::value; }
+        static size_t coarse_enough() {
+            return 3000 / math::static_rows<value_type>::value;
+        }
 
         template <class Matrix>
         skyline_lu(const Matrix &A, const params& = params())

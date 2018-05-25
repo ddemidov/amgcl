@@ -95,6 +95,10 @@ class pastix : public solver_base< value_type, pastix<value_type, Distrib> > {
             static_cast<Base*>(this)->init(comm, A);
         }
 
+        static size_t coarse_enough() {
+            return 10000;
+        }
+
         int comm_size(int n) const {
             return Distrib ? (n + prm.max_rows_per_process - 1) / prm.max_rows_per_process : 1;
         }

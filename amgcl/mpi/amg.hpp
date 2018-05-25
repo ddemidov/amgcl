@@ -108,7 +108,7 @@ class amg {
             unsigned pre_cycles;
 
             params() :
-                coarse_enough(1024), direct_coarse(true),
+                coarse_enough(DirectSolver::coarse_enough()), direct_coarse(true),
                 max_levels( std::numeric_limits<unsigned>::max() ),
                 npre(1), npost(1), ncycle(1), pre_cycles(1)
             {}

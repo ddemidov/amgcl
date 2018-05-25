@@ -72,6 +72,10 @@ class eigen_splu : public solver_base< value_type, eigen_splu<value_type> > {
             static_cast<Base*>(this)->init(comm, A);
         }
 
+        static size_t coarse_enough() {
+            return Base::coarse_enough();
+        }
+
         int comm_size(int /*n*/) const {
             return 1;
         }
