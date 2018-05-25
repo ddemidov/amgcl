@@ -478,20 +478,6 @@ class distributed_matrix {
                 backend::spmv(-1, *A_rem, *C->x_rem, 1, r);
         }
 
-        /*
-        template <class B, class L, class R>
-        friend boost::shared_ptr< distributed_matrix<B,L,R> >
-        transpose(const distributed_matrix<B,L,R> &A);
-
-        template <class B, class L, class R>
-        friend boost::shared_ptr< distributed_matrix<B,L,R> >
-        product(const distributed_matrix<B,L,R> &a, const distributed_matrix<B,L,R> &b,
-                bool compute_values);
-
-        template <class B, class L, class R>
-        typename math::scalar_of<typename B::value_type>::type
-        spectral_radius(const distributed_matrix<B,L,R> &a, int power_iters);
-        */
     private:
         typedef comm_pattern<Backend> CommPattern;
 
