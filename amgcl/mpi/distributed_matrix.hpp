@@ -278,13 +278,14 @@ class comm_pattern {
         ptrdiff_t loc_beg;
 };
 
-template <class Backend, class LocalMatrix = typename Backend::matrix, class RemoteMatrix = LocalMatrix>
+template <class Backend>
 class distributed_matrix {
     public:
         typedef typename Backend::value_type value_type;
         typedef typename math::rhs_of<value_type>::type rhs_type;
         typedef typename math::scalar_of<value_type>::type scalar_type;
         typedef typename Backend::params backend_params;
+        typedef typename Backend::matrix matrix;
         typedef backend::crs<value_type> build_matrix;
 
         distributed_matrix(
@@ -391,11 +392,11 @@ class distributed_matrix {
             return a_rem;
         }
 
-        boost::shared_ptr<LocalMatrix> local_backend() const {
+        boost::shared_ptr<matrix> local_backend() const {
             return A_loc;
         }
 
-        boost::shared_ptr<RemoteMatrix> remote_backend() const {
+        boost::shared_ptr<matrix> remote_backend() const {
             return A_rem;
         }
 
@@ -431,7 +432,7 @@ class distributed_matrix {
             return *C;
         }
 
-        void set_local(boost::shared_ptr<LocalMatrix> a) {
+        void set_local(boost::shared_ptr<matrix> a) {
             A_loc = a;
         }
 
@@ -482,8 +483,7 @@ class distributed_matrix {
         typedef comm_pattern<Backend> CommPattern;
 
         boost::shared_ptr<CommPattern>  C;
-        boost::shared_ptr<LocalMatrix>  A_loc;
-        boost::shared_ptr<RemoteMatrix> A_rem;
+        boost::shared_ptr<matrix> A_loc, A_rem;
         boost::shared_ptr<build_matrix> a_loc, a_rem;
         backend_params bprm;
 
@@ -492,9 +492,9 @@ class distributed_matrix {
         ptrdiff_t n_loc_nonzeros, n_glob_nonzeros;
 };
 
-template <class Backend, class Local, class Remote>
-boost::shared_ptr< distributed_matrix<Backend, Local, Remote> >
-transpose(const distributed_matrix<Backend, Local, Remote> &A) {
+template <class Backend>
+boost::shared_ptr< distributed_matrix<Backend> >
+transpose(const distributed_matrix<Backend> &A) {
     AMGCL_TIC("MPI Transpose");
     typedef typename Backend::value_type value_type;
     typedef comm_pattern<Backend>        CommPattern;
@@ -647,17 +647,13 @@ transpose(const distributed_matrix<Backend, Local, Remote> &A) {
 
     AMGCL_TOC("MPI Transpose");
 
-    return boost::make_shared< distributed_matrix<Backend, Local, Remote> >(
+    return boost::make_shared< distributed_matrix<Backend> >(
             comm, backend::transpose(A_loc), T_ptr, A.backend_prm());
 }
 
-template <class Backend, class Local, class Remote>
-boost::shared_ptr< distributed_matrix<Backend, Local, Remote> >
-product(
-        const distributed_matrix<Backend, Local, Remote> &A,
-        const distributed_matrix<Backend, Local, Remote> &B
-       )
-{
+template <class Backend>
+boost::shared_ptr< distributed_matrix<Backend> >
+product(const distributed_matrix<Backend> &A, const distributed_matrix<Backend> &B) {
     typedef typename Backend::value_type value_type;
     typedef comm_pattern<Backend>        CommPattern;
     typedef backend::crs<value_type>     build_matrix;
@@ -980,17 +976,14 @@ product(
     MPI_Waitall(send_val_req.size(), &send_val_req[0], MPI_STATUSES_IGNORE);
     AMGCL_TOC("MPI Wait");
 
-    return boost::make_shared<distributed_matrix<Backend, Local, Remote> >(comm,
+    return boost::make_shared<distributed_matrix<Backend> >(comm,
             c_loc, c_rem, A.backend_prm());
 }
 
 // Do not compute values, and do not touch inner points.
-template <class Backend, class Local, class Remote>
-boost::shared_ptr< distributed_matrix<Backend, Local, Remote> >
-symb_product(
-        const distributed_matrix<Backend, Local, Remote> &A,
-        const distributed_matrix<Backend, Local, Remote> &B
-       )
+template <class Backend>
+boost::shared_ptr< distributed_matrix<Backend> >
+symb_product(const distributed_matrix<Backend> &A, const distributed_matrix<Backend> &B)
 {
     typedef typename Backend::value_type value_type;
     typedef comm_pattern<Backend>        CommPattern;
@@ -1282,13 +1275,13 @@ symb_product(
     MPI_Waitall(send_col_req.size(), &send_col_req[0], MPI_STATUSES_IGNORE);
     AMGCL_TOC("MPI Wait");
 
-    return boost::make_shared<distributed_matrix<Backend, Local, Remote> >(comm,
+    return boost::make_shared<distributed_matrix<Backend> >(comm,
             c_loc, c_rem, A.backend_prm());
 }
 
-template <class Backend, class Local, class Remote>
+template <class Backend>
 typename math::scalar_of<typename Backend::value_type>::type
-spectral_radius(const distributed_matrix<Backend,Local,Remote> &A, int power_iters)
+spectral_radius(const distributed_matrix<Backend> &A, int power_iters)
 {
     AMGCL_TIC("spectral radius");
     typedef typename Backend::value_type               value_type;
@@ -1428,8 +1421,8 @@ spectral_radius(const distributed_matrix<Backend,Local,Remote> &A, int power_ite
     return radius < 0 ? static_cast<scalar_type>(2) : radius;
 }
 
-template <class Backend, class Local, class Remote, class T>
-void scale(distributed_matrix<Backend, Local, Remote> &A, T s) {
+template <class Backend, class T>
+void scale(distributed_matrix<Backend> &A, T s) {
     typedef typename Backend::value_type value_type;
     typedef backend::crs<value_type> build_matrix;
 
@@ -1451,30 +1444,24 @@ void scale(distributed_matrix<Backend, Local, Remote> &A, T s) {
 
 namespace backend {
 
-template <
-    class Backend, class LocalMatrix, class RemoteMatrix,
-    class Alpha, class Vec1, class Beta,  class Vec2
-    >
-struct spmv_impl<Alpha, mpi::distributed_matrix<Backend, LocalMatrix, RemoteMatrix>, Vec1, Beta, Vec2>
+template <class Backend, class Alpha, class Vec1, class Beta,  class Vec2>
+struct spmv_impl<Alpha, mpi::distributed_matrix<Backend>, Vec1, Beta, Vec2>
 {
     static void apply(
             Alpha alpha,
-            const mpi::distributed_matrix<Backend, LocalMatrix, RemoteMatrix> &A,
+            const mpi::distributed_matrix<Backend> &A,
             const Vec1 &x, Beta beta, Vec2 &y)
     {
         A.mul(alpha, x, beta, y);
     }
 };
 
-template <
-    class Backend, class LocalMatrix, class RemoteMatrix,
-    class Vec1, class Vec2, class Vec3
-    >
-struct residual_impl<mpi::distributed_matrix<Backend, LocalMatrix, RemoteMatrix>, Vec1, Vec2, Vec3>
+template <class Backend, class Vec1, class Vec2, class Vec3>
+struct residual_impl<mpi::distributed_matrix<Backend>, Vec1, Vec2, Vec3>
 {
     static void apply(
             const Vec1 &rhs,
-            const mpi::distributed_matrix<Backend, LocalMatrix, RemoteMatrix> &A,
+            const mpi::distributed_matrix<Backend> &A,
             const Vec2 &x, Vec3 &r)
     {
         A.residual(rhs, x, r);

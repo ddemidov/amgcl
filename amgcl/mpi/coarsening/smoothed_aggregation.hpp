@@ -53,16 +53,15 @@ struct smoothed_aggregation {
 
     smoothed_aggregation(const params &prm = params()) : prm(prm) {}
 
-    template <class LM, class RM>
     boost::tuple<
-        boost::shared_ptr< distributed_matrix<Backend, LM, RM> >,
-        boost::shared_ptr< distributed_matrix<Backend, LM, RM> >
+        boost::shared_ptr< distributed_matrix<Backend> >,
+        boost::shared_ptr< distributed_matrix<Backend> >
         >
-    transfer_operators(const distributed_matrix<Backend, LM, RM> &A) {
-        typedef typename Base::Aggregates    Aggregates;
-        typedef distributed_matrix<Backend, LM, RM>        DM;
-        typedef typename Backend::value_type               value_type;
-        typedef backend::crs<value_type>                   build_matrix;
+    transfer_operators(const distributed_matrix<Backend> &A) {
+        typedef typename Base::Aggregates Aggregates;
+        typedef distributed_matrix<Backend> DM;
+        typedef typename Backend::value_type value_type;
+        typedef backend::crs<value_type> build_matrix;
         typedef typename math::scalar_of<value_type>::type scalar_type;
 
         // Use local part of A with to create tentative prolongation operator:
@@ -147,12 +146,11 @@ struct smoothed_aggregation {
         return boost::make_tuple(P, transpose(*P));
     }
 
-    template <class LM, class RM>
-    boost::shared_ptr< distributed_matrix<Backend, LM, RM> >
+    boost::shared_ptr< distributed_matrix<Backend> >
     coarse_operator(
-            const distributed_matrix<Backend, LM, RM> &A,
-            const distributed_matrix<Backend, LM, RM> &P,
-            const distributed_matrix<Backend, LM, RM> &R
+            const distributed_matrix<Backend> &A,
+            const distributed_matrix<Backend> &P,
+            const distributed_matrix<Backend> &R
             ) const
     {
         return amgcl::coarsening::detail::galerkin(A, P, R);

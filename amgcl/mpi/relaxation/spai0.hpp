@@ -49,9 +49,8 @@ struct spai0 {
     typedef amgcl::detail::empty_params                params;
     typedef typename Backend::params                   backend_params;
 
-    template <class L, class R>
     spai0(
-            const distributed_matrix<Backend, L, R> &A,
+            const distributed_matrix<Backend> &A,
             const params &, const backend_params &bprm = backend_params()
          )
     {

@@ -92,13 +92,12 @@ struct smoothed_pmis {
 
     smoothed_pmis(const params &prm = params()) : prm(prm) {}
 
-    template <class LM, class RM>
     boost::tuple<
-        boost::shared_ptr< distributed_matrix<Backend, LM, RM> >,
-        boost::shared_ptr< distributed_matrix<Backend, LM, RM> >
+        boost::shared_ptr< distributed_matrix<Backend> >,
+        boost::shared_ptr< distributed_matrix<Backend> >
         >
-    transfer_operators(const distributed_matrix<Backend, LM, RM> &A) {
-        typedef distributed_matrix<Backend, LM, RM> DM;
+    transfer_operators(const distributed_matrix<Backend> &A) {
+        typedef distributed_matrix<Backend> DM;
 
         communicator comm = A.comm();
 
@@ -224,10 +223,9 @@ struct smoothed_pmis {
         return boost::make_tuple(P, transpose(*P));
     }
 
-    template <class LM, class RM>
-    boost::shared_ptr< distributed_matrix<Backend, LM, RM> >
-    tentative_prolongation(const distributed_matrix<Backend, LM, RM> &Af) {
-        typedef distributed_matrix<Backend, LM, RM> DM;
+    boost::shared_ptr< distributed_matrix<Backend> >
+    tentative_prolongation(const distributed_matrix<Backend> &Af) {
+        typedef distributed_matrix<Backend> DM;
 
         static const int tag_exc_cnt = 4001;
         static const int tag_exc_pts = 4002;
@@ -483,12 +481,11 @@ struct smoothed_pmis {
         return boost::make_shared<DM>(comm, p_loc, p_rem, Af.backend_prm());
     }
 
-    template <class LM, class RM>
-    boost::shared_ptr< distributed_matrix<Backend, LM, RM> >
+    boost::shared_ptr< distributed_matrix<Backend> >
     coarse_operator(
-            const distributed_matrix<Backend, LM, RM> &A,
-            const distributed_matrix<Backend, LM, RM> &P,
-            const distributed_matrix<Backend, LM, RM> &R
+            const distributed_matrix<Backend> &A,
+            const distributed_matrix<Backend> &P,
+            const distributed_matrix<Backend> &R
             ) const
     {
         return amgcl::coarsening::detail::galerkin(A, P, R);

@@ -152,8 +152,8 @@ class solver_base {
             }
         }
 
-        template <class B, class L, class R>
-        void init(communicator comm, const distributed_matrix<B,L,R> &A) {
+        template <class B>
+        void init(communicator comm, const distributed_matrix<B> &A) {
             const build_matrix &A_loc = *A.local();
             const build_matrix &A_rem = *A.remote();
 

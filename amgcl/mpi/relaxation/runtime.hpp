@@ -51,8 +51,7 @@ struct relaxation {
     runtime::relaxation::type r;
     void *handle;
 
-    template <class L, class R>
-    relaxation(const amgcl::mpi::distributed_matrix<Backend, L, R> &A,
+    relaxation(const amgcl::mpi::distributed_matrix<Backend> &A,
             params prm, const backend_params &bprm = backend_params())
       : r(prm.get("type", runtime::relaxation::spai0)), handle(0)
     {
