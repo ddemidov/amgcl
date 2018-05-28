@@ -45,6 +45,7 @@ THE SOFTWARE.
 #include <amgcl/mpi/util.hpp>
 #include <amgcl/mpi/distributed_matrix.hpp>
 #include <amgcl/mpi/direct_solver/skyline_lu.hpp>
+#include <amgcl/mpi/repartition/dummy.hpp>
 
 namespace amgcl {
 namespace mpi {
@@ -53,7 +54,8 @@ template <
     class Backend,
     class Coarsening,
     class Relaxation,
-    class DirectSolver = direct::skyline_lu<typename Backend::value_type>
+    class DirectSolver = direct::skyline_lu<typename Backend::value_type>,
+    class Repartition = repartition::dummy<Backend>
     >
 class amg {
     public:
@@ -68,10 +70,12 @@ class amg {
             typedef typename Coarsening::params   coarsening_params;
             typedef typename Relaxation::params   relax_params;
             typedef typename DirectSolver::params direct_params;
+            typedef typename Repartition::params  repart_params;
 
             coarsening_params coarsening;   ///< Coarsening parameters.
             relax_params      relax;        ///< Relaxation parameters.
             direct_params     direct;       ///< Direct solver parameters.
+            repart_params     repart;       ///< Repartition parameters.
 
             /// Specifies when level is coarse enough to be solved directly.
             /**
@@ -117,6 +121,7 @@ class amg {
                 : AMGCL_PARAMS_IMPORT_CHILD(p, coarsening),
                   AMGCL_PARAMS_IMPORT_CHILD(p, relax),
                   AMGCL_PARAMS_IMPORT_CHILD(p, direct),
+                  AMGCL_PARAMS_IMPORT_CHILD(p, repart),
                   AMGCL_PARAMS_IMPORT_VALUE(p, coarse_enough),
                   AMGCL_PARAMS_IMPORT_VALUE(p, direct_coarse),
                   AMGCL_PARAMS_IMPORT_VALUE(p, max_levels),
@@ -125,7 +130,7 @@ class amg {
                   AMGCL_PARAMS_IMPORT_VALUE(p, ncycle),
                   AMGCL_PARAMS_IMPORT_VALUE(p, pre_cycles)
             {
-                AMGCL_PARAMS_CHECK(p, (coarsening)(relax)(direct)(coarse_enough)
+                AMGCL_PARAMS_CHECK(p, (coarsening)(relax)(direct)(repart)(coarse_enough)
                         (direct_coarse)(max_levels)(npre)(npost)(ncycle)(pre_cycles));
 
                 amgcl::precondition(max_levels > 0, "max_levels should be positive");
@@ -139,6 +144,7 @@ class amg {
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, coarsening);
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, relax);
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, direct);
+                AMGCL_PARAMS_EXPORT_CHILD(p, path, repart);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, coarse_enough);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, direct_coarse);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, max_levels);
@@ -155,7 +161,7 @@ class amg {
                 const Matrix &A,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
-           ) : prm(prm)
+           ) : prm(prm), repart(prm.repart)
         {
             init(boost::make_shared<matrix>(comm, A, backend::rows(A), bprm), bprm);
         }
@@ -165,7 +171,7 @@ class amg {
                 boost::shared_ptr<matrix> A,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
-           ) : prm(prm)
+           ) : prm(prm), repart(prm.repart)
         {
             init(A, bprm);
         }
@@ -249,7 +255,7 @@ class amg {
                 }
             }
 
-            boost::shared_ptr<matrix> step_down(Coarsening &C)
+            boost::shared_ptr<matrix> step_down(Coarsening &C, const Repartition &repart)
             {
                 AMGCL_TIC("transfer operators");
                 boost::tie(P, R) = C.transfer_operators(*A);
@@ -260,6 +266,7 @@ class amg {
                 sort_rows(*R->local());
                 sort_rows(*R->remote());
                 AMGCL_TOC("sort");
+
                 AMGCL_TOC("transfer operators");
 
                 if (P->glob_cols() == 0) {
@@ -268,10 +275,19 @@ class amg {
                 }
 
                 AMGCL_TIC("coarse operator");
-                boost::shared_ptr<matrix> A_ = C.coarse_operator(*A, *P, *R);
+                boost::shared_ptr<matrix> Ac = C.coarse_operator(*A, *P, *R);
                 AMGCL_TOC("coarse operator");
 
-                return A_;
+                if (repart.is_needed(*Ac)) {
+                    boost::shared_ptr<matrix> I = repart(*Ac);
+                    boost::shared_ptr<matrix> J = transpose(*I);
+
+                    P  = product(*P, *I);
+                    R  = product(*J, *R);
+                    Ac = product(*J, *product(*Ac, *I));
+                }
+
+                return Ac;
             }
 
             void move_to_backend() {
@@ -294,6 +310,7 @@ class amg {
         typedef typename std::list<level>::const_iterator level_iterator;
 
         boost::shared_ptr<matrix> A;
+        Repartition repart;
         std::list<level> levels;
 
         void init(boost::shared_ptr<matrix> A, const backend_params &bprm)
@@ -309,7 +326,7 @@ class amg {
                 levels.push_back( level(A, prm, bprm) );
                 if (levels.size() >= prm.max_levels) break;
 
-                A = levels.back().step_down(C);
+                A = levels.back().step_down(C, repart);
                 levels.back().move_to_backend();
 
                 if (!A) {
@@ -376,14 +393,14 @@ class amg {
             }
         }
 
-    template <class B, class C, class R, class D>
-    friend std::ostream& operator<<(std::ostream &os, const amg<B, C, R, D> &a);
+    template <class B, class C, class R, class D, class I>
+    friend std::ostream& operator<<(std::ostream &os, const amg<B, C, R, D, I> &a);
 };
 
-template <class B, class C, class R, class D>
-std::ostream& operator<<(std::ostream &os, const amg<B, C, R, D> &a)
+template <class B, class C, class R, class D, class I>
+std::ostream& operator<<(std::ostream &os, const amg<B, C, R, D, I> &a)
 {
-    typedef typename amg<B, C, R, D>::level level;
+    typedef typename amg<B, C, R, D, I>::level level;
     boost::io::ios_all_saver stream_state(os);
 
     size_t sum_dof = 0;
@@ -414,6 +431,7 @@ std::ostream& operator<<(std::ostream &os, const amg<B, C, R, D> &a)
 
     return os;
 }
+
 } // namespace mpi
 } // namespace amgcl
 
