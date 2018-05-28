@@ -56,8 +56,12 @@ class domain_partition {
             if (process < subdomains.size())
                 return subdomains[process];
             else {
-                boost::array<ptrdiff_t, 3> lo = { { 0,  0,  0} };
-                boost::array<ptrdiff_t, 3> hi = { {-1, -1, -1} };
+                point lo;
+                point hi;
+                for(int i = 0; i < NDIM; ++i) {
+                    lo[i] = 0;
+                    hi[i] = -1;
+                }
                 return box(lo, hi);
             }
         }
