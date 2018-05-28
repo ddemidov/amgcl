@@ -90,9 +90,8 @@ class comm_pattern {
         comm_pattern(
                 MPI_Comm mpi_comm,
                 ptrdiff_t n_loc_cols,
-                size_t n_rem_cols, const ptrdiff_t *p_rem_cols,
-                const backend_params &bprm = backend_params()
-                ) : comm(mpi_comm)
+                size_t n_rem_cols, const ptrdiff_t *p_rem_cols
+                ) : comm(mpi_comm), loc_cols(n_loc_cols)
         {
             AMGCL_TIC("communication pattern");
             // Get domain boundaries
@@ -185,10 +184,12 @@ class comm_pattern {
             // Shift columns to send to local numbering:
             BOOST_FOREACH(ptrdiff_t &c, send.col) c -= loc_beg;
 
-            // Create backend structures
-            x_rem  = Backend::create_vector(ncols, bprm);
-            gather = boost::make_shared<Gather>(n_loc_cols, send.col, bprm);
             AMGCL_TOC("communication pattern");
+        }
+
+        void move_to_backend(const backend_params &bprm = backend_params()) {
+            x_rem  = Backend::create_vector(recv.count(), bprm);
+            gather = boost::make_shared<Gather>(loc_cols, send.col, bprm);
         }
 
         int domain(ptrdiff_t col) const {
@@ -275,7 +276,7 @@ class comm_pattern {
 
         boost::unordered_map<ptrdiff_t, boost::tuple<int, int> > idx;
         boost::shared_ptr<Gather> gather;
-        ptrdiff_t loc_beg;
+        ptrdiff_t loc_beg, loc_cols;
 };
 
 template <class Backend>
@@ -296,7 +297,7 @@ class distributed_matrix {
                 )
             : a_loc(a_loc), a_rem(a_rem), bprm(bprm)
         {
-            C = boost::make_shared<CommPattern>(comm, a_loc->ncols, a_rem->nnz, a_rem->col, bprm);
+            C = boost::make_shared<CommPattern>(comm, a_loc->ncols, a_rem->nnz, a_rem->col);
             a_rem->ncols = C->recv.count();
 
             n_loc_rows = a_loc->nrows;
@@ -376,7 +377,7 @@ class distributed_matrix {
                 }
             }
 
-            C = boost::make_shared<CommPattern>(comm, n_loc_cols, a_rem->nnz, a_rem->col, bprm);
+            C = boost::make_shared<CommPattern>(comm, n_loc_cols, a_rem->nnz, a_rem->col);
             a_rem->ncols = C->recv.count();
         }
 
@@ -449,6 +450,8 @@ class distributed_matrix {
                 C->renumber(a_rem->nnz, a_rem->col);
                 A_rem = Backend::copy_matrix(a_rem, bprm);
             }
+
+            C->move_to_backend(bprm);
 
             a_loc.reset();
             a_rem.reset();
