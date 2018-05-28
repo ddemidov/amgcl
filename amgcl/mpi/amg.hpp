@@ -219,6 +219,7 @@ class amg {
     private:
         struct level {
             ptrdiff_t nrows, nnz;
+            int active_procs;
 
             boost::shared_ptr<matrix>       A, P, R;
             boost::shared_ptr<vector>       f, u, t;
@@ -237,6 +238,8 @@ class amg {
                   f(Backend::create_vector(a->loc_rows(), bprm)),
                   u(Backend::create_vector(a->loc_rows(), bprm))
             {
+                int active = (a->loc_rows() > 0);
+                MPI_Allreduce(&active, &active_procs, 1, MPI_INT, MPI_SUM, a->comm());
 
                 sort_rows(*a->local());
                 sort_rows(*a->remote());
@@ -426,7 +429,7 @@ std::ostream& operator<<(std::ostream &os, const amg<B, C, R, D, I> &a)
            << std::setw(15) << lvl.nonzeros() << " ("
            << std::setw(5) << std::fixed << std::setprecision(2)
            << 100.0 * lvl.nonzeros() / sum_nnz
-           << "%)" << std::endl;
+           << "%) [" << lvl.active_procs << "]" << std::endl;
     }
 
     return os;
