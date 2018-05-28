@@ -11,19 +11,14 @@ if (TARGET mpi_target)
         target_link_libraries(amgcl_mpi_example INTERFACE pastix_target)
     endif()
 
+    if (TARGET scotch_target)
+        target_link_libraries(amgcl_mpi_example INTERFACE scotch_target)
+    endif()
+
     function(add_mpi_example example sources)
         add_executable(${example} ${sources})
         target_link_libraries(${example} amgcl_mpi_example)
     endfunction()
-
-    if (TARGET metis_target)
-        add_executable(partition partition.cpp)
-        target_link_Libraries(partition
-            amgcl
-            metis_target
-            ${Boost_PROGRAM_OPTIONS_LIBRARY}
-            )
-    endif()
 
     add_mpi_example(check_direct        check_direct.cpp)
     add_mpi_example(runtime_sdd         runtime_sdd.cpp)
@@ -36,6 +31,17 @@ if (TARGET mpi_target)
     add_mpi_example(test_spmm           test_spmm.cpp)
     add_mpi_example(spmm_scaling        spmm_scaling.cpp)
     add_mpi_example(mpi_amg             mpi_amg.cpp)
+
+    if (TARGET Metis::metis)
+        add_executable(partition partition.cpp)
+        target_link_libraries(partition
+            amgcl
+            Metis::metis
+            ${Boost_PROGRAM_OPTIONS_LIBRARY}
+            )
+
+        target_link_libraries(mpi_amg Metis::metis)
+    endif()
 
     target_link_libraries(call_mpi_lib libamgcl_mpi)
 

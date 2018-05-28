@@ -1,5 +1,5 @@
-#ifndef AMGCL_MPI_REPARTITION_DUMMY_HPP
-#define AMGCL_MPI_REPARTITION_DUMMY_HPP
+#ifndef AMGCL_MPI_REPARTITION_SCOTCH_HPP
+#define AMGCL_MPI_REPARTITION_SCOTCH_HPP
 
 /*
 The MIT License
@@ -26,9 +26,9 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/mpi/repartition/dummy.hpp
+ * \file   amgcl/mpi/repartition/scotch.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
- * \brief  Dummy repartitioner (merges consecutive domains together).
+ * \brief  SCOTCH repartitioner.
  */
 
 #include <boost/shared_ptr.hpp>
@@ -41,12 +41,14 @@ THE SOFTWARE.
 #include <amgcl/mpi/distributed_matrix.hpp>
 #include <amgcl/mpi/repartition/util.hpp>
 
+#include <ptscotch.h>
+
 namespace amgcl {
 namespace mpi {
 namespace repartition {
 
 template <class Backend>
-struct dummy {
+struct scotch {
     typedef typename Backend::value_type value_type;
     typedef distributed_matrix<Backend>  matrix;
 
@@ -78,7 +80,7 @@ struct dummy {
         }
     } prm;
 
-    dummy(const params &prm = params()) : prm(prm) {}
+    scotch(const params &prm = params()) : prm(prm) {}
 
     bool is_needed(const matrix &A) const {
         if (!prm.enable) return false;
@@ -102,37 +104,71 @@ struct dummy {
 
     boost::shared_ptr<matrix> operator()(const matrix &A) const {
         communicator comm = A.comm();
-        ptrdiff_t nrows = A.loc_rows();
+        ptrdiff_t n = A.loc_rows();
+        ptrdiff_t row_beg = A.loc_col_shift();
 
-        std::vector<ptrdiff_t> row_dom = mpi::exclusive_sum(comm, nrows);
-        std::vector<ptrdiff_t> col_dom(comm.size + 1);
+        // Partition the graph.
+        int active = (n > 0);
+        int active_ranks;
+        MPI_Allreduce(&active, &active_ranks, 1, MPI_INT, MPI_SUM, comm);
 
-        for(int i = 0; i <= comm.size; ++i)
-            col_dom[i] = row_dom[std::min<int>(i * prm.shrink_ratio, comm.size)];
-
-        int old_domains = 0;
-        int new_domains = 0;
-
-        for(int i = 0; i < comm.size; ++i) {
-            if (row_dom[i+1] > row_dom[i]) ++old_domains;
-            if (col_dom[i+1] > col_dom[i]) ++new_domains;
-        }
+        SCOTCH_Num npart = std::max(1, active_ranks / prm.shrink_ratio);
 
         if (comm.rank == 0)
-            std::cout << "Repartitioning[MERGE] " << old_domains << " -> " << new_domains << std::endl;
+            std::cout << "Repartitioning[SCOTCH] " << active_ranks << " -> " << npart << std::endl;
 
-        ptrdiff_t row_beg = row_dom[comm.rank];
-        ptrdiff_t col_beg = col_dom[comm.rank];
-        ptrdiff_t col_end = col_dom[comm.rank + 1];
+        std::vector<ptrdiff_t> perm(n);
+        ptrdiff_t col_beg, col_end;
 
-        std::vector<ptrdiff_t> perm(nrows);
-        for(ptrdiff_t i = 0; i < nrows; ++i) {
-            perm[i] = i + row_beg;
+        if (npart == 1) {
+            col_beg = (comm.rank == 0) ? 0 : A.glob_rows();
+            col_end = A.glob_rows();
+
+            for(ptrdiff_t i = 0; i < n; ++i) {
+                perm[i] = row_beg + i;
+            }
+        } else {
+            std::vector<SCOTCH_Num> ptr;
+            std::vector<SCOTCH_Num> col;
+            std::vector<SCOTCH_Num> part(std::max<ptrdiff_t>(1, n));
+
+            symm_graph(A, ptr, col);
+
+            SCOTCH_Dgraph G;
+            check(comm, SCOTCH_dgraphInit(&G, comm));
+            check(comm, SCOTCH_dgraphBuild(&G,
+                        0,          // baseval
+                        n,          // vertlocnbr
+                        n,          // vertlocmax
+                        &ptr[0],    // vertloctab
+                        NULL,       // vendloctab
+                        NULL,       // veloloctab
+                        NULL,       // vlblloctab
+                        ptr.back(), // edgelocnbr
+                        ptr.back(), // edgelocsiz
+                        &col[0],    // edgeloctab
+                        NULL,       // edgegsttab
+                        NULL        // edloloctab
+                        ));
+            check(comm, SCOTCH_dgraphCheck(&G));
+
+            SCOTCH_Strat S;
+            check(comm, SCOTCH_stratInit(&S));
+
+            check(comm, SCOTCH_dgraphPart(&G, npart, &S, &part[0]));
+
+            SCOTCH_stratExit(&S);
+            SCOTCH_dgraphExit(&G);
+
+            boost::tie(col_beg, col_end) = graph_perm_index(comm, npart, part, perm);
         }
 
         return graph_perm_matrix<Backend>(comm, col_beg, col_end, perm);
     }
 
+    static void check(communicator comm, int ierr) {
+        amgcl::mpi::precondition(comm, ierr == 0, "SCOTCH error");
+    }
 };
 
 

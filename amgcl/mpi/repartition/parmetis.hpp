@@ -1,5 +1,5 @@
-#ifndef AMGCL_MPI_REPARTITION_DUMMY_HPP
-#define AMGCL_MPI_REPARTITION_DUMMY_HPP
+#ifndef AMGCL_MPI_REPARTITION_PARMETIS_HPP
+#define AMGCL_MPI_REPARTITION_PARMETIS_HPP
 
 /*
 The MIT License
@@ -26,9 +26,9 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/mpi/repartition/dummy.hpp
+ * \file   amgcl/mpi/repartition/parmetis.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
- * \brief  Dummy repartitioner (merges consecutive domains together).
+ * \brief  ParMETIS repartitioner.
  */
 
 #include <boost/shared_ptr.hpp>
@@ -41,12 +41,14 @@ THE SOFTWARE.
 #include <amgcl/mpi/distributed_matrix.hpp>
 #include <amgcl/mpi/repartition/util.hpp>
 
+#include <parmetis.h>
+
 namespace amgcl {
 namespace mpi {
 namespace repartition {
 
 template <class Backend>
-struct dummy {
+struct parmetis {
     typedef typename Backend::value_type value_type;
     typedef distributed_matrix<Backend>  matrix;
 
@@ -78,7 +80,7 @@ struct dummy {
         }
     } prm;
 
-    dummy(const params &prm = params()) : prm(prm) {}
+    parmetis(const params &prm = params()) : prm(prm) {}
 
     bool is_needed(const matrix &A) const {
         if (!prm.enable) return false;
@@ -102,37 +104,67 @@ struct dummy {
 
     boost::shared_ptr<matrix> operator()(const matrix &A) const {
         communicator comm = A.comm();
-        ptrdiff_t nrows = A.loc_rows();
+        idx_t n = A.loc_rows();
+        ptrdiff_t row_beg = A.loc_col_shift();
 
-        std::vector<ptrdiff_t> row_dom = mpi::exclusive_sum(comm, nrows);
-        std::vector<ptrdiff_t> col_dom(comm.size + 1);
+        std::vector<idx_t> vtxdist = mpi::exclusive_sum(comm, n);
 
-        for(int i = 0; i <= comm.size; ++i)
-            col_dom[i] = row_dom[std::min<int>(i * prm.shrink_ratio, comm.size)];
+        // Partition the graph.
+        int active = (n > 0);
+        int active_ranks;
+        MPI_Allreduce(&active, &active_ranks, 1, MPI_INT, MPI_SUM, comm);
 
-        int old_domains = 0;
-        int new_domains = 0;
-
-        for(int i = 0; i < comm.size; ++i) {
-            if (row_dom[i+1] > row_dom[i]) ++old_domains;
-            if (col_dom[i+1] > col_dom[i]) ++new_domains;
-        }
+        idx_t npart = std::max(1, active_ranks / prm.shrink_ratio);
 
         if (comm.rank == 0)
-            std::cout << "Repartitioning[MERGE] " << old_domains << " -> " << new_domains << std::endl;
+            std::cout << "Repartitioning[ParMETIS] " << active_ranks << " -> " << npart << std::endl;
 
-        ptrdiff_t row_beg = row_dom[comm.rank];
-        ptrdiff_t col_beg = col_dom[comm.rank];
-        ptrdiff_t col_end = col_dom[comm.rank + 1];
 
-        std::vector<ptrdiff_t> perm(nrows);
-        for(ptrdiff_t i = 0; i < nrows; ++i) {
-            perm[i] = i + row_beg;
+        std::vector<ptrdiff_t> perm(n);
+        ptrdiff_t col_beg, col_end;
+
+        if (npart == 1) {
+            col_beg = (comm.rank == 0) ? 0 : A.glob_rows();
+            col_end = A.glob_rows();
+
+            for(ptrdiff_t i = 0; i < n; ++i) {
+                perm[i] = row_beg + i;
+            }
+        } else {
+            std::vector<idx_t> ptr;
+            std::vector<idx_t> col;
+
+            symm_graph(A, ptr, col);
+
+            idx_t wgtflag = 0;
+            idx_t numflag = 0;
+            idx_t options = 0;
+            idx_t edgecut = 0;
+            idx_t ncon    = 1;
+
+            std::vector<real_t> tpwgts(npart, 1.0 / npart);
+            std::vector<real_t> ubvec(ncon, 1.05);
+            std::vector<idx_t>  part(std::max<ptrdiff_t>(1, n));
+
+            MPI_Comm mpi_comm = comm;
+            amgcl::mpi::precondition(comm,
+                    METIS_OK == ParMETIS_V3_PartKway(
+                        &vtxdist[0], &ptr[0], &col[0],
+                        NULL, NULL, &wgtflag, &numflag, &ncon, &npart,
+                        &tpwgts[0], &ubvec[0], &options, &edgecut, &part[0],
+                        &mpi_comm),
+                    "Error in ParMETIS"
+                    );
+
+            boost::tie(col_beg, col_end) = graph_perm_index(comm, npart, part, perm);
         }
 
         return graph_perm_matrix<Backend>(comm, col_beg, col_end, perm);
     }
 
+    static void check(communicator comm, int ierr) {
+        amgcl::mpi::precondition(comm, ierr == 0, "SCOTCH error");
+    }
 };
 
 

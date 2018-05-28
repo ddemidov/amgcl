@@ -19,6 +19,7 @@
 #include <amgcl/mpi/coarsening/smoothed_aggregation.hpp>
 #include <amgcl/mpi/coarsening/smoothed_pmis.hpp>
 #include <amgcl/mpi/relaxation/runtime.hpp>
+#include <amgcl/mpi/repartition/runtime.hpp>
 
 #include <amgcl/profiler.hpp>
 
@@ -67,7 +68,8 @@ void solve(
             amgcl::mpi::amg<
                 Backend, Coarsening<Backend>,
                 amgcl::runtime::mpi::relaxation<Backend>,
-                amgcl::runtime::mpi::direct::solver<val_type>
+                amgcl::runtime::mpi::direct::solver<val_type>,
+                amgcl::runtime::mpi::repartition::wrapper<Backend>
                 >,
             amgcl::runtime::solver::wrapper
             >
@@ -104,7 +106,8 @@ void solve(
 }
 
 int main(int argc, char *argv[]) {
-    MPI_Init(&argc, &argv);
+    int provided;
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
     BOOST_SCOPE_EXIT(void) {
         MPI_Finalize();
     } BOOST_SCOPE_EXIT_END
