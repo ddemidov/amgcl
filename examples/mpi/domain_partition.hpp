@@ -39,6 +39,8 @@ class domain_partition {
         }
 
         size_t size(size_t process) const {
+            if (process >= subdomains.size()) return 0;
+
             point lo = subdomains[process].min_corner();
             point hi = subdomains[process].max_corner();
 
@@ -50,8 +52,14 @@ class domain_partition {
             return v;
         }
 
-        const box& domain(size_t process) const {
-            return subdomains[process];
+        box domain(size_t process) const {
+            if (process < subdomains.size())
+                return subdomains[process];
+            else {
+                boost::array<ptrdiff_t, 3> lo = { { 0,  0,  0} };
+                boost::array<ptrdiff_t, 3> hi = { {-1, -1, -1} };
+                return box(lo, hi);
+            }
         }
     private:
         std::vector<box> subdomains;
