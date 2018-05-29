@@ -54,6 +54,8 @@ void symm_graph(const distributed_matrix<Backend> &A,
     typedef typename Backend::value_type value_type;
     typedef backend::crs<value_type> build_matrix;
 
+    AMGCL_TIC("symm graph");
+
     build_matrix &A_loc = *A.local();
     build_matrix &A_rem = *A.remote();
 
@@ -216,6 +218,8 @@ void symm_graph(const distributed_matrix<Backend> &A,
             ++head;
         }
     }
+
+    AMGCL_TOC("symm graph");
 }
 
 template <class Idx>
@@ -223,6 +227,7 @@ boost::tuple<ptrdiff_t, ptrdiff_t> graph_perm_index(
         communicator comm, int npart, const std::vector<Idx> &part,
         std::vector<ptrdiff_t> &perm)
 {
+    AMGCL_TIC("perm index");
     ptrdiff_t n = part.size();
     perm.resize(n);
 
@@ -245,6 +250,7 @@ boost::tuple<ptrdiff_t, ptrdiff_t> graph_perm_index(
         perm[i] = glo_part_beg[p] + loc_part_beg[p] + cnt[p]++;
     }
 
+    AMGCL_TOC("perm index");
     return boost::make_tuple(
             glo_part_beg[std::min(npart, comm.rank)],
             glo_part_beg[std::min(npart, comm.rank + 1)]
@@ -258,6 +264,8 @@ boost::shared_ptr< distributed_matrix<Backend> > graph_perm_matrix(
 {
     typedef typename Backend::value_type value_type;
     typedef backend::crs<value_type> build_matrix;
+
+    AMGCL_TIC("perm matrix");
 
     ptrdiff_t n = perm.size();
     ptrdiff_t ncols = col_end - col_beg;
@@ -305,6 +313,7 @@ boost::shared_ptr< distributed_matrix<Backend> > graph_perm_matrix(
         }
     }
 
+    AMGCL_TOC("perm matrix");
     return boost::make_shared< distributed_matrix<Backend> >(comm, i_loc, i_rem);
 }
 

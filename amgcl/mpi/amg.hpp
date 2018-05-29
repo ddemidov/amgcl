@@ -282,12 +282,14 @@ class amg {
                 AMGCL_TOC("coarse operator");
 
                 if (repart.is_needed(*Ac)) {
+                    AMGCL_TIC("repartition");
                     boost::shared_ptr<matrix> I = repart(*Ac);
                     boost::shared_ptr<matrix> J = transpose(*I);
 
                     P  = product(*P, *I);
                     R  = product(*J, *R);
                     Ac = product(*J, *product(*Ac, *I));
+                    AMGCL_TOC("repartition");
                 }
 
                 return Ac;
