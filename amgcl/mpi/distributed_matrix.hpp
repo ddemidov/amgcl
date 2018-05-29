@@ -292,10 +292,9 @@ class distributed_matrix {
         distributed_matrix(
                 communicator comm,
                 boost::shared_ptr<build_matrix> a_loc,
-                boost::shared_ptr<build_matrix> a_rem,
-                const backend_params &bprm = backend_params()
+                boost::shared_ptr<build_matrix> a_rem
                 )
-            : a_loc(a_loc), a_rem(a_rem), bprm(bprm)
+            : a_loc(a_loc), a_rem(a_rem)
         {
             C = boost::make_shared<CommPattern>(comm, a_loc->ncols, a_rem->nnz, a_rem->col);
             a_rem->ncols = C->recv.count();
@@ -313,11 +312,9 @@ class distributed_matrix {
         distributed_matrix(
                 communicator comm,
                 const Matrix &A,
-                ptrdiff_t n_loc_cols,
-                const backend_params &bprm = backend_params()
+                ptrdiff_t n_loc_cols
                 )
-            : bprm(bprm),
-              n_loc_rows(backend::rows(A)),
+            : n_loc_rows(backend::rows(A)),
               n_loc_cols(n_loc_cols),
               n_loc_nonzeros(backend::nonzeros(A))
         {
@@ -437,11 +434,7 @@ class distributed_matrix {
             A_loc = a;
         }
 
-        const backend_params& backend_prm() const {
-            return bprm;
-        }
-
-        void move_to_backend() {
+        void move_to_backend(const backend_params &bprm = backend_params()) {
             if (!A_loc) {
                 A_loc = Backend::copy_matrix(a_loc, bprm);
             }
@@ -488,7 +481,6 @@ class distributed_matrix {
         boost::shared_ptr<CommPattern>  C;
         boost::shared_ptr<matrix> A_loc, A_rem;
         boost::shared_ptr<build_matrix> a_loc, a_rem;
-        backend_params bprm;
 
         ptrdiff_t n_loc_rows, n_glob_rows;
         ptrdiff_t n_loc_cols, n_glob_cols;
@@ -651,7 +643,7 @@ transpose(const distributed_matrix<Backend> &A) {
     AMGCL_TOC("MPI Transpose");
 
     return boost::make_shared< distributed_matrix<Backend> >(
-            comm, backend::transpose(A_loc), T_ptr, A.backend_prm());
+            comm, backend::transpose(A_loc), T_ptr);
 }
 
 template <class Backend>
@@ -979,8 +971,7 @@ product(const distributed_matrix<Backend> &A, const distributed_matrix<Backend> 
     MPI_Waitall(send_val_req.size(), &send_val_req[0], MPI_STATUSES_IGNORE);
     AMGCL_TOC("MPI Wait");
 
-    return boost::make_shared<distributed_matrix<Backend> >(comm,
-            c_loc, c_rem, A.backend_prm());
+    return boost::make_shared<distributed_matrix<Backend> >(comm, c_loc, c_rem);
 }
 
 // Do not compute values, and do not touch inner points.
@@ -1278,8 +1269,7 @@ symb_product(const distributed_matrix<Backend> &A, const distributed_matrix<Back
     MPI_Waitall(send_col_req.size(), &send_col_req[0], MPI_STATUSES_IGNORE);
     AMGCL_TOC("MPI Wait");
 
-    return boost::make_shared<distributed_matrix<Backend> >(comm,
-            c_loc, c_rem, A.backend_prm());
+    return boost::make_shared<distributed_matrix<Backend> >(comm, c_loc, c_rem);
 }
 
 template <class Backend>

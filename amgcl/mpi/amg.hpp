@@ -163,7 +163,7 @@ class amg {
                 const backend_params &bprm = backend_params()
            ) : prm(prm), repart(prm.repart)
         {
-            init(boost::make_shared<matrix>(comm, A, backend::rows(A), bprm), bprm);
+            init(boost::make_shared<matrix>(comm, A, backend::rows(A)), bprm);
         }
 
         amg(
@@ -293,11 +293,11 @@ class amg {
                 return Ac;
             }
 
-            void move_to_backend() {
+            void move_to_backend(const backend_params &bprm) {
                 AMGCL_TIC("move to backend");
-                if (A) A->move_to_backend();
-                if (P) P->move_to_backend();
-                if (R) R->move_to_backend();
+                if (A) A->move_to_backend(bprm);
+                if (P) P->move_to_backend(bprm);
+                if (R) R->move_to_backend(bprm);
                 AMGCL_TOC("move to backend");
             }
 
@@ -330,7 +330,7 @@ class amg {
                 if (levels.size() >= prm.max_levels) break;
 
                 A = levels.back().step_down(C, repart);
-                levels.back().move_to_backend();
+                levels.back().move_to_backend(bprm);
 
                 if (!A) {
                     // Zero-sized coarse level. Probably the system matrix on
@@ -348,11 +348,11 @@ class amg {
 
             if (A) {
                 levels.push_back(level(A, prm, bprm, direct_coarse));
-                levels.back().move_to_backend();
+                levels.back().move_to_backend(bprm);
             }
 
             AMGCL_TIC("move to backend");
-            this->A->move_to_backend();
+            this->A->move_to_backend(bprm);
             AMGCL_TOC("move to backend");
         }
 

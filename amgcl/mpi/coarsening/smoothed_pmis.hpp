@@ -208,7 +208,7 @@ struct smoothed_pmis {
             }
         }
 
-        boost::shared_ptr<DM> Af = boost::make_shared<DM>(comm, af_loc, af_rem, A.backend_prm());
+        boost::shared_ptr<DM> Af = boost::make_shared<DM>(comm, af_loc, af_rem);
         AMGCL_TOC("filtered matrix");
 
         AMGCL_TIC("tentative prolongation");
@@ -478,7 +478,7 @@ struct smoothed_pmis {
             }
         }
 
-        return boost::make_shared<DM>(comm, p_loc, p_rem, Af.backend_prm());
+        return boost::make_shared<DM>(comm, p_loc, p_rem);
     }
 
     boost::shared_ptr< distributed_matrix<Backend> >

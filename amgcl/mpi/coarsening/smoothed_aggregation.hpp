@@ -135,7 +135,7 @@ struct smoothed_aggregation {
             A_loc.val = Af_loc.data();
             A_rem.val = Af_rem.data();
 
-            P = product(A, DM(A.comm(), P_tent, P_rem, A.backend_prm()));
+            P = product(A, DM(A.comm(), P_tent, P_rem));
 
             A_loc.val = A_loc_val;
             A_rem.val = A_rem_val;

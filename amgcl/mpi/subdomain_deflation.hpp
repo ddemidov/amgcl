@@ -177,7 +177,7 @@ class subdomain_deflation {
           Z( ndv ), q( backend_type::create_vector(nrows, bprm) ),
           S(nrows, prm.isolver, bprm, mpi::inner_product(comm))
         {
-            A = boost::make_shared<matrix>(comm, Astrip, nrows, bprm);
+            A = boost::make_shared<matrix>(comm, Astrip, nrows);
             init(prm, bprm);
         }
 
@@ -284,7 +284,7 @@ class subdomain_deflation {
             AMGCL_TOC("local preconditioner");
 
             A->set_local(P->system_matrix_ptr());
-            A->move_to_backend();
+            A->move_to_backend(bprm);
 
             AMGCL_TIC("remote(A*Z)");
             /* Construct remote part of AZ */
@@ -453,7 +453,7 @@ class subdomain_deflation {
 
             AMGCL_TIC("finish(A*Z)");
             AZ = boost::make_shared<matrix>(comm, az_loc, az_rem);
-            AZ->move_to_backend();
+            AZ->move_to_backend(bprm);
             AMGCL_TOC("finish(A*Z)");
             AMGCL_TOC("setup deflation");
         }

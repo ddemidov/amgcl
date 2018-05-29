@@ -155,7 +155,7 @@ class schur_pressure_correction {
                 )
             : prm(prm), comm(mpi_comm)
         {
-            this->K = boost::make_shared<matrix>(comm, K, backend::rows(K), bprm);
+            this->K = boost::make_shared<matrix>(comm, K, backend::rows(K));
             init(bprm);
         }
 
@@ -217,7 +217,7 @@ class schur_pressure_correction {
             // Fill the subblocks of the system matrix.
             // K_rem->col may be used as direct indices into rmask and r_idx.
             AMGCL_TIC("schur blocks");
-            this->K->move_to_backend();
+            this->K->move_to_backend(bprm);
 
             shared_ptr<build_matrix> Kpp_loc = make_shared<build_matrix>();
             shared_ptr<build_matrix> Kpp_rem = make_shared<build_matrix>();
@@ -381,14 +381,14 @@ class schur_pressure_correction {
                 }
             }
 
-            boost::shared_ptr<matrix> Kpp = boost::make_shared<matrix>(comm, Kpp_loc, Kpp_rem, bprm);
-            boost::shared_ptr<matrix> Kuu = boost::make_shared<matrix>(comm, Kuu_loc, Kuu_rem, bprm);
+            boost::shared_ptr<matrix> Kpp = boost::make_shared<matrix>(comm, Kpp_loc, Kpp_rem);
+            boost::shared_ptr<matrix> Kuu = boost::make_shared<matrix>(comm, Kuu_loc, Kuu_rem);
 
-            Kpu = make_shared<matrix>(comm, Kpu_loc, Kpu_rem, bprm);
-            Kup = make_shared<matrix>(comm, Kup_loc, Kup_rem, bprm);
+            Kpu = make_shared<matrix>(comm, Kpu_loc, Kpu_rem);
+            Kup = make_shared<matrix>(comm, Kup_loc, Kup_rem);
 
-            Kpu->move_to_backend();
-            Kup->move_to_backend();
+            Kpu->move_to_backend(bprm);
+            Kup->move_to_backend(bprm);
             AMGCL_TOC("schur blocks");
 
             AMGCL_TIC("usolver")

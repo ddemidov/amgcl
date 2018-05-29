@@ -72,8 +72,8 @@ struct local {
         R_rem->set_size(R_loc->nrows, 0, true);
 
         return boost::make_tuple(
-                boost::make_shared<DM>(A.comm(), P_loc, P_rem, A.backend_prm()),
-                boost::make_shared<DM>(A.comm(), R_loc, R_rem, A.backend_prm())
+                boost::make_shared<DM>(A.comm(), P_loc, P_rem),
+                boost::make_shared<DM>(A.comm(), R_loc, R_rem)
                 );
     }
 
