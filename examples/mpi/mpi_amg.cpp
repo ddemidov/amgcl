@@ -10,15 +10,14 @@
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/value_type/static_matrix.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
+#include <amgcl/solver/runtime.hpp>
 
 #include <amgcl/mpi/util.hpp>
 #include <amgcl/mpi/make_solver.hpp>
 #include <amgcl/mpi/amg.hpp>
-#include <amgcl/solver/runtime.hpp>
-#include <amgcl/mpi/direct_solver/runtime.hpp>
 #include <amgcl/mpi/coarsening/smoothed_aggregation.hpp>
-#include <amgcl/mpi/coarsening/smoothed_pmis.hpp>
 #include <amgcl/mpi/relaxation/runtime.hpp>
+#include <amgcl/mpi/direct_solver/runtime.hpp>
 #include <amgcl/mpi/repartition/runtime.hpp>
 
 #include <amgcl/profiler.hpp>
@@ -54,57 +53,6 @@ struct renumbering {
     }
 };
 
-template <template <class> class Coarsening>
-void solve(
-    const std::vector<ptrdiff_t> &ptr,
-    const std::vector<ptrdiff_t> &col,
-    const std::vector<val_type>  &val,
-    const boost::property_tree::ptree &prm
-    )
-{
-    typedef amgcl::backend::builtin<val_type> Backend;
-    typedef
-        amgcl::mpi::make_solver<
-            amgcl::mpi::amg<
-                Backend, Coarsening<Backend>,
-                amgcl::runtime::mpi::relaxation<Backend>,
-                amgcl::runtime::mpi::direct::solver<val_type>,
-                amgcl::runtime::mpi::repartition::wrapper<Backend>
-                >,
-            amgcl::runtime::solver::wrapper
-            >
-        Solver;
-
-    using amgcl::prof;
-
-    amgcl::mpi::communicator comm(MPI_COMM_WORLD);
-
-    size_t n = ptr.size() - 1;
-
-    prof.tic("setup");
-    Solver solve(comm, boost::tie(n, ptr, col, val), prm);
-    prof.toc("setup");
-
-    if (comm.rank == 0) {
-        std::cout << solve << std::endl;
-    }
-
-    std::vector<rhs_type> f(n, math::constant<rhs_type>(1)), x(n, math::zero<rhs_type>());
-    int    iters;
-    double error;
-
-    prof.tic("solve");
-    boost::tie(iters, error) = solve(f, x);
-    prof.toc("solve");
-
-    if (comm.rank == 0) {
-        std::cout
-            << "Iterations: " << iters << std::endl
-            << "Error:      " << error << std::endl
-            << prof << std::endl;
-    }
-}
-
 int main(int argc, char *argv[]) {
     int provided;
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
@@ -124,11 +72,6 @@ int main(int argc, char *argv[]) {
 
     desc.add_options()
         ("help,h", "show help")
-        (
-         "decoupled,d",
-         po::bool_switch()->default_value(false),
-         "Use decoupled aggregation"
-        )
         (
          "size,n",
          po::value<ptrdiff_t>()->default_value(128),
@@ -242,9 +185,42 @@ int main(int argc, char *argv[]) {
     }
     prof.toc("assemble");
 
-    if (vm["decoupled"].as<bool>()) {
-        solve<amgcl::mpi::coarsening::smoothed_aggregation>(ptr, col, val, prm);
-    } else {
-        solve<amgcl::mpi::coarsening::smoothed_pmis>(ptr, col, val, prm);
+    typedef amgcl::backend::builtin<val_type> Backend;
+    typedef
+        amgcl::mpi::make_solver<
+            amgcl::mpi::amg<
+                Backend,
+                amgcl::mpi::coarsening::smoothed_aggregation<Backend>,
+                amgcl::runtime::mpi::relaxation<Backend>,
+                amgcl::runtime::mpi::direct::solver<val_type>,
+                amgcl::runtime::mpi::repartition::wrapper<Backend>
+                >,
+            amgcl::runtime::solver::wrapper
+            >
+        Solver;
+
+    prof.tic("setup");
+    Solver solve(comm, boost::tie(chunk, ptr, col, val), prm);
+    prof.toc("setup");
+
+    if (comm.rank == 0) {
+        std::cout << solve << std::endl;
+    }
+
+    std::vector<rhs_type> f(chunk, math::constant<rhs_type>(1));
+    std::vector<rhs_type> x(chunk, math::zero<rhs_type>());
+
+    int    iters;
+    double error;
+
+    prof.tic("solve");
+    boost::tie(iters, error) = solve(f, x);
+    prof.toc("solve");
+
+    if (comm.rank == 0) {
+        std::cout
+            << "Iterations: " << iters << std::endl
+            << "Error:      " << error << std::endl
+            << prof << std::endl;
     }
 }
