@@ -146,15 +146,21 @@ struct parmetis {
             std::vector<real_t> ubvec(ncon, 1.05);
             std::vector<idx_t>  part(std::max<ptrdiff_t>(1, n));
 
-            MPI_Comm mpi_comm = comm;
-            amgcl::mpi::precondition(comm,
-                    METIS_OK == ParMETIS_V3_PartKway(
-                        &vtxdist[0], &ptr[0], &col[0],
-                        NULL, NULL, &wgtflag, &numflag, &ncon, &npart,
-                        &tpwgts[0], &ubvec[0], &options, &edgecut, &part[0],
-                        &mpi_comm),
-                    "Error in ParMETIS"
-                    );
+            MPI_Comm scomm;
+            MPI_Comm_split(comm, active ? 0 : MPI_UNDEFINED, comm.rank, &scomm);
+
+            if (active) {
+                amgcl::mpi::precondition(scomm,
+                        METIS_OK == ParMETIS_V3_PartKway( &vtxdist[0], &ptr[0],
+                            &col[0], NULL, NULL, &wgtflag, &numflag, &ncon,
+                            &npart, &tpwgts[0], &ubvec[0], &options, &edgecut,
+                            &part[0], &scomm),
+                        "Error in ParMETIS"
+                        );
+
+                MPI_Comm_free(&scomm);
+            }
+
 
             boost::tie(col_beg, col_end) = graph_perm_index(comm, npart, part, perm);
         }
