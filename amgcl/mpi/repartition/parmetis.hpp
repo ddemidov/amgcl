@@ -144,7 +144,8 @@ struct parmetis {
 
             std::vector<real_t> tpwgts(npart, 1.0 / npart);
             std::vector<real_t> ubvec(ncon, 1.05);
-            std::vector<idx_t>  part(std::max<ptrdiff_t>(1, n));
+            std::vector<idx_t>  part(n);
+            if (!n) part.reserve(1); // So that part.data() is not NULL
 
             MPI_Comm scomm;
             MPI_Comm_split(comm, active ? 0 : MPI_UNDEFINED, comm.rank, &scomm);

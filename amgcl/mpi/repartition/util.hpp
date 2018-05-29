@@ -147,7 +147,8 @@ void symm_graph(const distributed_matrix<Backend> &A,
 
     std::partial_sum(ptr.begin(), ptr.end(), ptr.begin());
 
-    col.resize(std::max<Ptr>(1, ptr.back()));
+    col.resize(ptr.back());
+    if (col.empty()) col.reserve(1); // So that col.data() is not NULL
 
 #pragma omp parallel for
     for(ptrdiff_t i = 0; i < n; ++i) {

@@ -130,7 +130,8 @@ struct scotch {
         } else {
             std::vector<SCOTCH_Num> ptr;
             std::vector<SCOTCH_Num> col;
-            std::vector<SCOTCH_Num> part(std::max<ptrdiff_t>(1, n));
+            std::vector<SCOTCH_Num> part(n);
+            if (!n) part.reserve(1); // So that part.data() is not NULL
 
             symm_graph(A, ptr, col);
 
