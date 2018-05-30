@@ -287,24 +287,31 @@ class distributed_matrix {
         typedef typename math::scalar_of<value_type>::type scalar_type;
         typedef typename Backend::params backend_params;
         typedef typename Backend::matrix matrix;
+        typedef comm_pattern<Backend> CommPattern;
         typedef backend::crs<value_type> build_matrix;
 
         distributed_matrix(
                 communicator comm,
                 boost::shared_ptr<build_matrix> a_loc,
-                boost::shared_ptr<build_matrix> a_rem
+                boost::shared_ptr<build_matrix> a_rem,
+                boost::shared_ptr<CommPattern>  c = boost::shared_ptr<CommPattern>()
                 )
             : a_loc(a_loc), a_rem(a_rem)
         {
-            C = boost::make_shared<CommPattern>(comm, a_loc->ncols, a_rem->nnz, a_rem->col);
+            if (c) {
+                C = c;
+            } else {
+                C = boost::make_shared<CommPattern>(comm, a_loc->ncols, a_rem->nnz, a_rem->col);
+            }
+
             a_rem->ncols = C->recv.count();
 
-            n_loc_rows = a_loc->nrows;
-            n_loc_cols = a_loc->ncols;
+            n_loc_rows     = a_loc->nrows;
+            n_loc_cols     = a_loc->ncols;
             n_loc_nonzeros = a_loc->nnz + a_rem->nnz;
 
-            MPI_Allreduce(&n_loc_rows, &n_glob_rows, 1, datatype<ptrdiff_t>(), MPI_SUM, comm);
-            MPI_Allreduce(&n_loc_cols, &n_glob_cols, 1, datatype<ptrdiff_t>(), MPI_SUM, comm);
+            MPI_Allreduce(&n_loc_rows,     &n_glob_rows,     1, datatype<ptrdiff_t>(), MPI_SUM, comm);
+            MPI_Allreduce(&n_loc_cols,     &n_glob_cols,     1, datatype<ptrdiff_t>(), MPI_SUM, comm);
             MPI_Allreduce(&n_loc_nonzeros, &n_glob_nonzeros, 1, datatype<ptrdiff_t>(), MPI_SUM, comm);
         }
 
@@ -476,8 +483,6 @@ class distributed_matrix {
         }
 
     private:
-        typedef comm_pattern<Backend> CommPattern;
-
         boost::shared_ptr<CommPattern>  C;
         boost::shared_ptr<matrix> A_loc, A_rem;
         boost::shared_ptr<build_matrix> a_loc, a_rem;
