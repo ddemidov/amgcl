@@ -400,6 +400,168 @@ void scale(crs<Val, Col, Ptr> &A, T s) {
     }
 }
 
+// Reduce matrix to a pointwise one
+template <class value_type>
+boost::shared_ptr< crs<typename math::scalar_of<value_type>::type> >
+pointwise_matrix(const crs<value_type> &A, unsigned block_size) {
+    typedef value_type V;
+    typedef typename math::scalar_of<V>::type S;
+
+    AMGCL_TIC("pointwise_matrix");
+    const ptrdiff_t n  = A.nrows;
+    const ptrdiff_t m  = A.ncols;
+    const ptrdiff_t np = n / block_size;
+    const ptrdiff_t mp = m / block_size;
+
+    precondition(np * block_size == n,
+            "Matrix size should be divisible by block_size");
+
+    boost::shared_ptr< crs<S> > ap = boost::make_shared< crs<S> >();
+    crs<S> &Ap = *ap;
+
+    Ap.set_size(np, mp, true);
+
+#pragma omp parallel
+    {
+        std::vector<ptrdiff_t> j(block_size);
+        std::vector<ptrdiff_t> e(block_size);
+
+        // Count number of nonzeros in block matrix.
+#pragma omp for
+        for(ptrdiff_t ip = 0; ip < np; ++ip) {
+            ptrdiff_t ia = ip * block_size;
+            ptrdiff_t cur_col = 0;
+            bool done = true;
+
+            for(unsigned k = 0; k < block_size; ++k) {
+                ptrdiff_t beg = j[k] = A.ptr[ia + k];
+                ptrdiff_t end = e[k] = A.ptr[ia + k + 1];
+
+                if (beg == end) continue;
+
+                ptrdiff_t c = A.col[beg];
+
+                if (done) {
+                    done = false;
+                    cur_col = c;
+                } else {
+                    cur_col = std::min(cur_col, c);
+                }
+            }
+
+            while(!done) {
+                cur_col /= block_size;
+                ++Ap.ptr[ip + 1];
+
+                done = true;
+                ptrdiff_t col_end = (cur_col + 1) * block_size;
+                for(unsigned k = 0; k < block_size; ++k) {
+                    ptrdiff_t beg = j[k];
+                    ptrdiff_t end = e[k];
+
+                    while(beg < end) {
+                        ptrdiff_t c = A.col[beg++];
+
+                        if (c >= col_end) {
+                            if (done) {
+                                done = false;
+                                cur_col = c;
+                            } else {
+                                cur_col = std::min(cur_col, c);
+                            }
+
+                            break;
+                        }
+                    }
+
+                    j[k] = beg;
+                }
+            }
+        }
+    }
+
+    Ap.set_nonzeros(Ap.scan_row_sizes());
+
+#pragma omp parallel
+    {
+        std::vector<ptrdiff_t> j(block_size);
+        std::vector<ptrdiff_t> e(block_size);
+
+#pragma omp for
+        for(ptrdiff_t ip = 0; ip < np; ++ip) {
+            ptrdiff_t ia = ip * block_size;
+            ptrdiff_t cur_col = 0;
+            ptrdiff_t head = Ap.ptr[ip];
+            bool done = true;
+
+            for(unsigned k = 0; k < block_size; ++k) {
+                ptrdiff_t beg = j[k] = A.ptr[ia + k];
+                ptrdiff_t end = e[k] = A.ptr[ia + k + 1];
+
+                if (beg == end) continue;
+
+                ptrdiff_t c = A.col[beg];
+
+                if (done) {
+                    done = false;
+                    cur_col = c;
+                } else {
+                    cur_col = std::min(cur_col, c);
+                }
+            }
+
+            while(!done) {
+                cur_col /= block_size;
+
+                Ap.col[head] = cur_col;
+
+                done = true;
+                bool first = true;
+                S cur_val = math::zero<S>();
+
+                ptrdiff_t col_end = (cur_col + 1) * block_size;
+                for(unsigned k = 0; k < block_size; ++k) {
+                    ptrdiff_t beg = j[k];
+                    ptrdiff_t end = e[k];
+
+                    while(beg < end) {
+                        ptrdiff_t c = A.col[beg];
+
+                        if (c >= col_end) {
+                            if (done) {
+                                done = false;
+                                cur_col = c;
+                            } else {
+                                cur_col = std::min(cur_col, c);
+                            }
+
+                            break;
+                        }
+
+                        S v = math::norm(A.val[beg]);
+
+                        if (first) {
+                            first = false;
+                            cur_val = v;
+                        } else {
+                            cur_val = std::max(cur_val, v);
+                        }
+
+                        ++beg;
+                    }
+
+                    j[k] = beg;
+                }
+
+                Ap.val[head++] = cur_val;
+            }
+        }
+    }
+
+    AMGCL_TOC("pointwise_matrix");
+    return ap;
+}
+
 /** NUMA-aware vector container. */
 template <class T>
 class numa_vector {

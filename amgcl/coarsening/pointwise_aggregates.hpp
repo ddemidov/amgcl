@@ -105,7 +105,8 @@ class pointwise_aggregates {
                 strong_connection.resize( nonzeros(A) );
                 id.resize( rows(A) );
 
-                backend::crs<scalar_type> Ap = pointwise_matrix(A, prm.block_size);
+                boost::shared_ptr< backend::crs<scalar_type> > ap = backend::pointwise_matrix(A, prm.block_size);
+                backend::crs<scalar_type> &Ap = *ap;
 
                 plain_aggregates pw_aggr(Ap, prm);
 
@@ -177,84 +178,6 @@ class pointwise_aggregates {
                 ptrdiff_t id = aggr.id[i];
                 if (id != removed) aggr.id[i] = count[id];
             }
-        }
-
-        template <class Matrix>
-        static backend::crs<
-            typename math::scalar_of<
-                typename backend::value_type<Matrix>::type
-                >::type
-            >
-        pointwise_matrix(const Matrix &A, size_t block_size) {
-            typedef typename backend::value_type<Matrix>::type V;
-            typedef typename math::scalar_of<V>::type S;
-            typedef typename backend::row_iterator<Matrix>::type row_iterator;
-
-            const size_t n  = backend::rows(A);
-            const size_t m  = backend::cols(A);
-            const size_t np = n / block_size;
-            const size_t mp = m / block_size;
-
-            precondition(n % block_size == 0 && m % block_size == 0,
-                    "Matrix size should be divisible by block_size");
-
-            backend::crs<S> Ap;
-            Ap.set_size(np, mp, true);
-
-#pragma omp parallel
-            {
-                std::vector<ptrdiff_t> marker(mp, -1);
-
-                // Count number of nonzeros in block matrix.
-#pragma omp for
-                for(ptrdiff_t ip = 0; ip < static_cast<ptrdiff_t>(np); ++ip) {
-                    ptrdiff_t ia = ip * block_size;
-
-                    for(unsigned k = 0; k < block_size; ++k, ++ia) {
-                        for(row_iterator a = backend::row_begin(A, ia); a; ++a) {
-                            ptrdiff_t cp = a.col() / block_size;
-                            if (marker[cp] != ip) {
-                                marker[cp] = ip;
-                                ++Ap.ptr[ip + 1];
-                            }
-                        }
-                    }
-                }
-            }
-
-            Ap.scan_row_sizes();
-            Ap.set_nonzeros();
-
-#pragma omp parallel
-            {
-                std::vector<ptrdiff_t> marker(mp, -1);
-
-                // Fill the reduced matrix. Use max norm for blocks.
-#pragma omp for
-                for(ptrdiff_t ip = 0; ip < static_cast<ptrdiff_t>(np); ++ip) {
-                    ptrdiff_t ia = ip * block_size;
-                    ptrdiff_t row_beg = Ap.ptr[ip];
-                    ptrdiff_t row_end = row_beg;
-
-                    for(unsigned k = 0; k < block_size; ++k, ++ia) {
-                        for(row_iterator a = backend::row_begin(A, ia); a; ++a) {
-                            ptrdiff_t cb = a.col() / block_size;
-                            S va = math::norm(a.value());
-
-                            if (marker[cb] < row_beg) {
-                                marker[cb] = row_end;
-                                Ap.col[row_end] = cb;
-                                Ap.val[row_end] = va;
-                                ++row_end;
-                            } else {
-                                Ap.val[marker[cb]] = std::max(Ap.val[marker[cb]], va);
-                            }
-                        }
-                    }
-                }
-            }
-
-            return Ap;
         }
 };
 
