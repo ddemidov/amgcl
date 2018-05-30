@@ -15,7 +15,7 @@
 #include <amgcl/mpi/util.hpp>
 #include <amgcl/mpi/make_solver.hpp>
 #include <amgcl/mpi/amg.hpp>
-#include <amgcl/mpi/coarsening/smoothed_aggregation.hpp>
+#include <amgcl/mpi/coarsening/runtime.hpp>
 #include <amgcl/mpi/relaxation/runtime.hpp>
 #include <amgcl/mpi/direct_solver/runtime.hpp>
 #include <amgcl/mpi/repartition/runtime.hpp>
@@ -190,7 +190,7 @@ int main(int argc, char *argv[]) {
         amgcl::mpi::make_solver<
             amgcl::mpi::amg<
                 Backend,
-                amgcl::mpi::coarsening::smoothed_aggregation<Backend>,
+                amgcl::runtime::mpi::coarsening::wrapper<Backend>,
                 amgcl::runtime::mpi::relaxation<Backend>,
                 amgcl::runtime::mpi::direct::solver<val_type>,
                 amgcl::runtime::mpi::repartition::wrapper<Backend>
