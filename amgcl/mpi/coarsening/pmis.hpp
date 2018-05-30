@@ -105,7 +105,7 @@ struct pmis {
         ptrdiff_t A_beg = A.loc_col_shift();
         ptrdiff_t A_end = A_beg + A_rows;
 
-        boost::shared_ptr<bool_matrix> a_nbr = remote_rows(C, A);
+        boost::shared_ptr<bool_matrix> a_nbr = remote_rows(C, A, false);
         bool_matrix &A_nbr = *a_nbr;
 
         // Build mapping from global to local column numbers in the remote part of

@@ -654,7 +654,11 @@ transpose(const distributed_matrix<Backend> &A) {
 
 template <class Backend>
 boost::shared_ptr< backend::crs<typename Backend::value_type> >
-remote_rows(const comm_pattern<Backend> &C, const distributed_matrix<Backend> &B)
+remote_rows(
+        const comm_pattern<Backend> &C,
+        const distributed_matrix<Backend> &B,
+        bool need_values = true
+        )
 {
     typedef typename Backend::value_type value_type;
     typedef backend::crs<value_type>     build_matrix;
@@ -702,7 +706,7 @@ remote_rows(const comm_pattern<Backend> &C, const distributed_matrix<Backend> &B
         MPI_Isend(m.ptr, m.nrows, datatype<ptrdiff_t>(),
                 C.send.nbr[k], tag_ptr, comm, &send_ptr_req[k]);
 
-        m.set_nonzeros(m.nnz);
+        m.set_nonzeros(m.nnz, need_values);
 
         for(ptrdiff_t i = 0, ii = beg, head = 0; ii < end; ++i, ++ii) {
             ptrdiff_t r = C.send.col[ii];
@@ -710,22 +714,27 @@ remote_rows(const comm_pattern<Backend> &C, const distributed_matrix<Backend> &B
             // Contribution of the local part:
             for(ptrdiff_t j = B_loc.ptr[r]; j < B_loc.ptr[r+1]; ++j) {
                 m.col[head] = B_loc.col[j] + B_beg;
-                m.val[head] = B_loc.val[j];
+
+                if (need_values) m.val[head] = B_loc.val[j];
+
                 ++head;
             }
 
             // Contribution of the remote part:
             for(ptrdiff_t j = B_rem.ptr[r]; j < B_rem.ptr[r+1]; ++j) {
                 m.col[head] = B_rem.col[j];
-                m.val[head] = B_rem.val[j];
+
+                if (need_values) m.val[head] = B_rem.val[j];
+
                 ++head;
             }
         }
 
         MPI_Isend(m.col, m.nnz, datatype<ptrdiff_t>(),
                 C.send.nbr[k], tag_col, comm, &send_col_req[k]);
-        MPI_Isend(m.val, m.nnz, datatype<value_type>(),
-                C.send.nbr[k], tag_val, comm, &send_val_req[k]);
+        if (need_values)
+            MPI_Isend(m.val, m.nnz, datatype<value_type>(),
+                    C.send.nbr[k], tag_val, comm, &send_val_req[k]);
     }
 
     // Receive rows of B in block format from our neighbors:
@@ -749,7 +758,7 @@ remote_rows(const comm_pattern<Backend> &C, const distributed_matrix<Backend> &B
     MPI_Waitall(recv_ptr_req.size(), &recv_ptr_req[0], MPI_STATUSES_IGNORE);
     AMGCL_TOC("MPI Wait");
 
-    B_nbr->set_nonzeros(B_nbr->scan_row_sizes());
+    B_nbr->set_nonzeros(B_nbr->scan_row_sizes(), need_values);
 
     for(size_t k = 0; k < nrecv; ++k) {
         ptrdiff_t rbeg = C.recv.ptr[k];
@@ -761,8 +770,9 @@ remote_rows(const comm_pattern<Backend> &C, const distributed_matrix<Backend> &B
         MPI_Irecv(&B_nbr->col[cbeg], cend - cbeg, datatype<ptrdiff_t>(),
                 C.recv.nbr[k], tag_col, comm, &recv_col_req[k]);
 
-        MPI_Irecv(&B_nbr->val[cbeg], cend - cbeg, datatype<value_type>(),
-                C.recv.nbr[k], tag_val, comm, &recv_val_req[k]);
+        if (need_values)
+            MPI_Irecv(&B_nbr->val[cbeg], cend - cbeg, datatype<value_type>(),
+                    C.recv.nbr[k], tag_val, comm, &recv_val_req[k]);
     }
 
     AMGCL_TIC("MPI Wait");
@@ -770,7 +780,8 @@ remote_rows(const comm_pattern<Backend> &C, const distributed_matrix<Backend> &B
 
     MPI_Waitall(send_ptr_req.size(), &send_ptr_req[0], MPI_STATUSES_IGNORE);
     MPI_Waitall(send_col_req.size(), &send_col_req[0], MPI_STATUSES_IGNORE);
-    MPI_Waitall(send_val_req.size(), &send_val_req[0], MPI_STATUSES_IGNORE);
+    if (need_values)
+        MPI_Waitall(send_val_req.size(), &send_val_req[0], MPI_STATUSES_IGNORE);
     AMGCL_TOC("MPI Wait");
 
     AMGCL_TOC("remote_rows");
