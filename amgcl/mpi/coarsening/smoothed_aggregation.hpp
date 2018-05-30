@@ -41,6 +41,7 @@ THE SOFTWARE.
 #include <amgcl/coarsening/detail/galerkin.hpp>
 #include <amgcl/mpi/util.hpp>
 #include <amgcl/mpi/distributed_matrix.hpp>
+#include <amgcl/mpi/coarsening/conn_strength.hpp>
 
 namespace amgcl {
 namespace mpi {
@@ -98,11 +99,27 @@ struct smoothed_aggregation {
         >
     transfer_operators(const distributed_matrix<Backend> &A) {
         typedef distributed_matrix<Backend> DM;
+        typedef backend::crs<char> bool_matrix;
 
         communicator comm = A.comm();
+        const build_matrix &A_loc = *A.local();
+        const build_matrix &A_rem = *A.remote();
 
-        scalar_type eps_squared = prm.eps_strong * prm.eps_strong;
+        // Compute connection strength
+        boost::shared_ptr< distributed_matrix< backend::builtin<char> > > S =
+            conn_strength(A, prm.eps_strong);
         prm.eps_strong *= 0.5;
+
+        bool_matrix &S_loc = *S->local();
+        bool_matrix &S_rem = *S->remote();
+
+        AMGCL_TIC("tentative prolongation");
+        boost::shared_ptr<DM> P_tent = tentative_prolongation(*S);
+        AMGCL_TOC("tentative prolongation");
+
+
+        AMGCL_TIC("filtered matrix");
+        ptrdiff_t n = A.loc_rows();
 
         scalar_type omega = prm.relax;
         if (prm.estimate_spectral_radius) {
@@ -111,109 +128,65 @@ struct smoothed_aggregation {
             omega *= static_cast<scalar_type>(2.0/3);
         }
 
-        // 1. Create filtered matrix
-        AMGCL_TIC("filtered matrix");
-        ptrdiff_t n = A.loc_rows();
-
-        const build_matrix &A_loc = *A.local();
-        const build_matrix &A_rem = *A.remote();
-        const comm_pattern<Backend> &Ap = A.cpat();
-
         boost::shared_ptr<build_matrix> af_loc = boost::make_shared<build_matrix>();
         boost::shared_ptr<build_matrix> af_rem = boost::make_shared<build_matrix>();
 
         build_matrix &Af_loc = *af_loc;
         build_matrix &Af_rem = *af_rem;
 
-        Af_loc.set_size(n, n, true);
-        Af_rem.set_size(n, 0, true);
+        backend::numa_vector<value_type> Af_loc_val(S_loc.nnz, false);
+        backend::numa_vector<value_type> Af_rem_val(S_rem.nnz, false);
 
-        boost::shared_ptr< backend::numa_vector<value_type> > D = backend::diagonal(A_loc);
+        Af_loc.own_data = false;
+        Af_loc.nrows = S_loc.nrows;
+        Af_loc.ncols = S_loc.ncols;
+        Af_loc.nnz   = S_loc.nnz;
+        Af_loc.ptr   = S_loc.ptr;
+        Af_loc.col   = S_loc.col;
+        Af_loc.val   = Af_loc_val.data();
+
+        Af_rem.own_data = false;
+        Af_rem.nrows = S_rem.nrows;
+        Af_rem.ncols = S_rem.ncols;
+        Af_rem.nnz   = S_rem.nnz;
+        Af_rem.ptr   = S_rem.ptr;
+        Af_rem.col   = S_rem.col;
+        Af_rem.val   = Af_rem_val.data();
+
         backend::numa_vector<value_type> Df(n, false);
 
-        std::vector<value_type> D_loc(Ap.send.count());
-        std::vector<value_type> D_rem(Ap.recv.count());
-
-        for(size_t i = 0, nv = Ap.send.count(); i < nv; ++i)
-            D_loc[i] = (*D)[Ap.send.col[i]];
-
-        Ap.exchange(&D_loc[0], &D_rem[0]);
-
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < n; ++i) {
-            value_type dia_i = (*D)[i];
-            value_type dia_f = dia_i;
-            value_type eps_dia_i = eps_squared * dia_i;
-
-            for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j) {
-                ptrdiff_t  c = A_loc.col[j];
-                value_type v = A_loc.val[j];
-
-                if (c == i || (eps_dia_i * (*D)[c] < v * v)) {
-                    ++Af_loc.ptr[i+1];
-                } else {
-                    dia_f += v;
-                }
-            }
-
-            for(ptrdiff_t j = A_rem.ptr[i], e = A_rem.ptr[i+1]; j < e; ++j) {
-                ptrdiff_t  c = Ap.local_index(A_rem.col[j]);
-                value_type v = A_rem.val[j];
-
-                if (eps_dia_i * D_rem[c] < v * v) {
-                    ++Af_rem.ptr[i+1];
-                } else {
-                    dia_f += v;
-                }
-            }
-
-            Df[i] = dia_f;
-        }
-
-        Af_loc.set_nonzeros(Af_loc.scan_row_sizes());
-        Af_rem.set_nonzeros(Af_rem.scan_row_sizes());
-
-#pragma omp parallel for
-        for(ptrdiff_t i = 0; i < n; ++i) {
-            value_type dia_f = -omega * math::inverse(Df[i]);
-            value_type eps_dia_i = eps_squared * (*D)[i];
             ptrdiff_t loc_head = Af_loc.ptr[i];
             ptrdiff_t rem_head = Af_rem.ptr[i];
 
-            for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j) {
-                ptrdiff_t  c = A_loc.col[j];
-                value_type v = A_loc.val[j];
+            value_type dia_f = math::zero<value_type>();
 
-                if (c == i) {
-                    Af_loc.col[loc_head] = c;
-                    Af_loc.val[loc_head] = (1 - omega) * math::identity<value_type>();
-                    ++loc_head;
-                } else if(eps_dia_i * (*D)[c] < v * v) {
-                    Af_loc.col[loc_head] = c;
-                    Af_loc.val[loc_head] = dia_f * v;
-                    ++loc_head;
+            for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j)
+                if (A_loc.col[j] == i || !S_loc.val[j]) dia_f += A_loc.val[j];
+
+            for(ptrdiff_t j = A_rem.ptr[i], e = A_rem.ptr[i+1]; j < e; ++j)
+                if (!S_rem.val[j]) dia_f += A_rem.val[j];
+
+            dia_f = -omega * math::inverse(dia_f);
+
+            for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j) {
+                if (A_loc.col[j] == i) {
+                    Af_loc.val[loc_head++] = (1 - omega) * math::identity<value_type>();
+                } else if(S_loc.val[j]) {
+                    Af_loc.val[loc_head++] = dia_f * A_loc.val[j];
                 }
             }
 
             for(ptrdiff_t j = A_rem.ptr[i], e = A_rem.ptr[i+1]; j < e; ++j) {
-                ptrdiff_t  c = A_rem.col[j];
-                ptrdiff_t  k = Ap.local_index(c);
-                value_type v = A_rem.val[j];
-
-                if (eps_dia_i * D_rem[k] < v * v) {
-                    Af_rem.col[rem_head] = c;
-                    Af_rem.val[rem_head] = dia_f * v;
-                    ++rem_head;
+                if (S_rem.val[j]) {
+                    Af_rem.val[rem_head++] = dia_f * A_rem.val[j];
                 }
             }
         }
 
         boost::shared_ptr<DM> Af = boost::make_shared<DM>(comm, af_loc, af_rem);
         AMGCL_TOC("filtered matrix");
-
-        AMGCL_TIC("tentative prolongation");
-        boost::shared_ptr<DM> P_tent = tentative_prolongation(*Af);
-        AMGCL_TOC("tentative prolongation");
 
         // 5. Smooth tentative prolongation with the filtered matrix.
         AMGCL_TIC("smoothing");
@@ -224,25 +197,28 @@ struct smoothed_aggregation {
     }
 
     boost::shared_ptr< distributed_matrix<Backend> >
-    tentative_prolongation(const distributed_matrix<Backend> &Af) {
+    tentative_prolongation(const distributed_matrix< backend::builtin<char> > &A) {
+        typedef backend::crs<char> bool_matrix;
         typedef distributed_matrix<Backend> DM;
+        typedef distributed_matrix< backend::builtin<char> > BM;
+        typedef comm_pattern< backend::builtin<char> > CommPattern;
 
         static const int tag_exc_cnt = 4001;
         static const int tag_exc_pts = 4002;
 
-        const build_matrix &Af_loc = *Af.local();
-        const build_matrix &Af_rem = *Af.remote();
+        const bool_matrix &A_loc = *A.local();
+        const bool_matrix &A_rem = *A.remote();
 
-        ptrdiff_t n = Af_loc.nrows;
+        ptrdiff_t n = A_loc.nrows;
 
-        communicator comm = Af.comm();
+        communicator comm = A.comm();
 
         // 1. Get symbolic square of the filtered matrix.
         AMGCL_TIC("symbolic square");
-        boost::shared_ptr<DM> S = symb_product(Af, Af);
-        const build_matrix &S_loc = *S->local();
-        const build_matrix &S_rem = *S->remote();
-        const comm_pattern<Backend> &Sp = S->cpat();
+        boost::shared_ptr<BM> S = squared_interface(A);
+        const bool_matrix &S_loc = *S->local();
+        const bool_matrix &S_rem = *S->remote();
+        const CommPattern &Sp    = S->cpat();
         AMGCL_TOC("symbolic square");
 
         // 2. Apply PMIS algorithm to the symbolic square.
@@ -259,7 +235,7 @@ struct smoothed_aggregation {
         // Remove lonely nodes.
 #pragma omp parallel for reduction(+:n_undone)
         for(ptrdiff_t i = 0; i < n; ++i) {
-            ptrdiff_t wl = Af_loc.ptr[i+1] - Af_loc.ptr[i];
+            ptrdiff_t wl = A_loc.ptr[i+1] - A_loc.ptr[i];
             ptrdiff_t wr = S_rem.ptr[i+1] - S_rem.ptr[i];
 
             if (wl + wr == 1) {
@@ -315,9 +291,9 @@ struct smoothed_aggregation {
                         loc_state[i] = id;
                         --n_undone;
 
-                        // Af gives immediate neighbors
-                        for(ptrdiff_t j = Af_loc.ptr[i], e = Af_loc.ptr[i+1]; j < e; ++j) {
-                            ptrdiff_t c = Af_loc.col[j];
+                        // A gives immediate neighbors
+                        for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j) {
+                            ptrdiff_t c = A_loc.col[j];
                             if (c != i) {
                                 if (loc_state[c] == undone) --n_undone;
                                 loc_owner[c] = comm.rank;
@@ -325,8 +301,8 @@ struct smoothed_aggregation {
                             }
                         }
 
-                        for(ptrdiff_t j = Af_rem.ptr[i], e = Af_rem.ptr[i+1]; j < e; ++j) {
-                            ptrdiff_t c = Af_rem.col[j];
+                        for(ptrdiff_t j = A_rem.ptr[i], e = A_rem.ptr[i+1]; j < e; ++j) {
+                            ptrdiff_t c = A_rem.col[j];
                             int d,k;
                             boost::tie(d,k) = Sp.remote_info(c);
 
@@ -365,8 +341,8 @@ struct smoothed_aggregation {
 
                         nbr.clear();
 
-                        for(ptrdiff_t j = Af_loc.ptr[i], e = Af_loc.ptr[i+1]; j < e; ++j) {
-                            ptrdiff_t c = Af_loc.col[j];
+                        for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j) {
+                            ptrdiff_t c = A_loc.col[j];
                             nbr.push_back(c);
 
                             if (c != i) {
@@ -377,8 +353,8 @@ struct smoothed_aggregation {
                         }
 
                         BOOST_FOREACH(ptrdiff_t k, nbr) {
-                            for(ptrdiff_t j = Af_loc.ptr[k], e = Af_loc.ptr[k+1]; j < e; ++j) {
-                                ptrdiff_t c = Af_loc.col[j];
+                            for(ptrdiff_t j = A_loc.ptr[k], e = A_loc.ptr[k+1]; j < e; ++j) {
+                                ptrdiff_t c = A_loc.col[j];
                                 if (c != k && loc_state[c] == undone) {
                                     loc_owner[c] = comm.rank;
                                     loc_state[c] = id;

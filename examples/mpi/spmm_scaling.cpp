@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
     domain_partition<3> part(lo, hi, world.size);
     ptrdiff_t chunk = part.size( world.rank );
 
-    std::vector<ptrdiff_t> domain = amgcl::mpi::exclusive_sum(world, chunk);
+    std::vector<ptrdiff_t> domain = world.exclusive_sum(chunk);
 
     lo = part.domain(world.rank).min_corner();
     hi = part.domain(world.rank).max_corner();

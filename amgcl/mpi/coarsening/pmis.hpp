@@ -26,7 +26,7 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/mpi/coarsening/smoothed_aggregation.hpp
+ * \file   amgcl/mpi/coarsening/pmis.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
  * \brief  Distributed PMIS aggregation.
  */
