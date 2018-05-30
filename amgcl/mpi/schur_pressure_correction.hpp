@@ -194,8 +194,8 @@ class schur_pressure_correction {
             // We know what points each of our neighbors needs from us;
             // and we know if those points are pressure or flow.
             // We can immediately provide them with our renumbering scheme.
-            std::vector<ptrdiff_t> pdomain = mpi::exclusive_sum(comm, np);
-            std::vector<ptrdiff_t> udomain = mpi::exclusive_sum(comm, nu);
+            std::vector<ptrdiff_t> pdomain = comm.exclusive_sum(np);
+            std::vector<ptrdiff_t> udomain = comm.exclusive_sum(nu);
             ptrdiff_t p_beg = pdomain[comm.rank];
             ptrdiff_t u_beg = udomain[comm.rank];
 

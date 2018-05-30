@@ -239,7 +239,7 @@ class amg {
                   u(Backend::create_vector(a->loc_rows(), bprm))
             {
                 int active = (a->loc_rows() > 0);
-                MPI_Allreduce(&active, &active_procs, 1, MPI_INT, MPI_SUM, a->comm());
+                active_procs = a->comm().reduce(MPI_SUM, active);
 
                 sort_rows(*a);
 
@@ -317,8 +317,7 @@ class amg {
 
         void init(boost::shared_ptr<matrix> A, const backend_params &bprm)
         {
-            mpi::precondition(A->comm(), A->glob_rows() == A->glob_cols(),
-                    "Matrix should be square!");
+            A->comm().check(A->glob_rows() == A->glob_cols(), "Matrix should be square!");
 
             this->A = A;
             Coarsening C(prm.coarsening);

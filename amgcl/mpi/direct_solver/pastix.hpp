@@ -115,7 +115,7 @@ class pastix : public solver_base< value_type, pastix<value_type, Distrib> > {
 
             if (!Distrib) inv_perm.resize(nrows);
 
-            std::vector<int> domain = mpi::exclusive_sum(comm, nrows);
+            std::vector<int> domain = comm.exclusive_sum(nrows);
 
             // PaStiX needs 1-based matrices:
             BOOST_FOREACH(pastix_int_t &p, ptr) ++p;

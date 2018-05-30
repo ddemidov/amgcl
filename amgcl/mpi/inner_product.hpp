@@ -51,20 +51,14 @@ struct inner_product {
         typename backend::value_type<Vec1>::type
         >::return_type
     operator()(const Vec1 &x, const Vec2 &y) const {
-        AMGCL_TIC("inner product");
         typedef typename backend::value_type<Vec1>::type value_type;
         typedef typename math::inner_product_impl<value_type>::return_type coef_type;
-        typedef typename math::scalar_of<value_type>::type scalar;
 
-        const int size = sizeof(coef_type) / sizeof(scalar);
-
-        coef_type lsum = backend::inner_product(x, y);
-        coef_type gsum;
-
-        MPI_Allreduce(&lsum, &gsum, size, datatype<scalar>(), MPI_SUM, comm);
-
+        AMGCL_TIC("inner product");
+        coef_type sum = comm.reduce(MPI_SUM, backend::inner_product(x, y));
         AMGCL_TOC("inner product");
-        return gsum;
+
+        return sum;
     }
 };
 

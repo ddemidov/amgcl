@@ -51,7 +51,7 @@ class solver_base {
             this->comm = comm;
             n = Astrip.nrows;
 
-            std::vector<int> domain = mpi::exclusive_sum(comm, n);
+            std::vector<int> domain = comm.exclusive_sum(n);
             uniform_n = true;
             for(int i = 0; i < comm.size; ++i) {
                 if (domain[i+1] - domain[i] != n) {

@@ -429,12 +429,8 @@ struct smoothed_aggregation {
                 send_state[i] = loc_state[Sp.send.col[i]];
             Sp.exchange(&send_state[0], &rem_state[0]);
 
-            ptrdiff_t glob_undone;
-            MPI_Allreduce(&n_undone, &glob_undone, 1, datatype<ptrdiff_t>(), MPI_SUM, comm);
-
-            if (glob_undone == 0) {
+            if (0 == comm.reduce(MPI_SUM, n_undone))
                 break;
-            }
         }
         AMGCL_TOC("PMIS");
 
@@ -445,7 +441,7 @@ struct smoothed_aggregation {
         build_matrix &P_loc = *p_loc;
         build_matrix &P_rem = *p_rem;
 
-        std::vector<ptrdiff_t> aggr_dom = exclusive_sum(comm, naggr);
+        std::vector<ptrdiff_t> aggr_dom = comm.exclusive_sum(naggr);
         P_loc.set_size(n, naggr, true);
         P_rem.set_size(n, 0, true);
 
@@ -490,6 +486,7 @@ struct smoothed_aggregation {
     {
         return amgcl::coarsening::detail::galerkin(A, P, R);
     }
+
 };
 
 } // namespace coarsening

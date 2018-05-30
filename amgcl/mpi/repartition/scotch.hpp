@@ -87,7 +87,7 @@ struct scotch {
 
         communicator comm = A.comm();
         ptrdiff_t n = A.loc_rows();
-        std::vector<ptrdiff_t> row_dom = mpi::exclusive_sum(comm, n);
+        std::vector<ptrdiff_t> row_dom = comm.exclusive_sum(n);
 
         int non_empty = 0;
         ptrdiff_t min_n = std::numeric_limits<ptrdiff_t>::max();
@@ -109,8 +109,7 @@ struct scotch {
 
         // Partition the graph.
         int active = (n > 0);
-        int active_ranks;
-        MPI_Allreduce(&active, &active_ranks, 1, MPI_INT, MPI_SUM, comm);
+        int active_ranks = comm.reduce(MPI_SUM, active);
 
         SCOTCH_Num npart = std::max(1, active_ranks / prm.shrink_ratio);
 
@@ -168,7 +167,7 @@ struct scotch {
     }
 
     static void check(communicator comm, int ierr) {
-        amgcl::mpi::precondition(comm, ierr == 0, "SCOTCH error");
+        comm.check(ierr == 0, "SCOTCH error");
     }
 };
 

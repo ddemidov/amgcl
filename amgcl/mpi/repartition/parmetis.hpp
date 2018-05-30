@@ -87,7 +87,7 @@ struct parmetis {
 
         communicator comm = A.comm();
         ptrdiff_t n = A.loc_rows();
-        std::vector<ptrdiff_t> row_dom = mpi::exclusive_sum(comm, n);
+        std::vector<ptrdiff_t> row_dom = comm.exclusive_sum(n);
 
         int non_empty = 0;
         ptrdiff_t min_n = std::numeric_limits<ptrdiff_t>::max();
@@ -107,12 +107,11 @@ struct parmetis {
         idx_t n = A.loc_rows();
         ptrdiff_t row_beg = A.loc_col_shift();
 
-        std::vector<idx_t> vtxdist = mpi::exclusive_sum(comm, n);
+        std::vector<idx_t> vtxdist = comm.exclusive_sum(n);
 
         // Partition the graph.
         int active = (n > 0);
-        int active_ranks;
-        MPI_Allreduce(&active, &active_ranks, 1, MPI_INT, MPI_SUM, comm);
+        int active_ranks = comm.reduce(MPI_SUM, active);
 
         idx_t npart = std::max(1, active_ranks / prm.shrink_ratio);
 
@@ -151,7 +150,7 @@ struct parmetis {
             MPI_Comm_split(comm, active ? 0 : MPI_UNDEFINED, comm.rank, &scomm);
 
             if (active) {
-                amgcl::mpi::precondition(scomm,
+                communicator(scomm).check(
                         METIS_OK == ParMETIS_V3_PartKway( &vtxdist[0], &ptr[0],
                             &col[0], NULL, NULL, &wgtflag, &numflag, &ncon,
                             &npart, &tpwgts[0], &ubvec[0], &options, &edgecut,
@@ -167,10 +166,6 @@ struct parmetis {
         }
 
         return graph_perm_matrix<Backend>(comm, col_beg, col_end, perm);
-    }
-
-    static void check(communicator comm, int ierr) {
-        amgcl::mpi::precondition(comm, ierr == 0, "SCOTCH error");
     }
 };
 

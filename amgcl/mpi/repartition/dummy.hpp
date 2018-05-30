@@ -85,7 +85,7 @@ struct dummy {
 
         communicator comm = A.comm();
         ptrdiff_t n = A.loc_rows();
-        std::vector<ptrdiff_t> row_dom = mpi::exclusive_sum(comm, n);
+        std::vector<ptrdiff_t> row_dom = comm.exclusive_sum(n);
 
         int non_empty = 0;
         ptrdiff_t min_n = std::numeric_limits<ptrdiff_t>::max();
@@ -104,7 +104,7 @@ struct dummy {
         communicator comm = A.comm();
         ptrdiff_t nrows = A.loc_rows();
 
-        std::vector<ptrdiff_t> row_dom = mpi::exclusive_sum(comm, nrows);
+        std::vector<ptrdiff_t> row_dom = comm.exclusive_sum(nrows);
         std::vector<ptrdiff_t> col_dom(comm.size + 1);
 
         for(int i = 0; i <= comm.size; ++i)

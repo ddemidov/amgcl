@@ -95,7 +95,7 @@ class comm_pattern {
         {
             AMGCL_TIC("communication pattern");
             // Get domain boundaries
-            std::vector<ptrdiff_t> domain = mpi::exclusive_sum(comm, n_loc_cols);
+            std::vector<ptrdiff_t> domain = comm.exclusive_sum(n_loc_cols);
             loc_beg = domain[comm.rank];
 
             // Renumber remote columns,
@@ -310,9 +310,9 @@ class distributed_matrix {
             n_loc_cols     = a_loc->ncols;
             n_loc_nonzeros = a_loc->nnz + a_rem->nnz;
 
-            MPI_Allreduce(&n_loc_rows,     &n_glob_rows,     1, datatype<ptrdiff_t>(), MPI_SUM, comm);
-            MPI_Allreduce(&n_loc_cols,     &n_glob_cols,     1, datatype<ptrdiff_t>(), MPI_SUM, comm);
-            MPI_Allreduce(&n_loc_nonzeros, &n_glob_nonzeros, 1, datatype<ptrdiff_t>(), MPI_SUM, comm);
+            n_glob_rows     = comm.reduce(MPI_SUM, n_loc_rows);
+            n_glob_cols     = comm.reduce(MPI_SUM, n_loc_cols);
+            n_glob_nonzeros = comm.reduce(MPI_SUM, n_loc_nonzeros);
         }
 
         template <class Matrix>
@@ -328,12 +328,13 @@ class distributed_matrix {
             typedef typename backend::row_iterator<Matrix>::type row_iterator;
 
             // Get sizes of each domain in comm.
-            std::vector<ptrdiff_t> domain = mpi::exclusive_sum(comm, n_loc_cols);
+            std::vector<ptrdiff_t> domain = comm.exclusive_sum(n_loc_cols);
             ptrdiff_t loc_beg = domain[comm.rank];
             ptrdiff_t loc_end = domain[comm.rank + 1];
-            n_glob_cols = domain.back();
-            MPI_Allreduce(&n_loc_rows, &n_glob_rows, 1, datatype<ptrdiff_t>(), MPI_SUM, comm);
-            MPI_Allreduce(&n_loc_nonzeros, &n_glob_nonzeros, 1, datatype<ptrdiff_t>(), MPI_SUM, comm);
+
+            n_glob_cols     = domain.back();
+            n_glob_rows     = comm.reduce(MPI_SUM, n_loc_rows);
+            n_glob_nonzeros = comm.reduce(MPI_SUM, n_loc_nonzeros);
 
             // Split the matrix into local and remote parts.
             a_loc = boost::make_shared<build_matrix>();
@@ -538,7 +539,7 @@ transpose(const distributed_matrix<Backend> &A) {
     build_matrix &t_rem = *t_ptr;
 
     // Shift to global numbering:
-    std::vector<ptrdiff_t> domain = mpi::exclusive_sum(comm, ncols);
+    std::vector<ptrdiff_t> domain = comm.exclusive_sum(ncols);
     ptrdiff_t loc_beg = domain[comm.rank];
     for(size_t i = 0; i < t_rem.nnz; ++i)
         t_rem.col[i] += loc_beg;
@@ -673,7 +674,7 @@ product(const distributed_matrix<Backend> &A, const distributed_matrix<Backend> 
     ptrdiff_t A_rows = A.loc_rows();
     ptrdiff_t B_cols = B.loc_cols();
 
-    std::vector<ptrdiff_t> B_dom = mpi::exclusive_sum(comm, static_cast<ptrdiff_t>(B_cols));
+    std::vector<ptrdiff_t> B_dom = comm.exclusive_sum(B_cols);
 
     ptrdiff_t B_beg = B_dom[comm.rank];
     ptrdiff_t B_end = B_dom[comm.rank + 1];
@@ -1002,7 +1003,7 @@ symb_product(const distributed_matrix<Backend> &A, const distributed_matrix<Back
     ptrdiff_t A_rows = A.loc_rows();
     ptrdiff_t B_cols = B.loc_cols();
 
-    std::vector<ptrdiff_t> B_dom = mpi::exclusive_sum(comm, static_cast<ptrdiff_t>(B_cols));
+    std::vector<ptrdiff_t> B_dom = comm.exclusive_sum(B_cols);
 
     ptrdiff_t B_beg = B_dom[comm.rank];
     ptrdiff_t B_end = B_dom[comm.rank + 1];
@@ -1340,8 +1341,7 @@ spectral_radius(const distributed_matrix<Backend> &A, int power_iters)
         b0_loc_norm += t_norm;
     }
 
-    scalar_type b0_norm;
-    MPI_Allreduce(&b0_loc_norm, &b0_norm, 1, datatype<scalar_type>(), MPI_SUM, comm);
+    scalar_type b0_norm = comm.reduce(MPI_SUM, b0_loc_norm);
 
     // Normalize b0
     b0_norm = 1 / sqrt(b0_norm);
@@ -1396,11 +1396,11 @@ spectral_radius(const distributed_matrix<Backend> &A, int power_iters)
             }
         }
 
-        MPI_Allreduce(&loc_radius, &radius, 1, datatype<scalar_type>(), MPI_SUM, comm);
+        radius = comm.reduce(MPI_SUM, loc_radius);
 
         if (++iter < power_iters) {
             scalar_type b1_norm;
-            MPI_Allreduce(&b1_loc_norm, &b1_norm, 1, datatype<scalar_type>(), MPI_SUM, comm);
+            b1_norm = comm.reduce(MPI_SUM, b1_loc_norm);
 
             // b0 = b1 / b1_norm
             b1_norm = 1 / sqrt(b1_norm);

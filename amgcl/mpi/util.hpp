@@ -136,45 +136,56 @@ struct communicator {
     operator MPI_Comm() const {
         return comm;
     }
-};
 
-/// Exclusive sum over mpi communicator
-template <typename T>
-std::vector<T> exclusive_sum(communicator comm, T n) {
-    std::vector<T> v(comm.size + 1); v[0] = 0;
-    MPI_Allgather(&n, 1, datatype<T>(), &v[1], 1, datatype<T>(), comm);
-    std::partial_sum(v.begin(), v.end(), v.begin());
-    return v;
-}
-
-/// Communicator-wise condition checking.
-/**
- * Checks conditions at each process in the communicator;
- *
- * If the condition is false on any of the participating processes, outputs the
- * provided message together with the ranks of the offending process.
- * After that each process in the communicator throws.
- */
-template <class Condition, class Message>
-void precondition(communicator comm, const Condition &cond, const Message &message)
-{
-    int gc, lc = static_cast<int>(cond);
-    MPI_Allreduce(&lc, &gc, 1, MPI_INT, MPI_PROD, comm);
-
-    if (!gc) {
-        std::vector<int> c(comm.size);
-        MPI_Gather(&lc, 1, MPI_INT, &c[0], comm.size, MPI_INT, 0, comm);
-        if (comm.rank == 0) {
-            std::cerr << "Failed assumption: " << message << std::endl;
-            std::cerr << "Offending processes:";
-            for (int i = 0; i < comm.size; ++i)
-                if (!c[i]) std::cerr << " " << i;
-            std::cerr << std::endl;
-        }
-        MPI_Barrier(comm);
-        throw std::runtime_error(message);
+    /// Exclusive sum over mpi communicator
+    template <typename T>
+    std::vector<T> exclusive_sum(T n) const {
+        std::vector<T> v(size + 1); v[0] = 0;
+        MPI_Allgather(&n, 1, datatype<T>(), &v[1], 1, datatype<T>(), comm);
+        std::partial_sum(v.begin(), v.end(), v.begin());
+        return v;
     }
-}
+
+    template <typename T>
+    T reduce(MPI_Op op, const T &lval) const {
+        typedef typename math::scalar_of<T>::type S;
+
+        const int elems = sizeof(T) / sizeof(S);
+        T gval;
+
+        MPI_Allreduce(&lval, &gval, elems, datatype<T>(), op, comm);
+        return gval;
+    }
+
+    /// Communicator-wise condition checking.
+    /**
+     * Checks conditions at each process in the communicator;
+     *
+     * If the condition is false on any of the participating processes, outputs the
+     * provided message together with the ranks of the offending process.
+     * After that each process in the communicator throws.
+     */
+    template <class Condition, class Message>
+    void check(const Condition &cond, const Message &message) {
+        int lc = static_cast<int>(cond);
+        int gc = reduce(MPI_PROD, lc);
+
+        if (!gc) {
+            std::vector<int> c(size);
+            MPI_Gather(&lc, 1, MPI_INT, &c[0], size, MPI_INT, 0, comm);
+            if (rank == 0) {
+                std::cerr << "Failed assumption: " << message << std::endl;
+                std::cerr << "Offending processes:";
+                for (int i = 0; i < size; ++i)
+                    if (!c[i]) std::cerr << " " << i;
+                std::cerr << std::endl;
+            }
+            MPI_Barrier(comm);
+            throw std::runtime_error(message);
+        }
+    }
+
+};
 
 } // namespace mpi
 } // namespace amgcl

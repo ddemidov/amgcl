@@ -122,7 +122,7 @@ int main(int argc, char *argv[]) {
     domain_partition<3> part(lo, hi, comm.size);
     ptrdiff_t chunk = part.size( comm.rank );
 
-    std::vector<ptrdiff_t> domain = amgcl::mpi::exclusive_sum(comm, chunk);
+    std::vector<ptrdiff_t> domain = comm.exclusive_sum(chunk);
 
     lo = part.domain(comm.rank).min_corner();
     hi = part.domain(comm.rank).max_corner();
