@@ -1433,6 +1433,12 @@ void scale(distributed_matrix<Backend> &A, T s) {
         }
 }
 
+template <class Backend>
+void sort_rows(distributed_matrix<Backend> &A) {
+    backend::sort_rows(*A.local());
+    backend::sort_rows(*A.remote());
+}
+
 } // namespace mpi
 
 namespace backend {

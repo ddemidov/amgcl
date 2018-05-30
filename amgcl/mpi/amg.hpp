@@ -241,8 +241,7 @@ class amg {
                 int active = (a->loc_rows() > 0);
                 MPI_Allreduce(&active, &active_procs, 1, MPI_INT, MPI_SUM, a->comm());
 
-                sort_rows(*a->local());
-                sort_rows(*a->remote());
+                sort_rows(*a);
 
                 if (direct) {
                     AMGCL_TIC("direct solver");
@@ -264,10 +263,8 @@ class amg {
                 boost::tie(P, R) = C.transfer_operators(*A);
 
                 AMGCL_TIC("sort");
-                sort_rows(*P->local());
-                sort_rows(*P->remote());
-                sort_rows(*R->local());
-                sort_rows(*R->remote());
+                sort_rows(*P);
+                sort_rows(*R);
                 AMGCL_TOC("sort");
 
                 AMGCL_TOC("transfer operators");
