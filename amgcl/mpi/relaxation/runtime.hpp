@@ -42,16 +42,17 @@ THE SOFTWARE.
 namespace amgcl {
 namespace runtime {
 namespace mpi {
+namespace relaxation {
 
 template <class Backend>
-struct relaxation {
+struct wrapper {
     typedef boost::property_tree::ptree params;
     typedef typename Backend::params    backend_params;
 
     runtime::relaxation::type r;
     void *handle;
 
-    relaxation(const amgcl::mpi::distributed_matrix<Backend> &A,
+    wrapper(const amgcl::mpi::distributed_matrix<Backend> &A,
             params prm, const backend_params &bprm = backend_params())
       : r(prm.get("type", runtime::relaxation::spai0)), handle(0)
     {
@@ -83,6 +84,41 @@ struct relaxation {
 
             default:
                 throw std::invalid_argument("Unsupported relaxation type");
+        }
+    }
+
+    ~wrapper() {
+        switch(r) {
+#define AMGCL_RELAX_DISTR(type) \
+            case runtime::relaxation::type: \
+                delete static_cast<amgcl::mpi::relaxation::type<Backend>*>(handle); \
+                break
+
+#define AMGCL_RELAX_LOCAL_DISTR(type) \
+            case runtime::relaxation::type: \
+                delete static_cast<amgcl::relaxation::type<Backend>*>(handle); \
+                break;
+
+#define AMGCL_RELAX_LOCAL_LOCAL(type) \
+            case runtime::relaxation::type: \
+                delete static_cast<amgcl::relaxation::type<Backend>*>(handle); \
+                break;
+
+            AMGCL_RELAX_DISTR(spai0);
+            AMGCL_RELAX_LOCAL_DISTR(damped_jacobi);
+            AMGCL_RELAX_LOCAL_DISTR(ilu0);
+            AMGCL_RELAX_LOCAL_DISTR(iluk);
+            AMGCL_RELAX_LOCAL_DISTR(ilut);
+            AMGCL_RELAX_LOCAL_DISTR(spai1);
+            AMGCL_RELAX_LOCAL_DISTR(chebyshev);
+            AMGCL_RELAX_LOCAL_LOCAL(gauss_seidel);
+
+#undef AMGCL_RELAX_LOCAL_LOCAL
+#undef AMGCL_RELAX_LOCAL_DISTR
+#undef AMGCL_RELAX_DISTR
+
+            default:
+                break;
         }
     }
 
@@ -198,6 +234,7 @@ struct relaxation {
     }
 };
 
+} // namespace relaxation
 } // namespace mpi
 } // namespace runtime
 } // namespace amgcl

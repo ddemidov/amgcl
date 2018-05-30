@@ -191,7 +191,7 @@ int main(int argc, char *argv[]) {
             amgcl::mpi::amg<
                 Backend,
                 amgcl::runtime::mpi::coarsening::wrapper<Backend>,
-                amgcl::runtime::mpi::relaxation<Backend>,
+                amgcl::runtime::mpi::relaxation::wrapper<Backend>,
                 amgcl::runtime::mpi::direct::solver<val_type>,
                 amgcl::runtime::mpi::repartition::wrapper<Backend>
                 >,
