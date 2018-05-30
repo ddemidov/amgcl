@@ -83,14 +83,52 @@ struct pmis {
 
     pmis(const matrix &A, const params &prm = params()) {
         ptrdiff_t n = A.loc_rows();
-
-        conn = conn_strength(A, prm.eps_strong);
-
         std::vector<ptrdiff_t> state(n);
         std::vector<int>       owner(n);
 
-        ptrdiff_t naggr = aggregates(*conn, state, owner);
-        p_tent = tentative_prolongation(A.comm(), n, naggr, state, owner);
+        if (prm.block_size == 1) {
+            conn = conn_strength(A, prm.eps_strong);
+
+            ptrdiff_t naggr = aggregates(*conn, state, owner);
+            p_tent = tentative_prolongation(A.comm(), n, naggr, state, owner);
+        } else {
+            ptrdiff_t np = n / prm.block_size;
+
+            assert(np * prm.block_size == n && "Matrix size should be divisible by block_size");
+
+            matrix A_pw(A.comm(),
+                pointwise_matrix(*A.local(),  prm.block_size),
+                pointwise_matrix(*A.remote(), prm.block_size)
+                );
+
+            boost::shared_ptr< distributed_matrix<bool_backend> > conn_pw = conn_strength(
+                    A_pw, prm.eps_strong);
+
+            std::vector<ptrdiff_t> state_pw(np);
+            std::vector<int>       owner_pw(np);
+
+            ptrdiff_t naggr = aggregates(*conn_pw, state_pw, owner_pw);
+
+            conn = boost::make_shared< distributed_matrix<bool_backend> >(
+                    A.comm(),
+                    expand_conn(*A.local(),  *A_pw.local(),  *conn_pw->local(),  prm.block_size),
+                    expand_conn(*A.remote(), *A_pw.remote(), *conn_pw->remote(), prm.block_size)
+                    );
+
+#pragma omp parallel for
+            for(ptrdiff_t ip = 0; ip < np; ++ip) {
+                ptrdiff_t i = ip * prm.block_size;
+                ptrdiff_t s = state_pw[ip];
+                int       o = owner_pw[ip];
+
+                for(unsigned k = 0; k < prm.block_size; ++k) {
+                    state[i + k] = (s < 0) ? s : (s * prm.block_size + k);
+                    owner[i + k] = o;
+                }
+            }
+
+            p_tent = tentative_prolongation(A.comm(), n, naggr * prm.block_size, state, owner);
+        }
     }
 
     boost::shared_ptr< distributed_matrix<bool_backend> >
@@ -505,12 +543,12 @@ struct pmis {
 
                         for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j) {
                             ptrdiff_t c = A_loc.col[j];
-                            nbr.push_back(c);
 
-                            if (c != i) {
+                            if (c != i && loc_state[c] != deleted) {
                                 if (loc_state[c] == undone) --n_undone;
                                 loc_owner[c] = comm.rank;
                                 loc_state[c] = id;
+                                nbr.push_back(c);
                             }
                         }
 
@@ -621,6 +659,100 @@ struct pmis {
         AMGCL_TOC("tentative prolongation");
 
         return boost::make_shared<matrix>(comm, p_loc, p_rem);
+    }
+
+    boost::shared_ptr<bool_matrix>
+    expand_conn(const build_matrix &A, const build_matrix &Ap, const bool_matrix &Cp,
+            unsigned block_size) const
+    {
+        ptrdiff_t np = Cp.nrows;
+        ptrdiff_t n  = np * block_size;
+
+        boost::shared_ptr<bool_matrix> c = boost::make_shared<bool_matrix>();
+        bool_matrix &C = *c;
+
+        C.set_size(n, n, true);
+        C.val = new char[A.nnz];
+
+#pragma omp parallel
+        {
+            std::vector<ptrdiff_t> j(block_size);
+            std::vector<ptrdiff_t> e(block_size);
+
+#pragma omp for
+            for(ptrdiff_t ip = 0; ip < np; ++ip) {
+                ptrdiff_t ia = ip * block_size;
+
+                for(unsigned k = 0; k < block_size; ++k) {
+                    j[k] = A.ptr[ia + k];
+                    e[k] = A.ptr[ia + k + 1];
+                }
+
+                for(ptrdiff_t jp = Ap.ptr[ip], ep = Ap.ptr[ip+1]; jp < ep; ++jp) {
+                    ptrdiff_t cp = Ap.col[jp];
+                    bool      sp = Cp.val[jp];
+
+                    ptrdiff_t col_end = (cp + 1) * block_size;
+
+                    for(unsigned k = 0; k < block_size; ++k) {
+                        ptrdiff_t beg = j[k];
+                        ptrdiff_t end = e[k];
+
+                        while(beg < end && A.col[beg] < col_end) {
+                            C.val[beg++] = sp;
+
+                            if (sp) ++C.ptr[ia + k + 1];
+                        }
+
+                        j[k] = beg;
+                    }
+                }
+            }
+        }
+
+        C.nnz = C.scan_row_sizes();
+        C.col = new ptrdiff_t[C.nnz];
+
+#pragma omp parallel
+        {
+            std::vector<ptrdiff_t> j(block_size);
+            std::vector<ptrdiff_t> e(block_size);
+            std::vector<ptrdiff_t> h(block_size);
+
+#pragma omp for
+            for(ptrdiff_t ip = 0; ip < np; ++ip) {
+                ptrdiff_t ia = ip * block_size;
+
+                for(unsigned k = 0; k < block_size; ++k) {
+                    j[k] = A.ptr[ia + k];
+                    e[k] = A.ptr[ia + k + 1];
+                    h[k] = C.ptr[ia + k];
+                }
+
+                for(ptrdiff_t jp = Ap.ptr[ip], ep = Ap.ptr[ip+1]; jp < ep; ++jp) {
+                    ptrdiff_t cp = Ap.col[jp];
+                    bool      sp = Cp.val[jp];
+
+                    ptrdiff_t col_end = (cp + 1) * block_size;
+
+                    for(unsigned k = 0; k < block_size; ++k) {
+                        ptrdiff_t beg = j[k];
+                        ptrdiff_t end = e[k];
+                        ptrdiff_t hed = h[k];
+
+                        while(beg < end && A.col[beg] < col_end) {
+                            if (sp) C.col[hed++] = A.col[beg];
+                            ++beg;
+                        }
+
+                        j[k] = beg;
+                        h[k] = hed;
+                    }
+                }
+            }
+        }
+
+        return c;
     }
 
     private:
