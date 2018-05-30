@@ -153,7 +153,7 @@ struct communicator {
         const int elems = sizeof(T) / sizeof(S);
         T gval;
 
-        MPI_Allreduce(&lval, &gval, elems, datatype<T>(), op, comm);
+        MPI_Allreduce((void*)&lval, &gval, elems, datatype<T>(), op, comm);
         return gval;
     }
 
