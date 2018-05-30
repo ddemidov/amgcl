@@ -82,8 +82,15 @@ struct pmis {
     boost::shared_ptr< matrix > p_tent;
 
     pmis(const matrix &A, const params &prm = params()) {
-        conn   = conn_strength(A, prm.eps_strong);
-        p_tent = tentative_prolongation(*conn);
+        ptrdiff_t n = A.loc_rows();
+
+        conn = conn_strength(A, prm.eps_strong);
+
+        std::vector<ptrdiff_t> state(n);
+        std::vector<int>       owner(n);
+
+        ptrdiff_t naggr = aggregates(*conn, state, owner);
+        p_tent = tentative_prolongation(A.comm(), n, naggr, state, owner);
     }
 
     boost::shared_ptr< distributed_matrix<bool_backend> >
@@ -355,9 +362,13 @@ struct pmis {
                 A.comm(), s_loc, s_rem);
     }
 
-    boost::shared_ptr<matrix>
-    tentative_prolongation(const distributed_matrix<bool_backend> &A) {
-        AMGCL_TIC("tentative prolongation");
+    ptrdiff_t aggregates(
+            const distributed_matrix<bool_backend> &A,
+            std::vector<ptrdiff_t> &loc_state,
+            std::vector<int>       &loc_owner
+            )
+    {
+        AMGCL_TIC("PMIS");
         static const int tag_exc_cnt = 4001;
         static const int tag_exc_pts = 4002;
 
@@ -368,7 +379,7 @@ struct pmis {
 
         communicator comm = A.comm();
 
-        // 1. Get symbolic square of the filtered matrix.
+        // 1. Get symbolic square of the connectivity matrix.
         AMGCL_TIC("symbolic square");
         boost::shared_ptr< distributed_matrix<bool_backend> > S = squared_interface(A);
         const bool_matrix &S_loc = *S->local();
@@ -377,13 +388,7 @@ struct pmis {
         AMGCL_TOC("symbolic square");
 
         // 2. Apply PMIS algorithm to the symbolic square.
-        AMGCL_TIC("PMIS");
-        const ptrdiff_t undone   = -2;
-        const ptrdiff_t deleted  = -1;
-
         ptrdiff_t n_undone = 0;
-        std::vector<int>       loc_owner(n, -1);
-        std::vector<ptrdiff_t> loc_state(n, undone);
         std::vector<ptrdiff_t> rem_state(Sp.recv.count(), undone);
         std::vector<ptrdiff_t> send_state(Sp.send.count());
 
@@ -399,6 +404,8 @@ struct pmis {
             } else {
                 loc_state[i] = undone;
             }
+
+            loc_owner[i] = -1;
         }
 
         n_undone = n - n_undone;
@@ -565,22 +572,29 @@ struct pmis {
         }
         AMGCL_TOC("PMIS");
 
-        // 3. Form tentative prolongation operator.
+        return naggr;
+    }
+
+    boost::shared_ptr<matrix>
+    tentative_prolongation(communicator comm, ptrdiff_t n, ptrdiff_t naggr,
+            std::vector<ptrdiff_t> &state, std::vector<int> &owner)
+    {
+        AMGCL_TIC("tentative prolongation");
+        // Form tentative prolongation operator.
         boost::shared_ptr<build_matrix> p_loc = boost::make_shared<build_matrix>();
         boost::shared_ptr<build_matrix> p_rem = boost::make_shared<build_matrix>();
-
         build_matrix &P_loc = *p_loc;
         build_matrix &P_rem = *p_rem;
 
-        std::vector<ptrdiff_t> aggr_dom = comm.exclusive_sum(naggr);
+        std::vector<ptrdiff_t> dom = comm.exclusive_sum(naggr);
         P_loc.set_size(n, naggr, true);
         P_rem.set_size(n, 0, true);
 
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < n; ++i) {
-            if (loc_state[i] == deleted) continue;
+            if (state[i] == deleted) continue;
 
-            if (loc_owner[i] == comm.rank) {
+            if (owner[i] == comm.rank) {
                 ++P_loc.ptr[i+1];
             } else {
                 ++P_rem.ptr[i+1];
@@ -592,15 +606,15 @@ struct pmis {
 
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < n; ++i) {
-            ptrdiff_t s = loc_state[i];
+            ptrdiff_t s = state[i];
             if (s == deleted) continue;
 
-            int d = loc_owner[i];
+            int d = owner[i];
             if (d == comm.rank) {
                 P_loc.col[P_loc.ptr[i]] = s;
                 P_loc.val[P_loc.ptr[i]] = math::identity<value_type>();
             } else {
-                P_rem.col[P_rem.ptr[i]] = s + aggr_dom[d];
+                P_rem.col[P_rem.ptr[i]] = s + dom[d];
                 P_rem.val[P_rem.ptr[i]] = math::identity<value_type>();
             }
         }
@@ -609,6 +623,9 @@ struct pmis {
         return boost::make_shared<matrix>(comm, p_loc, p_rem);
     }
 
+    private:
+        static const int undone = -2;
+        static const int deleted = -1;
 };
 
 } // namespace coarsening
