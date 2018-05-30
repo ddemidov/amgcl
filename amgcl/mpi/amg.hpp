@@ -321,11 +321,15 @@ class amg {
 
             this->A = A;
             Coarsening C(prm.coarsening);
-            bool direct_coarse = prm.direct_coarse;
+            bool need_coarse = true;
 
-            while(A->glob_rows() > prm.coarse_enough && levels.size() < prm.max_levels) {
+            while(A->glob_rows() > prm.coarse_enough) {
                 levels.push_back( level(A, prm, bprm) );
-                if (levels.size() >= prm.max_levels) break;
+
+                if (levels.size() >= prm.max_levels) {
+                    levels.back().move_to_backend(bprm);
+                    break;
+                }
 
                 A = levels.back().step_down(C, repart);
                 levels.back().move_to_backend(bprm);
@@ -334,18 +338,18 @@ class amg {
                     // Zero-sized coarse level. Probably the system matrix on
                     // this level is diagonal, should be easily solvable with a
                     // couple of smoother iterations.
-                    direct_coarse = false;
+                    need_coarse = false;
                     break;
                 }
             }
 
-            if (!A || A->loc_rows() > prm.coarse_enough) {
+            if (!A || A->glob_rows() > prm.coarse_enough) {
                 // The coarse matrix is still too big to be solved directly.
-                direct_coarse = false;
+                need_coarse = false;
             }
 
-            if (A) {
-                levels.push_back(level(A, prm, bprm, direct_coarse));
+            if (A && need_coarse) {
+                levels.push_back(level(A, prm, bprm, prm.direct_coarse));
                 levels.back().move_to_backend(bprm);
             }
 

@@ -423,7 +423,7 @@ class amg {
 
             coarsening_type C(prm.coarsening);
 
-            while( backend::rows(*A) > prm.coarse_enough && levels.size() < prm.max_levels) {
+            while( backend::rows(*A) > prm.coarse_enough) {
                 {
 #ifdef AMGCL_ASYNC_SETUP
                     if (done) break;
