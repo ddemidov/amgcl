@@ -133,7 +133,7 @@ class pointwise_aggregates {
 
                         for(ptrdiff_t jp = Ap.ptr[ip], ep = Ap.ptr[ip+1]; jp < ep; ++jp) {
                             ptrdiff_t cp = Ap.col[jp];
-                            bool      sp = pw_aggr.strong_connection[jp];
+                            bool      sp = (cp == ip) || pw_aggr.strong_connection[jp];
 
                             ptrdiff_t col_end = (cp + 1) * prm.block_size;
 
@@ -141,8 +141,10 @@ class pointwise_aggregates {
                                 ptrdiff_t beg = j[k];
                                 ptrdiff_t end = e[k];
 
-                                while(beg < end && A.col[beg] < col_end)
-                                    strong_connection[beg++] = sp;
+                                while(beg < end && A.col[beg] < col_end) {
+                                    strong_connection[beg] = sp && A.col[beg] != (ia + k);
+                                    ++beg;
+                                }
 
                                 j[k] = beg;
                             }
