@@ -280,7 +280,7 @@ class amg {
 
                 if (repart.is_needed(*Ac)) {
                     AMGCL_TIC("repartition");
-                    boost::shared_ptr<matrix> I = repart(*Ac);
+                    boost::shared_ptr<matrix> I = repart(*Ac, block_size(C));
                     boost::shared_ptr<matrix> J = transpose(*I);
 
                     P  = product(*P, *I);

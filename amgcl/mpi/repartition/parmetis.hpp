@@ -102,12 +102,10 @@ struct parmetis {
         return (non_empty > 1) && (min_n <= prm.min_per_proc);
     }
 
-    boost::shared_ptr<matrix> operator()(const matrix &A) const {
+    boost::shared_ptr<matrix> operator()(const matrix &A, unsigned block_size) const {
         communicator comm = A.comm();
         idx_t n = A.loc_rows();
         ptrdiff_t row_beg = A.loc_col_shift();
-
-        std::vector<idx_t> vtxdist = comm.exclusive_sum(n);
 
         // Partition the graph.
         int active = (n > 0);
@@ -130,42 +128,77 @@ struct parmetis {
                 perm[i] = row_beg + i;
             }
         } else {
-            std::vector<idx_t> ptr;
-            std::vector<idx_t> col;
+            if (block_size == 1) {
+                boost::tie(col_beg, col_end) = partition(A, npart, perm);
+            } else {
+                ptrdiff_t np = n / block_size;
 
-            symm_graph(A, ptr, col);
+                matrix A_pw(A.comm(),
+                    pointwise_matrix(*A.local(),  block_size),
+                    pointwise_matrix(*A.remote(), block_size)
+                    );
 
-            idx_t wgtflag = 0;
-            idx_t numflag = 0;
-            idx_t options = 0;
-            idx_t edgecut = 0;
-            idx_t ncon    = 1;
+                std::vector<ptrdiff_t> perm_pw(np);
 
-            std::vector<real_t> tpwgts(npart, 1.0 / npart);
-            std::vector<real_t> ubvec(ncon, 1.05);
-            std::vector<idx_t>  part(n);
-            if (!n) part.reserve(1); // So that part.data() is not NULL
+                boost::tie(col_beg, col_end) = partition(A_pw, npart, perm_pw);
 
-            MPI_Comm scomm;
-            MPI_Comm_split(comm, active ? 0 : MPI_UNDEFINED, comm.rank, &scomm);
+                col_beg *= block_size;
+                col_end *= block_size;
 
-            if (active) {
-                communicator(scomm).check(
-                        METIS_OK == ParMETIS_V3_PartKway( &vtxdist[0], &ptr[0],
-                            &col[0], NULL, NULL, &wgtflag, &numflag, &ncon,
-                            &npart, &tpwgts[0], &ubvec[0], &options, &edgecut,
-                            &part[0], &scomm),
-                        "Error in ParMETIS"
-                        );
+                for(ptrdiff_t ip = 0; ip < np; ++ip) {
+                    ptrdiff_t i = ip * block_size;
+                    ptrdiff_t j = perm_pw[ip] * block_size;
 
-                MPI_Comm_free(&scomm);
+                    for(unsigned k = 0; k < block_size; ++k)
+                        perm[i + k] = j + k;
+                }
             }
-
-
-            boost::tie(col_beg, col_end) = graph_perm_index(comm, npart, part, perm);
         }
 
         return graph_perm_matrix<Backend>(comm, col_beg, col_end, perm);
+    }
+
+    boost::tuple<ptrdiff_t, ptrdiff_t>
+    partition(const matrix &A, idx_t npart, std::vector<ptrdiff_t> &perm) const {
+        communicator comm = A.comm();
+        idx_t n = A.loc_rows();
+        int active = (n > 0);
+
+        std::vector<idx_t> ptr;
+        std::vector<idx_t> col;
+
+        symm_graph(A, ptr, col);
+
+        idx_t wgtflag = 0;
+        idx_t numflag = 0;
+        idx_t options = 0;
+        idx_t edgecut = 0;
+        idx_t ncon    = 1;
+
+        std::vector<real_t> tpwgts(npart, 1.0 / npart);
+        std::vector<real_t> ubvec(ncon, 1.05);
+        std::vector<idx_t>  part(n);
+        if (!n) part.reserve(1); // So that part.data() is not NULL
+
+        MPI_Comm scomm;
+        MPI_Comm_split(comm, active ? 0 : MPI_UNDEFINED, comm.rank, &scomm);
+
+        if (active) {
+            communicator sc(scomm);
+            std::vector<idx_t> vtxdist = sc.exclusive_sum(n);
+
+            sc.check(
+                    METIS_OK == ParMETIS_V3_PartKway( &vtxdist[0], &ptr[0],
+                        &col[0], NULL, NULL, &wgtflag, &numflag, &ncon,
+                        &npart, &tpwgts[0], &ubvec[0], &options, &edgecut,
+                        &part[0], &scomm),
+                    "Error in ParMETIS"
+                    );
+
+            MPI_Comm_free(&scomm);
+        }
+
+        return graph_perm_index(comm, npart, part, perm);
     }
 };
 

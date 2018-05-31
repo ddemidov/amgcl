@@ -102,7 +102,7 @@ struct scotch {
         return (non_empty > 1) && (min_n <= prm.min_per_proc);
     }
 
-    boost::shared_ptr<matrix> operator()(const matrix &A) const {
+    boost::shared_ptr<matrix> operator()(const matrix &A, unsigned block_size) const {
         communicator comm = A.comm();
         ptrdiff_t n = A.loc_rows();
         ptrdiff_t row_beg = A.loc_col_shift();
@@ -127,40 +127,31 @@ struct scotch {
                 perm[i] = row_beg + i;
             }
         } else {
-            std::vector<SCOTCH_Num> ptr;
-            std::vector<SCOTCH_Num> col;
-            std::vector<SCOTCH_Num> part(n);
-            if (!n) part.reserve(1); // So that part.data() is not NULL
+            if (block_size == 1) {
+                boost::tie(col_beg, col_end) = partition(A, npart, perm);
+            } else {
+                ptrdiff_t np = n / block_size;
 
-            symm_graph(A, ptr, col);
+                matrix A_pw(A.comm(),
+                    pointwise_matrix(*A.local(),  block_size),
+                    pointwise_matrix(*A.remote(), block_size)
+                    );
 
-            SCOTCH_Dgraph G;
-            check(comm, SCOTCH_dgraphInit(&G, comm));
-            check(comm, SCOTCH_dgraphBuild(&G,
-                        0,          // baseval
-                        n,          // vertlocnbr
-                        n,          // vertlocmax
-                        &ptr[0],    // vertloctab
-                        NULL,       // vendloctab
-                        NULL,       // veloloctab
-                        NULL,       // vlblloctab
-                        ptr.back(), // edgelocnbr
-                        ptr.back(), // edgelocsiz
-                        &col[0],    // edgeloctab
-                        NULL,       // edgegsttab
-                        NULL        // edloloctab
-                        ));
-            check(comm, SCOTCH_dgraphCheck(&G));
+                std::vector<ptrdiff_t> perm_pw(np);
 
-            SCOTCH_Strat S;
-            check(comm, SCOTCH_stratInit(&S));
+                boost::tie(col_beg, col_end) = partition(A_pw, npart, perm_pw);
 
-            check(comm, SCOTCH_dgraphPart(&G, npart, &S, &part[0]));
+                col_beg *= block_size;
+                col_end *= block_size;
 
-            SCOTCH_stratExit(&S);
-            SCOTCH_dgraphExit(&G);
+                for(ptrdiff_t ip = 0; ip < np; ++ip) {
+                    ptrdiff_t i = ip * block_size;
+                    ptrdiff_t j = perm_pw[ip] * block_size;
 
-            boost::tie(col_beg, col_end) = graph_perm_index(comm, npart, part, perm);
+                    for(unsigned k = 0; k < block_size; ++k)
+                        perm[i + k] = j + k;
+                }
+            }
         }
 
         return graph_perm_matrix<Backend>(comm, col_beg, col_end, perm);
@@ -168,6 +159,47 @@ struct scotch {
 
     static void check(communicator comm, int ierr) {
         comm.check(ierr == 0, "SCOTCH error");
+    }
+
+    boost::tuple<ptrdiff_t, ptrdiff_t>
+    partition(const matrix &A, SCOTCH_Num npart, std::vector<ptrdiff_t> &perm) const {
+        communicator comm = A.comm();
+        ptrdiff_t n = A.loc_rows();
+
+        std::vector<SCOTCH_Num> ptr;
+        std::vector<SCOTCH_Num> col;
+        std::vector<SCOTCH_Num> part(n);
+        if (!n) part.reserve(1); // So that part.data() is not NULL
+
+        symm_graph(A, ptr, col);
+
+        SCOTCH_Dgraph G;
+        check(comm, SCOTCH_dgraphInit(&G, comm));
+        check(comm, SCOTCH_dgraphBuild(&G,
+                    0,          // baseval
+                    n,          // vertlocnbr
+                    n,          // vertlocmax
+                    &ptr[0],    // vertloctab
+                    NULL,       // vendloctab
+                    NULL,       // veloloctab
+                    NULL,       // vlblloctab
+                    ptr.back(), // edgelocnbr
+                    ptr.back(), // edgelocsiz
+                    &col[0],    // edgeloctab
+                    NULL,       // edgegsttab
+                    NULL        // edloloctab
+                    ));
+        check(comm, SCOTCH_dgraphCheck(&G));
+
+        SCOTCH_Strat S;
+        check(comm, SCOTCH_stratInit(&S));
+
+        check(comm, SCOTCH_dgraphPart(&G, npart, &S, &part[0]));
+
+        SCOTCH_stratExit(&S);
+        SCOTCH_dgraphExit(&G);
+
+        return graph_perm_index(comm, npart, part, perm);
     }
 };
 

@@ -203,25 +203,25 @@ struct wrapper {
         }
     }
 
-    boost::shared_ptr<matrix> operator()(const matrix &A) const {
+    boost::shared_ptr<matrix> operator()(const matrix &A, unsigned block_size) const {
         switch (t) {
             case dummy:
                 {
                     typedef amgcl::mpi::repartition::dummy<Backend> R;
-                    return static_cast<const R*>(handle)->operator()(A);
+                    return static_cast<const R*>(handle)->operator()(A, block_size);
                 }
 #ifdef AMGCL_HAVE_SCOTCH
             case scotch:
                 {
                     typedef amgcl::mpi::repartition::scotch<Backend> R;
-                    return static_cast<const R*>(handle)->operator()(A);
+                    return static_cast<const R*>(handle)->operator()(A, block_size);
                 }
 #endif
 #ifdef AMGCL_HAVE_PARMETIS
             case parmetis:
                 {
                     typedef amgcl::mpi::repartition::parmetis<Backend> R;
-                    return static_cast<const R*>(handle)->operator()(A);
+                    return static_cast<const R*>(handle)->operator()(A, block_size);
                 }
 #endif
             default:

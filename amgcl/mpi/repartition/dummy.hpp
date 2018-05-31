@@ -100,7 +100,7 @@ struct dummy {
         return (non_empty > 1) && (min_n <= prm.min_per_proc);
     }
 
-    boost::shared_ptr<matrix> operator()(const matrix &A) const {
+    boost::shared_ptr<matrix> operator()(const matrix &A, unsigned /*block_size*/) const {
         communicator comm = A.comm();
         ptrdiff_t nrows = A.loc_rows();
 

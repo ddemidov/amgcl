@@ -201,6 +201,11 @@ struct smoothed_aggregation {
 
 };
 
+template <class Backend>
+unsigned block_size(const smoothed_aggregation<Backend> &c) {
+    return c.prm.aggr.block_size;
+}
+
 } // namespace coarsening
 } // namespace mpi
 } // namespace amgcl
