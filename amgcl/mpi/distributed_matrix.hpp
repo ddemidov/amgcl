@@ -776,12 +776,14 @@ remote_rows(
     }
 
     AMGCL_TIC("MPI Wait");
-    MPI_Waitall(recv_col_req.size(), &recv_col_req[0], MPI_STATUSES_IGNORE);
-
     MPI_Waitall(send_ptr_req.size(), &send_ptr_req[0], MPI_STATUSES_IGNORE);
     MPI_Waitall(send_col_req.size(), &send_col_req[0], MPI_STATUSES_IGNORE);
-    if (need_values)
+    MPI_Waitall(recv_col_req.size(), &recv_col_req[0], MPI_STATUSES_IGNORE);
+
+    if (need_values) {
         MPI_Waitall(send_val_req.size(), &send_val_req[0], MPI_STATUSES_IGNORE);
+        MPI_Waitall(recv_val_req.size(), &recv_val_req[0], MPI_STATUSES_IGNORE);
+    }
     AMGCL_TOC("MPI Wait");
 
     AMGCL_TOC("remote_rows");
