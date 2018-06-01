@@ -130,9 +130,12 @@ struct scotch {
             if (block_size == 1) {
                 boost::tie(col_beg, col_end) = partition(A, npart, perm);
             } else {
+                typedef typename math::scalar_of<value_type>::type scalar;
+                typedef backend::builtin<scalar> sbackend;
+
                 ptrdiff_t np = n / block_size;
 
-                matrix A_pw(A.comm(),
+                distributed_matrix<sbackend> A_pw(A.comm(),
                     pointwise_matrix(*A.local(),  block_size),
                     pointwise_matrix(*A.remote(), block_size)
                     );
@@ -161,8 +164,9 @@ struct scotch {
         comm.check(ierr == 0, "SCOTCH error");
     }
 
+    template <class B>
     boost::tuple<ptrdiff_t, ptrdiff_t>
-    partition(const matrix &A, SCOTCH_Num npart, std::vector<ptrdiff_t> &perm) const {
+    partition(const distributed_matrix<B> &A, SCOTCH_Num npart, std::vector<ptrdiff_t> &perm) const {
         communicator comm = A.comm();
         ptrdiff_t n = A.loc_rows();
 

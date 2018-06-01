@@ -67,7 +67,7 @@ struct wrapper {
 
 #define AMGCL_RELAX_LOCAL(type) \
             case runtime::relaxation::type: \
-                handle = static_cast<void*>(new amgcl::relaxation::type<Backend>(*A.local(), prm, bprm)); \
+                handle = call_constructor<amgcl::relaxation::type>(*A.local(), prm, bprm); \
                 break;
 
             AMGCL_RELAX_DISTR(spai0);
@@ -94,27 +94,21 @@ struct wrapper {
                 delete static_cast<amgcl::mpi::relaxation::type<Backend>*>(handle); \
                 break
 
-#define AMGCL_RELAX_LOCAL_DISTR(type) \
-            case runtime::relaxation::type: \
-                delete static_cast<amgcl::relaxation::type<Backend>*>(handle); \
-                break;
-
-#define AMGCL_RELAX_LOCAL_LOCAL(type) \
+#define AMGCL_RELAX_LOCAL(type) \
             case runtime::relaxation::type: \
                 delete static_cast<amgcl::relaxation::type<Backend>*>(handle); \
                 break;
 
             AMGCL_RELAX_DISTR(spai0);
-            AMGCL_RELAX_LOCAL_DISTR(damped_jacobi);
-            AMGCL_RELAX_LOCAL_DISTR(ilu0);
-            AMGCL_RELAX_LOCAL_DISTR(iluk);
-            AMGCL_RELAX_LOCAL_DISTR(ilut);
-            AMGCL_RELAX_LOCAL_DISTR(spai1);
-            AMGCL_RELAX_LOCAL_DISTR(chebyshev);
-            AMGCL_RELAX_LOCAL_LOCAL(gauss_seidel);
+            AMGCL_RELAX_LOCAL(damped_jacobi);
+            AMGCL_RELAX_LOCAL(ilu0);
+            AMGCL_RELAX_LOCAL(iluk);
+            AMGCL_RELAX_LOCAL(ilut);
+            AMGCL_RELAX_LOCAL(spai1);
+            AMGCL_RELAX_LOCAL(chebyshev);
+            AMGCL_RELAX_LOCAL(gauss_seidel);
 
-#undef AMGCL_RELAX_LOCAL_LOCAL
-#undef AMGCL_RELAX_LOCAL_DISTR
+#undef AMGCL_RELAX_LOCAL
 #undef AMGCL_RELAX_DISTR
 
             default:
@@ -133,12 +127,12 @@ struct wrapper {
 
 #define AMGCL_RELAX_LOCAL_DISTR(type) \
             case runtime::relaxation::type: \
-                static_cast<amgcl::relaxation::type<Backend>*>(handle)->apply_pre(A, rhs, x, tmp); \
+                call_apply_pre<amgcl::relaxation::type>(A, rhs, x, tmp); \
                 break;
 
 #define AMGCL_RELAX_LOCAL_LOCAL(type) \
             case runtime::relaxation::type: \
-                static_cast<amgcl::relaxation::type<Backend>*>(handle)->apply_pre(*A.local_backend(), rhs, x, tmp); \
+                call_apply_pre<amgcl::relaxation::type>(*A.local_backend(), rhs, x, tmp); \
                 break;
 
             AMGCL_RELAX_DISTR(spai0);
@@ -170,12 +164,12 @@ struct wrapper {
 
 #define AMGCL_RELAX_LOCAL_DISTR(type) \
             case runtime::relaxation::type: \
-                static_cast<amgcl::relaxation::type<Backend>*>(handle)->apply_post(A, rhs, x, tmp); \
+                call_apply_post<amgcl::relaxation::type>(A, rhs, x, tmp); \
                 break;
 
 #define AMGCL_RELAX_LOCAL_LOCAL(type) \
             case runtime::relaxation::type: \
-                static_cast<amgcl::relaxation::type<Backend>*>(handle)->apply_post(*A.local_backend(), rhs, x, tmp); \
+                call_apply_post<amgcl::relaxation::type>(*A.local_backend(), rhs, x, tmp); \
                 break;
 
             AMGCL_RELAX_DISTR(spai0);
@@ -207,12 +201,12 @@ struct wrapper {
 
 #define AMGCL_RELAX_LOCAL_DISTR(type) \
             case runtime::relaxation::type: \
-                static_cast<amgcl::relaxation::type<Backend>*>(handle)->apply(A, rhs, x); \
+                call_apply<amgcl::relaxation::type>(A, rhs, x); \
                 break;
 
 #define AMGCL_RELAX_LOCAL_LOCAL(type) \
             case runtime::relaxation::type: \
-                static_cast<amgcl::relaxation::type<Backend>*>(handle)->apply(*A.local_backend(), rhs, x); \
+                call_apply<amgcl::relaxation::type>(*A.local_backend(), rhs, x); \
                 break;
 
             AMGCL_RELAX_DISTR(spai0);
@@ -232,6 +226,88 @@ struct wrapper {
                 throw std::invalid_argument("Unsupported relaxation type");
         }
     }
+
+    template <template <class> class Relaxation, class Matrix>
+    typename boost::enable_if<
+        typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+        void*
+    >::type
+    call_constructor(
+            const Matrix &A, const params &prm, const backend_params &bprm)
+    {
+        return static_cast<void*>(new Relaxation<Backend>(A, prm, bprm));
+    }
+
+    template <template <class> class Relaxation, class Matrix>
+    typename boost::disable_if<
+        typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+        void*
+    >::type
+    call_constructor(const Matrix&, const params&, const backend_params&)
+    {
+        throw std::logic_error("The relaxation is not supported by the backend");
+    }
+
+    template <template <class> class Relaxation, class Matrix, class VectorRHS, class VectorX, class VectorTMP>
+    typename boost::enable_if<
+        typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+        void
+    >::type
+    call_apply_pre(
+            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp) const
+    {
+        static_cast<Relaxation<Backend>*>(handle)->apply_pre(A, rhs, x, tmp);
+    }
+
+    template <template <class> class Relaxation, class Matrix, class VectorRHS, class VectorX, class VectorTMP>
+    typename boost::disable_if<
+        typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+        void
+    >::type
+    call_apply_pre(const Matrix&, const VectorRHS&, VectorX&, VectorTMP&) const {
+        throw std::logic_error("The relaxation is not supported by the backend");
+    }
+
+    template <template <class> class Relaxation, class Matrix, class VectorRHS, class VectorX, class VectorTMP>
+    typename boost::enable_if<
+        typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+        void
+    >::type
+    call_apply_post(
+            const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP &tmp) const
+    {
+        static_cast<Relaxation<Backend>*>(handle)->apply_post(A, rhs, x, tmp);
+    }
+
+    template <template <class> class Relaxation, class Matrix, class VectorRHS, class VectorX, class VectorTMP>
+    typename boost::disable_if<
+        typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+        void
+    >::type
+    call_apply_post(const Matrix&, const VectorRHS&, VectorX&, VectorTMP&) const {
+        throw std::logic_error("The relaxation is not supported by the backend");
+    }
+
+    template <template <class> class Relaxation, class Matrix, class VectorRHS, class VectorX>
+    typename boost::enable_if<
+        typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+        void
+    >::type
+    call_apply(
+            const Matrix &A, const VectorRHS &rhs, VectorX &x) const
+    {
+        static_cast<Relaxation<Backend>*>(handle)->apply(A, rhs, x);
+    }
+
+    template <template <class> class Relaxation, class Matrix, class VectorRHS, class VectorX>
+    typename boost::disable_if<
+        typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+        void
+    >::type
+    call_apply(const Matrix&, const VectorRHS&, VectorX&) const {
+        throw std::logic_error("The relaxation is not supported by the backend");
+    }
+
 };
 
 } // namespace relaxation

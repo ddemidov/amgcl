@@ -92,11 +92,14 @@ struct pmis {
             ptrdiff_t naggr = aggregates(*conn, state, owner);
             p_tent = tentative_prolongation(A.comm(), n, naggr, state, owner);
         } else {
+            typedef typename math::scalar_of<value_type>::type scalar;
+            typedef backend::builtin<scalar> sbackend;
+
             ptrdiff_t np = n / prm.block_size;
 
             assert(np * prm.block_size == n && "Matrix size should be divisible by block_size");
 
-            matrix A_pw(A.comm(),
+            distributed_matrix<sbackend> A_pw(A.comm(),
                 pointwise_matrix(*A.local(),  prm.block_size),
                 pointwise_matrix(*A.remote(), prm.block_size)
                 );
@@ -322,22 +325,26 @@ struct pmis {
         return boost::make_shared< distributed_matrix<bool_backend> >(A.comm(), s_loc, s_rem);
     }
 
+    template <class B>
     boost::shared_ptr< distributed_matrix<bool_backend> >
-    conn_strength(const matrix &A, scalar_type eps_strong) {
+    conn_strength(const distributed_matrix<B> &A, scalar_type eps_strong) {
+        typedef typename B::value_type val_type;
+        typedef backend::crs<val_type> B_matrix;
+
         AMGCL_TIC("conn_strength");
         ptrdiff_t n = A.loc_rows();
 
-        const build_matrix &A_loc = *A.local();
-        const build_matrix &A_rem = *A.remote();
-        const CommPattern &C = A.cpat();
+        const B_matrix &A_loc = *A.local();
+        const B_matrix &A_rem = *A.remote();
+        const comm_pattern<B> &C = A.cpat();
 
         scalar_type eps_squared = eps_strong * eps_strong;
 
-        boost::shared_ptr< backend::numa_vector<value_type> > d = backend::diagonal(A_loc);
-        backend::numa_vector<value_type> &D = *d;
+        boost::shared_ptr< backend::numa_vector<val_type> > d = backend::diagonal(A_loc);
+        backend::numa_vector<val_type> &D = *d;
 
-        std::vector<value_type> D_loc(C.send.count());
-        std::vector<value_type> D_rem(C.recv.count());
+        std::vector<val_type> D_loc(C.send.count());
+        std::vector<val_type> D_rem(C.recv.count());
 
         for(size_t i = 0, nv = C.send.count(); i < nv; ++i)
             D_loc[i] = D[C.send.col[i]];
@@ -358,19 +365,19 @@ struct pmis {
 
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < n; ++i) {
-            value_type eps_dia_i = eps_squared * D[i];
+            val_type eps_dia_i = eps_squared * D[i];
 
             for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j) {
-                ptrdiff_t  c = A_loc.col[j];
-                value_type v = A_loc.val[j];
+                ptrdiff_t c = A_loc.col[j];
+                val_type  v = A_loc.val[j];
 
                 if ((S_loc.val[j] = (c == i || (eps_dia_i * D[c] < v * v))))
                     ++S_loc.ptr[i + 1];
             }
 
             for(ptrdiff_t j = A_rem.ptr[i], e = A_rem.ptr[i+1]; j < e; ++j) {
-                ptrdiff_t  c = C.local_index(A_rem.col[j]);
-                value_type v = A_rem.val[j];
+                ptrdiff_t c = C.local_index(A_rem.col[j]);
+                val_type  v = A_rem.val[j];
 
                 if ((S_rem.val[j] = (eps_dia_i * D_rem[c] < v * v)))
                     ++S_rem.ptr[i + 1];
@@ -661,8 +668,9 @@ struct pmis {
         return boost::make_shared<matrix>(comm, p_loc, p_rem);
     }
 
+    template <class pw_matrix>
     boost::shared_ptr<bool_matrix>
-    expand_conn(const build_matrix &A, const build_matrix &Ap, const bool_matrix &Cp,
+    expand_conn(const build_matrix &A, const pw_matrix &Ap, const bool_matrix &Cp,
             unsigned block_size) const
     {
         ptrdiff_t np = Cp.nrows;

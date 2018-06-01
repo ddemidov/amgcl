@@ -422,7 +422,6 @@ int main(int argc, char *argv[]) {
          "When specified, the system matrix is assumed to have block-wise structure. "
          "This usually is the case for problems in elasticity, structural mechanics, "
          "for coupled systems of PDE (such as Navier-Stokes equations), etc. "
-         "Valid choices are 2, 3, 4, and 6."
         )
         (
          "size,n",

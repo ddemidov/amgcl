@@ -2,6 +2,7 @@ if (TARGET mpi_target)
     add_library(amgcl_mpi_example INTERFACE)
     target_link_libraries(amgcl_mpi_example INTERFACE
         amgcl mpi_target ${Boost_PROGRAM_OPTIONS_LIBRARY})
+    target_compile_definitions(amgcl_mpi_example INTERFACE "AMGCL_BLOCK_SIZES=${AMGCL_BLOCK_SIZES_SEQ}")
 
     if (TARGET eigen_target)
         target_link_libraries(amgcl_mpi_example INTERFACE eigen_target)
