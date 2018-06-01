@@ -20,6 +20,7 @@
 #include <amgcl/mpi/direct_solver/runtime.hpp>
 #include <amgcl/mpi/repartition/runtime.hpp>
 
+#include <amgcl/io/mm.hpp>
 #include <amgcl/profiler.hpp>
 
 #include "domain_partition.hpp"
@@ -136,6 +137,69 @@ assemble_poisson3d(amgcl::mpi::communicator comm, ptrdiff_t n,
 
 //---------------------------------------------------------------------------
 template <class Backend, typename rhs_type>
+boost::shared_ptr< amgcl::mpi::distributed_matrix<Backend> >
+read_matrix_market(
+        amgcl::mpi::communicator comm,
+        const std::string &A_file, const std::string &rhs_file,
+        amgcl::runtime::mpi::repartition::type r,
+        std::vector<rhs_type> &rhs)
+{
+    typedef amgcl::mpi::distributed_matrix<Backend> matrix;
+    using amgcl::prof;
+
+    std::vector<ptrdiff_t> ptr;
+    std::vector<ptrdiff_t> col;
+    std::vector<double>    val;
+    std::vector<double>    f;
+
+    prof.tic("read");
+    amgcl::io::mm_reader A_mm(A_file);
+    ptrdiff_t n = A_mm.rows();
+    ptrdiff_t chunk = (n + comm.size - 1) / comm.size;
+    ptrdiff_t row_beg = std::min(n, chunk * comm.rank);
+    ptrdiff_t row_end = std::min(n, row_beg + chunk);
+    chunk = row_end - row_beg;
+
+    A_mm(ptr, col, val, row_beg, row_end);
+
+    if (rhs_file.empty()) {
+        f.resize(chunk);
+        std::fill(f.begin(), f.end(), amgcl::math::constant<rhs_type>(1));
+    } else {
+        amgcl::io::mm_reader rhs_mm(rhs_file);
+        rhs_mm(f, row_beg, row_end);
+    }
+    prof.toc("read");
+
+    boost::shared_ptr<matrix> A = boost::make_shared<matrix>(comm, boost::tie(chunk, ptr, col, val));
+
+    if (comm.size > 1 && r != amgcl::runtime::mpi::repartition::dummy) {
+        prof.tic("partition");
+
+        boost::property_tree::ptree prm;
+        prm.put("type", r);
+        prm.put("shrink_ratio", 1);
+        amgcl::runtime::mpi::repartition::wrapper<Backend> partition(prm);
+
+        boost::shared_ptr<matrix> I = partition(*A);
+        boost::shared_ptr<matrix> J = transpose(*I);
+        A = product(*J, *product(*A, *I));
+
+        rhs.resize(J->loc_rows());
+
+        J->move_to_backend();
+        amgcl::backend::spmv(1, *J, f, 0, rhs);
+
+        prof.toc("partition");
+    } else {
+        rhs.swap(f);
+    }
+
+    return A;
+}
+
+//---------------------------------------------------------------------------
+template <class Backend, typename rhs_type>
 void solve(amgcl::mpi::communicator comm,
         boost::shared_ptr< amgcl::mpi::distributed_matrix<Backend> > A,
         const boost::property_tree::ptree &prm,
@@ -203,6 +267,31 @@ int main(int argc, char *argv[]) {
 
     desc.add_options()
         ("help,h", "show help")
+        ("matrix,A",
+         po::value<std::string>(),
+         "System matrix in the MatrixMarket format. "
+         "When not specified, a Poisson problem in 3D unit cube is assembled. "
+        )
+        (
+         "rhs,f",
+         po::value<std::string>()->default_value(""),
+         "The RHS vector in the MatrixMarket format. "
+         "When omitted, a vector of ones is used by default. "
+         "Should only be provided together with a system matrix. "
+        )
+        (
+         "partitioner,r",
+         po::value<amgcl::runtime::mpi::repartition::type>()->default_value(
+#if defined(AMGCL_HAVE_SCOTCH)
+             amgcl::runtime::mpi::repartition::scotch
+#elif defined(AMGCL_HAVE_PASTIX)
+             amgcl::runtime::mpi::repartition::parmetis
+#else
+             amgcl::runtime::mpi::repartition::dummy
+#endif
+             ),
+         "Repartition the system matrix"
+        )
         (
          "size,n",
          po::value<ptrdiff_t>()->default_value(128),
@@ -242,13 +331,22 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    typedef amgcl::backend::builtin<val_type> Backend;
+
     ptrdiff_t n = vm["size"].as<ptrdiff_t>();
+    boost::shared_ptr< amgcl::mpi::distributed_matrix<Backend> > A;
     std::vector<rhs_type>  rhs;
 
     prof.tic("assemble");
-    typedef amgcl::backend::builtin<val_type> Backend;
-    boost::shared_ptr< amgcl::mpi::distributed_matrix<Backend> > A;
-    A = assemble_poisson3d<Backend>(comm, n, rhs);
+    if (vm.count("matrix")) {
+        A = read_matrix_market<Backend>(comm,
+                vm["matrix"].as<std::string>(),
+                vm["rhs"].as<std::string>(),
+                vm["partitioner"].as<amgcl::runtime::mpi::repartition::type>(),
+                rhs);
+    } else {
+        A = assemble_poisson3d<Backend>(comm, n, rhs);
+    }
     prof.toc("assemble");
 
     solve(comm, A, prm, rhs);

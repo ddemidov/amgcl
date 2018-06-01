@@ -794,6 +794,7 @@ boost::shared_ptr< distributed_matrix<Backend> >
 product(const distributed_matrix<Backend> &A, const distributed_matrix<Backend> &B) {
     typedef typename Backend::value_type value_type;
     typedef backend::crs<value_type>     build_matrix;
+    AMGCL_TIC("product");
 
     const comm_pattern<Backend> &Acp = A.cpat();
 
@@ -998,6 +999,7 @@ product(const distributed_matrix<Backend> &A, const distributed_matrix<Backend> 
         }
     }
     AMGCL_TOC("compute");
+    AMGCL_TOC("product");
 
     return boost::make_shared<distributed_matrix<Backend> >(A.comm(), c_loc, c_rem);
 }
