@@ -36,6 +36,7 @@ typedef double val_type;
 typedef typename math::rhs_of<val_type>::type    rhs_type;
 typedef typename math::scalar_of<val_type>::type scalar;
 
+//---------------------------------------------------------------------------
 struct renumbering {
     const domain_partition<3> &part;
     const std::vector<ptrdiff_t> &dom;
@@ -53,6 +54,135 @@ struct renumbering {
     }
 };
 
+//---------------------------------------------------------------------------
+template <class Backend, typename rhs_type>
+boost::shared_ptr< amgcl::mpi::distributed_matrix<Backend> >
+assemble_poisson3d(amgcl::mpi::communicator comm, ptrdiff_t n,
+        std::vector<rhs_type>  &rhs)
+{
+    typedef typename Backend::value_type val_type;
+    using amgcl::prof;
+
+    boost::array<ptrdiff_t, 3> lo = { {0,   0,   0  } };
+    boost::array<ptrdiff_t, 3> hi = { {n-1, n-1, n-1} };
+
+    prof.tic("partition");
+    domain_partition<3> part(lo, hi, comm.size);
+    ptrdiff_t chunk = part.size(comm.rank);
+
+    std::vector<ptrdiff_t> domain = comm.exclusive_sum(chunk);
+
+    lo = part.domain(comm.rank).min_corner();
+    hi = part.domain(comm.rank).max_corner();
+
+    renumbering renum(part, domain);
+    prof.toc("partition");
+
+    std::vector<ptrdiff_t> ptr; ptr.reserve(chunk + 1);
+    std::vector<ptrdiff_t> col; col.reserve(chunk * 7);
+    std::vector<val_type>  val; val.reserve(chunk * 7);
+
+    rhs.clear(); rhs.reserve(chunk);
+
+    ptr.push_back(0);
+
+    const val_type h2i = (n - 1) * (n - 1) * math::identity<val_type>();
+
+    for(ptrdiff_t k = lo[2]; k <= hi[2]; ++k) {
+        for(ptrdiff_t j = lo[1]; j <= hi[1]; ++j) {
+            for(ptrdiff_t i = lo[0]; i <= hi[0]; ++i) {
+                if (k > 0)  {
+                    col.push_back(renum(i,j,k-1));
+                    val.push_back(-h2i);
+                }
+
+                if (j > 0)  {
+                    col.push_back(renum(i,j-1,k));
+                    val.push_back(-h2i);
+                }
+
+                if (i > 0) {
+                    col.push_back(renum(i-1,j,k));
+                    val.push_back(-h2i);
+                }
+
+                col.push_back(renum(i,j,k));
+                val.push_back(6 * h2i);
+
+                if (i + 1 < n) {
+                    col.push_back(renum(i+1,j,k));
+                    val.push_back(-h2i);
+                }
+
+                if (j + 1 < n) {
+                    col.push_back(renum(i,j+1,k));
+                    val.push_back(-h2i);
+                }
+
+                if (k + 1 < n) {
+                    col.push_back(renum(i,j,k+1));
+                    val.push_back(-h2i);
+                }
+
+                ptr.push_back( col.size() );
+                rhs.push_back( amgcl::math::constant<rhs_type>(1) );
+            }
+        }
+    }
+
+    return boost::make_shared< amgcl::mpi::distributed_matrix<Backend> >(
+            comm, boost::tie(chunk, ptr, col, val));
+}
+
+//---------------------------------------------------------------------------
+template <class Backend, typename rhs_type>
+void solve(amgcl::mpi::communicator comm,
+        boost::shared_ptr< amgcl::mpi::distributed_matrix<Backend> > A,
+        const boost::property_tree::ptree &prm,
+        const std::vector<rhs_type> &rhs)
+{
+    typedef typename Backend::value_type val_type;
+    using amgcl::prof;
+
+    typedef
+        amgcl::mpi::make_solver<
+            amgcl::mpi::amg<
+                Backend,
+                amgcl::runtime::mpi::coarsening::wrapper<Backend>,
+                amgcl::runtime::mpi::relaxation::wrapper<Backend>,
+                amgcl::runtime::mpi::direct::solver<val_type>,
+                amgcl::runtime::mpi::repartition::wrapper<Backend>
+                >,
+            amgcl::runtime::solver::wrapper
+            >
+        Solver;
+
+    prof.tic("setup");
+    Solver solve(comm, A, prm);
+    prof.toc("setup");
+
+    if (comm.rank == 0) {
+        std::cout << solve << std::endl;
+    }
+
+    std::vector<rhs_type> x(A->loc_rows(), math::zero<rhs_type>());
+
+    int    iters;
+    double error;
+
+    prof.tic("solve");
+    boost::tie(iters, error) = solve(rhs, x);
+    prof.toc("solve");
+
+    if (comm.rank == 0) {
+        std::cout
+            << "Iterations: " << iters << std::endl
+            << "Error:      " << error << std::endl
+            << prof << std::endl;
+    }
+}
+
+//---------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
     int provided;
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
@@ -65,8 +195,9 @@ int main(int argc, char *argv[]) {
     if (comm.rank == 0)
         std::cout << "World size: " << comm.size << std::endl;
 
-    // Read configuration from command line
+    using amgcl::prof;
 
+    // Read configuration from command line
     namespace po = boost::program_options;
     po::options_description desc("Options");
 
@@ -112,115 +243,13 @@ int main(int argc, char *argv[]) {
     }
 
     ptrdiff_t n = vm["size"].as<ptrdiff_t>();
-
-    boost::array<ptrdiff_t, 3> lo = { {0,   0,   0  } };
-    boost::array<ptrdiff_t, 3> hi = { {n-1, n-1, n-1} };
-
-    using amgcl::prof;
-
-    prof.tic("partition");
-    domain_partition<3> part(lo, hi, comm.size);
-    ptrdiff_t chunk = part.size( comm.rank );
-
-    std::vector<ptrdiff_t> domain = comm.exclusive_sum(chunk);
-
-    lo = part.domain(comm.rank).min_corner();
-    hi = part.domain(comm.rank).max_corner();
-
-    renumbering renum(part, domain);
-    prof.toc("partition");
+    std::vector<rhs_type>  rhs;
 
     prof.tic("assemble");
-    std::vector<ptrdiff_t> ptr;
-    std::vector<ptrdiff_t> col;
-    std::vector<val_type>  val;
-
-    ptr.reserve(chunk + 1);
-    col.reserve(chunk * 7);
-    val.reserve(chunk * 7);
-
-    ptr.push_back(0);
-
-    const val_type h2i = (n - 1) * (n - 1) * math::identity<val_type>();
-
-    for(ptrdiff_t k = lo[2]; k <= hi[2]; ++k) {
-        for(ptrdiff_t j = lo[1]; j <= hi[1]; ++j) {
-            for(ptrdiff_t i = lo[0]; i <= hi[0]; ++i) {
-                if (k > 0)  {
-                    col.push_back(renum(i,j,k-1));
-                    val.push_back(-h2i);
-                }
-
-                if (j > 0)  {
-                    col.push_back(renum(i,j-1,k));
-                    val.push_back(-h2i);
-                }
-
-                if (i > 0) {
-                    col.push_back(renum(i-1,j,k));
-                    val.push_back(-h2i);
-                }
-
-                col.push_back(renum(i,j,k));
-                val.push_back(6 * h2i);
-
-                if (i + 1 < n) {
-                    col.push_back(renum(i+1,j,k));
-                    val.push_back(-h2i);
-                }
-
-                if (j + 1 < n) {
-                    col.push_back(renum(i,j+1,k));
-                    val.push_back(-h2i);
-                }
-
-                if (k + 1 < n) {
-                    col.push_back(renum(i,j,k+1));
-                    val.push_back(-h2i);
-                }
-
-                ptr.push_back( col.size() );
-            }
-        }
-    }
+    typedef amgcl::backend::builtin<val_type> Backend;
+    boost::shared_ptr< amgcl::mpi::distributed_matrix<Backend> > A;
+    A = assemble_poisson3d<Backend>(comm, n, rhs);
     prof.toc("assemble");
 
-    typedef amgcl::backend::builtin<val_type> Backend;
-    typedef
-        amgcl::mpi::make_solver<
-            amgcl::mpi::amg<
-                Backend,
-                amgcl::runtime::mpi::coarsening::wrapper<Backend>,
-                amgcl::runtime::mpi::relaxation::wrapper<Backend>,
-                amgcl::runtime::mpi::direct::solver<val_type>,
-                amgcl::runtime::mpi::repartition::wrapper<Backend>
-                >,
-            amgcl::runtime::solver::wrapper
-            >
-        Solver;
-
-    prof.tic("setup");
-    Solver solve(comm, boost::tie(chunk, ptr, col, val), prm);
-    prof.toc("setup");
-
-    if (comm.rank == 0) {
-        std::cout << solve << std::endl;
-    }
-
-    std::vector<rhs_type> f(chunk, math::constant<rhs_type>(1));
-    std::vector<rhs_type> x(chunk, math::zero<rhs_type>());
-
-    int    iters;
-    double error;
-
-    prof.tic("solve");
-    boost::tie(iters, error) = solve(f, x);
-    prof.toc("solve");
-
-    if (comm.rank == 0) {
-        std::cout
-            << "Iterations: " << iters << std::endl
-            << "Error:      " << error << std::endl
-            << prof << std::endl;
-    }
+    solve(comm, A, prm, rhs);
 }

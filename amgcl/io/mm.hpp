@@ -107,6 +107,10 @@ class mm_reader {
 
             // Get back to the first non-comment line.
             f.seekg(pos);
+
+            // Read matrix size
+            is.clear(); is.str(line);
+            precondition(is >> nrows >> ncols, format_error());
         }
 
         /// Matrix in the file is symmetric.
@@ -121,12 +125,20 @@ class mm_reader {
         /// Matrix in the file is integer-valued.
         bool is_integer() const { return _integer; }
 
+        /// Number of rows.
+        size_t rows() const { return nrows; }
+
+        /// Number of rows.
+        size_t cols() const { return ncols; }
+
         /// Read sparse matrix from the file.
         template <typename Idx, typename Val>
         boost::tuple<size_t, size_t> operator()(
                 std::vector<Idx> &ptr,
                 std::vector<Idx> &col,
-                std::vector<Val> &val
+                std::vector<Val> &val,
+                ptrdiff_t row_beg = -1,
+                ptrdiff_t row_end = -1
                 )
         {
             precondition(_sparse, format_error("not a sparse matrix"));
@@ -142,7 +154,8 @@ class mm_reader {
                         );
 
             // Read sizes
-            size_t n, m, nnz;
+            ptrdiff_t n, m;
+            size_t nnz;
             std::string line;
             std::istringstream is;
             {
@@ -151,9 +164,22 @@ class mm_reader {
                 precondition(is >> n >> m >> nnz, format_error());
             }
 
-            std::vector<Idx> _row; _row.reserve(nnz);
-            std::vector<Idx> _col; _col.reserve(nnz);
-            std::vector<Val> _val; _val.reserve(nnz);
+            if (row_beg < 0) row_beg = 0;
+            if (row_end < 0) row_end = n;
+
+            precondition(row_beg >= 0 && row_end <= n,
+                    "Wrong subset of rows is requested");
+
+            ptrdiff_t _nnz = _symmetric ? 2 * nnz : nnz;
+
+            if (row_beg != 0 || row_end != n)
+                _nnz *= 1.2 * (row_end - row_beg) / n;
+
+            std::vector<Idx> _row; _row.reserve(_nnz);
+            std::vector<Idx> _col; _col.reserve(_nnz);
+            std::vector<Val> _val; _val.reserve(_nnz);
+
+            ptr.resize(n+1); std::fill(ptr.begin(), ptr.end(), 0);
 
             for(size_t k = 0; k < nnz; ++k) {
                 precondition(std::getline(f, line), format_error("unexpected eof"));
@@ -164,24 +190,26 @@ class mm_reader {
 
                 precondition(is >> i >> j, format_error());
 
+                i -= 1;
+                j -= 1;
+
                 v = read_value<Val>(is);
 
-                _row.push_back(i-1);
-                _col.push_back(j-1);
-                _val.push_back(v);
-            }
+                if (row_beg <= i && i < row_end) {
+                    ++ptr[i - row_beg + 1];
 
-            precondition(_val.size() == nnz, format_error("inconsistent data"));
+                    _row.push_back(i - row_beg);
+                    _col.push_back(j);
+                    _val.push_back(v);
+                }
 
-            ptr.resize(n+1); std::fill(ptr.begin(), ptr.end(), 0);
+                if (_symmetric && i != j && row_beg <= j && j < row_end) {
+                    ++ptr[j - row_beg + 1];
 
-            for(size_t k = 0; k < nnz; ++k) {
-                Idx i = _row[k];
-                Idx j = _col[k];
-
-                ++ptr[i+1];
-
-                if (_symmetric && j != i) ++ptr[j+1];
+                    _row.push_back(j - row_beg);
+                    _col.push_back(i);
+                    _val.push_back(v);
+                }
             }
 
             std::partial_sum(ptr.begin(), ptr.end(), ptr.begin());
@@ -189,7 +217,7 @@ class mm_reader {
             col.resize(ptr.back());
             val.resize(ptr.back());
 
-            for(size_t k = 0; k < nnz; ++k) {
+            for(size_t k = 0, e = val.size(); k < e; ++k) {
                 Idx i = _row[k];
                 Idx j = _col[k];
                 Val v = _val[k];
@@ -197,31 +225,30 @@ class mm_reader {
                 Idx head = ptr[i]++;
                 col[head] = j;
                 val[head] = v;
-
-                if (_symmetric && j != i) {
-                    Idx head = ptr[j]++;
-                    col[head] = i;
-                    val[head] = v;
-                }
             }
 
             std::rotate(ptr.begin(), ptr.end() - 1, ptr.end());
             ptr.front() = 0;
 
 #pragma omp parallel for
-            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
+            for(ptrdiff_t i = 0; i < n; ++i) {
                 Idx beg = ptr[i];
                 Idx end = ptr[i+1];
 
                 amgcl::detail::sort_row(&col[0] + beg, &val[0] + beg, end - beg);
             }
 
-            return boost::make_tuple(n, m);
+            return boost::make_tuple(row_end - row_beg, m);
         }
 
         /// Read dense array from the file.
         template <typename Val>
-        boost::tuple<size_t, size_t> operator()(std::vector<Val> &val) {
+        boost::tuple<size_t, size_t> operator()(
+                std::vector<Val> &val,
+                ptrdiff_t row_beg = -1,
+                ptrdiff_t row_end = -1
+                )
+        {
             precondition(!_sparse, format_error("not a dense array"));
             precondition(boost::is_complex<Val>::value == _complex,
                     _complex ?
@@ -235,7 +262,7 @@ class mm_reader {
                         );
 
             // Read sizes
-            size_t n, m;
+            ptrdiff_t n, m;
             std::string line;
             std::istringstream is;
             {
@@ -244,17 +271,25 @@ class mm_reader {
                 precondition(is >> n >> m, format_error());
             }
 
-            val.resize(n * m);
+            if (row_beg < 0) row_beg = 0;
+            if (row_end < 0) row_end = n;
 
-            for(size_t j = 0; j < m; ++j) {
-                for(size_t i = 0; i < n; ++i) {
+            precondition(row_beg >= 0 && row_end <= n,
+                    "Wrong subset of rows is requested");
+
+            val.resize((row_end - row_beg) * m);
+
+            for(ptrdiff_t j = 0; j < m; ++j) {
+                for(ptrdiff_t i = 0; i < n; ++i) {
                     precondition(std::getline(f, line), format_error("unexpected eof"));
-                    is.clear(); is.str(line);
-                    val[i * m + j] = read_value<Val>(is);
+                    if (row_beg >= i && i < row_end) {
+                        is.clear(); is.str(line);
+                        val[(i - row_beg) * m + j] = read_value<Val>(is);
+                    }
                 }
             }
 
-            return boost::make_tuple(n, m);
+            return boost::make_tuple(row_end - row_beg, m);
         }
     private:
         std::ifstream f;
@@ -263,6 +298,8 @@ class mm_reader {
         bool _symmetric;
         bool _complex;
         bool _integer;
+
+        size_t nrows, ncols;
 
         std::string format_error(const std::string &msg = "") const {
             std::string err_string = "MatrixMarket format error";
