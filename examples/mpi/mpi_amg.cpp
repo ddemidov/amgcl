@@ -19,7 +19,7 @@
 #include <amgcl/mpi/coarsening/runtime.hpp>
 #include <amgcl/mpi/relaxation/runtime.hpp>
 #include <amgcl/mpi/direct_solver/runtime.hpp>
-#include <amgcl/mpi/repartition/runtime.hpp>
+#include <amgcl/mpi/partition/runtime.hpp>
 
 #include <amgcl/io/mm.hpp>
 #include <amgcl/profiler.hpp>
@@ -142,7 +142,7 @@ template <class Backend, class Matrix, typename rhs_type>
 boost::shared_ptr< amgcl::mpi::distributed_matrix<Backend> >
 partition(amgcl::mpi::communicator comm, const Matrix &Astrip,
         std::vector<rhs_type> &rhs,
-        amgcl::runtime::mpi::repartition::type ptype, int block_size = 1)
+        amgcl::runtime::mpi::partition::type ptype, int block_size = 1)
 {
     typedef amgcl::mpi::distributed_matrix<Backend> DMatrix;
 
@@ -150,14 +150,14 @@ partition(amgcl::mpi::communicator comm, const Matrix &Astrip,
 
     boost::shared_ptr<DMatrix> A = boost::make_shared<DMatrix>(comm, Astrip);
 
-    if (comm.size == 1 || ptype == amgcl::runtime::mpi::repartition::dummy)
+    if (comm.size == 1 || ptype == amgcl::runtime::mpi::partition::merge)
         return A;
 
     prof.tic("partition");
     boost::property_tree::ptree prm;
     prm.put("type", ptype);
     prm.put("shrink_ratio", 1);
-    amgcl::runtime::mpi::repartition::wrapper<Backend> part(prm);
+    amgcl::runtime::mpi::partition::wrapper<Backend> part(prm);
 
     boost::shared_ptr<DMatrix> I = part(*A, block_size);
     boost::shared_ptr<DMatrix> J = transpose(*I);
@@ -184,7 +184,7 @@ void solve_block(
         const std::vector<double>         &val,
         const boost::property_tree::ptree &prm,
         const std::vector<double>         &f,
-        amgcl::runtime::mpi::repartition::type ptype
+        amgcl::runtime::mpi::partition::type ptype
         )
 {
     typedef amgcl::static_matrix<double, B, B> val_type;
@@ -200,7 +200,7 @@ void solve_block(
                 amgcl::runtime::mpi::coarsening::wrapper<Backend>,
                 amgcl::runtime::mpi::relaxation::wrapper<Backend>,
                 amgcl::runtime::mpi::direct::solver<val_type>,
-                amgcl::runtime::mpi::repartition::wrapper<Backend>
+                amgcl::runtime::mpi::partition::wrapper<Backend>
                 >,
             amgcl::runtime::solver::wrapper
             >
@@ -250,7 +250,7 @@ void solve_scalar(
         const std::vector<double> &val,
         const boost::property_tree::ptree &prm,
         std::vector<double> &rhs,
-        amgcl::runtime::mpi::repartition::type ptype
+        amgcl::runtime::mpi::partition::type ptype
         )
 {
     typedef amgcl::backend::builtin<double> Backend;
@@ -263,7 +263,7 @@ void solve_scalar(
                 amgcl::runtime::mpi::coarsening::wrapper<Backend>,
                 amgcl::runtime::mpi::relaxation::wrapper<Backend>,
                 amgcl::runtime::mpi::direct::solver<double>,
-                amgcl::runtime::mpi::repartition::wrapper<Backend>
+                amgcl::runtime::mpi::partition::wrapper<Backend>
                 >,
             amgcl::runtime::solver::wrapper
             >
@@ -343,13 +343,13 @@ int main(int argc, char *argv[]) {
         )
         (
          "partitioner,r",
-         po::value<amgcl::runtime::mpi::repartition::type>()->default_value(
+         po::value<amgcl::runtime::mpi::partition::type>()->default_value(
 #if defined(AMGCL_HAVE_SCOTCH)
-             amgcl::runtime::mpi::repartition::scotch
+             amgcl::runtime::mpi::partition::ptscotch
 #elif defined(AMGCL_HAVE_PASTIX)
-             amgcl::runtime::mpi::repartition::parmetis
+             amgcl::runtime::mpi::partition::parmetis
 #else
-             amgcl::runtime::mpi::repartition::dummy
+             amgcl::runtime::mpi::partition::merge
 #endif
              ),
          "Repartition the system matrix"
@@ -417,7 +417,7 @@ int main(int argc, char *argv[]) {
         prof.toc("assemble");
     }
 
-    amgcl::runtime::mpi::repartition::type ptype = vm["partitioner"].as<amgcl::runtime::mpi::repartition::type>();
+    amgcl::runtime::mpi::partition::type ptype = vm["partitioner"].as<amgcl::runtime::mpi::partition::type>();
 
     switch(block_size) {
 #define AMGCL_CALL_BLOCK_SOLVER(z, data, B)                                \

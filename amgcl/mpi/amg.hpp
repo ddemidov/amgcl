@@ -45,7 +45,7 @@ THE SOFTWARE.
 #include <amgcl/mpi/util.hpp>
 #include <amgcl/mpi/distributed_matrix.hpp>
 #include <amgcl/mpi/direct_solver/skyline_lu.hpp>
-#include <amgcl/mpi/repartition/dummy.hpp>
+#include <amgcl/mpi/partition/merge.hpp>
 
 namespace amgcl {
 namespace mpi {
@@ -55,7 +55,7 @@ template <
     class Coarsening,
     class Relaxation,
     class DirectSolver = direct::skyline_lu<typename Backend::value_type>,
-    class Repartition = repartition::dummy<Backend>
+    class Repartition = partition::merge<Backend>
     >
 class amg {
     public:
@@ -279,14 +279,14 @@ class amg {
                 AMGCL_TOC("coarse operator");
 
                 if (repart.is_needed(*Ac)) {
-                    AMGCL_TIC("repartition");
+                    AMGCL_TIC("partition");
                     boost::shared_ptr<matrix> I = repart(*Ac, block_size(C));
                     boost::shared_ptr<matrix> J = transpose(*I);
 
                     P  = product(*P, *I);
                     R  = product(*J, *R);
                     Ac = product(*J, *product(*Ac, *I));
-                    AMGCL_TOC("repartition");
+                    AMGCL_TOC("partition");
                 }
 
                 return Ac;

@@ -1,5 +1,5 @@
-#ifndef AMGCL_MPI_REPARTITION_PARMETIS_HPP
-#define AMGCL_MPI_REPARTITION_PARMETIS_HPP
+#ifndef AMGCL_MPI_REPARTITION_PTSCOTCH_HPP
+#define AMGCL_MPI_REPARTITION_PTSCOTCH_HPP
 
 /*
 The MIT License
@@ -26,9 +26,9 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/mpi/repartition/parmetis.hpp
+ * \file   amgcl/mpi/partition/ptscotch.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
- * \brief  ParMETIS repartitioner.
+ * \brief  PT-SCOTCH partitioner.
  */
 
 #include <boost/shared_ptr.hpp>
@@ -39,16 +39,16 @@ THE SOFTWARE.
 #include <amgcl/value_type/interface.hpp>
 #include <amgcl/mpi/util.hpp>
 #include <amgcl/mpi/distributed_matrix.hpp>
-#include <amgcl/mpi/repartition/util.hpp>
+#include <amgcl/mpi/partition/util.hpp>
 
-#include <parmetis.h>
+#include <ptscotch.h>
 
 namespace amgcl {
 namespace mpi {
-namespace repartition {
+namespace partition {
 
 template <class Backend>
-struct parmetis {
+struct ptscotch {
     typedef typename Backend::value_type value_type;
     typedef distributed_matrix<Backend>  matrix;
 
@@ -80,7 +80,7 @@ struct parmetis {
         }
     } prm;
 
-    parmetis(const params &prm = params()) : prm(prm) {}
+    ptscotch(const params &prm = params()) : prm(prm) {}
 
     bool is_needed(const matrix &A) const {
         if (!prm.enable) return false;
@@ -104,18 +104,17 @@ struct parmetis {
 
     boost::shared_ptr<matrix> operator()(const matrix &A, unsigned block_size = 1) const {
         communicator comm = A.comm();
-        idx_t n = A.loc_rows();
+        ptrdiff_t n = A.loc_rows();
         ptrdiff_t row_beg = A.loc_col_shift();
 
         // Partition the graph.
         int active = (n > 0);
         int active_ranks = comm.reduce(MPI_SUM, active);
 
-        idx_t npart = std::max(1, active_ranks / prm.shrink_ratio);
+        SCOTCH_Num npart = std::max(1, active_ranks / prm.shrink_ratio);
 
         if (comm.rank == 0)
-            std::cout << "Repartitioning[ParMETIS] " << active_ranks << " -> " << npart << std::endl;
-
+            std::cout << "Partitioning[PT-Scotch] " << active_ranks << " -> " << npart << std::endl;
 
         std::vector<ptrdiff_t> perm(n);
         ptrdiff_t col_beg, col_end;
@@ -133,6 +132,7 @@ struct parmetis {
             } else {
                 typedef typename math::scalar_of<value_type>::type scalar;
                 typedef backend::builtin<scalar> sbackend;
+
                 ptrdiff_t np = n / block_size;
 
                 distributed_matrix<sbackend> A_pw(A.comm(),
@@ -160,53 +160,55 @@ struct parmetis {
         return graph_perm_matrix<Backend>(comm, col_beg, col_end, perm);
     }
 
+    static void check(communicator comm, int ierr) {
+        comm.check(ierr == 0, "SCOTCH error");
+    }
+
     template <class B>
     boost::tuple<ptrdiff_t, ptrdiff_t>
-    partition(const distributed_matrix<B> &A, idx_t npart, std::vector<ptrdiff_t> &perm) const {
+    partition(const distributed_matrix<B> &A, SCOTCH_Num npart, std::vector<ptrdiff_t> &perm) const {
         communicator comm = A.comm();
-        idx_t n = A.loc_rows();
-        int active = (n > 0);
+        ptrdiff_t n = A.loc_rows();
 
-        std::vector<idx_t> ptr;
-        std::vector<idx_t> col;
+        std::vector<SCOTCH_Num> ptr;
+        std::vector<SCOTCH_Num> col;
+        std::vector<SCOTCH_Num> part(n);
+        if (!n) part.reserve(1); // So that part.data() is not NULL
 
         symm_graph(A, ptr, col);
 
-        idx_t wgtflag = 0;
-        idx_t numflag = 0;
-        idx_t options = 0;
-        idx_t edgecut = 0;
-        idx_t ncon    = 1;
+        SCOTCH_Dgraph G;
+        check(comm, SCOTCH_dgraphInit(&G, comm));
+        check(comm, SCOTCH_dgraphBuild(&G,
+                    0,          // baseval
+                    n,          // vertlocnbr
+                    n,          // vertlocmax
+                    &ptr[0],    // vertloctab
+                    NULL,       // vendloctab
+                    NULL,       // veloloctab
+                    NULL,       // vlblloctab
+                    ptr.back(), // edgelocnbr
+                    ptr.back(), // edgelocsiz
+                    &col[0],    // edgeloctab
+                    NULL,       // edgegsttab
+                    NULL        // edloloctab
+                    ));
+        check(comm, SCOTCH_dgraphCheck(&G));
 
-        std::vector<real_t> tpwgts(npart, 1.0 / npart);
-        std::vector<real_t> ubvec(ncon, 1.05);
-        std::vector<idx_t>  part(n);
-        if (!n) part.reserve(1); // So that part.data() is not NULL
+        SCOTCH_Strat S;
+        check(comm, SCOTCH_stratInit(&S));
 
-        MPI_Comm scomm;
-        MPI_Comm_split(comm, active ? 0 : MPI_UNDEFINED, comm.rank, &scomm);
+        check(comm, SCOTCH_dgraphPart(&G, npart, &S, &part[0]));
 
-        if (active) {
-            communicator sc(scomm);
-            std::vector<idx_t> vtxdist = sc.exclusive_sum(n);
-
-            sc.check(
-                    METIS_OK == ParMETIS_V3_PartKway( &vtxdist[0], &ptr[0],
-                        &col[0], NULL, NULL, &wgtflag, &numflag, &ncon,
-                        &npart, &tpwgts[0], &ubvec[0], &options, &edgecut,
-                        &part[0], &scomm),
-                    "Error in ParMETIS"
-                    );
-
-            MPI_Comm_free(&scomm);
-        }
+        SCOTCH_stratExit(&S);
+        SCOTCH_dgraphExit(&G);
 
         return graph_perm_index(comm, npart, part, perm);
     }
 };
 
 
-} // namespace repartition
+} // namespace partition
 } // namespace mpi
 } // namespace amgcl
 

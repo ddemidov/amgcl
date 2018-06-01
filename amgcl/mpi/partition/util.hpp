@@ -26,7 +26,7 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/mpi/repartition/util.hpp
+ * \file   amgcl/mpi/partition/util.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
  * \brief  Repartitioning utils
  */
@@ -45,7 +45,7 @@ THE SOFTWARE.
 
 namespace amgcl {
 namespace mpi {
-namespace repartition {
+namespace partition {
 
 template <class Backend, class Ptr, class Col>
 void symm_graph(const distributed_matrix<Backend> &A,
@@ -318,7 +318,7 @@ boost::shared_ptr< distributed_matrix<Backend> > graph_perm_matrix(
     return boost::make_shared< distributed_matrix<Backend> >(comm, i_loc, i_rem);
 }
 
-} // namespace repartition
+} // namespace partition
 } // namespace mpi
 } // namespace amgcl
 

@@ -26,34 +26,34 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/mpi/repartition/runtime.hpp
+ * \file   amgcl/mpi/partition/runtime.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
- * \brief  Runtime wrapper for distributed repartitioners.
+ * \brief  Runtime wrapper for distributed partitioners.
  */
 
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/foreach.hpp>
 
-#include <amgcl/mpi/repartition/dummy.hpp>
+#include <amgcl/mpi/partition/merge.hpp>
 
 #ifdef AMGCL_HAVE_SCOTCH
-#  include <amgcl/mpi/repartition/scotch.hpp>
+#  include <amgcl/mpi/partition/ptscotch.hpp>
 #endif
 
 #ifdef AMGCL_HAVE_PARMETIS
-#  include <amgcl/mpi/repartition/parmetis.hpp>
+#  include <amgcl/mpi/partition/parmetis.hpp>
 #endif
 
 namespace amgcl {
 namespace runtime {
 namespace mpi {
-namespace repartition {
+namespace partition {
 
 enum type {
-    dummy
+    merge
 #ifdef AMGCL_HAVE_SCOTCH
-  , scotch
+  , ptscotch
 #endif
 #ifdef AMGCL_HAVE_PARMETIS
   , parmetis
@@ -63,11 +63,11 @@ enum type {
 std::ostream& operator<<(std::ostream &os, type s)
 {
     switch (s) {
-        case dummy:
-            return os << "dummy";
+        case merge:
+            return os << "merge";
 #ifdef AMGCL_HAVE_SCOTCH
-        case scotch:
-            return os << "scotch";
+        case ptscotch:
+            return os << "ptscotch";
 #endif
 #ifdef AMGCL_HAVE_PARMETIS
         case parmetis:
@@ -83,21 +83,21 @@ std::istream& operator>>(std::istream &in, type &s)
     std::string val;
     in >> val;
 
-    if (val == "dummy")
-        s = dummy;
+    if (val == "merge")
+        s = merge;
 #ifdef AMGCL_HAVE_SCOTCH
-    else if (val == "scotch")
-        s = scotch;
+    else if (val == "ptscotch")
+        s = ptscotch;
 #endif
 #ifdef AMGCL_HAVE_PARMETIS
     else if (val == "parmetis")
         s = parmetis;
 #endif
     else
-        throw std::invalid_argument("Invalid repartitioner value. Valid choices are: "
-                "dummy"
+        throw std::invalid_argument("Invalid partitioner value. Valid choices are: "
+                "merge"
 #ifdef AMGCL_HAVE_SCOTCH
-                ", scotch"
+                ", ptscotch"
 #endif
 #ifdef AMGCL_HAVE_PARMETIS
                 ", parmetis"
@@ -117,27 +117,27 @@ struct wrapper {
 
     wrapper(params prm = params()) : t(prm.get("type",
 #if defined(AMGCL_HAVE_SCOTCH)
-                scotch
+                ptscotch
 #elif defined(AMGCL_HAVE_PARMETIS)
                 parmetis
 #else
-                dummy
+                merge
 #endif
                 )), handle(0)
     {
         if (!prm.erase("type")) AMGCL_PARAM_MISSING("type");
 
         switch (t) {
-            case dummy:
+            case merge:
                 {
-                    typedef amgcl::mpi::repartition::dummy<Backend> R;
+                    typedef amgcl::mpi::partition::merge<Backend> R;
                     handle = static_cast<void*>(new R(prm));
                 }
                 break;
 #ifdef AMGCL_HAVE_SCOTCH
-            case scotch:
+            case ptscotch:
                 {
-                    typedef amgcl::mpi::repartition::scotch<Backend> R;
+                    typedef amgcl::mpi::partition::ptscotch<Backend> R;
                     handle = static_cast<void*>(new R(prm));
                 }
                 break;
@@ -145,28 +145,28 @@ struct wrapper {
 #ifdef AMGCL_HAVE_PARMETIS
             case parmetis:
                 {
-                    typedef amgcl::mpi::repartition::parmetis<Backend> R;
+                    typedef amgcl::mpi::partition::parmetis<Backend> R;
                     handle = static_cast<void*>(new R(prm));
                 }
                 break;
 #endif
             default:
-                throw std::invalid_argument("Unsupported repartition type");
+                throw std::invalid_argument("Unsupported partition type");
         }
     }
 
     ~wrapper() {
         switch(t) {
-            case dummy:
+            case merge:
                 {
-                    typedef amgcl::mpi::repartition::dummy<Backend> R;
+                    typedef amgcl::mpi::partition::merge<Backend> R;
                     delete static_cast<R*>(handle);
                 }
                 break;
 #ifdef AMGCL_HAVE_SCOTCH
-            case scotch:
+            case ptscotch:
                 {
-                    typedef amgcl::mpi::repartition::scotch<Backend> R;
+                    typedef amgcl::mpi::partition::ptscotch<Backend> R;
                     delete static_cast<R*>(handle);
                 }
                 break;
@@ -174,7 +174,7 @@ struct wrapper {
 #ifdef AMGCL_HAVE_PARMETIS
             case parmetis:
                 {
-                    typedef amgcl::mpi::repartition::parmetis<Backend> R;
+                    typedef amgcl::mpi::partition::parmetis<Backend> R;
                     delete static_cast<R*>(handle);
                 }
                 break;
@@ -186,58 +186,58 @@ struct wrapper {
 
     bool is_needed(const matrix &A) const {
         switch (t) {
-            case dummy:
+            case merge:
                 {
-                    typedef amgcl::mpi::repartition::dummy<Backend> R;
+                    typedef amgcl::mpi::partition::merge<Backend> R;
                     return static_cast<const R*>(handle)->is_needed(A);
                 }
 #ifdef AMGCL_HAVE_SCOTCH
-            case scotch:
+            case ptscotch:
                 {
-                    typedef amgcl::mpi::repartition::scotch<Backend> R;
+                    typedef amgcl::mpi::partition::ptscotch<Backend> R;
                     return static_cast<const R*>(handle)->is_needed(A);
                 }
 #endif
 #ifdef AMGCL_HAVE_PARMETIS
             case parmetis:
                 {
-                    typedef amgcl::mpi::repartition::parmetis<Backend> R;
+                    typedef amgcl::mpi::partition::parmetis<Backend> R;
                     return static_cast<const R*>(handle)->is_needed(A);
                 }
 #endif
             default:
-                throw std::invalid_argument("Unsupported repartition type");
+                throw std::invalid_argument("Unsupported partition type");
         }
     }
 
     boost::shared_ptr<matrix> operator()(const matrix &A, unsigned block_size = 1) const {
         switch (t) {
-            case dummy:
+            case merge:
                 {
-                    typedef amgcl::mpi::repartition::dummy<Backend> R;
+                    typedef amgcl::mpi::partition::merge<Backend> R;
                     return static_cast<const R*>(handle)->operator()(A, block_size);
                 }
 #ifdef AMGCL_HAVE_SCOTCH
-            case scotch:
+            case ptscotch:
                 {
-                    typedef amgcl::mpi::repartition::scotch<Backend> R;
+                    typedef amgcl::mpi::partition::ptscotch<Backend> R;
                     return static_cast<const R*>(handle)->operator()(A, block_size);
                 }
 #endif
 #ifdef AMGCL_HAVE_PARMETIS
             case parmetis:
                 {
-                    typedef amgcl::mpi::repartition::parmetis<Backend> R;
+                    typedef amgcl::mpi::partition::parmetis<Backend> R;
                     return static_cast<const R*>(handle)->operator()(A, block_size);
                 }
 #endif
             default:
-                throw std::invalid_argument("Unsupported repartition type");
+                throw std::invalid_argument("Unsupported partition type");
         }
     }
 };
 
-} // namespace repartitioner
+} // namespace partition
 } // namespace mpi
 } // namespace runtime
 } // namespace amgcl

@@ -1,5 +1,5 @@
-#ifndef AMGCL_MPI_REPARTITION_DUMMY_HPP
-#define AMGCL_MPI_REPARTITION_DUMMY_HPP
+#ifndef AMGCL_MPI_REPARTITION_MERGE_HPP
+#define AMGCL_MPI_REPARTITION_MERGE_HPP
 
 /*
 The MIT License
@@ -26,9 +26,9 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/mpi/repartition/dummy.hpp
+ * \file   amgcl/mpi/partition/merge.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
- * \brief  Dummy repartitioner (merges consecutive domains together).
+ * \brief  Dummy partitioner (merges consecutive domains together).
  */
 
 #include <boost/shared_ptr.hpp>
@@ -39,14 +39,14 @@ THE SOFTWARE.
 #include <amgcl/value_type/interface.hpp>
 #include <amgcl/mpi/util.hpp>
 #include <amgcl/mpi/distributed_matrix.hpp>
-#include <amgcl/mpi/repartition/util.hpp>
+#include <amgcl/mpi/partition/util.hpp>
 
 namespace amgcl {
 namespace mpi {
-namespace repartition {
+namespace partition {
 
 template <class Backend>
-struct dummy {
+struct merge {
     typedef typename Backend::value_type value_type;
     typedef distributed_matrix<Backend>  matrix;
 
@@ -78,7 +78,7 @@ struct dummy {
         }
     } prm;
 
-    dummy(const params &prm = params()) : prm(prm) {}
+    merge(const params &prm = params()) : prm(prm) {}
 
     bool is_needed(const matrix &A) const {
         if (!prm.enable) return false;
@@ -119,7 +119,7 @@ struct dummy {
         }
 
         if (comm.rank == 0)
-            std::cout << "Repartitioning[MERGE] " << old_domains << " -> " << new_domains << std::endl;
+            std::cout << "Partitioning[MERGE] " << old_domains << " -> " << new_domains << std::endl;
 
         ptrdiff_t row_beg = row_dom[comm.rank];
         ptrdiff_t col_beg = col_dom[comm.rank];
@@ -136,7 +136,7 @@ struct dummy {
 };
 
 
-} // namespace repartition
+} // namespace partition
 } // namespace mpi
 } // namespace amgcl
 

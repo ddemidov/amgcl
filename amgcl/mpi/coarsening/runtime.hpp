@@ -139,7 +139,7 @@ struct wrapper {
                     return static_cast<C*>(handle)->transfer_operators(A);
                 }
             default:
-                throw std::invalid_argument("Unsupported repartition type");
+                throw std::invalid_argument("Unsupported partition type");
         }
     }
 
@@ -157,7 +157,7 @@ struct wrapper {
                     return static_cast<C*>(handle)->coarse_operator(A, P, R);
                 }
             default:
-                throw std::invalid_argument("Unsupported repartition type");
+                throw std::invalid_argument("Unsupported partition type");
         }
     }
 };
