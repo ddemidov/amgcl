@@ -88,10 +88,10 @@ class comm_pattern {
         boost::shared_ptr<vector> x_rem;
 
         comm_pattern(
-                MPI_Comm mpi_comm,
+                communicator comm,
                 ptrdiff_t n_loc_cols,
                 size_t n_rem_cols, const ptrdiff_t *p_rem_cols
-                ) : comm(mpi_comm), loc_cols(n_loc_cols)
+                ) : comm(comm), loc_cols(n_loc_cols)
         {
             AMGCL_TIC("communication pattern");
             // Get domain boundaries

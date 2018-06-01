@@ -44,7 +44,7 @@ namespace mpi {
 struct inner_product {
     communicator comm;
 
-    inner_product(MPI_Comm comm) : comm(comm) {}
+    inner_product(communicator comm) : comm(comm) {}
 
     template <class Vec1, class Vec2>
     typename math::inner_product_impl<

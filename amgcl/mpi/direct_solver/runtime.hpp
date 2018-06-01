@@ -114,7 +114,7 @@ class solver {
         typedef boost::property_tree::ptree params;
 
         template <class Matrix>
-        solver(MPI_Comm comm, const Matrix &A, params prm = params())
+        solver(amgcl::mpi::communicator comm, const Matrix &A, params prm = params())
             : s(prm.get("type", skyline_lu))
         {
             if (!prm.erase("type")) AMGCL_PARAM_MISSING("type");
@@ -236,7 +236,7 @@ class solver {
             boost::is_same<V, float>::value || boost::is_same<V, double>::value,
             void
         >::type
-        do_construct(MPI_Comm comm, const Matrix &A, const params &prm) {
+        do_construct(amgcl::mpi::communicator comm, const Matrix &A, const params &prm) {
             handle = static_cast<void*>(new S(comm, A, prm));
         }
 
@@ -245,7 +245,7 @@ class solver {
             boost::is_same<V, float>::value || boost::is_same<V, double>::value,
             void
         >::type
-        do_construct(MPI_Comm, const Matrix&, const params&) {
+        do_construct(amgcl::mpi::communicator, const Matrix&, const params&) {
             throw std::logic_error("The direct solver does not support the value type");
         }
 

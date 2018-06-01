@@ -148,24 +148,24 @@ class schur_pressure_correction {
 
         template <class Matrix>
         schur_pressure_correction(
-                MPI_Comm mpi_comm,
+                communicator comm,
                 const Matrix &K,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
                 )
-            : prm(prm), comm(mpi_comm)
+            : prm(prm), comm(comm)
         {
             this->K = boost::make_shared<matrix>(comm, K, backend::rows(K));
             init(bprm);
         }
 
         schur_pressure_correction(
-                MPI_Comm mpi_comm,
+                communicator comm,
                 boost::shared_ptr<matrix> K,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
                 )
-            : prm(prm), comm(mpi_comm), K(K)
+            : prm(prm), comm(comm), K(K)
         {
             init(bprm);
         }
