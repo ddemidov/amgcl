@@ -115,8 +115,15 @@ struct wrapper {
     type t;
     void *handle;
 
-    wrapper(params prm = params())
-        : t(prm.get("type", dummy)), handle(0)
+    wrapper(params prm = params()) : t(prm.get("type",
+#if defined(AMGCL_HAVE_SCOTCH)
+                scotch
+#elif defined(AMGCL_HAVE_PARMETIS)
+                parmetis
+#else
+                dummy
+#endif
+                )), handle(0)
     {
         if (!prm.erase("type")) AMGCL_PARAM_MISSING("type");
 
