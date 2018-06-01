@@ -203,7 +203,7 @@ struct wrapper {
         }
     }
 
-    boost::shared_ptr<matrix> operator()(const matrix &A, unsigned block_size) const {
+    boost::shared_ptr<matrix> operator()(const matrix &A, unsigned block_size = 1) const {
         switch (t) {
             case dummy:
                 {

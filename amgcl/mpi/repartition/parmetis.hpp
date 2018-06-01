@@ -102,7 +102,7 @@ struct parmetis {
         return (non_empty > 1) && (min_n <= prm.min_per_proc);
     }
 
-    boost::shared_ptr<matrix> operator()(const matrix &A, unsigned block_size) const {
+    boost::shared_ptr<matrix> operator()(const matrix &A, unsigned block_size = 1) const {
         communicator comm = A.comm();
         idx_t n = A.loc_rows();
         ptrdiff_t row_beg = A.loc_col_shift();
