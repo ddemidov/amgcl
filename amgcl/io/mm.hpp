@@ -282,7 +282,7 @@ class mm_reader {
             for(ptrdiff_t j = 0; j < m; ++j) {
                 for(ptrdiff_t i = 0; i < n; ++i) {
                     precondition(std::getline(f, line), format_error("unexpected eof"));
-                    if (row_beg >= i && i < row_end) {
+                    if (row_beg <= i && i < row_end) {
                         is.clear(); is.str(line);
                         val[(i - row_beg) * m + j] = read_value<Val>(is);
                     }
