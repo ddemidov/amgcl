@@ -300,26 +300,30 @@ struct clear_impl< vex::vector<V> >
     }
 };
 
-template < typename V >
-struct copy_impl<
-    vex::vector<V>,
-    vex::vector<V>
-    >
+template < class V, class T >
+struct copy_impl<V, vex::vector<T> >
 {
-    static void apply(const vex::vector<V> &x, vex::vector<V> &y)
+    static void apply(const V &x, vex::vector<T> &y)
     {
-        y = x;
+        vex::copy(x, y);
     }
 };
 
-template < typename V >
-struct copy_to_backend_impl<
-    vex::vector<V>
-    >
+template < class T, class V >
+struct copy_impl<vex::vector<T>, V>
 {
-    static void apply(const std::vector<V> &data, vex::vector<V> &x)
+    static void apply(const vex::vector<T> &x, V &y)
     {
-        vex::copy(data, x);
+        vex::copy(x, y);
+    }
+};
+
+template < class T1, class T2 >
+struct copy_impl<vex::vector<T1>, vex::vector<T2>>
+{
+    static void apply(const vex::vector<T1> &x, vex::vector<T2> &y)
+    {
+        vex::copy(x, y);
     }
 };
 

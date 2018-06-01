@@ -419,28 +419,30 @@ struct clear_impl< thrust::device_vector<V> >
     }
 };
 
-template < typename V >
-struct copy_impl<
-    thrust::device_vector<V>,
-    thrust::device_vector<V>
-    >
+template <class V, class T>
+struct copy_impl<V, thrust::device_vector<T> >
 {
-    typedef thrust::device_vector<V> vector;
-
-    static void apply(const vector &x, vector &y)
+    static void apply(const V &x, thrust::device_vector<T> &y)
     {
         thrust::copy(x.begin(), x.end(), y.begin());
     }
 };
 
-template < typename V >
-struct copy_to_backend_impl<
-    thrust::device_vector<V>
-    >
+template <class T, class V>
+struct copy_impl<thrust::device_vector<T>, V >
 {
-    static void apply(const std::vector<V> &data, thrust::device_vector<V> &x)
+    static void apply(const V &x, thrust::device_vector<T> &y)
     {
-        thrust::copy(data.begin(), data.end(), x.begin());
+        thrust::copy(x.begin(), x.end(), y.begin());
+    }
+};
+
+template <class T1, class T2>
+struct copy_impl<thrust::device_vector<T1>, thrust::device_vector<T2> >
+{
+    static void apply(const thrust::device_vector<T1> &x, thrust::device_vector<T2> &y)
+    {
+        thrust::copy(x.begin(), x.end(), y.begin());
     }
 };
 

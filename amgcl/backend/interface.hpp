@@ -172,13 +172,6 @@ struct copy_impl {
     typedef typename Vector1::COPY_NOT_IMPLEMENTED type;
 };
 
-/// Implementation for copying data to backend.
-/** \note Used in copy_to_backend() */
-template <class Vector, class Enable = void>
-struct copy_to_backend_impl {
-    typedef typename Vector::COPY_TO_BACKEND_NOT_IMPLEMENTED type;
-};
-
 /// Implementation for inner product.
 /** \note Used in inner_product() */
 template <class Vector1, class Vector2, class Enable = void>
@@ -303,15 +296,6 @@ void copy(const Vector1 &x, Vector2 &y)
     AMGCL_TIC("copy");
     copy_impl<Vector1, Vector2>::apply(x, y);
     AMGCL_TOC("copy");
-}
-
-/// Copy data to backend.
-template <class Vector>
-void copy_to_backend(const std::vector<typename value_type<Vector>::type> &data, Vector &x)
-{
-    AMGCL_TIC("copy_to_backend");
-    copy_to_backend_impl<Vector>::apply(data, x);
-    AMGCL_TOC("copy_to_backend");
 }
 
 /// Computes inner product of two vectors.

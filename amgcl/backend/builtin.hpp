@@ -1028,14 +1028,6 @@ struct copy_impl<
     }
 };
 
-template < class Vec >
-struct copy_to_backend_impl<
-    Vec,
-    typename boost::enable_if<
-            typename is_builtin_vector<Vec>::type
-        >::type
-    > : copy_impl< std::vector<typename value_type<Vec>::type>, Vec > {};
-
 namespace detail {
 
 template <typename V, typename C, typename P>

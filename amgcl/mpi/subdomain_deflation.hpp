@@ -530,7 +530,7 @@ class subdomain_deflation {
             coarse_solve(df, dx);
 
             AMGCL_TIC("spmv");
-            backend::copy_to_backend(dx, *dd);
+            backend::copy(dx, *dd);
             backend::spmv(-1, *AZ, *dd, 1, x);
             AMGCL_TOC("spmv");
 

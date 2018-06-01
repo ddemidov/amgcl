@@ -614,7 +614,8 @@ struct copy_impl<
 };
 
 template < typename real >
-struct copy_to_backend_impl<
+struct copy<
+    std::vector<real>,
     hpx_vector<real>
     >
 {

@@ -238,7 +238,7 @@ class comm_pattern {
             AMGCL_TOC("MPI Wait");
 
             if (!recv.val.empty())
-                backend::copy_to_backend(recv.val, *x_rem);
+                backend::copy(recv.val, *x_rem);
         }
 
         template <typename T>
