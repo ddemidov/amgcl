@@ -32,9 +32,9 @@ THE SOFTWARE.
  * \brief  Aggregate performace counter over MPI.
  */
 
+#include <functional>
 #include <cmath>
 #include <boost/type_traits.hpp>
-#include <boost/functional/hash.hpp>
 #include <amgcl/mpi/util.hpp>
 
 namespace amgcl {
@@ -99,7 +99,7 @@ class mpi_aggregator {
         Counter counter;
 
         int name_hash(const char *name, boost::true_type) {
-            return boost::hash<std::string>()(name);
+            return std::hash<std::string>()(name);
         }
 
         int name_hash(const char *name, boost::false_type) {
@@ -110,7 +110,7 @@ class mpi_aggregator {
                 };
             } h;
 
-            h.full = boost::hash<std::string>()(name);
+            h.full = std::hash<std::string>()(name);
             return std::abs(h.lo ^ h.hi);
         }
 };
