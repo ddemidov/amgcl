@@ -37,8 +37,7 @@ THE SOFTWARE.
 
 #include <tuple>
 #include <memory>
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_real_distribution.hpp>
+#include <random>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/coarsening/detail/galerkin.hpp>
@@ -271,8 +270,8 @@ struct smoothed_aggregation {
 #else
             int tid = 0;
 #endif
-            boost::random::mt11213b rng(tid);
-            boost::random::uniform_real_distribution<scalar_type> rnd(-1, 1);
+            std::mt19937 rng(tid);
+            std::uniform_real_distribution<scalar_type> rnd(-1, 1);
 
             scalar_type loc_norm = 0;
 

@@ -30,8 +30,7 @@ THE SOFTWARE.
 
 #include <memory>
 #include <unordered_map>
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_real_distribution.hpp>
+#include <random>
 
 #include <mpi.h>
 
@@ -1038,8 +1037,8 @@ spectral_radius(const distributed_matrix<Backend> &A, int power_iters)
         int tid = 0;
         int nt  = 1;
 #endif
-        boost::random::mt11213b rng(comm.size * nt + tid);
-        boost::random::uniform_real_distribution<scalar_type> rnd(-1, 1);
+        std::mt19937 rng(comm.size * nt + tid);
+        std::uniform_real_distribution<scalar_type> rnd(-1, 1);
 
         scalar_type t_norm = 0;
 

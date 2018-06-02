@@ -44,8 +44,7 @@ Bi-orthogonality Properties. ACM Transactions on Mathematical Software, Vol.
 #include <algorithm>
 
 #include <tuple>
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/normal_distribution.hpp>
+#include <random>
 
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/solver/detail/default_inner_product.hpp>
@@ -198,8 +197,8 @@ class idrs {
                     int nt = 1;
 #endif
 
-                    boost::random::mt19937 rng(pid * nt + tid);
-                    boost::random::normal_distribution<scalar_type> rnd;
+                    std::mt19937 rng(pid * nt + tid);
+                    std::uniform_real_distribution<scalar_type> rnd(-1, 1);
 
                     for(unsigned j = 0; j < prm.s; ++j) {
 #pragma omp for

@@ -2,7 +2,7 @@
 #include <boost/test/unit_test.hpp>
 
 #include <vector>
-#include <boost/random.hpp>
+#include <random>
 #include <boost/multi_array.hpp>
 
 #include <amgcl/detail/qr.hpp>
@@ -13,8 +13,8 @@
 template <class T>
 struct make_random {
     static T get() {
-        static boost::random::mt19937 gen;
-        static boost::random::uniform_real_distribution<T> rnd;
+        static std::mt19937 gen;
+        static std::uniform_real_distribution<T> rnd;
 
         return rnd(gen);
     }
