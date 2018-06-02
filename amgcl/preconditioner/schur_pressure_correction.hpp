@@ -34,7 +34,6 @@ THE SOFTWARE.
 
 #include <vector>
 
-#include <boost/static_assert.hpp>
 #include <memory>
 
 #include <amgcl/backend/builtin.hpp>
@@ -84,13 +83,11 @@ struct common_backend< backend::builtin<V1>, backend::builtin<V2>,
 /// Schur-complement pressure correction preconditioner
 template <class USolver, class PSolver>
 class schur_pressure_correction {
-    BOOST_STATIC_ASSERT_MSG(
-            (
-             detail::compatible_backends<
-                 typename USolver::backend_type,
-                 typename PSolver::backend_type
-                 >::value
-            ),
+    static_assert(
+            detail::compatible_backends<
+                typename USolver::backend_type,
+                typename PSolver::backend_type
+                >::value,
             "Backends for pressure and flow preconditioners should coincide!"
             );
     public:

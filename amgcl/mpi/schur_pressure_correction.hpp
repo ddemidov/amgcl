@@ -45,13 +45,11 @@ namespace mpi {
 
 template <class USolver, class PSolver>
 class schur_pressure_correction {
-    BOOST_STATIC_ASSERT_MSG(
-            (
-             boost::is_same<
-                 typename USolver::backend_type,
-                 typename PSolver::backend_type
-                 >::value
-            ),
+    static_assert(
+            boost::is_same<
+                typename USolver::backend_type,
+                typename PSolver::backend_type
+                >::value,
             "Backends for pressure and flow preconditioners should coincide!"
             );
 

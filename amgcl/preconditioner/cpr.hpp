@@ -44,13 +44,11 @@ namespace preconditioner {
 
 template <class PPrecond, class SPrecond>
 class cpr {
-    BOOST_STATIC_ASSERT_MSG(
-            (
-             boost::is_same<
-                 typename PPrecond::backend_type,
-                 typename SPrecond::backend_type
-                 >::value
-            ),
+    static_assert(
+            boost::is_same<
+                typename PPrecond::backend_type,
+                typename SPrecond::backend_type
+                >::value,
             "Backends for pressure and flow preconditioners should coinside!"
             );
     public:

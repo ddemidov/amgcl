@@ -31,7 +31,6 @@ THE SOFTWARE.
  * \brief  CUDA backend.
  */
 
-#include <boost/static_assert.hpp>
 #include <boost/type_traits.hpp>
 #include <memory>
 #include <amgcl/backend/builtin.hpp>
@@ -244,11 +243,9 @@ class cuda_hyb_matrix {
  */
 template <typename real, class DirectSolver = solver::cuda_skyline_lu<real> >
 struct cuda {
-        BOOST_STATIC_ASSERT_MSG(
-                (
-                 boost::is_same<real, float>::value ||
-                 boost::is_same<real, double>::value
-                ),
+        static_assert(
+                boost::is_same<real, float>::value ||
+                boost::is_same<real, double>::value,
                 "Unsupported value type for cuda backend"
                 );
 

@@ -43,13 +43,11 @@ template <
     class IterativeSolver
     >
 class make_solver {
-    BOOST_STATIC_ASSERT_MSG(
-            (
-             backend::backends_compatible<
-                 typename IterativeSolver::backend_type,
-                 typename Precond::backend_type
-                 >::value
-            ),
+    static_assert(
+            backend::backends_compatible<
+                typename IterativeSolver::backend_type,
+                typename Precond::backend_type
+            >::value,
             "Backends for preconditioner and iterative solver should be compatible"
             );
     public:

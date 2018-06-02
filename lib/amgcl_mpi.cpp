@@ -1,7 +1,6 @@
 #include <iostream>
 
 #include <boost/type_traits.hpp>
-#include <boost/static_assert.hpp>
 
 #include <amgcl/amg.hpp>
 #include <amgcl/solver/runtime.hpp>

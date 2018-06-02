@@ -32,7 +32,6 @@ THE SOFTWARE.
 \ingroup adapters
 */
 
-#include <boost/static_assert.hpp>
 #include <boost/type_traits.hpp>
 #include <boost/range/iterator_range.hpp>
 
@@ -44,7 +43,8 @@ namespace adapter {
 
 template <class Matrix>
 struct complex_adapter {
-    BOOST_STATIC_ASSERT( boost::is_complex<typename backend::value_type<Matrix>::type>::value );
+    static_assert(boost::is_complex<typename backend::value_type<Matrix>::type>::value,
+            "value type should be complex");
 
     typedef typename backend::value_type<Matrix>::type::value_type val_type;
 
