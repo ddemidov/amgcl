@@ -34,7 +34,7 @@ THE SOFTWARE.
 #include <iostream>
 
 #include <boost/property_tree/ptree.hpp>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 #include <mpi.h>
 
@@ -92,7 +92,7 @@ class make_solver {
         {}
 
         make_solver(
-                communicator comm, boost::shared_ptr<matrix> A,
+                communicator comm, std::shared_ptr<matrix> A,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
                 ) :
@@ -103,7 +103,7 @@ class make_solver {
         }
 
         make_solver(
-                communicator comm, boost::shared_ptr<build_matrix> A,
+                communicator comm, std::shared_ptr<build_matrix> A,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
                 ) :
@@ -161,7 +161,7 @@ class make_solver {
             return S;
         }
 
-        boost::shared_ptr<matrix> system_matrix_ptr() const {
+        std::shared_ptr<matrix> system_matrix_ptr() const {
             return P.system_matrix_ptr();
         }
 

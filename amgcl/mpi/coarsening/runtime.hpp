@@ -125,7 +125,7 @@ struct wrapper {
         }
     }
 
-    boost::tuple< boost::shared_ptr<matrix>, boost::shared_ptr<matrix> >
+    boost::tuple< std::shared_ptr<matrix>, std::shared_ptr<matrix> >
     transfer_operators(const matrix &A) {
         switch (c) {
             case aggregation:
@@ -143,7 +143,7 @@ struct wrapper {
         }
     }
 
-    boost::shared_ptr<matrix>
+    std::shared_ptr<matrix>
     coarse_operator(const matrix &A, const matrix &P, const matrix &R) const {
         switch (c) {
             case aggregation:

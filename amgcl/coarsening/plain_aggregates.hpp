@@ -122,7 +122,7 @@ struct plain_aggregates {
         const size_t n = rows(A);
 
         /* 1. Get strong connections */
-        boost::shared_ptr< backend::numa_vector<value_type> > dia = diagonal(A);
+        auto dia = diagonal(A);
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
             value_type eps_dia_i = eps_squared * (*dia)[i];

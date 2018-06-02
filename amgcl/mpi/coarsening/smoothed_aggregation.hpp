@@ -32,8 +32,7 @@ THE SOFTWARE.
  */
 
 #include <boost/tuple/tuple.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
@@ -93,8 +92,8 @@ struct smoothed_aggregation {
     smoothed_aggregation(const params &prm = params()) : prm(prm) {}
 
     boost::tuple<
-        boost::shared_ptr< distributed_matrix<Backend> >,
-        boost::shared_ptr< distributed_matrix<Backend> >
+        std::shared_ptr< distributed_matrix<Backend> >,
+        std::shared_ptr< distributed_matrix<Backend> >
         >
     transfer_operators(const distributed_matrix<Backend> &A) {
         typedef distributed_matrix<Backend> DM;
@@ -120,8 +119,8 @@ struct smoothed_aggregation {
             omega *= static_cast<scalar_type>(2.0/3);
         }
 
-        boost::shared_ptr<build_matrix> af_loc = boost::make_shared<build_matrix>();
-        boost::shared_ptr<build_matrix> af_rem = boost::make_shared<build_matrix>();
+        auto af_loc = std::make_shared<build_matrix>();
+        auto af_rem = std::make_shared<build_matrix>();
 
         build_matrix &Af_loc = *af_loc;
         build_matrix &Af_rem = *af_rem;
@@ -177,18 +176,18 @@ struct smoothed_aggregation {
             }
         }
 
-        boost::shared_ptr<DM> Af = boost::make_shared<DM>(comm, af_loc, af_rem);
+        auto Af = std::make_shared<DM>(comm, af_loc, af_rem);
         AMGCL_TOC("filtered matrix");
 
         // 5. Smooth tentative prolongation with the filtered matrix.
         AMGCL_TIC("smoothing");
-        boost::shared_ptr<DM> P = product(*Af, *aggr.p_tent);
+        auto P = product(*Af, *aggr.p_tent);
         AMGCL_TOC("smoothing");
 
         return boost::make_tuple(P, transpose(*P));
     }
 
-    boost::shared_ptr< distributed_matrix<Backend> >
+    std::shared_ptr< distributed_matrix<Backend> >
     coarse_operator(
             const distributed_matrix<Backend> &A,
             const distributed_matrix<Backend> &P,

@@ -87,7 +87,7 @@ void test() {
 
     Matrix A(comm, boost::tie(chunk, ptr, col, val), chunk);
 
-    boost::shared_ptr<Matrix> B = amgcl::mpi::product(A, A);
+    auto B = amgcl::mpi::product(A, A);
     B->move_to_backend();
 
     amgcl::backend::spmv(1, *B, x, 0, y);

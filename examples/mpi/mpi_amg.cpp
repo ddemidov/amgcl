@@ -155,7 +155,7 @@ ptrdiff_t read_matrix_market(
 
 //---------------------------------------------------------------------------
 template <class Backend, class Matrix>
-boost::shared_ptr< amgcl::mpi::distributed_matrix<Backend> >
+std::shared_ptr< amgcl::mpi::distributed_matrix<Backend> >
 partition(amgcl::mpi::communicator comm, const Matrix &Astrip,
         typename Backend::vector &rhs, const typename Backend::params &bprm,
         amgcl::runtime::mpi::partition::type ptype, int block_size = 1)
@@ -166,7 +166,7 @@ partition(amgcl::mpi::communicator comm, const Matrix &Astrip,
 
     using amgcl::prof;
 
-    boost::shared_ptr<DMatrix> A = boost::make_shared<DMatrix>(comm, Astrip);
+    auto A = std::make_shared<DMatrix>(comm, Astrip);
 
     if (comm.size == 1 || ptype == amgcl::runtime::mpi::partition::merge)
         return A;
@@ -177,8 +177,8 @@ partition(amgcl::mpi::communicator comm, const Matrix &Astrip,
     prm.put("shrink_ratio", 1);
     amgcl::runtime::mpi::partition::wrapper<Backend> part(prm);
 
-    boost::shared_ptr<DMatrix> I = part(*A, block_size);
-    boost::shared_ptr<DMatrix> J = transpose(*I);
+    auto I = part(*A, block_size);
+    auto J = transpose(*I);
     A = product(*J, *product(*A, *I));
 
 #if defined(SOLVER_BACKEND_BUILTIN)
@@ -257,7 +257,7 @@ void solve_block(
     vex::vector<rhs_type> rhs(ctx, chunk / B, reinterpret_cast<const rhs_type*>(&f[0]));
 #endif
 
-    boost::shared_ptr<Matrix> A = partition<Backend>(comm,
+    auto A = partition<Backend>(comm,
             amgcl::adapter::block_matrix<val_type>(boost::tie(chunk, ptr, col, val)),
             rhs, bprm, ptype, prm.get("precond.coarsening.aggr.block_size", 1));
 
@@ -345,7 +345,7 @@ void solve_scalar(
     thrust::device_vector<double> rhs(f);
 #endif
 
-    boost::shared_ptr<Matrix> A = partition<Backend>(comm,
+    auto A = partition<Backend>(comm,
             boost::tie(chunk, ptr, col, val), rhs, bprm, ptype,
             prm.get("precond.coarsening.aggr.block_size", 1));
 

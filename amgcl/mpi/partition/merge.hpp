@@ -31,8 +31,7 @@ THE SOFTWARE.
  * \brief  Dummy partitioner (merges consecutive domains together).
  */
 
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/value_type/interface.hpp>
@@ -99,7 +98,7 @@ struct merge {
         return (non_empty > 1) && (min_n <= prm.min_per_proc);
     }
 
-    boost::shared_ptr<matrix> operator()(const matrix &A, unsigned /*block_size*/ = 1) const {
+    std::shared_ptr<matrix> operator()(const matrix &A, unsigned /*block_size*/ = 1) const {
         communicator comm = A.comm();
         ptrdiff_t nrows = A.loc_rows();
 

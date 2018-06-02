@@ -22,8 +22,7 @@ BOOST_AUTO_TEST_CASE(skyline_lu)
 
     size_t n = sample_problem(16, val, col, ptr, rhs);
 
-    boost::shared_ptr< amgcl::backend::crs<double> > A =
-        amgcl::adapter::zero_copy(n, ptr.data(), col.data(), val.data());
+    auto A = amgcl::adapter::zero_copy(n, ptr.data(), col.data(), val.data());
 
     amgcl::solver::skyline_lu<double> solve(*A);
 

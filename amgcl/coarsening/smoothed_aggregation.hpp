@@ -36,8 +36,7 @@ THE SOFTWARE.
 #endif
 
 #include <boost/tuple/tuple.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_real_distribution.hpp>
 
@@ -129,7 +128,7 @@ struct smoothed_aggregation {
 
     /// \copydoc amgcl::coarsening::aggregation::transfer_operators
     template <class Matrix>
-    boost::tuple< boost::shared_ptr<Matrix>, boost::shared_ptr<Matrix> >
+    boost::tuple< std::shared_ptr<Matrix>, std::shared_ptr<Matrix> >
     transfer_operators(const Matrix &A) {
         typedef typename backend::value_type<Matrix>::type value_type;
         typedef typename math::scalar_of<value_type>::type scalar_type;
@@ -141,11 +140,11 @@ struct smoothed_aggregation {
         prm.aggr.eps_strong *= 0.5;
         AMGCL_TOC("aggregates");
 
-        boost::shared_ptr<Matrix> P_tent = tentative_prolongation<Matrix>(
+        auto P_tent = tentative_prolongation<Matrix>(
                 n, aggr.count, aggr.id, prm.nullspace, prm.aggr.block_size
                 );
 
-        boost::shared_ptr<Matrix> P = boost::make_shared<Matrix>();
+        auto P = std::make_shared<Matrix>();
         P->set_size(rows(*P_tent), cols(*P_tent), true);
 
         scalar_type omega = prm.relax;
@@ -240,7 +239,7 @@ struct smoothed_aggregation {
 
     /// \copydoc amgcl::coarsening::aggregation::coarse_operator
     template <class Matrix>
-    boost::shared_ptr<Matrix>
+    std::shared_ptr<Matrix>
     coarse_operator(const Matrix &A, const Matrix &P, const Matrix &R) const {
         return detail::galerkin(A, P, R);
     }

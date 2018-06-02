@@ -33,8 +33,7 @@ THE SOFTWARE.
 
 #include <vector>
 
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 
 #include <mpi.h>
 
@@ -65,25 +64,25 @@ class block_preconditioner {
                 const backend_params &bprm = backend_params()
                 )
         {
-            A = boost::make_shared<matrix>(comm, Astrip, backend::rows(Astrip));
-            P = boost::make_shared<Precond>(A->local(), prm, bprm);
+            A = std::make_shared<matrix>(comm, Astrip, backend::rows(Astrip));
+            P = std::make_shared<Precond>(A->local(), prm, bprm);
             A->set_local(P->system_matrix_ptr());
             A->move_to_backend(bprm);
         }
 
         block_preconditioner(
                 communicator,
-                boost::shared_ptr<matrix> A,
+                std::shared_ptr<matrix> A,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
                 ) : A(A)
         {
-            P = boost::make_shared<Precond>(A->local(), prm, bprm);
+            P = std::make_shared<Precond>(A->local(), prm, bprm);
             A->set_local(P->system_matrix_ptr());
             A->move_to_backend(bprm);
         }
 
-        boost::shared_ptr<matrix> system_matrix_ptr() const {
+        std::shared_ptr<matrix> system_matrix_ptr() const {
             return A;
         }
 
@@ -104,8 +103,8 @@ class block_preconditioner {
             P->apply(rhs, x);
         }
     private:
-        boost::shared_ptr<matrix>  A;
-        boost::shared_ptr<Precond> P;
+        std::shared_ptr<matrix>  A;
+        std::shared_ptr<Precond> P;
 };
 
 } // namespace mpi

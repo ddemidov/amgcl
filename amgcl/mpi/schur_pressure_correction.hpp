@@ -33,8 +33,7 @@ THE SOFTWARE.
 
 #include <vector>
 
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
@@ -155,13 +154,13 @@ class schur_pressure_correction {
                 )
             : prm(prm), comm(comm)
         {
-            this->K = boost::make_shared<matrix>(comm, K, backend::rows(K));
+            this->K = std::make_shared<matrix>(comm, K, backend::rows(K));
             init(bprm);
         }
 
         schur_pressure_correction(
                 communicator comm,
-                boost::shared_ptr<matrix> K,
+                std::shared_ptr<matrix> K,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
                 )
@@ -173,8 +172,8 @@ class schur_pressure_correction {
         void init(const backend_params &bprm) {
             using boost::tie;
             using boost::make_tuple;
-            using boost::shared_ptr;
-            using boost::make_shared;
+            using std::shared_ptr;
+            using std::make_shared;
 
             build_matrix &K_loc = *K->local();
             build_matrix &K_rem = *K->remote();
@@ -219,15 +218,15 @@ class schur_pressure_correction {
             AMGCL_TIC("schur blocks");
             this->K->move_to_backend(bprm);
 
-            shared_ptr<build_matrix> Kpp_loc = make_shared<build_matrix>();
-            shared_ptr<build_matrix> Kpp_rem = make_shared<build_matrix>();
-            shared_ptr<build_matrix> Kuu_loc = make_shared<build_matrix>();
-            shared_ptr<build_matrix> Kuu_rem = make_shared<build_matrix>();
+            auto Kpp_loc = make_shared<build_matrix>();
+            auto Kpp_rem = make_shared<build_matrix>();
+            auto Kuu_loc = make_shared<build_matrix>();
+            auto Kuu_rem = make_shared<build_matrix>();
 
-            shared_ptr<build_matrix> Kpu_loc = make_shared<build_matrix>();
-            shared_ptr<build_matrix> Kpu_rem = make_shared<build_matrix>();
-            shared_ptr<build_matrix> Kup_loc = make_shared<build_matrix>();
-            shared_ptr<build_matrix> Kup_rem = make_shared<build_matrix>();
+            auto Kpu_loc = make_shared<build_matrix>();
+            auto Kpu_rem = make_shared<build_matrix>();
+            auto Kup_loc = make_shared<build_matrix>();
+            auto Kup_rem = make_shared<build_matrix>();
 
             Kpp_loc->set_size(np, np, true);
             Kpp_rem->set_size(np, 0, true);
@@ -381,8 +380,8 @@ class schur_pressure_correction {
                 }
             }
 
-            boost::shared_ptr<matrix> Kpp = boost::make_shared<matrix>(comm, Kpp_loc, Kpp_rem);
-            boost::shared_ptr<matrix> Kuu = boost::make_shared<matrix>(comm, Kuu_loc, Kuu_rem);
+            auto Kpp = std::make_shared<matrix>(comm, Kpp_loc, Kpp_rem);
+            auto Kuu = std::make_shared<matrix>(comm, Kuu_loc, Kuu_rem);
 
             Kpu = make_shared<matrix>(comm, Kpu_loc, Kpu_rem);
             Kup = make_shared<matrix>(comm, Kup_loc, Kup_rem);
@@ -425,10 +424,10 @@ class schur_pressure_correction {
 
             // Scatter/Gather matrices
             AMGCL_TIC("scatter/gather");
-            boost::shared_ptr<build_matrix> x2u = boost::make_shared<build_matrix>();
-            boost::shared_ptr<build_matrix> x2p = boost::make_shared<build_matrix>();
-            boost::shared_ptr<build_matrix> u2x = boost::make_shared<build_matrix>();
-            boost::shared_ptr<build_matrix> p2x = boost::make_shared<build_matrix>();
+            auto x2u = std::make_shared<build_matrix>();
+            auto x2p = std::make_shared<build_matrix>();
+            auto u2x = std::make_shared<build_matrix>();
+            auto p2x = std::make_shared<build_matrix>();
 
             x2u->set_size(nu, n, true);
             x2p->set_size(np, n, true);
@@ -496,7 +495,7 @@ class schur_pressure_correction {
             AMGCL_TOC("scatter/gather");
         }
 
-        boost::shared_ptr<matrix> system_matrix_ptr() const {
+        std::shared_ptr<matrix> system_matrix_ptr() const {
             return K;
         }
 
@@ -570,13 +569,13 @@ class schur_pressure_correction {
         typedef comm_pattern<backend_type> CommPattern;
         communicator comm;
 
-        boost::shared_ptr<bmatrix>  x2p, x2u, p2x, u2x;
-        boost::shared_ptr<matrix> K, Kpu, Kup;
-        boost::shared_ptr<vector>  rhs_u, rhs_p, u, p, tmp;
-        boost::shared_ptr<typename backend_type::matrix_diagonal> M;
+        std::shared_ptr<bmatrix>  x2p, x2u, p2x, u2x;
+        std::shared_ptr<matrix> K, Kpu, Kup;
+        std::shared_ptr<vector>  rhs_u, rhs_p, u, p, tmp;
+        std::shared_ptr<typename backend_type::matrix_diagonal> M;
 
-        boost::shared_ptr<USolver> U;
-        boost::shared_ptr<PSolver> P;
+        std::shared_ptr<USolver> U;
+        std::shared_ptr<PSolver> P;
 
 #ifdef AMGCL_DEBUG
         template <typename I, typename E>

@@ -31,8 +31,7 @@ THE SOFTWARE.
  * \brief  Runtime wrapper for distributed partitioners.
  */
 
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 
 #include <amgcl/mpi/partition/merge.hpp>
 
@@ -209,7 +208,7 @@ struct wrapper {
         }
     }
 
-    boost::shared_ptr<matrix> operator()(const matrix &A, unsigned block_size = 1) const {
+    std::shared_ptr<matrix> operator()(const matrix &A, unsigned block_size = 1) const {
         switch (t) {
             case merge:
                 {

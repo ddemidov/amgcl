@@ -31,7 +31,7 @@ THE SOFTWARE.
  * \brief  Dummy preconditioner (identity matrix).
  */
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
 
@@ -57,12 +57,12 @@ class dummy {
                 const params& = params(),
                 const backend_params &bprm = backend_params()
                 )
-            : A(Backend::copy_matrix(boost::make_shared<build_matrix>(M), bprm))
+            : A(Backend::copy_matrix(std::make_shared<build_matrix>(M), bprm))
         {
         }
 
         dummy(
-                boost::shared_ptr<build_matrix> M,
+                std::shared_ptr<build_matrix> M,
                 const params& = params(),
                 const backend_params &bprm = backend_params()
                 )
@@ -83,7 +83,7 @@ class dummy {
             backend::copy(rhs, x);
         }
 
-        boost::shared_ptr<matrix> system_matrix_ptr() const {
+        std::shared_ptr<matrix> system_matrix_ptr() const {
             return A;
         }
 
@@ -91,7 +91,7 @@ class dummy {
             return *A;
         }
     private:
-        boost::shared_ptr<matrix>   A;
+        std::shared_ptr<matrix>   A;
 
         friend std::ostream& operator<<(std::ostream &os, const dummy &p) {
             os << "identity matrix as preconditioner" << std::endl;

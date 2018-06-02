@@ -36,8 +36,7 @@ THE SOFTWARE.
 #include <list>
 
 #include <boost/io/ios_state.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 
 #ifdef AMGCL_ASYNC_SETUP
 #  include <boost/atomic.hpp>
@@ -222,7 +221,7 @@ class amg {
                 const backend_params &bprm = backend_params()
            ) : prm(p)
         {
-            boost::shared_ptr<build_matrix> A = boost::make_shared<build_matrix>(M);
+            auto A = std::make_shared<build_matrix>(M);
             sort_rows(*A);
 
             do_init(A, bprm);
@@ -242,7 +241,7 @@ class amg {
          * \sa amgcl/adapter/crs_tuple.hpp
          */
         amg(
-                boost::shared_ptr<build_matrix> A,
+                std::shared_ptr<build_matrix> A,
                 const params &p = params(),
                 const backend_params &bprm = backend_params()
            ) : prm(p)
@@ -302,7 +301,7 @@ class amg {
         }
 
         /// Returns the system matrix from the finest level.
-        boost::shared_ptr<matrix> system_matrix_ptr() const {
+        std::shared_ptr<matrix> system_matrix_ptr() const {
             return levels.front().A;
         }
 
@@ -314,21 +313,21 @@ class amg {
         struct level {
             size_t m_rows, m_nonzeros;
 
-            boost::shared_ptr<vector> f;
-            boost::shared_ptr<vector> u;
-            boost::shared_ptr<vector> t;
+            std::shared_ptr<vector> f;
+            std::shared_ptr<vector> u;
+            std::shared_ptr<vector> t;
 
-            boost::shared_ptr<matrix> A;
-            boost::shared_ptr<matrix> P;
-            boost::shared_ptr<matrix> R;
+            std::shared_ptr<matrix> A;
+            std::shared_ptr<matrix> P;
+            std::shared_ptr<matrix> R;
 
-            boost::shared_ptr< typename Backend::direct_solver > solve;
+            std::shared_ptr< typename Backend::direct_solver > solve;
 
-            boost::shared_ptr<relax_type> relax;
+            std::shared_ptr<relax_type> relax;
 
             level() {}
 
-            level(boost::shared_ptr<build_matrix> A,
+            level(std::shared_ptr<build_matrix> A,
                     params &prm, const backend_params &bprm)
                 : m_rows(backend::rows(*A)), m_nonzeros(backend::nonzeros(*A))
             {
@@ -340,21 +339,21 @@ class amg {
                 AMGCL_TOC("move to backend");
 
                 AMGCL_TIC("relaxation");
-                relax = boost::make_shared<relax_type>(*A, prm.relax, bprm);
+                relax = std::make_shared<relax_type>(*A, prm.relax, bprm);
                 AMGCL_TOC("relaxation");
             }
 
-            boost::shared_ptr<build_matrix> step_down(
-                    boost::shared_ptr<build_matrix> A,
+            std::shared_ptr<build_matrix> step_down(
+                    std::shared_ptr<build_matrix> A,
                     coarsening_type &C, const backend_params &bprm)
             {
                 AMGCL_TIC("transfer operators");
-                boost::shared_ptr<build_matrix> P, R;
+                std::shared_ptr<build_matrix> P, R;
                 boost::tie(P, R) = C.transfer_operators(*A);
 
                 if(backend::cols(*P) == 0) {
                     // Zero-sized coarse level in amgcl (diagonal matrix?)
-                    return boost::shared_ptr<build_matrix>();
+                    return std::shared_ptr<build_matrix>();
                 }
 
                 sort_rows(*P);
@@ -375,7 +374,7 @@ class amg {
             }
 
             void create_coarse(
-                    boost::shared_ptr<build_matrix> A,
+                    std::shared_ptr<build_matrix> A,
                     const backend_params &bprm, bool single_level)
             {
                 m_rows     = backend::rows(*A);
@@ -409,7 +408,7 @@ class amg {
 #endif
 
         void init(
-                boost::shared_ptr<build_matrix> A,
+                std::shared_ptr<build_matrix> A,
                 const backend_params &bprm = backend_params()
            )
         {
@@ -479,7 +478,7 @@ class amg {
         }
 
         void do_init(
-                boost::shared_ptr<build_matrix> A,
+                std::shared_ptr<build_matrix> A,
                 const backend_params &bprm = backend_params()
                 )
         {

@@ -248,7 +248,7 @@ class preconditioner {
             }
         }
 
-        boost::shared_ptr<matrix> system_matrix_ptr() const {
+        std::shared_ptr<matrix> system_matrix_ptr() const {
             switch(_class) {
                 case precond_class::amg:
                     {

@@ -105,7 +105,7 @@ class pointwise_aggregates {
                 strong_connection.resize( nonzeros(A) );
                 id.resize( rows(A) );
 
-                boost::shared_ptr< backend::crs<scalar_type> > ap = backend::pointwise_matrix(A, prm.block_size);
+                auto ap = backend::pointwise_matrix(A, prm.block_size);
                 backend::crs<scalar_type> &Ap = *ap;
 
                 plain_aggregates pw_aggr(Ap, prm);

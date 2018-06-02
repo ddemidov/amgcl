@@ -268,7 +268,6 @@ boost::tuple<size_t, double> scalar_solve(
         amgcl::runtime::solver::wrapper<Backend>
         > Solver;
 
-    typedef Backend::vector vector;
     boost::tuple<size_t, double> info;
 
     if (reorder) {
@@ -285,10 +284,10 @@ boost::tuple<size_t, double> scalar_solve(
         std::vector<double> tmp(rows);
 
         perm.forward(rhs, tmp);
-        boost::shared_ptr<vector> f_b = Backend::copy_vector(tmp, bprm);
+        auto f_b = Backend::copy_vector(tmp, bprm);
 
         perm.forward(x, tmp);
-        boost::shared_ptr<vector> x_b = Backend::copy_vector(tmp, bprm);
+        auto x_b = Backend::copy_vector(tmp, bprm);
 
         prof.tic("solve");
         info = solve(*f_b, *x_b);
@@ -312,8 +311,8 @@ boost::tuple<size_t, double> scalar_solve(
 
         std::cout << solve.precond() << std::endl;
 
-        boost::shared_ptr<vector> f_b = Backend::copy_vector(rhs, bprm);
-        boost::shared_ptr<vector> x_b = Backend::copy_vector(x,   bprm);
+        auto f_b = Backend::copy_vector(rhs, bprm);
+        auto x_b = Backend::copy_vector(x,   bprm);
 
         prof.tic("solve");
         info = solve(*f_b, *x_b);

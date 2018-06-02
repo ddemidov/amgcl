@@ -31,7 +31,7 @@ THE SOFTWARE.
  * \brief  Distributed memory sparse approximate inverse relaxation scheme.
  */
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/value_type/interface.hpp>
 #include <amgcl/relaxation/runtime.hpp>

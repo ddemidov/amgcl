@@ -36,8 +36,7 @@ distributed direct solver interface but always works sequentially.
 
 #include <mpi.h>
 
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 
 #include <Eigen/SparseLU>
 #include <amgcl/backend/builtin.hpp>
@@ -81,7 +80,7 @@ class eigen_splu : public solver_base< value_type, eigen_splu<value_type> > {
         }
 
         void init(communicator, const build_matrix &A) {
-            S = boost::make_shared<Solver>(A, prm);
+            S = std::make_shared<Solver>(A, prm);
         }
 
         /// Solves the problem for the given right-hand side.
@@ -96,7 +95,7 @@ class eigen_splu : public solver_base< value_type, eigen_splu<value_type> > {
     private:
         typedef solver_base< value_type, eigen_splu<value_type> > Base;
         params prm;
-        boost::shared_ptr<Solver> S;
+        std::shared_ptr<Solver> S;
 };
 
 } // namespace direct

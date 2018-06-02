@@ -35,8 +35,7 @@ THE SOFTWARE.
 #include <numeric>
 
 #include <boost/tuple/tuple.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/coarsening/detail/scaled_galerkin.hpp>
@@ -101,7 +100,7 @@ struct ruge_stuben {
 
     /// \copydoc amgcl::coarsening::aggregation::transfer_operators
     template <class Matrix>
-    boost::tuple< boost::shared_ptr<Matrix>, boost::shared_ptr<Matrix> >
+    boost::tuple< std::shared_ptr<Matrix>, std::shared_ptr<Matrix> >
     transfer_operators(const Matrix &A) const {
         typedef typename backend::value_type<Matrix>::type Val;
         typedef typename math::scalar_of<Val>::type        Scalar;
@@ -126,7 +125,7 @@ struct ruge_stuben {
         for(size_t i = 0; i < n; ++i)
             if (cf[i] == 'C') cidx[i] = static_cast<ptrdiff_t>(nc++);
 
-        boost::shared_ptr<Matrix> P = boost::make_shared<Matrix>();
+        auto P = std::make_shared<Matrix>();
         P->set_size(n, nc, true);
 
         std::vector<Val> Amin, Amax;
@@ -245,7 +244,7 @@ struct ruge_stuben {
 
     /// \copydoc amgcl::coarsening::aggregation::coarse_operator
     template <class Matrix>
-    boost::shared_ptr<Matrix>
+    std::shared_ptr<Matrix>
     coarse_operator(const Matrix &A, const Matrix &P, const Matrix &R) const {
         return detail::galerkin(A, P, R);
     }

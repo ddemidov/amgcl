@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
         amgcl::io::mm_write(fname.str(), *A.remote());
     }
 
-    boost::shared_ptr<Matrix> B = transpose(A);
+    auto B = transpose(A);
 
     {
         std::ostringstream fname;

@@ -23,8 +23,8 @@ namespace amgcl {
 template <class Backend, class Matrix>
 void test_solver(
         const Matrix &A,
-        boost::shared_ptr<typename Backend::vector> const &f,
-        boost::shared_ptr<typename Backend::vector>       &x,
+        std::shared_ptr<typename Backend::vector> const &f,
+        std::shared_ptr<typename Backend::vector>       &x,
         amgcl::runtime::solver::type     solver,
         amgcl::runtime::relaxation::type relaxation,
         amgcl::runtime::coarsening::type coarsening
@@ -61,8 +61,8 @@ void test_solver(
 template <class Backend, class Matrix>
 void test_rap(
         const Matrix &A,
-        boost::shared_ptr<typename Backend::vector> const &f,
-        boost::shared_ptr<typename Backend::vector>       &x,
+        std::shared_ptr<typename Backend::vector> const &f,
+        std::shared_ptr<typename Backend::vector>       &x,
         amgcl::runtime::solver::type     solver,
         amgcl::runtime::relaxation::type relaxation
         )
@@ -139,8 +139,8 @@ void test_problem(
 
     typename Backend::params prm;
 
-    boost::shared_ptr<vector> y = Backend::copy_vector(rhs, prm);
-    boost::shared_ptr<vector> x = Backend::create_vector(n, prm);
+    auto y = Backend::copy_vector(rhs, prm);
+    auto x = Backend::create_vector(n, prm);
 
     // Test solvers
     for(amgcl::runtime::solver::type s : solver) {

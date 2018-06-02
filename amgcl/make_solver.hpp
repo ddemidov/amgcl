@@ -102,7 +102,7 @@ class make_solver {
         // Constructs the preconditioner and creates iterative solver.
         // Takes shared pointer to the matrix in internal format.
         make_solver(
-                boost::shared_ptr<build_matrix> A,
+                std::shared_ptr<build_matrix> A,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
                 ) :
@@ -206,7 +206,7 @@ class make_solver {
         }
 
         /// Returns the system matrix in the backend format.
-        boost::shared_ptr<typename Precond::matrix> system_matrix_ptr() const {
+        std::shared_ptr<typename Precond::matrix> system_matrix_ptr() const {
             return P.system_matrix_ptr();
         }
 
@@ -367,7 +367,7 @@ class make_scaling_solver {
                 w[i] = 1 / sqrt(sqrt(sum));
             }
 
-            S = boost::make_shared<Solver>(amgcl::detail::scaled_matrix<Matrix>(A, w), prm, bprm);
+            S = std::make_shared<Solver>(amgcl::detail::scaled_matrix<Matrix>(A, w), prm, bprm);
             W = backend_type::copy_vector(w, bprm);
             t = backend_type::create_vector(n, bprm);
         }
@@ -411,9 +411,9 @@ class make_scaling_solver {
     private:
         typedef make_solver<Precond, IterativeSolver> Solver;
 
-        boost::shared_ptr<Solver> S;
-        boost::shared_ptr<vector> W;
-        boost::shared_ptr<vector> t;
+        std::shared_ptr<Solver> S;
+        std::shared_ptr<vector> W;
+        std::shared_ptr<vector> t;
 };
 
 

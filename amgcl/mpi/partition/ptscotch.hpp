@@ -31,8 +31,7 @@ THE SOFTWARE.
  * \brief  PT-SCOTCH partitioner.
  */
 
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/value_type/interface.hpp>
@@ -101,7 +100,7 @@ struct ptscotch {
         return (non_empty > 1) && (min_n <= prm.min_per_proc);
     }
 
-    boost::shared_ptr<matrix> operator()(const matrix &A, unsigned block_size = 1) const {
+    std::shared_ptr<matrix> operator()(const matrix &A, unsigned block_size = 1) const {
         communicator comm = A.comm();
         ptrdiff_t n = A.loc_rows();
         ptrdiff_t row_beg = A.loc_col_shift();

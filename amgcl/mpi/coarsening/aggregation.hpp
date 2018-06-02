@@ -32,8 +32,7 @@ THE SOFTWARE.
  */
 
 #include <boost/tuple/tuple.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
@@ -90,15 +89,15 @@ struct aggregation {
     aggregation(const params &prm = params()) : prm(prm) {}
 
     boost::tuple<
-        boost::shared_ptr< distributed_matrix<Backend> >,
-        boost::shared_ptr< distributed_matrix<Backend> >
+        std::shared_ptr< distributed_matrix<Backend> >,
+        std::shared_ptr< distributed_matrix<Backend> >
         >
     transfer_operators(const distributed_matrix<Backend> &A) {
         pmis<Backend> aggr(A, prm.aggr);
         return boost::make_tuple(aggr.p_tent, transpose(*aggr.p_tent));
     }
 
-    boost::shared_ptr< distributed_matrix<Backend> >
+    std::shared_ptr< distributed_matrix<Backend> >
     coarse_operator(
             const distributed_matrix<Backend> &A,
             const distributed_matrix<Backend> &P,

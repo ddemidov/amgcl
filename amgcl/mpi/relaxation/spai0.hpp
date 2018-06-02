@@ -31,7 +31,7 @@ THE SOFTWARE.
  * \brief  Distributed memory sparse approximate inverse relaxation scheme.
  */
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/value_type/interface.hpp>
 #include <amgcl/mpi/util.hpp>
@@ -60,7 +60,7 @@ struct spai0 {
         const build_matrix &A_loc = *A.local();
         const build_matrix &A_rem = *A.remote();
 
-        boost::shared_ptr< backend::numa_vector<value_type> > m = boost::make_shared< backend::numa_vector<value_type> >(n, false);
+        auto m = std::make_shared< backend::numa_vector<value_type> >(n, false);
         typedef backend::crs<value_type> build_matrix;
 
 #pragma omp parallel for
@@ -116,7 +116,7 @@ struct spai0 {
     }
 
     private:
-        boost::shared_ptr<matrix_diagonal> M;
+        std::shared_ptr<matrix_diagonal> M;
 };
 
 } // namespace relaxation

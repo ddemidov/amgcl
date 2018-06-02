@@ -42,8 +42,7 @@ THE SOFTWARE.
 #include <boost/array.hpp>
 #include <boost/multi_array.hpp>
 #include <boost/type_traits.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 #include <boost/io/ios_state.hpp>
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/lu.hpp>
@@ -622,7 +621,7 @@ class MBA {
         typedef detail::control_lattice_sparse<NDim> sparse_lattice;
 
 
-        std::list< boost::shared_ptr<lattice> > cl;
+        std::list< std::shared_ptr<lattice> > cl;
 
         template <class CooIter, class ValIter>
         void init(
@@ -644,7 +643,7 @@ class MBA {
 
             if (initial) {
                 // Start with the given approximation.
-                cl.push_back(boost::make_shared<initial_approximation>(initial));
+                cl.push_back(std::make_shared<initial_approximation>(initial));
                 res = cl.back()->residual(coo_begin, coo_end, val.begin());
                 if (res <= eps) return;
             }
@@ -652,7 +651,7 @@ class MBA {
             size_t lev = 1;
             // Create dense head of the hierarchy.
             {
-                boost::shared_ptr<dense_lattice> psi = boost::make_shared<dense_lattice>(
+                auto psi = std::make_shared<dense_lattice>(
                         cmin, cmax, grid, coo_begin, coo_end, val.begin());
 
                 res = psi->residual(coo_begin, coo_end, val.begin());
@@ -661,7 +660,7 @@ class MBA {
                 for(; (lev < max_levels) && (res > eps) && (fill > min_fill); ++lev) {
                     grid = grid * 2ul - 1ul;
 
-                    boost::shared_ptr<dense_lattice> f = boost::make_shared<dense_lattice>(
+                    auto f = std::make_shared<dense_lattice>(
                             cmin, cmax, grid, coo_begin, coo_end, val.begin());
 
                     res = f->residual(coo_begin, coo_end, val.begin());
@@ -678,7 +677,7 @@ class MBA {
             for(; (lev < max_levels) && (res > eps); ++lev) {
                 grid = grid * 2ul - 1ul;
 
-                cl.push_back(boost::make_shared<sparse_lattice>(
+                cl.push_back(std::make_shared<sparse_lattice>(
                         cmin, cmax, grid, coo_begin, coo_end, val.begin()));
 
                 res = cl.back()->residual(coo_begin, coo_end, val.begin());

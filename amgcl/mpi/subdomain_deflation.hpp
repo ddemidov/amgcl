@@ -36,8 +36,7 @@ THE SOFTWARE.
 #include <algorithm>
 #include <numeric>
 
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 #include <boost/multi_array.hpp>
 #include <boost/function.hpp>
 
@@ -177,13 +176,13 @@ class subdomain_deflation {
           Z( ndv ), q( backend_type::create_vector(nrows, bprm) ),
           S(nrows, prm.isolver, bprm, mpi::inner_product(comm))
         {
-            A = boost::make_shared<matrix>(comm, Astrip, nrows);
+            A = std::make_shared<matrix>(comm, Astrip, nrows);
             init(prm, bprm);
         }
 
         subdomain_deflation(
                 communicator comm,
-                boost::shared_ptr<matrix> A,
+                std::shared_ptr<matrix> A,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
                 )
@@ -216,11 +215,11 @@ class subdomain_deflation {
             dx.resize(ndv);
             dd = backend_type::create_vector(ndv, bprm);
 
-            boost::shared_ptr<build_matrix> az_loc = boost::make_shared<build_matrix>();
-            boost::shared_ptr<build_matrix> az_rem = boost::make_shared<build_matrix>();
+            auto az_loc = std::make_shared<build_matrix>();
+            auto az_rem = std::make_shared<build_matrix>();
 
-            boost::shared_ptr<build_matrix> a_loc = A->local();
-            boost::shared_ptr<build_matrix> a_rem = A->remote();
+            auto a_loc = A->local();
+            auto a_rem = A->remote();
 
             const comm_pattern<backend_type> &Acp = A->cpat();
 
@@ -280,7 +279,7 @@ class subdomain_deflation {
 
             // Create local preconditioner.
             AMGCL_TIC("local preconditioner");
-            P = boost::make_shared<LocalPrecond>( *a_loc, prm.local, bprm );
+            P = std::make_shared<LocalPrecond>( *a_loc, prm.local, bprm );
             AMGCL_TOC("local preconditioner");
 
             A->set_local(P->system_matrix_ptr());
@@ -448,11 +447,11 @@ class subdomain_deflation {
             AMGCL_TOC("assemble E");
 
             AMGCL_TIC("factorize E");
-            this->E = boost::make_shared<DirectSolver>(comm, E, prm.dsolver);
+            this->E = std::make_shared<DirectSolver>(comm, E, prm.dsolver);
             AMGCL_TOC("factorize E");
 
             AMGCL_TIC("finish(A*Z)");
-            AZ = boost::make_shared<matrix>(comm, az_loc, az_rem);
+            AZ = std::make_shared<matrix>(comm, az_loc, az_rem);
             AZ->move_to_backend(bprm);
             AMGCL_TOC("finish(A*Z)");
             AMGCL_TOC("setup deflation");
@@ -474,7 +473,7 @@ class subdomain_deflation {
             boost::tie(iters, error) = (*this)(rhs, x);
         }
 
-        boost::shared_ptr<matrix> system_matrix_ptr() const {
+        std::shared_ptr<matrix> system_matrix_ptr() const {
             return A;
         }
 
@@ -547,18 +546,18 @@ class subdomain_deflation {
 
         MPI_Datatype dtype;
 
-        boost::shared_ptr<matrix> A, AZ;
-        boost::shared_ptr<LocalPrecond> P;
+        std::shared_ptr<matrix> A, AZ;
+        std::shared_ptr<LocalPrecond> P;
 
         mutable std::vector<value_type> df, dx;
         std::vector<ptrdiff_t> dv_start;
 
-        std::vector< boost::shared_ptr<vector> > Z;
+        std::vector< std::shared_ptr<vector> > Z;
 
-        boost::shared_ptr<DirectSolver> E;
+        std::shared_ptr<DirectSolver> E;
 
-        boost::shared_ptr<vector> q;
-        boost::shared_ptr<vector> dd;
+        std::shared_ptr<vector> q;
+        std::shared_ptr<vector> dd;
 
         ISolver S;
 

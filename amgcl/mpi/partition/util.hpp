@@ -61,7 +61,7 @@ void symm_graph(const distributed_matrix<Backend> &A,
     ptrdiff_t n = A_loc.nrows;
     ptrdiff_t row_beg = A.loc_col_shift();
 
-    boost::shared_ptr< distributed_matrix<Backend> > T = transpose(A);
+    auto T = transpose(A);
 
     build_matrix &T_loc = *T->local();
     build_matrix &T_rem = *T->remote();
@@ -258,7 +258,7 @@ boost::tuple<ptrdiff_t, ptrdiff_t> graph_perm_index(
 }
 
 template <class Backend, class Idx>
-boost::shared_ptr< distributed_matrix<Backend> > graph_perm_matrix(
+std::shared_ptr< distributed_matrix<Backend> > graph_perm_matrix(
         communicator comm, ptrdiff_t col_beg, ptrdiff_t col_end,
         const std::vector<Idx> &perm)
 {
@@ -270,8 +270,8 @@ boost::shared_ptr< distributed_matrix<Backend> > graph_perm_matrix(
     ptrdiff_t n = perm.size();
     ptrdiff_t ncols = col_end - col_beg;
 
-    boost::shared_ptr<build_matrix> i_loc = boost::make_shared<build_matrix>();
-    boost::shared_ptr<build_matrix> i_rem = boost::make_shared<build_matrix>();
+    auto i_loc = std::make_shared<build_matrix>();
+    auto i_rem = std::make_shared<build_matrix>();
 
     build_matrix &I_loc = *i_loc;
     build_matrix &I_rem = *i_rem;
@@ -314,7 +314,7 @@ boost::shared_ptr< distributed_matrix<Backend> > graph_perm_matrix(
     }
 
     AMGCL_TOC("perm matrix");
-    return boost::make_shared< distributed_matrix<Backend> >(comm, i_loc, i_rem);
+    return std::make_shared< distributed_matrix<Backend> >(comm, i_loc, i_rem);
 }
 
 } // namespace partition

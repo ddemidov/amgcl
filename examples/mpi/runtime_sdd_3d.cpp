@@ -309,8 +309,8 @@ int main(int argc, char *argv[]) {
     cusparseCreate(&bprm.cusparse_handle);
 #endif
 
-    boost::shared_ptr<Backend::vector> f = Backend::copy_vector(rhs, bprm);
-    boost::shared_ptr<Backend::vector> x = Backend::create_vector(chunk, bprm);
+    auto f = Backend::copy_vector(rhs, bprm);
+    auto x = Backend::create_vector(chunk, bprm);
 
     amgcl::backend::clear(*x);
 

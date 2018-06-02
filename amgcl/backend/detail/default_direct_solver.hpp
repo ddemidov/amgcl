@@ -31,8 +31,7 @@ THE SOFTWARE.
  * \brief  Default direct solver for coarse level.
  */
 
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 #include <amgcl/backend/builtin.hpp>
 
 namespace amgcl {
@@ -45,14 +44,14 @@ struct default_direct_solver {
     typedef typename Backend::matrix       matrix;
     typedef typename builtin<real>::matrix host_matrix;
 
-    boost::shared_ptr<matrix> Ainv;
+    std::shared_ptr<matrix> Ainv;
 
     default_direct_solver(
-            boost::shared_ptr<host_matrix> A,
+            std::shared_ptr<host_matrix> A,
             typename Backend::params const &prm
             )
     {
-        boost::shared_ptr<host_matrix> ainv = boost::make_shared<host_matrix>();
+        auto ainv = std::make_shared<host_matrix>();
         *ainv = inverse(*A);
         Ainv = Backend::copy_matrix(ainv, prm);
     }

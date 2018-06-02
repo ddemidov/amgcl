@@ -36,8 +36,7 @@ THE SOFTWARE.
 #include <list>
 
 #include <boost/io/ios_state.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/value_type/interface.hpp>
@@ -162,12 +161,12 @@ class amg {
                 const backend_params &bprm = backend_params()
            ) : prm(prm), repart(prm.repart)
         {
-            init(boost::make_shared<matrix>(comm, A, backend::rows(A)), bprm);
+            init(std::make_shared<matrix>(comm, A, backend::rows(A)), bprm);
         }
 
         amg(
                 communicator,
-                boost::shared_ptr<matrix> A,
+                std::shared_ptr<matrix> A,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
            ) : prm(prm), repart(prm.repart)
@@ -208,7 +207,7 @@ class amg {
         }
 
         /// Returns the system matrix from the finest level.
-        boost::shared_ptr<matrix> system_matrix_ptr() const {
+        std::shared_ptr<matrix> system_matrix_ptr() const {
             return A;
         }
 
@@ -220,15 +219,15 @@ class amg {
             ptrdiff_t nrows, nnz;
             int active_procs;
 
-            boost::shared_ptr<matrix>       A, P, R;
-            boost::shared_ptr<vector>       f, u, t;
-            boost::shared_ptr<Relaxation>   relax;
-            boost::shared_ptr<DirectSolver> solve;
+            std::shared_ptr<matrix>       A, P, R;
+            std::shared_ptr<vector>       f, u, t;
+            std::shared_ptr<Relaxation>   relax;
+            std::shared_ptr<DirectSolver> solve;
 
             level() {}
 
             level(
-                    boost::shared_ptr<matrix> a,
+                    std::shared_ptr<matrix> a,
                     params &prm,
                     const backend_params &bprm,
                     bool direct = false
@@ -244,19 +243,19 @@ class amg {
 
                 if (direct) {
                     AMGCL_TIC("direct solver");
-                    solve = boost::make_shared<DirectSolver>(a->comm(), *a, prm.direct);
+                    solve = std::make_shared<DirectSolver>(a->comm(), *a, prm.direct);
                     AMGCL_TOC("direct solver");
                 } else {
                     A = a;
                     t = Backend::create_vector(a->loc_rows(), bprm);
 
                     AMGCL_TIC("relaxation");
-                    relax = boost::make_shared<Relaxation>(*a, prm.relax, bprm);
+                    relax = std::make_shared<Relaxation>(*a, prm.relax, bprm);
                     AMGCL_TOC("relaxation");
                 }
             }
 
-            boost::shared_ptr<matrix> step_down(Coarsening &C, const Repartition &repart)
+            std::shared_ptr<matrix> step_down(Coarsening &C, const Repartition &repart)
             {
                 AMGCL_TIC("transfer operators");
                 boost::tie(P, R) = C.transfer_operators(*A);
@@ -270,17 +269,17 @@ class amg {
 
                 if (P->glob_cols() == 0) {
                     // Zero-sized coarse level in amgcl (diagonal matrix?)
-                    return boost::shared_ptr<matrix>();
+                    return std::shared_ptr<matrix>();
                 }
 
                 AMGCL_TIC("coarse operator");
-                boost::shared_ptr<matrix> Ac = C.coarse_operator(*A, *P, *R);
+                auto Ac = C.coarse_operator(*A, *P, *R);
                 AMGCL_TOC("coarse operator");
 
                 if (repart.is_needed(*Ac)) {
                     AMGCL_TIC("partition");
-                    boost::shared_ptr<matrix> I = repart(*Ac, block_size(C));
-                    boost::shared_ptr<matrix> J = transpose(*I);
+                    auto I = repart(*Ac, block_size(C));
+                    auto J = transpose(*I);
 
                     P  = product(*P, *I);
                     R  = product(*J, *R);
@@ -310,11 +309,11 @@ class amg {
 
         typedef typename std::list<level>::const_iterator level_iterator;
 
-        boost::shared_ptr<matrix> A;
+        std::shared_ptr<matrix> A;
         Repartition repart;
         std::list<level> levels;
 
-        void init(boost::shared_ptr<matrix> A, const backend_params &bprm)
+        void init(std::shared_ptr<matrix> A, const backend_params &bprm)
         {
             A->comm().check(A->glob_rows() == A->glob_cols(), "Matrix should be square!");
 

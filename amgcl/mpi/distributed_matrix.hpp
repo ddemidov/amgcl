@@ -28,8 +28,7 @@ THE SOFTWARE.
 #include <vector>
 #include <algorithm>
 
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 #include <boost/unordered_map.hpp>
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_real_distribution.hpp>
@@ -84,7 +83,7 @@ class comm_pattern {
             mutable std::vector<MPI_Request> req;
         } recv;
 
-        boost::shared_ptr<vector> x_rem;
+        std::shared_ptr<vector> x_rem;
 
         comm_pattern(
                 communicator comm,
@@ -188,7 +187,7 @@ class comm_pattern {
 
         void move_to_backend(const backend_params &bprm = backend_params()) {
             x_rem  = Backend::create_vector(recv.count(), bprm);
-            gather = boost::make_shared<Gather>(loc_cols, send.col, bprm);
+            gather = std::make_shared<Gather>(loc_cols, send.col, bprm);
         }
 
         int domain(ptrdiff_t col) const {
@@ -274,7 +273,7 @@ class comm_pattern {
         communicator comm;
 
         boost::unordered_map<ptrdiff_t, boost::tuple<int, int> > idx;
-        boost::shared_ptr<Gather> gather;
+        std::shared_ptr<Gather> gather;
         ptrdiff_t loc_beg, loc_cols;
 };
 
@@ -291,16 +290,16 @@ class distributed_matrix {
 
         distributed_matrix(
                 communicator comm,
-                boost::shared_ptr<build_matrix> a_loc,
-                boost::shared_ptr<build_matrix> a_rem,
-                boost::shared_ptr<CommPattern>  c = boost::shared_ptr<CommPattern>()
+                std::shared_ptr<build_matrix> a_loc,
+                std::shared_ptr<build_matrix> a_rem,
+                std::shared_ptr<CommPattern>  c = std::shared_ptr<CommPattern>()
                 )
             : a_loc(a_loc), a_rem(a_rem)
         {
             if (c) {
                 C = c;
             } else {
-                C = boost::make_shared<CommPattern>(comm, a_loc->ncols, a_rem->nnz, a_rem->col);
+                C = std::make_shared<CommPattern>(comm, a_loc->ncols, a_rem->nnz, a_rem->col);
             }
 
             a_rem->ncols = C->recv.count();
@@ -335,8 +334,8 @@ class distributed_matrix {
             n_glob_nonzeros = comm.reduce(MPI_SUM, n_loc_nonzeros);
 
             // Split the matrix into local and remote parts.
-            a_loc = boost::make_shared<build_matrix>();
-            a_rem = boost::make_shared<build_matrix>();
+            a_loc = std::make_shared<build_matrix>();
+            a_rem = std::make_shared<build_matrix>();
 
             build_matrix &A_loc = *a_loc;
             build_matrix &A_rem = *a_rem;
@@ -380,7 +379,7 @@ class distributed_matrix {
                 }
             }
 
-            C = boost::make_shared<CommPattern>(comm, n_loc_cols, a_rem->nnz, a_rem->col);
+            C = std::make_shared<CommPattern>(comm, n_loc_cols, a_rem->nnz, a_rem->col);
             a_rem->ncols = C->recv.count();
         }
 
@@ -388,19 +387,19 @@ class distributed_matrix {
             return C->mpi_comm();
         }
 
-        boost::shared_ptr<build_matrix> local() const {
+        std::shared_ptr<build_matrix> local() const {
             return a_loc;
         }
 
-        boost::shared_ptr<build_matrix> remote() const {
+        std::shared_ptr<build_matrix> remote() const {
             return a_rem;
         }
 
-        boost::shared_ptr<matrix> local_backend() const {
+        std::shared_ptr<matrix> local_backend() const {
             return A_loc;
         }
 
-        boost::shared_ptr<matrix> remote_backend() const {
+        std::shared_ptr<matrix> remote_backend() const {
             return A_rem;
         }
 
@@ -436,7 +435,7 @@ class distributed_matrix {
             return *C;
         }
 
-        void set_local(boost::shared_ptr<matrix> a) {
+        void set_local(std::shared_ptr<matrix> a) {
             A_loc = a;
         }
 
@@ -482,9 +481,9 @@ class distributed_matrix {
         }
 
     private:
-        boost::shared_ptr<CommPattern>  C;
-        boost::shared_ptr<matrix> A_loc, A_rem;
-        boost::shared_ptr<build_matrix> a_loc, a_rem;
+        std::shared_ptr<CommPattern>  C;
+        std::shared_ptr<matrix> A_loc, A_rem;
+        std::shared_ptr<build_matrix> a_loc, a_rem;
 
         ptrdiff_t n_loc_rows, n_glob_rows;
         ptrdiff_t n_loc_cols, n_glob_cols;
@@ -492,7 +491,7 @@ class distributed_matrix {
 };
 
 template <class Backend>
-boost::shared_ptr< distributed_matrix<Backend> >
+std::shared_ptr< distributed_matrix<Backend> >
 transpose(const distributed_matrix<Backend> &A) {
     AMGCL_TIC("MPI Transpose");
     typedef typename Backend::value_type value_type;
@@ -522,7 +521,7 @@ transpose(const distributed_matrix<Backend> &A) {
 
     // Our transposed remote part becomes remote part of someone else,
     // and the other way around.
-    boost::shared_ptr<build_matrix> t_ptr;
+    std::shared_ptr<build_matrix> t_ptr;
     {
         std::vector<ptrdiff_t> tmp_col(A_rem.col, A_rem.col + A_rem.nnz);
         C.renumber(tmp_col.size(), &tmp_col[0]);
@@ -606,7 +605,7 @@ transpose(const distributed_matrix<Backend> &A) {
 
     // 3. While rem_col and rem_val are in flight,
     //    start constructing our remote part:
-    boost::shared_ptr<build_matrix> T_ptr = boost::make_shared<build_matrix>();
+    auto T_ptr = std::make_shared<build_matrix>();
     build_matrix &T_rem = *T_ptr;
     T_rem.set_size(nrows, 0, true);
 
@@ -646,12 +645,12 @@ transpose(const distributed_matrix<Backend> &A) {
 
     AMGCL_TOC("MPI Transpose");
 
-    return boost::make_shared< distributed_matrix<Backend> >(
+    return std::make_shared< distributed_matrix<Backend> >(
             comm, backend::transpose(A_loc), T_ptr);
 }
 
 template <class Backend>
-boost::shared_ptr< backend::crs<typename Backend::value_type> >
+std::shared_ptr< backend::crs<typename Backend::value_type> >
 remote_rows(
         const comm_pattern<Backend> &C,
         const distributed_matrix<Backend> &B,
@@ -740,7 +739,7 @@ remote_rows(
     std::vector<MPI_Request> recv_col_req(nrecv);
     std::vector<MPI_Request> recv_val_req(nrecv);
 
-    boost::shared_ptr<build_matrix> B_nbr = boost::make_shared<build_matrix>();
+    auto B_nbr = std::make_shared<build_matrix>();
     B_nbr->set_size(C.recv.count(), 0, false);
     B_nbr->ptr[0] = 0;
 
@@ -789,7 +788,7 @@ remote_rows(
 }
 
 template <class Backend>
-boost::shared_ptr< distributed_matrix<Backend> >
+std::shared_ptr< distributed_matrix<Backend> >
 product(const distributed_matrix<Backend> &A, const distributed_matrix<Backend> &B) {
     typedef typename Backend::value_type value_type;
     typedef backend::crs<value_type>     build_matrix;
@@ -808,7 +807,7 @@ product(const distributed_matrix<Backend> &A, const distributed_matrix<Backend> 
     ptrdiff_t B_beg = B.loc_col_shift();
     ptrdiff_t B_end = B_beg + B_cols;
 
-    boost::shared_ptr<build_matrix> b_nbr = remote_rows(Acp, B);
+    auto b_nbr = remote_rows(Acp, B);
     build_matrix &B_nbr = *b_nbr;
 
     // Build mapping from global to local column numbers in the remote part of
@@ -829,8 +828,8 @@ product(const distributed_matrix<Backend> &A, const distributed_matrix<Backend> 
     }
 
     // Build the product.
-    boost::shared_ptr<build_matrix> c_loc = boost::make_shared<build_matrix>();
-    boost::shared_ptr<build_matrix> c_rem = boost::make_shared<build_matrix>();
+    auto c_loc = std::make_shared<build_matrix>();
+    auto c_rem = std::make_shared<build_matrix>();
 
     build_matrix &C_loc = *c_loc;
     build_matrix &C_rem = *c_rem;
@@ -1000,7 +999,7 @@ product(const distributed_matrix<Backend> &A, const distributed_matrix<Backend> 
     AMGCL_TOC("compute");
     AMGCL_TOC("product");
 
-    return boost::make_shared<distributed_matrix<Backend> >(A.comm(), c_loc, c_rem);
+    return std::make_shared<distributed_matrix<Backend> >(A.comm(), c_loc, c_rem);
 }
 
 // Do not compute values, and do not touch inner points.

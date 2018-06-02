@@ -142,8 +142,8 @@ struct wrapper {
 
     template <class Matrix>
     boost::tuple<
-        boost::shared_ptr<Matrix>,
-        boost::shared_ptr<Matrix>
+        std::shared_ptr<Matrix>,
+        std::shared_ptr<Matrix>
         >
     transfer_operators(const Matrix &A) {
         switch(c) {
@@ -165,7 +165,7 @@ struct wrapper {
     }
 
     template <class Matrix>
-    boost::shared_ptr<Matrix>
+    std::shared_ptr<Matrix>
     coarse_operator(const Matrix &A, const Matrix &P, const Matrix &R) const {
         switch(c) {
 
@@ -224,8 +224,8 @@ struct wrapper {
     typename boost::enable_if<
         typename backend::coarsening_is_supported<Backend, Coarsening>::type,
         boost::tuple<
-            boost::shared_ptr<Matrix>,
-            boost::shared_ptr<Matrix>
+            std::shared_ptr<Matrix>,
+            std::shared_ptr<Matrix>
             >
     >::type
     make_operators(const Matrix &A) const {
@@ -236,8 +236,8 @@ struct wrapper {
     typename boost::disable_if<
         typename backend::coarsening_is_supported<Backend, Coarsening>::type,
         boost::tuple<
-            boost::shared_ptr<Matrix>,
-            boost::shared_ptr<Matrix>
+            std::shared_ptr<Matrix>,
+            std::shared_ptr<Matrix>
             >
     >::type
     make_operators(const Matrix&) {
@@ -247,7 +247,7 @@ struct wrapper {
     template <template <class> class Coarsening, class Matrix>
     typename boost::enable_if<
         typename backend::coarsening_is_supported<Backend, Coarsening>::type,
-        boost::shared_ptr<Matrix>
+        std::shared_ptr<Matrix>
     >::type
     make_coarse(const Matrix &A, const Matrix &P, const Matrix &R) const {
         return static_cast<Coarsening<Backend>*>(handle)->coarse_operator(A, P, R);
@@ -256,7 +256,7 @@ struct wrapper {
     template <template <class> class Coarsening, class Matrix>
     typename boost::disable_if<
         typename backend::coarsening_is_supported<Backend, Coarsening>::type,
-        boost::shared_ptr<Matrix>
+        std::shared_ptr<Matrix>
     >::type
     make_coarse(const Matrix&, const Matrix&, const Matrix&) const {
         throw std::logic_error("The coarsening is not supported by the backend");

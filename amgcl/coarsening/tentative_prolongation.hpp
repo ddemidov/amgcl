@@ -34,8 +34,7 @@ THE SOFTWARE.
 #include <vector>
 #include <algorithm>
 
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 #include <boost/iterator/counting_iterator.hpp>
 
 #include <amgcl/backend/builtin.hpp>
@@ -117,7 +116,7 @@ struct nullspace_params {
  * \see \cite Vanek2001
  */
 template <class Matrix>
-boost::shared_ptr<Matrix> tentative_prolongation(
+std::shared_ptr<Matrix> tentative_prolongation(
         size_t n,
         size_t naggr,
         const std::vector<ptrdiff_t> aggr,
@@ -127,7 +126,7 @@ boost::shared_ptr<Matrix> tentative_prolongation(
 {
     typedef typename backend::value_type<Matrix>::type value_type;
 
-    boost::shared_ptr<Matrix> P = boost::make_shared<Matrix>();
+    auto P = std::make_shared<Matrix>();
 
     AMGCL_TIC("tentative");
     if (nullspace.cols > 0) {

@@ -31,7 +31,7 @@ THE SOFTWARE.
  * \brief  Damped Jacobi relaxation scheme.
  */
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/util.hpp>
 
@@ -73,7 +73,7 @@ struct damped_jacobi {
         }
     } prm;
 
-    boost::shared_ptr<typename Backend::matrix_diagonal> dia;
+    std::shared_ptr<typename Backend::matrix_diagonal> dia;
 
     /// Constructs smoother for the system matrix.
     /**

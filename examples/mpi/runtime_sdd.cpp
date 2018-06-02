@@ -13,7 +13,7 @@
 #include "mba.hpp"
 
 #include <boost/scope_exit.hpp>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -715,8 +715,8 @@ int main(int argc, char *argv[]) {
     cusparseCreate(&bprm.cusparse_handle);
 #endif
 
-    boost::shared_ptr<Backend::vector> f = Backend::copy_vector(rhs, bprm);
-    boost::shared_ptr<Backend::vector> x = Backend::create_vector(chunk, bprm);
+    auto f = Backend::copy_vector(rhs, bprm);
+    auto x = Backend::create_vector(chunk, bprm);
 
     amgcl::backend::clear(*x);
 

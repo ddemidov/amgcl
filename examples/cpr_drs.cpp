@@ -85,8 +85,8 @@ void solve_cpr(const Matrix &K, const std::vector<double> &rhs, boost::property_
     std::cout << solve.precond() << std::endl;
 
     typedef Backend::vector vector;
-    boost::shared_ptr<vector> f = Backend::copy_vector(rhs, bprm);
-    boost::shared_ptr<vector> x = Backend::create_vector(rhs.size(), bprm);
+    auto f = Backend::copy_vector(rhs, bprm);
+    auto x = Backend::create_vector(rhs.size(), bprm);
     amgcl::backend::clear(*x);
 
     tic t2(prof, "solve");

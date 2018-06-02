@@ -32,8 +32,7 @@ THE SOFTWARE.
  */
 
 #include <boost/tuple/tuple.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <memory>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
@@ -77,8 +76,8 @@ struct pmis {
         }
     };
 
-    boost::shared_ptr< distributed_matrix<bool_backend> > conn;
-    boost::shared_ptr< matrix > p_tent;
+    std::shared_ptr< distributed_matrix<bool_backend> > conn;
+    std::shared_ptr< matrix > p_tent;
 
     pmis(const matrix &A, const params &prm = params()) {
         ptrdiff_t n = A.loc_rows();
@@ -103,15 +102,14 @@ struct pmis {
                 pointwise_matrix(*A.remote(), prm.block_size)
                 );
 
-            boost::shared_ptr< distributed_matrix<bool_backend> > conn_pw = conn_strength(
-                    A_pw, prm.eps_strong);
+            auto conn_pw = conn_strength(A_pw, prm.eps_strong);
 
             std::vector<ptrdiff_t> state_pw(np);
             std::vector<int>       owner_pw(np);
 
             ptrdiff_t naggr = aggregates(*conn_pw, state_pw, owner_pw);
 
-            conn = boost::make_shared< distributed_matrix<bool_backend> >(
+            conn = std::make_shared< distributed_matrix<bool_backend> >(
                     A.comm(),
                     expand_conn(*A.local(),  *A_pw.local(),  *conn_pw->local(),  prm.block_size),
                     expand_conn(*A.remote(), *A_pw.remote(), *conn_pw->remote(), prm.block_size)
@@ -133,7 +131,7 @@ struct pmis {
         }
     }
 
-    boost::shared_ptr< distributed_matrix<bool_backend> >
+    std::shared_ptr< distributed_matrix<bool_backend> >
     squared_interface(const distributed_matrix<bool_backend> &A) {
         const comm_pattern<bool_backend> &C = A.cpat();
 
@@ -145,7 +143,7 @@ struct pmis {
         ptrdiff_t A_beg = A.loc_col_shift();
         ptrdiff_t A_end = A_beg + A_rows;
 
-        boost::shared_ptr<bool_matrix> a_nbr = remote_rows(C, A, false);
+        auto a_nbr = remote_rows(C, A, false);
         bool_matrix &A_nbr = *a_nbr;
 
         // Build mapping from global to local column numbers in the remote part of
@@ -166,8 +164,8 @@ struct pmis {
         }
 
         // Build the product.
-        boost::shared_ptr<bool_matrix> s_loc = boost::make_shared<bool_matrix>();
-        boost::shared_ptr<bool_matrix> s_rem = boost::make_shared<bool_matrix>();
+        auto s_loc = std::make_shared<bool_matrix>();
+        auto s_rem = std::make_shared<bool_matrix>();
 
         bool_matrix &S_loc = *s_loc;
         bool_matrix &S_rem = *s_rem;
@@ -321,11 +319,11 @@ struct pmis {
         }
         AMGCL_TOC("compute");
 
-        return boost::make_shared< distributed_matrix<bool_backend> >(A.comm(), s_loc, s_rem);
+        return std::make_shared< distributed_matrix<bool_backend> >(A.comm(), s_loc, s_rem);
     }
 
     template <class B>
-    boost::shared_ptr< distributed_matrix<bool_backend> >
+    std::shared_ptr< distributed_matrix<bool_backend> >
     conn_strength(const distributed_matrix<B> &A, scalar_type eps_strong) {
         typedef typename B::value_type val_type;
         typedef backend::crs<val_type> B_matrix;
@@ -339,7 +337,7 @@ struct pmis {
 
         scalar_type eps_squared = eps_strong * eps_strong;
 
-        boost::shared_ptr< backend::numa_vector<val_type> > d = backend::diagonal(A_loc);
+        auto d = backend::diagonal(A_loc);
         backend::numa_vector<val_type> &D = *d;
 
         std::vector<val_type> D_loc(C.send.count());
@@ -350,8 +348,8 @@ struct pmis {
 
         C.exchange(&D_loc[0], &D_rem[0]);
 
-        boost::shared_ptr<bool_matrix> s_loc = boost::make_shared<bool_matrix>();
-        boost::shared_ptr<bool_matrix> s_rem = boost::make_shared<bool_matrix>();
+        auto s_loc = std::make_shared<bool_matrix>();
+        auto s_rem = std::make_shared<bool_matrix>();
 
         bool_matrix &S_loc = *s_loc;
         bool_matrix &S_rem = *s_rem;
@@ -402,7 +400,7 @@ struct pmis {
         }
         AMGCL_TOC("conn_strength");
 
-        return boost::make_shared< distributed_matrix<bool_backend> >(
+        return std::make_shared< distributed_matrix<bool_backend> >(
                 A.comm(), s_loc, s_rem);
     }
 
@@ -425,7 +423,7 @@ struct pmis {
 
         // 1. Get symbolic square of the connectivity matrix.
         AMGCL_TIC("symbolic square");
-        boost::shared_ptr< distributed_matrix<bool_backend> > S = squared_interface(A);
+        auto S = squared_interface(A);
         const bool_matrix &S_loc = *S->local();
         const bool_matrix &S_rem = *S->remote();
         const comm_pattern<bool_backend> &Sp = S->cpat();
@@ -619,14 +617,14 @@ struct pmis {
         return naggr;
     }
 
-    boost::shared_ptr<matrix>
+    std::shared_ptr<matrix>
     tentative_prolongation(communicator comm, ptrdiff_t n, ptrdiff_t naggr,
             std::vector<ptrdiff_t> &state, std::vector<int> &owner)
     {
         AMGCL_TIC("tentative prolongation");
         // Form tentative prolongation operator.
-        boost::shared_ptr<build_matrix> p_loc = boost::make_shared<build_matrix>();
-        boost::shared_ptr<build_matrix> p_rem = boost::make_shared<build_matrix>();
+        auto p_loc = std::make_shared<build_matrix>();
+        auto p_rem = std::make_shared<build_matrix>();
         build_matrix &P_loc = *p_loc;
         build_matrix &P_rem = *p_rem;
 
@@ -664,18 +662,18 @@ struct pmis {
         }
         AMGCL_TOC("tentative prolongation");
 
-        return boost::make_shared<matrix>(comm, p_loc, p_rem);
+        return std::make_shared<matrix>(comm, p_loc, p_rem);
     }
 
     template <class pw_matrix>
-    boost::shared_ptr<bool_matrix>
+    std::shared_ptr<bool_matrix>
     expand_conn(const build_matrix &A, const pw_matrix &Ap, const bool_matrix &Cp,
             unsigned block_size) const
     {
         ptrdiff_t np = Cp.nrows;
         ptrdiff_t n  = np * block_size;
 
-        boost::shared_ptr<bool_matrix> c = boost::make_shared<bool_matrix>();
+        auto c = std::make_shared<bool_matrix>();
         bool_matrix &C = *c;
 
         C.set_size(n, n, true);

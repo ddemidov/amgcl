@@ -149,7 +149,7 @@ int main(int argc, char *argv[]) {
     prof.toc("create distributed version");
 
     prof.tic("distributed product");
-    boost::shared_ptr<Matrix> B = amgcl::mpi::product(A, A);
+    auto B = amgcl::mpi::product(A, A);
     prof.toc("distributed product");
 
     if (world.rank == 0) {
@@ -157,7 +157,7 @@ int main(int argc, char *argv[]) {
             typedef amgcl::backend::crs<double> matrix;
             matrix A(boost::tie(chunk, ptr, col, val));
             prof.tic("openmp product");
-            boost::shared_ptr<matrix> B = amgcl::backend::product(A, A);
+            auto B = amgcl::backend::product(A, A);
             prof.toc("openmp product");
         }
 

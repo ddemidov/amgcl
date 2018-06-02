@@ -149,7 +149,7 @@ class amg_precond: public precond
             auto col = make_range(_col);
             auto val = make_range(_val);
 
-            P = boost::make_shared<Precond>(
+            P = std::make_shared<Precond>(
                     boost::make_tuple(boost::size(ptr) - 1, ptr, col, val),
                     make_ptree(prm)
                     );
@@ -170,7 +170,7 @@ class amg_precond: public precond
         }
 
     private:
-        boost::shared_ptr<Precond> P;
+        std::shared_ptr<Precond> P;
 };
 
 //---------------------------------------------------------------------------
