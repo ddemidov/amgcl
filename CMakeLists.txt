@@ -101,14 +101,6 @@ target_compile_definitions(amgcl INTERFACE
 option(AMGCL_ASYNC_SETUP "Enable asynchronous AMG setup" ON)
 if (AMGCL_ASYNC_SETUP)
     target_compile_definitions(amgcl INTERFACE AMGCL_ASYNC_SETUP)
-    target_include_directories(amgcl INTERFACE ${Boost_INCLUDE_DIRS})
-    target_link_libraries(amgcl INTERFACE
-        ${Boost_SYSTEM_LIBRARY}
-        ${Boost_THREAD_LIBRARY}
-        ${Boost_ATOMIC_LIBRARY}
-        ${Boost_CHRONO_LIBRARY}
-        ${Boost_DATE_TIME_LIBRARY}
-        )
 endif()
 
 #----------------------------------------------------------------------------

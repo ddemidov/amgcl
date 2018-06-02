@@ -39,10 +39,10 @@ THE SOFTWARE.
 #include <memory>
 
 #ifdef AMGCL_ASYNC_SETUP
-#  include <boost/atomic.hpp>
-#  include <boost/thread/thread.hpp>
-#  include <boost/thread/condition_variable.hpp>
-#  include <boost/thread/locks.hpp>
+#  include <atomic>
+#  include <thread>
+#  include <mutex>
+#  include <condition_variable>
 #endif
 
 #include <amgcl/backend/builtin.hpp>
@@ -401,10 +401,10 @@ class amg {
 
         std::list<level> levels;
 #ifdef AMGCL_ASYNC_SETUP
-        boost::thread init_thread;
-        boost::atomic<bool> done;
-        mutable boost::mutex levels_mx;
-        mutable boost::condition_variable ready_to_cycle;
+        std::thread init_thread;
+        std::atomic<bool> done;
+        mutable std::mutex levels_mx;
+        mutable std::condition_variable ready_to_cycle;
 #endif
 
         void init(
@@ -425,7 +425,7 @@ class amg {
                 {
 #ifdef AMGCL_ASYNC_SETUP
                     if (done) break;
-                    boost::lock_guard<boost::mutex> lock(levels_mx);
+                    std::lock_guard<std::mutex> lock(levels_mx);
 #endif
                     levels.push_back( level(A, prm, bprm) );
                 }
@@ -458,14 +458,14 @@ class amg {
 
                     {
 #ifdef AMGCL_ASYNC_SETUP
-                        boost::lock_guard<boost::mutex> lock(levels_mx);
+                        std::lock_guard<std::mutex> lock(levels_mx);
 #endif
                         levels.push_back( l );
                     }
                 } else {
                     {
 #ifdef AMGCL_ASYNC_SETUP
-                        boost::lock_guard<boost::mutex> lock(levels_mx);
+                        std::lock_guard<std::mutex> lock(levels_mx);
 #endif
                         levels.push_back( level(A, prm, bprm) );
                     }
@@ -485,9 +485,9 @@ class amg {
 #ifdef AMGCL_ASYNC_SETUP
             done = false;
             if (prm.async_setup) {
-                init_thread = boost::thread(&amg::init, this, A, bprm);
+                init_thread = std::thread(&amg::init, this, A, bprm);
                 {
-                    boost::unique_lock<boost::mutex> lock(levels_mx);
+                    std::unique_lock<std::mutex> lock(levels_mx);
                     while(levels.empty()) ready_to_cycle.wait(lock);
                 }
             } else
@@ -503,7 +503,7 @@ class amg {
 
             {
 #ifdef AMGCL_ASYNC_SETUP
-                boost::lock_guard<boost::mutex> lock(levels_mx);
+                std::lock_guard<std::mutex> lock(levels_mx);
 #endif
                 ++nxt;
                 end = levels.end();
