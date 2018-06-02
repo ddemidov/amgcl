@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <fstream>
 #include <vector>
+#include <array>
 #include <numeric>
 #include <cmath>
 #ifdef _OPENMP

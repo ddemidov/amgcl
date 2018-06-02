@@ -31,7 +31,7 @@ THE SOFTWARE.
  * \brief  Enable statically sized matrices as value types.
  */
 
-#include <boost/array.hpp>
+#include <array>
 #include <boost/type_traits.hpp>
 
 #include <amgcl/backend/builtin.hpp>
@@ -41,7 +41,7 @@ namespace amgcl {
 
 template <typename T, int N, int M>
 struct static_matrix {
-    boost::array<T, N * M> buf;
+    std::array<T, N * M> buf;
 
     T operator()(int i, int j) const {
         return buf[i * M + j];
@@ -316,7 +316,7 @@ template <typename T, int N>
 struct inverse_impl< static_matrix<T, N, N> >
 {
     static static_matrix<T, N, N> get(static_matrix<T, N, N> A) {
-        boost::array<T, N * N> buf;
+        std::array<T, N * N> buf;
         detail::inverse(N, A.data(), buf.data());
         return A;
     }

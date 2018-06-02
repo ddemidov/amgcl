@@ -37,12 +37,12 @@ THE SOFTWARE.
 #include <list>
 #include <utility>
 #include <algorithm>
+#include <array>
+#include <memory>
 
 #include <boost/container/flat_map.hpp>
-#include <boost/array.hpp>
 #include <boost/multi_array.hpp>
 #include <boost/type_traits.hpp>
-#include <memory>
 #include <boost/io/ios_state.hpp>
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/lu.hpp>
@@ -61,9 +61,9 @@ struct power<N, 0> : boost::integral_constant<size_t, 1> {};
 template <unsigned NDim>
 class grid_iterator {
     public:
-        typedef boost::array<size_t, NDim> index;
+        typedef std::array<size_t, NDim> index;
 
-        explicit grid_iterator(const boost::array<size_t, NDim> &dims)
+        explicit grid_iterator(const std::array<size_t, NDim> &dims)
             : N(dims), idx(0)
         {
             std::fill(i.begin(), i.end(), 0);
@@ -112,19 +112,19 @@ class grid_iterator {
 };
 
 template <typename T, size_t N>
-boost::array<T, N> operator+(boost::array<T, N> a, const boost::array<T, N> &b) {
+std::array<T, N> operator+(std::array<T, N> a, const std::array<T, N> &b) {
     std::transform(a.begin(), a.end(), b.begin(), a.begin(), std::plus<T>());
     return a;
 }
 
 template <typename T, size_t N>
-boost::array<T, N> operator-(boost::array<T, N> a, T b) {
+std::array<T, N> operator-(std::array<T, N> a, T b) {
     std::transform(a.begin(), a.end(), a.begin(), std::bind2nd(std::minus<T>(), b));
     return a;
 }
 
 template <typename T, size_t N>
-boost::array<T, N> operator*(boost::array<T, N> a, T b) {
+std::array<T, N> operator*(std::array<T, N> a, T b) {
     std::transform(a.begin(), a.end(), a.begin(), std::bind2nd(std::multiplies<T>(), b));
     return a;
 }
@@ -150,7 +150,7 @@ inline double Bspline(size_t k, double t) {
 
 // Checks if p is between lo and hi
 template <typename T, size_t N>
-bool boxed(const boost::array<T,N> &lo, const boost::array<T,N> &p, const boost::array<T,N> &hi) {
+bool boxed(const std::array<T,N> &lo, const std::array<T,N> &p, const std::array<T,N> &hi) {
     for(unsigned i = 0; i < N; ++i) {
         if (p[i] < lo[i] || p[i] > hi[i]) return false;
     }
@@ -164,8 +164,8 @@ inline double safe_divide(double a, double b) {
 template <unsigned NDim>
 class control_lattice {
     public:
-        typedef boost::array<size_t, NDim> index;
-        typedef boost::array<double, NDim> point;
+        typedef std::array<size_t, NDim> index;
+        typedef std::array<double, NDim> point;
 
         virtual ~control_lattice() {}
 
@@ -247,7 +247,7 @@ class control_lattice_dense : public control_lattice<NDim> {
                     s[d] = u - floor(u);
                 }
 
-                boost::array< double, power<4, NDim>::value > w;
+                std::array< double, power<4, NDim>::value > w;
                 double sum_w2 = 0.0;
 
                 for(grid_iterator<NDim> d(4); d; ++d) {
@@ -310,7 +310,7 @@ class control_lattice_dense : public control_lattice<NDim> {
         }
 
         void append_refined(const control_lattice_dense &r) {
-            static const boost::array<double, 5> s = {
+            static const std::array<double, 5> s = {
                 0.125, 0.500, 0.750, 0.500, 0.125
             };
 
@@ -390,7 +390,7 @@ class control_lattice_sparse : public control_lattice<NDim> {
                     s[d] = u - floor(u);
                 }
 
-                boost::array< double, power<4, NDim>::value > w;
+                std::array< double, power<4, NDim>::value > w;
                 double sum_w2 = 0.0;
 
                 for(grid_iterator<NDim> d(4); d; ++d) {
@@ -465,7 +465,7 @@ class control_lattice_sparse : public control_lattice<NDim> {
         typedef boost::container::flat_map<index, double> sparse_grid;
         sparse_grid phi;
 
-        typedef boost::array<double, 2> two_doubles;
+        typedef std::array<double, 2> two_doubles;
 
         static std::pair<index, double> delta_over_omega(const std::pair<index, two_doubles> &dw) {
             return std::make_pair(dw.first, safe_divide(dw.second[0], dw.second[1]));
@@ -512,7 +512,7 @@ class linear_approximation {
 
             // Solve least-squares problem to get approximation with a plane.
             for(; p != coo_end; ++p, ++v, ++n) {
-                boost::array<double, NDim+1> x;
+                std::array<double, NDim+1> x;
                 std::copy(p->begin(), p->end(), boost::begin(x));
                 x[NDim] = 1.0;
 
@@ -555,14 +555,14 @@ class linear_approximation {
             return f;
         }
     private:
-        boost::array<double, NDim+1> C;
+        std::array<double, NDim+1> C;
 };
 
 template <unsigned NDim>
 class MBA {
     public:
-        typedef boost::array<size_t, NDim> index;
-        typedef boost::array<double, NDim> point;
+        typedef std::array<size_t, NDim> index;
+        typedef std::array<double, NDim> point;
 
         template <class CooIter, class ValIter>
         MBA(

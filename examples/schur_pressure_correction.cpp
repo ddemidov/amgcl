@@ -113,7 +113,6 @@ solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tre
 
     std::cout << solve.precond() << std::endl;
 
-    typedef Backend::vector vector;
     auto f = Backend::copy_vector(rhs, bprm);
     auto x = Backend::create_vector(rhs.size(), bprm);
     amgcl::backend::clear(*x);

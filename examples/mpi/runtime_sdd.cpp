@@ -228,12 +228,12 @@ struct mba_deflation {
         double hx = 1.0 / (nx - 1);
         double hy = 1.0 / (ny - 1);
 
-        boost::array<double, 2> cmin = {-0.01, -0.01};
-        boost::array<double, 2> cmax = { 1.01,  1.01};
-        boost::array<size_t, 2> grid = {3, 3};
+        std::array<double, 2> cmin = {-0.01, -0.01};
+        std::array<double, 2> cmax = { 1.01,  1.01};
+        std::array<size_t, 2> grid = {3, 3};
 
-        boost::array< boost::array<double, 2>, 4 > coo;
-        boost::array< double, 4 > val;
+        std::array< std::array<double, 2>, 4 > coo;
+        std::array< double, 4 > val;
 
         for(int j = 0, idx = 0; j < 2; ++j) {
             for(int i = 0; i < 2; ++i, ++idx) {
@@ -255,7 +255,7 @@ struct mba_deflation {
 
                 for(int jj = 0; jj < ny; ++jj)
                     for(int ii = 0; ii < nx; ++ii) {
-                        boost::array<double, 2> p = {ii * hx, jj * hy};
+                        std::array<double, 2> p = {ii * hx, jj * hy};
                         V[jj][ii] = interp(p);
                     }
 
@@ -270,7 +270,7 @@ struct mba_deflation {
         return v[j * chunk + i];
     }
 
-    static double zero(const boost::array<double, 2>&) {
+    static double zero(const std::array<double, 2>&) {
         return 0;
     }
 };

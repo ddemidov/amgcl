@@ -135,8 +135,6 @@ void test_problem(
 #endif
     };
 
-    typedef typename Backend::vector vector;
-
     typename Backend::params prm;
 
     auto y = Backend::copy_vector(rhs, prm);
