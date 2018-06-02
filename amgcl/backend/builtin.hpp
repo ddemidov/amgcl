@@ -640,6 +640,11 @@ class numa_vector {
             return p;
         }
 
+        void swap(numa_vector &other) {
+            std::swap(n, other.n);
+            std::swap(p, other.p);
+        }
+
     private:
         size_t n;
         T *p;

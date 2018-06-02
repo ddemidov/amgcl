@@ -190,19 +190,37 @@ struct vexcl {
     }
 
     struct gather {
-        mutable vex::gather<value_type> G;
-        mutable std::vector<value_type> tmp;
+        mutable vex::gather<value_type> Gv;
+        mutable vex::gather<rhs_type> Gr;
+        mutable std::vector<value_type> Tv;
+        mutable std::vector<rhs_type> Tr;
 
         gather(size_t src_size, const std::vector<ptrdiff_t> &I, const params &prm)
-            : G(prm.context(), src_size, std::vector<size_t>(I.begin(), I.end())) { }
+            : Gv(prm.context(), src_size, std::vector<size_t>(I.begin(), I.end()))
+            , Gr(prm.context(), src_size, std::vector<size_t>(I.begin(), I.end()))
+            , Tv(I.size()), Tr(I.size())
+        { }
 
-        void operator()(const vector &src, vector &dst) const {
-            G(src, tmp);
-            vex::copy(tmp, dst);
+        void operator()(const vex::vector<value_type> &src, vex::vector<value_type> &dst) const {
+            Gv(src, Tv);
+            vex::copy(Tv, dst);
         }
 
-        void operator()(const vector &vec, std::vector<value_type> &vals) const {
-            G(vec, vals);
+        void operator()(const vex::vector<value_type> &vec, std::vector<value_type> &vals) const {
+            Gv(vec, vals);
+        }
+
+        template <class T>
+        typename std::enable_if<!std::is_same<value_type, T>::value, void>::type
+        operator()(const vex::vector<T> &src, vex::vector<T> &dst) const {
+            Gr(src, Tr);
+            vex::copy(Tr, dst);
+        }
+
+        template <class T>
+        typename std::enable_if<!std::is_same<value_type, T>::value, void>::type
+        operator()(const vex::vector<T> &vec, std::vector<T> &vals) const {
+            Gr(vec, vals);
         }
     };
 

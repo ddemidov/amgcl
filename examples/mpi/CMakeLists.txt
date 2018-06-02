@@ -16,6 +16,10 @@ if (TARGET mpi_target)
         target_link_libraries(amgcl_mpi_example INTERFACE scotch_target)
     endif()
 
+    if (TARGET Metis::metis)
+        target_link_libraries(amgcl_mpi_example INTERFACE Metis::metis)
+    endif()
+
     function(add_mpi_example example sources)
         add_executable(${example} ${sources})
         target_link_libraries(${example} amgcl_mpi_example)
@@ -40,14 +44,12 @@ if (TARGET mpi_target)
             Metis::metis
             ${Boost_PROGRAM_OPTIONS_LIBRARY}
             )
-
-        target_link_libraries(mpi_amg Metis::metis)
     endif()
 
     target_link_libraries(call_mpi_lib libamgcl_mpi)
 
     if (TARGET cuda_target)
-        foreach(example runtime_sdd runtime_sdd_3d schur_pc_mpi)
+        foreach(example runtime_sdd runtime_sdd_3d schur_pc_mpi mpi_amg)
             configure_file(
                 ${CMAKE_CURRENT_SOURCE_DIR}/${example}.cpp
                 ${CMAKE_CURRENT_BINARY_DIR}/${example}.cu
@@ -62,7 +64,7 @@ if (TARGET mpi_target)
     endif()
 
     if (VexCL_FOUND)
-        foreach(example runtime_sdd runtime_sdd_3d schur_pc_mpi)
+        foreach(example runtime_sdd runtime_sdd_3d schur_pc_mpi mpi_amg)
             vexcl_add_executables(${example}_vexcl ${example}.cpp)
             target_compile_definitions(${example}_vexcl INTERFACE SOLVER_BACKEND_VEXCL)
             target_link_libraries(${example}_vexcl INTERFACE amgcl_mpi_example)

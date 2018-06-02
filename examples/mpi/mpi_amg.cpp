@@ -13,6 +13,18 @@
 #include <amgcl/adapter/block_matrix.hpp>
 #include <amgcl/solver/runtime.hpp>
 
+#if defined(SOLVER_BACKEND_VEXCL)
+#  include <amgcl/backend/vexcl.hpp>
+#  include <amgcl/backend/vexcl_static_matrix.hpp>
+#elif defined(SOLVER_BACKEND_CUDA)
+#  include <amgcl/backend/cuda.hpp>
+#  include <amgcl/relaxation/cusparse_ilu0.hpp>
+#else
+#  ifndef SOLVER_BACKEND_BUILTIN
+#    define SOLVER_BACKEND_BUILTIN
+#  endif
+#endif
+
 #include <amgcl/mpi/util.hpp>
 #include <amgcl/mpi/make_solver.hpp>
 #include <amgcl/mpi/amg.hpp>
@@ -138,12 +150,14 @@ ptrdiff_t read_matrix_market(
 }
 
 //---------------------------------------------------------------------------
-template <class Backend, class Matrix, typename rhs_type>
+template <class Backend, class Matrix>
 boost::shared_ptr< amgcl::mpi::distributed_matrix<Backend> >
 partition(amgcl::mpi::communicator comm, const Matrix &Astrip,
-        std::vector<rhs_type> &rhs,
+        typename Backend::vector &rhs, const typename Backend::params &bprm,
         amgcl::runtime::mpi::partition::type ptype, int block_size = 1)
 {
+    typedef typename Backend::value_type val_type;
+    typedef typename amgcl::math::rhs_of<val_type>::type rhs_type;
     typedef amgcl::mpi::distributed_matrix<Backend> DMatrix;
 
     using amgcl::prof;
@@ -163,9 +177,15 @@ partition(amgcl::mpi::communicator comm, const Matrix &Astrip,
     boost::shared_ptr<DMatrix> J = transpose(*I);
     A = product(*J, *product(*A, *I));
 
-    std::vector<rhs_type> new_rhs(J->loc_rows());
+#if defined(SOLVER_BACKEND_BUILTIN)
+    amgcl::backend::numa_vector<rhs_type> new_rhs(J->loc_rows());
+#elif defined(SOLVER_BACKEND_VEXCL)
+    vex::vector<rhs_type> new_rhs(bprm.q, J->loc_rows());
+#elif defined(SOLVER_BACKEND_CUDA)
+    thrust::device_vector<rhs_type> new_rhs(J->loc_rows());
+#endif
 
-    J->move_to_backend();
+    J->move_to_backend(bprm);
 
     amgcl::backend::spmv(1, *J, rhs, 0, new_rhs);
     rhs.swap(new_rhs);
@@ -175,6 +195,7 @@ partition(amgcl::mpi::communicator comm, const Matrix &Astrip,
 }
 
 //---------------------------------------------------------------------------
+#if defined(SOLVER_BACKEND_BUILTIN) || defined(SOLVER_BACKEND_VEXCL)
 template <int B>
 void solve_block(
         amgcl::mpi::communicator comm,
@@ -190,7 +211,12 @@ void solve_block(
     typedef amgcl::static_matrix<double, B, B> val_type;
     typedef amgcl::static_matrix<double, B, 1> rhs_type;
 
+#if defined(SOLVER_BACKEND_BUILTIN)
     typedef amgcl::backend::builtin<val_type> Backend;
+#elif defined(SOLVER_BACKEND_VEXCL)
+    typedef amgcl::backend::vexcl<val_type> Backend;
+#endif
+
     typedef amgcl::mpi::distributed_matrix<Backend> Matrix;
 
     typedef
@@ -208,14 +234,28 @@ void solve_block(
 
     using amgcl::prof;
 
-    std::vector<rhs_type> rhs(
+    typename Backend::params bprm;
+
+#if defined(SOLVER_BACKEND_BUILTIN)
+    amgcl::backend::numa_vector<rhs_type> rhs(
             reinterpret_cast<const rhs_type*>(&f[0]),
             reinterpret_cast<const rhs_type*>(&f[0]) + chunk / B
             );
+#elif defined(SOLVER_BACKEND_VEXCL)
+    vex::Context ctx(vex::Filter::Env);
+    bprm.q = ctx;
+
+    vex::scoped_program_header header(ctx,
+            amgcl::backend::vexcl_static_matrix_declaration<double,B>());
+
+    if (comm.rank == 0) std::cout << ctx << std::endl;
+
+    vex::vector<rhs_type> rhs(ctx, chunk / B, reinterpret_cast<const rhs_type*>(&f[0]));
+#endif
 
     boost::shared_ptr<Matrix> A = partition<Backend>(comm,
             amgcl::adapter::block_matrix<val_type>(boost::tie(chunk, ptr, col, val)),
-            rhs, ptype, prm.get("precond.coarsening.aggr.block_size", 1));
+            rhs, bprm, ptype, prm.get("precond.coarsening.aggr.block_size", 1));
 
     prof.tic("setup");
     Solver solve(comm, A, prm);
@@ -225,7 +265,12 @@ void solve_block(
         std::cout << solve << std::endl;
     }
 
-    std::vector<rhs_type> x(A->loc_rows(), math::zero<rhs_type>());
+#if defined(SOLVER_BACKEND_BUILTIN)
+    amgcl::backend::numa_vector<rhs_type> x(A->loc_rows());
+#elif defined(SOLVER_BACKEND_VEXCL)
+    vex::vector<rhs_type> x(ctx, A->loc_rows());
+    x = math::zero<rhs_type>();
+#endif
 
     int    iters;
     double error;
@@ -241,6 +286,8 @@ void solve_block(
             << prof << std::endl;
     }
 }
+#endif
+
 //---------------------------------------------------------------------------
 void solve_scalar(
         amgcl::mpi::communicator comm,
@@ -249,11 +296,18 @@ void solve_scalar(
         const std::vector<ptrdiff_t> &col,
         const std::vector<double> &val,
         const boost::property_tree::ptree &prm,
-        std::vector<double> &rhs,
+        const std::vector<double> &f,
         amgcl::runtime::mpi::partition::type ptype
         )
 {
+#if defined(SOLVER_BACKEND_BUILTIN)
     typedef amgcl::backend::builtin<double> Backend;
+#elif defined(SOLVER_BACKEND_VEXCL)
+    typedef amgcl::backend::vexcl<double> Backend;
+#elif defined(SOLVER_BACKEND_CUDA)
+    typedef amgcl::backend::cuda<double> Backend;
+#endif
+
     typedef amgcl::mpi::distributed_matrix<Backend> Matrix;
 
     typedef
@@ -271,8 +325,24 @@ void solve_scalar(
 
     using amgcl::prof;
 
+    typename Backend::params bprm;
+
+#if defined(SOLVER_BACKEND_BUILTIN)
+    amgcl::backend::numa_vector<double> rhs(f);
+#elif defined(SOLVER_BACKEND_VEXCL)
+    vex::Context ctx(vex::Filter::Env);
+    bprm.q = ctx;
+
+    if (comm.rank == 0) std::cout << ctx << std::endl;
+
+    vex::vector<double> rhs(ctx, f);
+#elif defined(SOLVER_BACKEND_CUDA)
+    cusparseCreate(&bprm.cusparse_handle);
+    thrust::device_vector<double> rhs(f);
+#endif
+
     boost::shared_ptr<Matrix> A = partition<Backend>(comm,
-            boost::tie(chunk, ptr, col, val), rhs, ptype,
+            boost::tie(chunk, ptr, col, val), rhs, bprm, ptype,
             prm.get("precond.coarsening.aggr.block_size", 1));
 
     prof.tic("setup");
@@ -283,7 +353,14 @@ void solve_scalar(
         std::cout << solve << std::endl;
     }
 
-    std::vector<double> x(A->loc_rows(), amgcl::math::zero<double>());
+#if defined(SOLVER_BACKEND_BUILTIN)
+    amgcl::backend::numa_vector<double> x(A->loc_rows());
+#elif defined(SOLVER_BACKEND_VEXCL)
+    vex::vector<double> x(ctx, A->loc_rows());
+    x = 0.0;
+#elif defined(SOLVER_BACKEND_CUDA)
+    thrust::device_vector<double> x(A->loc_rows(), 0.0);
+#endif
 
     int    iters;
     double error;
@@ -420,14 +497,17 @@ int main(int argc, char *argv[]) {
     amgcl::runtime::mpi::partition::type ptype = vm["partitioner"].as<amgcl::runtime::mpi::partition::type>();
 
     switch(block_size) {
-#define AMGCL_CALL_BLOCK_SOLVER(z, data, B)                                \
-        case B:                                                            \
-            solve_block<B>(comm, n, ptr, col, val, prm, rhs, ptype);       \
+
+#if defined(SOLVER_BACKEND_BUILTIN) || defined(SOLVER_BACKEND_VEXCL)
+#  define AMGCL_CALL_BLOCK_SOLVER(z, data, B)                        \
+        case B:                                                      \
+            solve_block<B>(comm, n, ptr, col, val, prm, rhs, ptype); \
             break;
 
         BOOST_PP_SEQ_FOR_EACH(AMGCL_CALL_BLOCK_SOLVER, ~, AMGCL_BLOCK_SIZES)
 
-#undef AMGCL_CALL_BLOCK_SOLVER
+#  undef AMGCL_CALL_BLOCK_SOLVER
+#endif
 
         case 1:
             solve_scalar(comm, n, ptr, col, val, prm, rhs, ptype);
