@@ -261,7 +261,7 @@ int main(int argc, char *argv[]) {
             amgcl::io::read_crs(ifile, rows, ptr, col, val);
         } else {
             size_t cols;
-            boost::tie(rows, cols) = amgcl::io::mm_reader(ifile)(ptr, col, val);
+            std::tie(rows, cols) = amgcl::io::mm_reader(ifile)(ptr, col, val);
             precondition(rows == cols, "Non-square system matrix");
         }
 

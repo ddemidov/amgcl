@@ -69,7 +69,7 @@ int main() {
     Backend::params bprm;
     bprm.block_size = 4;
 
-    AMG amg(boost::tie(n, ptr, col, val), prm, bprm);
+    AMG amg(std::tie(n, ptr, col, val), prm, bprm);
     prof.toc("build");
 
     std::cout << amg << std::endl;
@@ -81,7 +81,7 @@ int main() {
     prof.tic("solve");
     size_t iters;
     double resid;
-    boost::tie(iters, resid) = solve(amg, rhs, x);
+    std::tie(iters, resid) = solve(amg, rhs, x);
     prof.toc("solve");
 
     std::cout << "Iterations: " << iters << std::endl

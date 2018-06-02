@@ -173,7 +173,7 @@ struct wrapper {
     }
 
     template <class Matrix, class Precond, class Vec1, class Vec2>
-    boost::tuple<size_t, scalar_type> operator()(
+    std::tuple<size_t, scalar_type> operator()(
             Matrix  const &A,
             Precond const &P,
             Vec1    const &rhs,
@@ -206,7 +206,7 @@ struct wrapper {
     }
 
     template <class Precond, class Vec1, class Vec2>
-    boost::tuple<size_t, scalar_type> operator()(
+    std::tuple<size_t, scalar_type> operator()(
             Precond const &P,
             Vec1    const &rhs,
 #ifdef BOOST_NO_CXX11_RVALUE_REFERENCES

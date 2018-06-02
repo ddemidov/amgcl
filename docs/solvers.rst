@@ -9,11 +9,11 @@ Obviously, the solver backend has to coincide with the preconditioner backend.
 
 Each of the solvers in AMGCL provides two overloads for the ``operator()``:
 
-.. cpp:function:: boost::tuple<size_t, scalar_type> operator()(const Matrix &A, const Precond &P, const Vec1 &rhs, Vec2 &&x) const
+.. cpp:function:: std::tuple<size_t, scalar_type> operator()(const Matrix &A, const Precond &P, const Vec1 &rhs, Vec2 &&x) const
 
     Computes the solution for the given system matrix ``A`` and the right-hand
     side ``rhs``. Returns the number of iterations made and the achieved
-    residual as a ``boost::tuple``. The solution vector ``x`` provides initial
+    residual as a ``std::tuple``. The solution vector ``x`` provides initial
     approximation on input and holds the computed solution on output.
 
     The system matrix may differ from the matrix used during initialization.
@@ -22,12 +22,12 @@ Each of the solvers in AMGCL provides two overloads for the ``operator()``:
     for a time step will act as a reasonably good preconditioner for several
     subsequent time steps [DeSh12]_.
 
-.. cpp:function:: boost::tuple<size_t, scalar_type> operator()(const Precond &P, const Vec1 &rhs, Vec2 &&x) const
+.. cpp:function:: std::tuple<size_t, scalar_type> operator()(const Precond &P, const Vec1 &rhs, Vec2 &&x) const
 
     Computes the solution for the given right-hand side ``rhs``. The system
     matrix is the same that was used for the setup of the preconditioner ``P``.
     Returns the number of iterations made and the achieved residual as a
-    ``boost::tuple``.  The solution vector ``x`` provides initial approximation
+    ``std::tuple``.  The solution vector ``x`` provides initial approximation
     on input and holds the computed solution on output.
 
 

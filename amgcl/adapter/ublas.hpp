@@ -49,14 +49,14 @@ struct is_builtin_vector< boost::numeric::ublas::vector<T> >
 
 /// Adapts Boost.uBlas matrix.
 template <typename T>
-boost::tuple<
+std::tuple<
     size_t,
     boost::iterator_range<const size_t*>,
     boost::iterator_range<const size_t*>,
     boost::iterator_range<const T*>
     >
 map(const boost::numeric::ublas::compressed_matrix<T, boost::numeric::ublas::row_major> &A) {
-    return boost::make_tuple(
+    return std::make_tuple(
             A.size1(),
             boost::make_iterator_range(
                 A.index1_data().begin(), A.index1_data().end()

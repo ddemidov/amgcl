@@ -38,14 +38,14 @@ std::vector<int>    ptr;
 std::vector<int>    col;
 std::vector<double> val;
 
-AMG amg( boost::tie(n, ptr, col, val) );
+AMG amg( std::tie(n, ptr, col, val) );
 
 // Adapt raw arrays:
 int    *ptr;
 int    *col;
 double *val;
 
-AMG amg(boost::make_tuple(n,
+AMG amg(std::make_tuple(n,
                           boost::make_iterator_range(ptr, ptr + n + 1),
                           boost::make_iterator_range(col, col + ptr[n]),
                           boost::make_iterator_range(val, val + ptr[n])
@@ -61,7 +61,7 @@ AMG amg(boost::make_tuple(n,
 #include <vector>
 #include <numeric>
 
-#include <boost/tuple/tuple.hpp>
+#include <tuple>
 #include <boost/range/const_iterator.hpp>
 #include <boost/range/value_type.hpp>
 #include <boost/range/size.hpp>
@@ -78,7 +78,7 @@ namespace backend {
 // Specialization of matrix interface
 //---------------------------------------------------------------------------
 template < typename N, typename PRng, typename CRng, typename VRng >
-struct value_type< boost::tuple<N, PRng, CRng, VRng> >
+struct value_type< std::tuple<N, PRng, CRng, VRng> >
 {
     typedef
         typename boost::range_value<
@@ -88,40 +88,40 @@ struct value_type< boost::tuple<N, PRng, CRng, VRng> >
 };
 
 template < typename N, typename PRng, typename CRng, typename VRng >
-struct rows_impl< boost::tuple<N, PRng, CRng, VRng> >
+struct rows_impl< std::tuple<N, PRng, CRng, VRng> >
 {
     static size_t get(
-            const boost::tuple<N, PRng, CRng, VRng> &A
+            const std::tuple<N, PRng, CRng, VRng> &A
             )
     {
-        return boost::get<0>(A);
+        return std::get<0>(A);
     }
 };
 
 template < typename N, typename PRng, typename CRng, typename VRng >
-struct cols_impl< boost::tuple<N, PRng, CRng, VRng> >
+struct cols_impl< std::tuple<N, PRng, CRng, VRng> >
 {
     static size_t get(
-            const boost::tuple<N, PRng, CRng, VRng> &A
+            const std::tuple<N, PRng, CRng, VRng> &A
             )
     {
-        return boost::get<0>(A);
+        return std::get<0>(A);
     }
 };
 
 template < typename N, typename PRng, typename CRng, typename VRng >
-struct nonzeros_impl< boost::tuple<N, PRng, CRng, VRng> >
+struct nonzeros_impl< std::tuple<N, PRng, CRng, VRng> >
 {
     static size_t get(
-            const boost::tuple<N, PRng, CRng, VRng> &A
+            const std::tuple<N, PRng, CRng, VRng> &A
             )
     {
-        return boost::get<1>(A)[boost::get<0>(A)];
+        return std::get<1>(A)[std::get<0>(A)];
     }
 };
 
 template < typename N, typename PRng, typename CRng, typename VRng >
-struct row_iterator< boost::tuple<N, PRng, CRng, VRng> >
+struct row_iterator< std::tuple<N, PRng, CRng, VRng> >
 {
     class type {
         public:
@@ -136,10 +136,10 @@ struct row_iterator< boost::tuple<N, PRng, CRng, VRng> >
                          >::type
                 val_type;
 
-            type(const boost::tuple<N, PRng, CRng, VRng> &A, size_t row)
-                : m_col(boost::begin(boost::get<2>(A)))
-                , m_end(boost::begin(boost::get<2>(A)))
-                , m_val(boost::begin(boost::get<3>(A)))
+            type(const std::tuple<N, PRng, CRng, VRng> &A, size_t row)
+                : m_col(boost::begin(std::get<2>(A)))
+                , m_end(boost::begin(std::get<2>(A)))
+                , m_val(boost::begin(std::get<3>(A)))
             {
                 typedef
                     typename boost::range_value<
@@ -147,8 +147,8 @@ struct row_iterator< boost::tuple<N, PRng, CRng, VRng> >
                              >::type
                     ptr_type;
 
-                ptr_type row_begin = boost::get<1>(A)[row];
-                ptr_type row_end   = boost::get<1>(A)[row + 1];
+                ptr_type row_begin = std::get<1>(A)[row];
+                ptr_type row_end   = std::get<1>(A)[row + 1];
 
                 m_col += row_begin;
                 m_end += row_end;
@@ -193,9 +193,9 @@ struct row_iterator< boost::tuple<N, PRng, CRng, VRng> >
 };
 
 template < typename N, typename PRng, typename CRng, typename VRng >
-struct row_begin_impl< boost::tuple<N, PRng, CRng, VRng> >
+struct row_begin_impl< std::tuple<N, PRng, CRng, VRng> >
 {
-    typedef boost::tuple<N, PRng, CRng, VRng> Matrix;
+    typedef std::tuple<N, PRng, CRng, VRng> Matrix;
     static typename row_iterator<Matrix>::type
     get(const Matrix &matrix, size_t row) {
         return typename row_iterator<Matrix>::type(matrix, row);
@@ -203,17 +203,17 @@ struct row_begin_impl< boost::tuple<N, PRng, CRng, VRng> >
 };
 
 template < typename N, typename PRng, typename CRng, typename VRng >
-struct row_nonzeros_impl< boost::tuple<N, PRng, CRng, VRng> > {
-    typedef boost::tuple<N, PRng, CRng, VRng> Matrix;
+struct row_nonzeros_impl< std::tuple<N, PRng, CRng, VRng> > {
+    typedef std::tuple<N, PRng, CRng, VRng> Matrix;
 
     static size_t get(const Matrix &A, size_t row) {
-        return boost::get<1>(A)[row + 1] - boost::get<1>(A)[row];
+        return std::get<1>(A)[row + 1] - std::get<1>(A)[row];
     }
 };
 
 template < typename N, typename PRng, typename CRng, typename VRng >
-struct ptr_data_impl< boost::tuple<N, PRng, CRng, VRng> > {
-    typedef boost::tuple<N, PRng, CRng, VRng> Matrix;
+struct ptr_data_impl< std::tuple<N, PRng, CRng, VRng> > {
+    typedef std::tuple<N, PRng, CRng, VRng> Matrix;
     typedef
         typename boost::range_value<
                     typename boost::decay<PRng>::type
@@ -221,13 +221,13 @@ struct ptr_data_impl< boost::tuple<N, PRng, CRng, VRng> > {
         ptr_type;
     typedef const ptr_type* type;
     static type get(const Matrix &A) {
-        return &boost::get<1>(A)[0];
+        return &std::get<1>(A)[0];
     }
 };
 
 template < typename N, typename PRng, typename CRng, typename VRng >
-struct col_data_impl< boost::tuple<N, PRng, CRng, VRng> > {
-    typedef boost::tuple<N, PRng, CRng, VRng> Matrix;
+struct col_data_impl< std::tuple<N, PRng, CRng, VRng> > {
+    typedef std::tuple<N, PRng, CRng, VRng> Matrix;
     typedef
         typename boost::range_value<
                     typename boost::decay<CRng>::type
@@ -235,13 +235,13 @@ struct col_data_impl< boost::tuple<N, PRng, CRng, VRng> > {
         col_type;
     typedef const col_type* type;
     static type get(const Matrix &A) {
-        return &boost::get<2>(A)[0];
+        return &std::get<2>(A)[0];
     }
 };
 
 template < typename N, typename PRng, typename CRng, typename VRng >
-struct val_data_impl< boost::tuple<N, PRng, CRng, VRng> > {
-    typedef boost::tuple<N, PRng, CRng, VRng> Matrix;
+struct val_data_impl< std::tuple<N, PRng, CRng, VRng> > {
+    typedef std::tuple<N, PRng, CRng, VRng> Matrix;
     typedef
         typename boost::range_value<
                     typename boost::decay<VRng>::type
@@ -249,14 +249,14 @@ struct val_data_impl< boost::tuple<N, PRng, CRng, VRng> > {
         val_type;
     typedef const val_type* type;
     static type get(const Matrix &A) {
-        return &boost::get<3>(A)[0];
+        return &std::get<3>(A)[0];
     }
 };
 
 namespace detail {
 
 template < typename N, typename PRng, typename CRng, typename VRng >
-struct use_builtin_matrix_ops< boost::tuple<N, PRng, CRng, VRng> >
+struct use_builtin_matrix_ops< std::tuple<N, PRng, CRng, VRng> >
     : boost::true_type
 {};
 

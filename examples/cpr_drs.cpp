@@ -92,7 +92,7 @@ void solve_cpr(const Matrix &K, const std::vector<double> &rhs, boost::property_
     size_t iters;
     double error;
 
-    boost::tie(iters, error) = solve(*f, *x);
+    std::tie(iters, error) = solve(*f, *x);
 
     std::cout << "Iterations: " << iters << std::endl
               << "Error:      " << error << std::endl;
@@ -190,7 +190,7 @@ int main(int argc, char *argv[]) {
             io::read_crs(Afile, rows, ptr, col, val);
         } else {
             size_t cols;
-            boost::tie(rows, cols) = io::mm_reader(Afile)(ptr, col, val);
+            std::tie(rows, cols) = io::mm_reader(Afile)(ptr, col, val);
             precondition(rows == cols, "Non-square system matrix");
         }
 
@@ -202,7 +202,7 @@ int main(int argc, char *argv[]) {
             if (binary) {
                 io::read_dense(bfile, n, m, rhs);
             } else {
-                boost::tie(n, m) = io::mm_reader(bfile)(rhs);
+                std::tie(n, m) = io::mm_reader(bfile)(rhs);
             }
 
             precondition(n == rows && m == 1, "The RHS vector has wrong size");
@@ -218,7 +218,7 @@ int main(int argc, char *argv[]) {
             if (binary) {
                 io::read_dense(wfile, n, m, wgt);
             } else {
-                boost::tie(n, m) = io::mm_reader(wfile)(wgt);
+                std::tie(n, m) = io::mm_reader(wfile)(wgt);
             }
 
             prm.put("precond.weights",      &wgt[0]);
@@ -226,7 +226,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    solve_cpr(boost::tie(rows, ptr, col, val), rhs, prm);
+    solve_cpr(std::tie(rows, ptr, col, val), rhs, prm);
 
     std::cout << prof << std::endl;
 }

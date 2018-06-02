@@ -63,7 +63,7 @@ components:
         amgcl::solver::bicgstab<Backend>
         > Solver;
 
-    Solver solve( boost::tie(n, ptr, col, val) );
+    Solver solve( std::tie(n, ptr, col, val) );
 
 Once the solver is constructed, we can apply it to the right-hand side to
 obtain the solution. This may be repeated multiple times for different
@@ -76,7 +76,7 @@ residual:
     std::vector<double> x(n, 0.0);
     int    iters;
     double error;
-    boost::tie(iters, error) = solve(rhs, x);
+    std::tie(iters, error) = solve(rhs, x);
 
 That's it! Vector ``x`` contains the solution of our problem now.
 
@@ -94,7 +94,7 @@ into a `boost::iterator_range`_:
 
 .. code-block:: cpp
 
-    Solver solve( boost::make_tuple(
+    Solver solve( std::make_tuple(
         n,
         boost::make_iterator_range(ptr.data(), ptr.data() + ptr.size()),
         boost::make_iterator_range(col.data(), col.data() + col.size()),
@@ -128,7 +128,7 @@ example like this:
 
     Solver::params prm;
     prm.solver.tol = 1e-3;
-    Solver solve( boost::tie(n, ptr, col, val), prm );
+    Solver solve( std::tie(n, ptr, col, val), prm );
 
 Parameters may also be initialized with a `boost::property_tree::ptree`_. This
 is especially convenient when :doc:`runtime` is used, and the exact structure
@@ -138,7 +138,7 @@ of the parameters is not known at compile time:
 
     boost::property_tree::ptree prm;
     prm.put("solver.tol", 1e-3);
-    Solver solve( boost::tie(n, ptr, col, val), prm );
+    Solver solve( std::tie(n, ptr, col, val), prm );
 
 .. _`boost::property_tree::ptree`: http://www.boost.org/doc/libs/release/doc/html/property_tree.html
 

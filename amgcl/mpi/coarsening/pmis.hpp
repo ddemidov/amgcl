@@ -31,7 +31,7 @@ THE SOFTWARE.
  * \brief  Distributed PMIS aggregation.
  */
 
-#include <boost/tuple/tuple.hpp>
+#include <tuple>
 #include <memory>
 
 #include <amgcl/backend/builtin.hpp>
@@ -157,7 +157,7 @@ struct pmis {
         rem_cols.erase(std::unique(rem_cols.begin(), rem_cols.end()), rem_cols.end());
 
         ptrdiff_t n_rem_cols = 0;
-        boost::unordered_map<ptrdiff_t, int> rem_idx(2 * rem_cols.size());
+        std::unordered_map<ptrdiff_t, int> rem_idx(2 * rem_cols.size());
         for(ptrdiff_t c : rem_cols) {
             if (c >= A_beg && c < A_end) continue;
             rem_idx[c] = n_rem_cols++;
@@ -480,7 +480,7 @@ struct pmis {
                         bool selectable = true;
                         for(ptrdiff_t j = S_rem.ptr[i], e = S_rem.ptr[i+1]; j < e; ++j) {
                             int d,c;
-                            boost::tie(d,c) = Sp.remote_info(S_rem.col[j]);
+                            std::tie(d,c) = Sp.remote_info(S_rem.col[j]);
 
                             if (rem_state[c] == undone && Sp.recv.nbr[d] > comm.rank) {
                                 selectable = false;
@@ -508,7 +508,7 @@ struct pmis {
                         for(ptrdiff_t j = A_rem.ptr[i], e = A_rem.ptr[i+1]; j < e; ++j) {
                             ptrdiff_t c = A_rem.col[j];
                             int d,k;
-                            boost::tie(d,k) = Sp.remote_info(c);
+                            std::tie(d,k) = Sp.remote_info(c);
 
                             rem_state[k] = id;
                             send_pts[d].push_back(c);
@@ -528,7 +528,7 @@ struct pmis {
                         for(ptrdiff_t j = S_rem.ptr[i], e = S_rem.ptr[i+1]; j < e; ++j) {
                             ptrdiff_t c = S_rem.col[j];
                             int d,k;
-                            boost::tie(d,k) = Sp.remote_info(c);
+                            std::tie(d,k) = Sp.remote_info(c);
 
                             if (rem_state[k] == undone) {
                                 rem_state[k] = id;

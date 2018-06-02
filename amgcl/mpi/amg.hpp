@@ -258,7 +258,7 @@ class amg {
             std::shared_ptr<matrix> step_down(Coarsening &C, const Repartition &repart)
             {
                 AMGCL_TIC("transfer operators");
-                boost::tie(P, R) = C.transfer_operators(*A);
+                std::tie(P, R) = C.transfer_operators(*A);
 
                 AMGCL_TIC("sort");
                 sort_rows(*P);

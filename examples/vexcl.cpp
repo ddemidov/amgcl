@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
     bprm.q = ctx;
 
     prof.tic("build");
-    Solver solve( boost::tie(n, ptr, col, val), sprm, bprm );
+    Solver solve( std::tie(n, ptr, col, val), sprm, bprm );
     prof.toc("build");
 
     std::cout << solve.precond() << std::endl;
@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
     prof.tic("solve");
     size_t iters;
     double resid;
-    boost::tie(iters, resid) = solve(f, x);
+    std::tie(iters, resid) = solve(f, x);
     prof.toc("solve");
 
     std::cout << "Iterations: " << iters << std::endl

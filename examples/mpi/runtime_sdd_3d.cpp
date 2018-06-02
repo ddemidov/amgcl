@@ -334,11 +334,11 @@ int main(int argc, char *argv[]) {
                 amgcl::runtime::mpi::direct::solver<double>
             > SDD;
 
-        SDD solve(world, boost::tie(chunk, ptr, col, val), prm, bprm);
+        SDD solve(world, std::tie(chunk, ptr, col, val), prm, bprm);
         tm_setup = prof.toc("setup");
 
         prof.tic("solve");
-        boost::tie(iters, resid) = solve(*f, *x);
+        std::tie(iters, resid) = solve(*f, *x);
         tm_solve = prof.toc("solve");
     } else {
         prm.put("local.coarsening.type", coarsening);
@@ -352,11 +352,11 @@ int main(int argc, char *argv[]) {
                 amgcl::runtime::mpi::direct::solver<double>
             > SDD;
 
-        SDD solve(world, boost::tie(chunk, ptr, col, val), prm, bprm);
+        SDD solve(world, std::tie(chunk, ptr, col, val), prm, bprm);
         tm_setup = prof.toc("setup");
 
         prof.tic("solve");
-        boost::tie(iters, resid) = solve(*f, *x);
+        std::tie(iters, resid) = solve(*f, *x);
         tm_solve = prof.toc("solve");
     }
     } catch(const std::exception &e) {

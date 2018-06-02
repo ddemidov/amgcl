@@ -125,7 +125,7 @@ struct wrapper {
         }
     }
 
-    boost::tuple< std::shared_ptr<matrix>, std::shared_ptr<matrix> >
+    std::tuple< std::shared_ptr<matrix>, std::shared_ptr<matrix> >
     transfer_operators(const matrix &A) {
         switch (c) {
             case aggregation:

@@ -35,7 +35,7 @@ THE SOFTWARE.
 #include <algorithm>
 #include <numeric>
 
-#include <boost/tuple/tuple.hpp>
+#include <tuple>
 
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/value_type/interface.hpp>
@@ -223,7 +223,7 @@ void symm_graph(const distributed_matrix<Backend> &A,
 }
 
 template <class Idx>
-boost::tuple<ptrdiff_t, ptrdiff_t> graph_perm_index(
+std::tuple<ptrdiff_t, ptrdiff_t> graph_perm_index(
         communicator comm, int npart, const std::vector<Idx> &part,
         std::vector<ptrdiff_t> &perm)
 {
@@ -251,7 +251,7 @@ boost::tuple<ptrdiff_t, ptrdiff_t> graph_perm_index(
     }
 
     AMGCL_TOC("perm index");
-    return boost::make_tuple(
+    return std::make_tuple(
             glo_part_beg[std::min(npart, comm.rank)],
             glo_part_beg[std::min(npart, comm.rank + 1)]
             );

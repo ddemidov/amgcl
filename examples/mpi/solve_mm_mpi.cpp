@@ -322,7 +322,7 @@ int main(int argc, char *argv[]) {
     prm.put("num_def_vec", block_size);
     prm.put("def_vec", &dv);
 
-    SDD solve(world, boost::tie(chunk, ptr, col, val), prm);
+    SDD solve(world, std::tie(chunk, ptr, col, val), prm);
     double tm_setup = prof.toc("setup");
 
     std::vector<double> x(chunk, 0);
@@ -330,7 +330,7 @@ int main(int argc, char *argv[]) {
     prof.tic("solve");
     size_t iters;
     double resid;
-    boost::tie(iters, resid) = solve(rhs, x);
+    std::tie(iters, resid) = solve(rhs, x);
     double tm_solve = prof.toc("solve");
 
     if (vm.count("output")) {

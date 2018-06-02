@@ -31,7 +31,7 @@ THE SOFTWARE.
  * \brief  Distributed smoothed aggregation coarsening scheme.
  */
 
-#include <boost/tuple/tuple.hpp>
+#include <tuple>
 #include <memory>
 
 #include <amgcl/backend/builtin.hpp>
@@ -91,7 +91,7 @@ struct smoothed_aggregation {
 
     smoothed_aggregation(const params &prm = params()) : prm(prm) {}
 
-    boost::tuple<
+    std::tuple<
         std::shared_ptr< distributed_matrix<Backend> >,
         std::shared_ptr< distributed_matrix<Backend> >
         >
@@ -184,7 +184,7 @@ struct smoothed_aggregation {
         auto P = product(*Af, *aggr.p_tent);
         AMGCL_TOC("smoothing");
 
-        return boost::make_tuple(P, transpose(*P));
+        return std::make_tuple(P, transpose(*P));
     }
 
     std::shared_ptr< distributed_matrix<Backend> >

@@ -65,7 +65,7 @@ typedef amgcl::scoped_tic< amgcl::profiler<> > scoped_tic;
 #ifdef SOLVER_BACKEND_BUILTIN
 //---------------------------------------------------------------------------
 template <int B, template <class> class Precond>
-boost::tuple<size_t, double> block_solve(
+std::tuple<size_t, double> block_solve(
         const boost::property_tree::ptree &prm,
         size_t rows,
         std::vector<ptrdiff_t> const &ptr,
@@ -87,10 +87,10 @@ boost::tuple<size_t, double> block_solve(
 
     ;
 
-    BOOST_AUTO(A_raw, (boost::tie(rows, ptr, col, val)));
+    BOOST_AUTO(A_raw, (std::tie(rows, ptr, col, val)));
     BOOST_AUTO(A_blk, (amgcl::adapter::block_matrix<value_type>(A_raw)));
 
-    boost::tuple<size_t, double> info;
+    std::tuple<size_t, double> info;
 
     if (reorder) {
         prof.tic("reorder");
@@ -141,7 +141,7 @@ boost::tuple<size_t, double> block_solve(
 #ifdef SOLVER_BACKEND_VEXCL
 //---------------------------------------------------------------------------
 template <int B, template <class> class Precond>
-boost::tuple<size_t, double> block_solve(
+std::tuple<size_t, double> block_solve(
         const boost::property_tree::ptree &prm,
         size_t rows,
         std::vector<ptrdiff_t> const &ptr,
@@ -171,10 +171,10 @@ boost::tuple<size_t, double> block_solve(
     vex::scoped_program_header header(ctx,
             amgcl::backend::vexcl_static_matrix_declaration<double,B>());
 
-    BOOST_AUTO(A_raw, (boost::tie(rows, ptr, col, val)));
+    BOOST_AUTO(A_raw, (std::tie(rows, ptr, col, val)));
     BOOST_AUTO(A_blk, (amgcl::adapter::block_matrix<value_type>(A_raw)));
 
-    boost::tuple<size_t, double> info;
+    std::tuple<size_t, double> info;
 
     if (reorder) {
         prof.tic("reorder");
@@ -230,7 +230,7 @@ boost::tuple<size_t, double> block_solve(
 
 //---------------------------------------------------------------------------
 template <template <class> class Precond>
-boost::tuple<size_t, double> scalar_solve(
+std::tuple<size_t, double> scalar_solve(
         const boost::property_tree::ptree &prm,
         size_t rows,
         std::vector<ptrdiff_t> const &ptr,
@@ -268,15 +268,15 @@ boost::tuple<size_t, double> scalar_solve(
         amgcl::runtime::solver::wrapper<Backend>
         > Solver;
 
-    boost::tuple<size_t, double> info;
+    std::tuple<size_t, double> info;
 
     if (reorder) {
         prof.tic("reorder");
-        amgcl::adapter::reorder<> perm(boost::tie(rows, ptr, col, val));
+        amgcl::adapter::reorder<> perm(std::tie(rows, ptr, col, val));
         prof.toc("reorder");
 
         prof.tic("setup");
-        Solver solve(perm(boost::tie(rows, ptr, col, val)), prm, bprm);
+        Solver solve(perm(std::tie(rows, ptr, col, val)), prm, bprm);
         prof.toc("setup");
 
         std::cout << solve.precond() << std::endl;
@@ -306,7 +306,7 @@ boost::tuple<size_t, double> scalar_solve(
         perm.inverse(tmp, x);
     } else {
         prof.tic("setup");
-        Solver solve(boost::tie(rows, ptr, col, val), prm, bprm);
+        Solver solve(std::tie(rows, ptr, col, val), prm, bprm);
         prof.toc("setup");
 
         std::cout << solve.precond() << std::endl;
@@ -338,7 +338,7 @@ boost::tuple<size_t, double> scalar_solve(
 
 //---------------------------------------------------------------------------
 template <template <class> class Precond>
-boost::tuple<size_t, double> solve(
+std::tuple<size_t, double> solve(
         const boost::property_tree::ptree &prm,
         size_t rows,
         std::vector<ptrdiff_t> const &ptr,
@@ -358,7 +358,7 @@ boost::tuple<size_t, double> solve(
 #endif
         default:
             precondition(false, "Unsupported block size");
-            return boost::make_tuple(0, 0.0);
+            return std::make_tuple(0, 0.0);
     }
 }
 
@@ -493,7 +493,7 @@ int main(int argc, char *argv[]) {
             io::read_crs(Afile, rows, ptr, col, val);
         } else {
             size_t cols;
-            boost::tie(rows, cols) = io::mm_reader(Afile)(ptr, col, val);
+            std::tie(rows, cols) = io::mm_reader(Afile)(ptr, col, val);
             precondition(rows == cols, "Non-square system matrix");
         }
 
@@ -505,7 +505,7 @@ int main(int argc, char *argv[]) {
             if (binary) {
                 io::read_dense(bfile, n, m, rhs);
             } else {
-                boost::tie(n, m) = io::mm_reader(bfile)(rhs);
+                std::tie(n, m) = io::mm_reader(bfile)(rhs);
             }
 
             precondition(n == rows && m == 1, "The RHS vector has wrong size");
@@ -521,7 +521,7 @@ int main(int argc, char *argv[]) {
             if (binary) {
                 io::read_dense(nfile, m, nv, null);
             } else {
-                boost::tie(m, nv) = io::mm_reader(nfile)(null);
+                std::tie(m, nv) = io::mm_reader(nfile)(null);
             }
 
             precondition(m == rows, "Near null-space vectors have wrong size");
@@ -545,7 +545,7 @@ int main(int argc, char *argv[]) {
     if (vm["single-level"].as<bool>())
         prm.put("precond.class", "relaxation");
 
-    boost::tie(iters, error) = solve<amgcl::runtime::preconditioner>(
+    std::tie(iters, error) = solve<amgcl::runtime::preconditioner>(
             prm, rows, ptr, col, val, rhs, x,
             block_size, vm["reorder"].as<bool>());
 

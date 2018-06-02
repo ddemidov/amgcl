@@ -127,7 +127,7 @@ struct parmetis {
             }
         } else {
             if (block_size == 1) {
-                boost::tie(col_beg, col_end) = partition(A, npart, perm);
+                std::tie(col_beg, col_end) = partition(A, npart, perm);
             } else {
                 typedef typename math::scalar_of<value_type>::type scalar;
                 typedef backend::builtin<scalar> sbackend;
@@ -140,7 +140,7 @@ struct parmetis {
 
                 std::vector<ptrdiff_t> perm_pw(np);
 
-                boost::tie(col_beg, col_end) = partition(A_pw, npart, perm_pw);
+                std::tie(col_beg, col_end) = partition(A_pw, npart, perm_pw);
 
                 col_beg *= block_size;
                 col_end *= block_size;
@@ -159,7 +159,7 @@ struct parmetis {
     }
 
     template <class B>
-    boost::tuple<ptrdiff_t, ptrdiff_t>
+    std::tuple<ptrdiff_t, ptrdiff_t>
     partition(const distributed_matrix<B> &A, idx_t npart, std::vector<ptrdiff_t> &perm) const {
         communicator comm = A.comm();
         idx_t n = A.loc_rows();

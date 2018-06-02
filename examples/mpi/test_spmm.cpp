@@ -85,7 +85,7 @@ void test() {
     typedef amgcl::backend::builtin<Val> Backend;
     typedef amgcl::mpi::distributed_matrix<Backend> Matrix; 
 
-    Matrix A(comm, boost::tie(chunk, ptr, col, val), chunk);
+    Matrix A(comm, std::tie(chunk, ptr, col, val), chunk);
 
     auto B = amgcl::mpi::product(A, A);
     B->move_to_backend();
@@ -100,7 +100,7 @@ void test() {
         std::vector<Rhs> Y(n);
         assemble(n, 0, n, ptr, col, val);
 
-        amgcl::backend::crs<Val> A( boost::tie(n, ptr, col, val) );
+        amgcl::backend::crs<Val> A( std::tie(n, ptr, col, val) );
         amgcl::backend::spmv(1, *amgcl::backend::product(A, A), X, 0, Y);
 
         double s = 0;

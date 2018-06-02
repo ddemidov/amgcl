@@ -69,7 +69,7 @@ std::vector<ptrdiff_t> read_problem(
     std::vector<ptrdiff_t> domain(world.size + 1, 0);
     std::vector<int> part;
 
-    boost::tie(n, m) = amgcl::io::mm_reader(part_file)(part);
+    std::tie(n, m) = amgcl::io::mm_reader(part_file)(part);
     for(int p : part) {
         ++domain[p+1];
         precondition(p < world.size, "MPI world does not correspond to partition");
@@ -305,13 +305,13 @@ int main(int argc, char *argv[]) {
             amgcl::runtime::solver::wrapper
             > Solver;
 
-    Solver solve(world, boost::tie(chunk, ptr, col, val), prm, bprm);
+    Solver solve(world, std::tie(chunk, ptr, col, val), prm, bprm);
     double tm_setup = prof.toc("setup");
 
     prof.tic("solve");
     size_t iters;
     double resid;
-    boost::tie(iters, resid) = solve(*f, *x);
+    std::tie(iters, resid) = solve(*f, *x);
     double tm_solve = prof.toc("solve");
 
     if (world.rank == 0) {

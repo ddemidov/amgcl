@@ -22,7 +22,7 @@ BOOST_AUTO_TEST_CASE(eigen_solver)
     std::vector<double> rhs;
 
     size_t n = sample_problem(16, val, col, ptr, rhs);
-    amgcl::backend::crs<double> A(boost::tie(n, ptr, col, val));
+    amgcl::backend::crs<double> A(std::tie(n, ptr, col, val));
 
     typedef
         amgcl::solver::EigenSolver<Eigen::SparseLU<Eigen::SparseMatrix<double, Eigen::ColMajor, int> > >

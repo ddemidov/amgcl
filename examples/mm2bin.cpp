@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
         std::vector<ptrdiff_t> ptr, col;
         std::vector<double>    val;
 
-        boost::tie(rows, cols) = read(ptr, col, val);
+        std::tie(rows, cols) = read(ptr, col, val);
 
         precondition(io::write(f, rows), "File I/O error.");
         precondition(io::write(f, ptr),  "File I/O error.");
@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
         size_t rows, cols;
         std::vector<double> val;
 
-        boost::tie(rows, cols) = read(val);
+        std::tie(rows, cols) = read(val);
 
         precondition(io::write(f, rows), "File I/O error.");
         precondition(io::write(f, cols), "File I/O error.");

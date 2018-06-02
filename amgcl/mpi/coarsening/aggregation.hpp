@@ -31,7 +31,7 @@ THE SOFTWARE.
  * \brief  Distributed non-smoothed aggregation coarsening scheme.
  */
 
-#include <boost/tuple/tuple.hpp>
+#include <tuple>
 #include <memory>
 
 #include <amgcl/backend/builtin.hpp>
@@ -88,13 +88,13 @@ struct aggregation {
 
     aggregation(const params &prm = params()) : prm(prm) {}
 
-    boost::tuple<
+    std::tuple<
         std::shared_ptr< distributed_matrix<Backend> >,
         std::shared_ptr< distributed_matrix<Backend> >
         >
     transfer_operators(const distributed_matrix<Backend> &A) {
         pmis<Backend> aggr(A, prm.aggr);
-        return boost::make_tuple(aggr.p_tent, transpose(*aggr.p_tent));
+        return std::make_tuple(aggr.p_tent, transpose(*aggr.p_tent));
     }
 
     std::shared_ptr< distributed_matrix<Backend> >

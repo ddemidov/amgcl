@@ -43,7 +43,7 @@ Bi-orthogonality Properties. ACM Transactions on Mathematical Software, Vol.
 #include <vector>
 #include <algorithm>
 
-#include <boost/tuple/tuple.hpp>
+#include <tuple>
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/normal_distribution.hpp>
 
@@ -226,7 +226,7 @@ class idrs {
 
         /* Computes the solution for the given system matrix \p A and the
          * right-hand side \p rhs.  Returns the number of iterations made and
-         * the achieved residual as a ``boost::tuple``. The solution vector
+         * the achieved residual as a ``std::tuple``. The solution vector
          * \p x provides initial approximation in input and holds the computed
          * solution on output.
          *
@@ -237,7 +237,7 @@ class idrs {
          * good preconditioner for several subsequent time steps [DeSh12]_.
          */
         template <class Matrix, class Precond, class Vec1, class Vec2>
-        boost::tuple<size_t, scalar_type> operator()(
+        std::tuple<size_t, scalar_type> operator()(
                 Matrix  const &A,
                 Precond const &Prec,
                 Vec1    const &rhs,
@@ -250,7 +250,7 @@ class idrs {
             scalar_type norm_rhs = norm(rhs);
             if (norm_rhs < amgcl::detail::eps<scalar_type>(n)) {
                 backend::clear(x);
-                return boost::make_tuple(0, norm_rhs);
+                return std::make_tuple(0, norm_rhs);
             }
 
             scalar_type eps = std::max(prm.tol * norm_rhs, prm.abstol);
@@ -261,7 +261,7 @@ class idrs {
             scalar_type res_norm = norm(*r);
             if (res_norm <= eps) {
                 // Initial guess is a good enough solution.
-                return boost::make_tuple(0, res_norm / norm_rhs);
+                return std::make_tuple(0, res_norm / norm_rhs);
             }
 
             if (prm.smoothing) {
@@ -397,18 +397,18 @@ class idrs {
             if (prm.smoothing)
                 backend::copy(*x_s, x);
 
-            return boost::make_tuple(iter, res_norm / norm_rhs);
+            return std::make_tuple(iter, res_norm / norm_rhs);
         }
 
         /* Computes the solution for the given right-hand side \p rhs. The
          * system matrix is the same that was used for the setup of the
          * preconditioner \p P.  Returns the number of iterations made and the
-         * achieved residual as a ``boost::tuple``. The solution vector \p x
+         * achieved residual as a ``std::tuple``. The solution vector \p x
          * provides initial approximation in input and holds the computed
          * solution on output.
          */
         template <class Precond, class Vec1, class Vec2>
-        boost::tuple<size_t, scalar_type> operator()(
+        std::tuple<size_t, scalar_type> operator()(
                 Precond const &P,
                 Vec1    const &rhs,
                 Vec2          &x

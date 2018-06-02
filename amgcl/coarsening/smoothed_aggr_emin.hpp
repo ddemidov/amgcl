@@ -33,7 +33,7 @@ THE SOFTWARE.
 
 #include <limits>
 
-#include <boost/tuple/tuple.hpp>
+#include <tuple>
 #include <memory>
 
 #include <amgcl/backend/builtin.hpp>
@@ -82,7 +82,7 @@ struct smoothed_aggr_emin {
 
     /// \copydoc amgcl::coarsening::aggregation::transfer_operators
     template <class Matrix>
-    boost::tuple<
+    std::tuple<
         std::shared_ptr<Matrix>,
         std::shared_ptr<Matrix>
         >
@@ -162,7 +162,7 @@ struct smoothed_aggr_emin {
         if (prm.nullspace.cols > 0)
             prm.aggr.block_size = prm.nullspace.cols;
 
-        return boost::make_tuple(P, R);
+        return std::make_tuple(P, R);
     }
 
     template <class Matrix>

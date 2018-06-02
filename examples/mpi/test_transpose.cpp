@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
     typedef amgcl::backend::builtin<double> Backend;
     typedef amgcl::mpi::distributed_matrix<Backend> Matrix; 
 
-    Matrix A(comm, boost::tie(chunk, ptr, col, val), chunk);
+    Matrix A(comm, std::tie(chunk, ptr, col, val), chunk);
 
     {
         std::ostringstream fname;

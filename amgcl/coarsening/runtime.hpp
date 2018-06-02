@@ -141,7 +141,7 @@ struct wrapper {
     }
 
     template <class Matrix>
-    boost::tuple<
+    std::tuple<
         std::shared_ptr<Matrix>,
         std::shared_ptr<Matrix>
         >
@@ -223,7 +223,7 @@ struct wrapper {
     template <template <class> class Coarsening, class Matrix>
     typename boost::enable_if<
         typename backend::coarsening_is_supported<Backend, Coarsening>::type,
-        boost::tuple<
+        std::tuple<
             std::shared_ptr<Matrix>,
             std::shared_ptr<Matrix>
             >
@@ -235,7 +235,7 @@ struct wrapper {
     template <template <class> class Coarsening, class Matrix>
     typename boost::disable_if<
         typename backend::coarsening_is_supported<Backend, Coarsening>::type,
-        boost::tuple<
+        std::tuple<
             std::shared_ptr<Matrix>,
             std::shared_ptr<Matrix>
             >

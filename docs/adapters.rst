@@ -11,7 +11,7 @@ Boost tuple adapter
 
 ``#include`` `\<amgcl/adapter/crs_tuple.hpp>`_
 
-The Boost tuple adapter allows to use a ``boost::tuple`` of a matrix size and
+The Boost tuple adapter allows to use a ``std::tuple`` of a matrix size and
 its three CRS_ format components (row pointer array, column indices array, and
 values array) as input matrix to AMGCL solvers. The arrays are allowed to be in
 any format recognized by the Boost.Range_ library as a random access range.
@@ -21,11 +21,11 @@ Example:
 
 .. code-block:: cpp
 
-    // boost::tie creates a tuple of references, which avoids copying.
-    Solver solve( boost::tie(n, ptr, col, val) );
+    // std::tie creates a tuple of references, which avoids copying.
+    Solver solve( std::tie(n, ptr, col, val) );
 
     // A (cheap) copy is required when iterator ranges are created on the fly:
-    Solver solve( boost::make_tuple(
+    Solver solve( std::make_tuple(
         n,
         boost::make_iterator_range(ptr.data(), ptr.data() + ptr.size()),
         boost::make_iterator_range(col.data(), col.data() + col.size()),

@@ -470,7 +470,7 @@ class subdomain_deflation {
             size_t iters;
             double error;
             backend::clear(x);
-            boost::tie(iters, error) = (*this)(rhs, x);
+            std::tie(iters, error) = (*this)(rhs, x);
         }
 
         std::shared_ptr<matrix> system_matrix_ptr() const {
@@ -482,7 +482,7 @@ class subdomain_deflation {
         }
 
         template <class Matrix, class Vec1, class Vec2>
-        boost::tuple<size_t, value_type> operator()(
+        std::tuple<size_t, value_type> operator()(
                 Matrix  const &A,
                 Vec1    const &rhs,
 #ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
@@ -492,13 +492,13 @@ class subdomain_deflation {
 #endif
                 ) const
         {
-            boost::tuple<size_t, value_type> cnv = S(make_sdd_projected_matrix(*this, A), *P, rhs, x);
+            std::tuple<size_t, value_type> cnv = S(make_sdd_projected_matrix(*this, A), *P, rhs, x);
             postprocess(rhs, x);
             return cnv;
         }
 
         template <class Vec1, class Vec2>
-        boost::tuple<size_t, value_type>
+        std::tuple<size_t, value_type>
         operator()(
                 const Vec1 &rhs,
 #ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
@@ -508,7 +508,7 @@ class subdomain_deflation {
 #endif
                 ) const
         {
-            boost::tuple<size_t, value_type> cnv = S(make_sdd_projected_matrix(*this, *A), *P, rhs, x);
+            std::tuple<size_t, value_type> cnv = S(make_sdd_projected_matrix(*this, *A), *P, rhs, x);
             postprocess(rhs, x);
             return cnv;
         }

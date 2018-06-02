@@ -29,7 +29,7 @@ THE SOFTWARE.
 #include <algorithm>
 
 #include <memory>
-#include <boost/unordered_map.hpp>
+#include <unordered_map>
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_real_distribution.hpp>
 
@@ -124,7 +124,7 @@ class comm_pattern {
                     }
 
                     idx.insert(idx.end(), std::make_pair(
-                                rem_cols[i], boost::make_tuple(rnbr-1,i)));
+                                rem_cols[i], std::make_tuple(rnbr-1,i)));
                 }
 
                 recv.val.resize(ncols);
@@ -191,20 +191,20 @@ class comm_pattern {
         }
 
         int domain(ptrdiff_t col) const {
-            return boost::get<0>(idx.at(col));
+            return std::get<0>(idx.at(col));
         }
 
         int local_index(ptrdiff_t col) const {
-            return boost::get<1>(idx.at(col));
+            return std::get<1>(idx.at(col));
         }
 
-        boost::tuple<int, int> remote_info(ptrdiff_t col) const {
+        std::tuple<int, int> remote_info(ptrdiff_t col) const {
             return idx.at(col);
         }
 
         size_t renumber(size_t n, ptrdiff_t *col) const {
             for(size_t i = 0; i < n; ++i)
-                col[i] = boost::get<1>(idx.at(col[i]));
+                col[i] = std::get<1>(idx.at(col[i]));
             return recv.count();
         }
 
@@ -272,7 +272,7 @@ class comm_pattern {
 
         communicator comm;
 
-        boost::unordered_map<ptrdiff_t, boost::tuple<int, int> > idx;
+        std::unordered_map<ptrdiff_t, std::tuple<int, int> > idx;
         std::shared_ptr<Gather> gather;
         ptrdiff_t loc_beg, loc_cols;
 };
@@ -821,7 +821,7 @@ product(const distributed_matrix<Backend> &A, const distributed_matrix<Backend> 
     rem_cols.erase(std::unique(rem_cols.begin(), rem_cols.end()), rem_cols.end());
 
     ptrdiff_t n_rem_cols = 0;
-    boost::unordered_map<ptrdiff_t, int> rem_idx(2 * rem_cols.size());
+    std::unordered_map<ptrdiff_t, int> rem_idx(2 * rem_cols.size());
     for(ptrdiff_t c : rem_cols) {
         if (c >= B_beg && c < B_end) continue;
         rem_idx[c] = n_rem_cols++;

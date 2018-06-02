@@ -113,7 +113,7 @@ class make_solver {
 
         /** Computes the solution for the given system matrix \p A and the
          * right-hand side \p rhs.  Returns the number of iterations made and
-         * the achieved residual as a ``boost::tuple``. The solution vector
+         * the achieved residual as a ``std::tuple``. The solution vector
          * \p x provides initial approximation in input and holds the computed
          * solution on output.
          *
@@ -126,7 +126,7 @@ class make_solver {
          * \endrst
          */
         template <class Matrix, class Vec1, class Vec2>
-        boost::tuple<size_t, scalar_type> operator()(
+        std::tuple<size_t, scalar_type> operator()(
                 Matrix  const &A,
                 Vec1    const &rhs,
 #ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
@@ -141,11 +141,11 @@ class make_solver {
 
         /** Computes the solution for the given right-hand side \p rhs.
          * Returns the number of iterations made and the achieved residual as a
-         * ``boost::tuple``. The solution vector \p x provides initial
+         * ``std::tuple``. The solution vector \p x provides initial
          * approximation in input and holds the computed solution on output.
          */
         template <class Vec1, class Vec2>
-        boost::tuple<size_t, scalar_type> operator()(
+        std::tuple<size_t, scalar_type> operator()(
                 Vec1    const &rhs,
 #ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
                 Vec2          &x
@@ -373,7 +373,7 @@ class make_scaling_solver {
         }
 
         template <class Vec1, class Vec2>
-        boost::tuple<size_t, scalar_type> operator()(
+        std::tuple<size_t, scalar_type> operator()(
                 Vec1    const &rhs,
 #ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
                 Vec2          &x
@@ -383,7 +383,7 @@ class make_scaling_solver {
                 ) const
         {
             backend::vmul(math::identity<scalar_type>(), *W, rhs, math::zero<scalar_type>(), *t);
-            boost::tuple<size_t, scalar_type> c = (*S)(*t, x);
+            std::tuple<size_t, scalar_type> c = (*S)(*t, x);
             backend::vmul(math::identity<scalar_type>(), *W, x, math::zero<scalar_type>(), x);
             return c;
         }

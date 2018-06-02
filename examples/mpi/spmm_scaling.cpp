@@ -145,7 +145,7 @@ int main(int argc, char *argv[]) {
     typedef amgcl::mpi::distributed_matrix<Backend> Matrix;
 
     prof.tic("create distributed version");
-    Matrix A(world, boost::tie(chunk, ptr, col, val), chunk);
+    Matrix A(world, std::tie(chunk, ptr, col, val), chunk);
     prof.toc("create distributed version");
 
     prof.tic("distributed product");
@@ -155,7 +155,7 @@ int main(int argc, char *argv[]) {
     if (world.rank == 0) {
         if (world.size == 1) {
             typedef amgcl::backend::crs<double> matrix;
-            matrix A(boost::tie(chunk, ptr, col, val));
+            matrix A(std::tie(chunk, ptr, col, val));
             prof.tic("openmp product");
             auto B = amgcl::backend::product(A, A);
             prof.toc("openmp product");

@@ -46,7 +46,7 @@ struct renumbering {
 
 //---------------------------------------------------------------------------
 template <template <class> class Precond, class Matrix>
-boost::tuple<size_t, double> solve(
+std::tuple<size_t, double> solve(
         const amgcl::mpi::communicator &comm,
         const boost::property_tree::ptree &prm,
         const Matrix &A
@@ -219,8 +219,8 @@ int main(int argc, char *argv[]) {
     if (single_level)
         prm.put("precond.class", "relaxation");
 
-    boost::tie(iters, error) = solve<amgcl::runtime::preconditioner>(
-            world, prm, boost::tie(chunk, ptr, col, val));
+    std::tie(iters, error) = solve<amgcl::runtime::preconditioner>(
+            world, prm, std::tie(chunk, ptr, col, val));
 
     if (world.rank == 0) {
         std::cout

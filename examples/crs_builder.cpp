@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
     prof.tic("solve");
     size_t iters;
     double resid;
-    boost::tie(iters, resid) = solve(f, x);
+    std::tie(iters, resid) = solve(f, x);
     prof.toc("solve");
 
     std::cout << "Solver:" << std::endl
@@ -122,7 +122,7 @@ int main(int argc, char *argv[]) {
     std::fill(x.begin(), x.end(), 0);
 
     prof.tic("nested solver");
-    boost::tie(iters, resid) = S(solve.system_matrix(), solve, f, x);
+    std::tie(iters, resid) = S(solve.system_matrix(), solve, f, x);
     prof.toc("nested solver");
 
     std::cout << "Nested solver:" << std::endl

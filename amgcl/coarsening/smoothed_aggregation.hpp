@@ -35,7 +35,7 @@ THE SOFTWARE.
 #  include <omp.h>
 #endif
 
-#include <boost/tuple/tuple.hpp>
+#include <tuple>
 #include <memory>
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_real_distribution.hpp>
@@ -128,7 +128,7 @@ struct smoothed_aggregation {
 
     /// \copydoc amgcl::coarsening::aggregation::transfer_operators
     template <class Matrix>
-    boost::tuple< std::shared_ptr<Matrix>, std::shared_ptr<Matrix> >
+    std::tuple< std::shared_ptr<Matrix>, std::shared_ptr<Matrix> >
     transfer_operators(const Matrix &A) {
         typedef typename backend::value_type<Matrix>::type value_type;
         typedef typename math::scalar_of<value_type>::type scalar_type;
@@ -234,7 +234,7 @@ struct smoothed_aggregation {
         if (prm.nullspace.cols > 0)
             prm.aggr.block_size = prm.nullspace.cols;
 
-        return boost::make_tuple(P, transpose(*P));
+        return std::make_tuple(P, transpose(*P));
     }
 
     /// \copydoc amgcl::coarsening::aggregation::coarse_operator

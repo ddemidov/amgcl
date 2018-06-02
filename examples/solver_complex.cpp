@@ -30,7 +30,7 @@ typedef amgcl::scoped_tic< amgcl::profiler<> > scoped_tic;
 
 //---------------------------------------------------------------------------
 template <template <class> class Precond>
-boost::tuple<size_t, double> solve(
+std::tuple<size_t, double> solve(
         const boost::property_tree::ptree &prm,
         size_t rows,
         std::vector<ptrdiff_t> const &ptr,
@@ -49,7 +49,7 @@ boost::tuple<size_t, double> solve(
         > Solver;
 
     prof.tic("setup");
-    Solver solve(boost::tie(rows, ptr, col, val), prm, bprm);
+    Solver solve(std::tie(rows, ptr, col, val), prm, bprm);
     prof.toc("setup");
 
     std::cout << solve.precond() << std::endl;
@@ -161,14 +161,14 @@ int main(int argc, char *argv[]) {
         string Afile = vm["matrix"].as<string>();
 
         size_t cols;
-        boost::tie(rows, cols) = io::mm_reader(Afile)(ptr, col, val);
+        std::tie(rows, cols) = io::mm_reader(Afile)(ptr, col, val);
         precondition(rows == cols, "Non-square system matrix");
 
         if (vm.count("rhs")) {
             string bfile = vm["rhs"].as<string>();
 
             size_t n, m;
-            boost::tie(n, m) = io::mm_reader(bfile)(rhs);
+            std::tie(n, m) = io::mm_reader(bfile)(rhs);
 
             precondition(n == rows && m == 1, "The RHS vector has wrong size");
         } else {
@@ -179,7 +179,7 @@ int main(int argc, char *argv[]) {
             string nfile = vm["null"].as<string>();
 
             size_t m, nv;
-            boost::tie(m, nv) = io::mm_reader(nfile)(null);
+            std::tie(m, nv) = io::mm_reader(nfile)(null);
 
             precondition(m == rows, "Near null-space vectors have wrong size");
 
@@ -200,7 +200,7 @@ int main(int argc, char *argv[]) {
     if (vm["single-level"].as<bool>())
         prm.put("precond.class", "relaxation");
 
-    boost::tie(iters, error) = solve<amgcl::runtime::preconditioner>(
+    std::tie(iters, error) = solve<amgcl::runtime::preconditioner>(
             prm, rows, ptr, col, val, rhs, x);
 
     if (vm.count("output")) {

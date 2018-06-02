@@ -31,7 +31,7 @@ THE SOFTWARE.
  * \brief  Non-smoothed aggregation coarsening.
  */
 
-#include <boost/tuple/tuple.hpp>
+#include <tuple>
 #include <memory>
 
 #include <amgcl/backend/builtin.hpp>
@@ -120,7 +120,7 @@ struct aggregation {
      * \returns   A tuple of prolongation and restriction operators.
      */
     template <class Matrix>
-    boost::tuple<
+    std::tuple<
         std::shared_ptr<Matrix>,
         std::shared_ptr<Matrix>
         >
@@ -140,7 +140,7 @@ struct aggregation {
         if (prm.nullspace.cols > 0)
             prm.aggr.block_size = prm.nullspace.cols;
 
-        return boost::make_tuple(P, transpose(*P));
+        return std::make_tuple(P, transpose(*P));
     }
 
     /// Creates system matrix for the coarser level.

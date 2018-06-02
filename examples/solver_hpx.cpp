@@ -45,7 +45,7 @@ int hpx_main(boost::program_options::variables_map &vm) {
     Backend::params bprm;
     bprm.grain_size = vm["grain"].as<int>();
 
-    Solver solve( boost::tie(n, ptr, col, val), sprm, bprm );
+    Solver solve( std::tie(n, ptr, col, val), sprm, bprm );
     prof.toc("setup");
 
     std::cout << solve.precond() << std::endl;
@@ -59,7 +59,7 @@ int hpx_main(boost::program_options::variables_map &vm) {
     double error;
     prof.tic("solve");
     hpx::reset_active_counters();
-    boost::tie(iters, error) = solve(*f, *x);
+    std::tie(iters, error) = solve(*f, *x);
     prof.toc("solve");
     std::cout
         << "Iters: " << iters << std::endl

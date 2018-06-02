@@ -73,7 +73,7 @@ amgclHandle STDCALL amgcl_precond_create(
 {
     BOOST_AUTO(
             A,
-            boost::make_tuple(
+            std::make_tuple(
                 n,
                 boost::make_iterator_range(ptr, ptr + n + 1),
                 boost::make_iterator_range(col, col + ptr[n]),
@@ -108,7 +108,7 @@ amgclHandle STDCALL amgcl_precond_create_f(
 
     BOOST_AUTO(
             A,
-            boost::make_tuple(
+            std::make_tuple(
                 n,
                 boost::make_iterator_range(ptr_c, ptr_c + n + 1),
                 boost::make_iterator_range(col_c, col_c + ptr[n]),
@@ -156,7 +156,7 @@ amgclHandle STDCALL amgcl_solver_create(
 {
     BOOST_AUTO(
             A,
-            boost::make_tuple(
+            std::make_tuple(
                 n,
                 boost::make_iterator_range(ptr, ptr + n + 1),
                 boost::make_iterator_range(col, col + ptr[n]),
@@ -190,7 +190,7 @@ amgclHandle STDCALL amgcl_solver_create_f(
 
     BOOST_AUTO(
             A,
-            boost::make_tuple(
+            std::make_tuple(
                 n,
                 boost::make_iterator_range(ptr_c, ptr_c + n + 1),
                 boost::make_iterator_range(col_c, col_c + ptr[n]),
@@ -229,7 +229,7 @@ conv_info STDCALL amgcl_solver_solve(
 
     boost::iterator_range<double*> x_range = boost::make_iterator_range(x, x + n);
 
-    boost::tie(cnv.iterations, cnv.residual) = (*slv)(
+    std::tie(cnv.iterations, cnv.residual) = (*slv)(
             boost::make_iterator_range(rhs, rhs + n), x_range
             );
 
@@ -254,8 +254,8 @@ conv_info STDCALL amgcl_solver_solve_mtx(
 
     boost::iterator_range<double*> x_range = boost::make_iterator_range(x, x + n);
 
-    boost::tie(cnv.iterations, cnv.residual) = (*slv)(
-            boost::make_tuple(
+    std::tie(cnv.iterations, cnv.residual) = (*slv)(
+            std::make_tuple(
                 n,
                 boost::make_iterator_range(A_ptr, A_ptr + n),
                 boost::make_iterator_range(A_col, A_col + A_ptr[n]),

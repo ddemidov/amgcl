@@ -221,8 +221,6 @@ void solve_block(
     typedef amgcl::backend::vexcl<val_type> Backend;
 #endif
 
-    typedef amgcl::mpi::distributed_matrix<Backend> Matrix;
-
     typedef
         amgcl::mpi::make_solver<
             amgcl::mpi::amg<
@@ -258,7 +256,7 @@ void solve_block(
 #endif
 
     auto A = partition<Backend>(comm,
-            amgcl::adapter::block_matrix<val_type>(boost::tie(chunk, ptr, col, val)),
+            amgcl::adapter::block_matrix<val_type>(std::tie(chunk, ptr, col, val)),
             rhs, bprm, ptype, prm.get("precond.coarsening.aggr.block_size", 1));
 
     prof.tic("setup");
@@ -280,7 +278,7 @@ void solve_block(
     double error;
 
     prof.tic("solve");
-    boost::tie(iters, error) = solve(rhs, x);
+    std::tie(iters, error) = solve(rhs, x);
     prof.toc("solve");
 
     if (comm.rank == 0) {
@@ -311,8 +309,6 @@ void solve_scalar(
 #elif defined(SOLVER_BACKEND_CUDA)
     typedef amgcl::backend::cuda<double> Backend;
 #endif
-
-    typedef amgcl::mpi::distributed_matrix<Backend> Matrix;
 
     typedef
         amgcl::mpi::make_solver<
@@ -346,7 +342,7 @@ void solve_scalar(
 #endif
 
     auto A = partition<Backend>(comm,
-            boost::tie(chunk, ptr, col, val), rhs, bprm, ptype,
+            std::tie(chunk, ptr, col, val), rhs, bprm, ptype,
             prm.get("precond.coarsening.aggr.block_size", 1));
 
     prof.tic("setup");
@@ -370,7 +366,7 @@ void solve_scalar(
     double error;
 
     prof.tic("solve");
-    boost::tie(iters, error) = solve(rhs, x);
+    std::tie(iters, error) = solve(rhs, x);
     prof.toc("solve");
 
     if (comm.rank == 0) {

@@ -60,7 +60,7 @@ BOOST_AUTO_TEST_CASE(complex_matrix_adapter)
             amgcl::relaxation::spai0
             >,
         amgcl::solver::bicgstab<Backend>
-        > solve( amgcl::adapter::complex_matrix(boost::tie(n, ptr, col, val)), prm );
+        > solve( amgcl::adapter::complex_matrix(std::tie(n, ptr, col, val)), prm );
 
     std::cout << solve.precond() << std::endl;
 
@@ -73,7 +73,7 @@ BOOST_AUTO_TEST_CASE(complex_matrix_adapter)
     size_t iters;
     double resid;
 
-    boost::tie(iters, resid) = solve(f_range, x_range);
+    std::tie(iters, resid) = solve(f_range, x_range);
 
     BOOST_CHECK_SMALL(resid, 1e-8);
 

@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
         std::vector<double> val;
 
         io::read_crs(vm["input"].as<std::string>(), n, ptr, col, val);
-        io::mm_write(vm["output"].as<std::string>(), boost::tie(n, ptr, col, val));
+        io::mm_write(vm["output"].as<std::string>(), std::tie(n, ptr, col, val));
 
         std::cout
             << "Wrote " << n << " by " << n << " sparse matrix, "

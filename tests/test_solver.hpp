@@ -48,7 +48,7 @@ void test_solver(
 
     amgcl::backend::clear(*x);
 
-    boost::tie(iters, resid) = solve(*f, *x);
+    std::tie(iters, resid) = solve(*f, *x);
 
     std::cout << "Iterations: " << iters << std::endl
               << "Error:      " << resid << std::endl
@@ -83,7 +83,7 @@ void test_rap(
 
     amgcl::backend::clear(*x);
 
-    boost::tie(iters, resid) = solve(*f, *x);
+    std::tie(iters, resid) = solve(*f, *x);
 
     std::cout << "Iterations: " << iters << std::endl
               << "Error:      " << resid << std::endl

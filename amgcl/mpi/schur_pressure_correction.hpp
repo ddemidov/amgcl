@@ -170,8 +170,8 @@ class schur_pressure_correction {
         }
 
         void init(const backend_params &bprm) {
-            using boost::tie;
-            using boost::make_tuple;
+            using std::tie;
+            using std::make_tuple;
             using std::shared_ptr;
             using std::make_shared;
 
@@ -579,13 +579,13 @@ class schur_pressure_correction {
 
 #ifdef AMGCL_DEBUG
         template <typename I, typename E>
-        void report(const std::string &name, const boost::tuple<I, E> &c) const {
+        void report(const std::string &name, const std::tuple<I, E> &c) const {
             if (comm.rank == 0)
-                std::cout << name << " (" << boost::get<0>(c) << ", " << boost::get<1>(c) << ")\n";
+                std::cout << name << " (" << std::get<0>(c) << ", " << std::get<1>(c) << ")\n";
         }
 #else
         template <typename I, typename E>
-        void report(const std::string&, const boost::tuple<I, E>&) const {
+        void report(const std::string&, const std::tuple<I, E>&) const {
         }
 #endif
 

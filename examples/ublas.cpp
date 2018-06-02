@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
     prof.tic("solve");
     size_t iters;
     double resid;
-    boost::tie(iters, resid) = solve(rhs, x);
+    std::tie(iters, resid) = solve(rhs, x);
     prof.toc("solve");
 
     std::cout << "Iterations: " << iters << std::endl

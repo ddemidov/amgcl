@@ -34,7 +34,7 @@ THE SOFTWARE.
 #include <algorithm>
 #include <numeric>
 
-#include <boost/tuple/tuple.hpp>
+#include <tuple>
 #include <memory>
 
 #include <amgcl/backend/builtin.hpp>
@@ -100,7 +100,7 @@ struct ruge_stuben {
 
     /// \copydoc amgcl::coarsening::aggregation::transfer_operators
     template <class Matrix>
-    boost::tuple< std::shared_ptr<Matrix>, std::shared_ptr<Matrix> >
+    std::tuple< std::shared_ptr<Matrix>, std::shared_ptr<Matrix> >
     transfer_operators(const Matrix &A) const {
         typedef typename backend::value_type<Matrix>::type Val;
         typedef typename math::scalar_of<Val>::type        Scalar;
@@ -239,7 +239,7 @@ struct ruge_stuben {
         }
         AMGCL_TOC("interpolation");
 
-        return boost::make_tuple(P, transpose(*P));
+        return std::make_tuple(P, transpose(*P));
     }
 
     /// \copydoc amgcl::coarsening::aggregation::coarse_operator

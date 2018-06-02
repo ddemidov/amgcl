@@ -38,7 +38,7 @@ THE SOFTWARE.
 #include <numeric>
 
 #include <boost/type_traits.hpp>
-#include <boost/tuple/tuple.hpp>
+#include <tuple>
 
 #include <amgcl/util.hpp>
 #include <amgcl/backend/interface.hpp>
@@ -133,7 +133,7 @@ class mm_reader {
 
         /// Read sparse matrix from the file.
         template <typename Idx, typename Val>
-        boost::tuple<size_t, size_t> operator()(
+        std::tuple<size_t, size_t> operator()(
                 std::vector<Idx> &ptr,
                 std::vector<Idx> &col,
                 std::vector<Val> &val,
@@ -238,12 +238,12 @@ class mm_reader {
                 amgcl::detail::sort_row(&col[0] + beg, &val[0] + beg, end - beg);
             }
 
-            return boost::make_tuple(row_end - row_beg, m);
+            return std::make_tuple(row_end - row_beg, m);
         }
 
         /// Read dense array from the file.
         template <typename Val>
-        boost::tuple<size_t, size_t> operator()(
+        std::tuple<size_t, size_t> operator()(
                 std::vector<Val> &val,
                 ptrdiff_t row_beg = -1,
                 ptrdiff_t row_end = -1
@@ -289,7 +289,7 @@ class mm_reader {
                 }
             }
 
-            return boost::make_tuple(row_end - row_beg, m);
+            return std::make_tuple(row_end - row_beg, m);
         }
     private:
         std::ifstream f;

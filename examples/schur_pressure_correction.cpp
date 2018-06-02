@@ -121,7 +121,7 @@ solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tre
     double error;
 
     prof.tic("solve");
-    boost::tie(iters, error) = solve(*f, *x);
+    std::tie(iters, error) = solve(*f, *x);
     prof.toc("solve");
 
     std::cout << "Iterations: " << iters << std::endl
@@ -294,7 +294,7 @@ int main(int argc, char *argv[]) {
             io::read_crs(Afile, rows, ptr, col, val);
         } else {
             size_t cols;
-            boost::tie(rows, cols) = io::mm_reader(Afile)(ptr, col, val);
+            std::tie(rows, cols) = io::mm_reader(Afile)(ptr, col, val);
             precondition(rows == cols, "Non-square system matrix");
         }
 
@@ -306,7 +306,7 @@ int main(int argc, char *argv[]) {
             if (binary) {
                 io::read_dense(bfile, n, m, rhs);
             } else {
-                boost::tie(n, m) = io::mm_reader(bfile)(rhs);
+                std::tie(n, m) = io::mm_reader(bfile)(rhs);
             }
 
             precondition(n == rows && m == 1, "The RHS vector has wrong size");
@@ -331,7 +331,7 @@ int main(int argc, char *argv[]) {
                         if (binary) {
                             io::read_dense(pmask, n, m, pm);
                         } else {
-                            boost::tie(n, m) = amgcl::io::mm_reader(pmask)(pm);
+                            std::tie(n, m) = amgcl::io::mm_reader(pmask)(pm);
                         }
 
                         precondition(n == rows && m == 1, "Mask file has wrong size");
@@ -343,7 +343,7 @@ int main(int argc, char *argv[]) {
     }
 
     solve_schur(vm["ub"].as<int>(), vm["pb"].as<int>(),
-            boost::tie(rows, ptr, col, val), rhs, prm);
+            std::tie(rows, ptr, col, val), rhs, prm);
 
     std::cout << prof << std::endl;
 }

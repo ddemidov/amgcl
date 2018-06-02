@@ -63,7 +63,7 @@ amgclHandle STDCALL amgcl_mpi_create(
     return static_cast<amgclHandle>(
             new Solver(
                 comm,
-                boost::make_tuple(
+                std::make_tuple(
                     n,
                     boost::make_iterator_range(ptr, ptr + n + 1),
                     boost::make_iterator_range(col, col + ptr[n]),
@@ -90,7 +90,7 @@ conv_info STDCALL amgcl_mpi_solve(
 
     conv_info cnv;
 
-    boost::tie(cnv.iterations, cnv.residual) = (*solver)(
+    std::tie(cnv.iterations, cnv.residual) = (*solver)(
             boost::make_iterator_range(rhs, rhs + n), x_range
             );
 
