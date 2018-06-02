@@ -37,7 +37,7 @@ See http://pastix.gforge.inria.fr
 #  include <omp.h>
 #endif
 
-#include <boost/type_traits.hpp>
+#include <type_traits>
 
 #include <amgcl/util.hpp>
 #include <amgcl/backend/builtin.hpp>
@@ -60,8 +60,8 @@ template <typename value_type, bool Distrib=false>
 class pastix : public solver_base< value_type, pastix<value_type, Distrib> > {
     public:
         static_assert(
-                 boost::is_same<value_type, float >::value ||
-                 boost::is_same<value_type, double>::value,
+                 std::is_same<value_type, float >::value ||
+                 std::is_same<value_type, double>::value,
                  "Unsupported value type for pastix solver"
                 );
 

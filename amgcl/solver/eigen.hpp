@@ -34,7 +34,7 @@ THE SOFTWARE.
 #include <Eigen/Dense>
 #include <Eigen/SparseCore>
 
-#include <boost/type_traits.hpp>
+#include <type_traits>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>

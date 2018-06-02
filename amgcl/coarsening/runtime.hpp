@@ -34,7 +34,7 @@ THE SOFTWARE.
 #include <iostream>
 #include <stdexcept>
 
-#include <boost/type_traits.hpp>
+#include <type_traits>
 #include <boost/property_tree/ptree.hpp>
 
 #include <amgcl/backend/interface.hpp>
@@ -186,8 +186,8 @@ struct wrapper {
     }
 
     template <template <class> class Coarsening>
-    typename boost::enable_if<
-        typename backend::coarsening_is_supported<Backend, Coarsening>::type,
+    typename std::enable_if<
+        backend::coarsening_is_supported<Backend, Coarsening>::value,
         void*
     >::type
     call_constructor(const params &prm) {
@@ -195,8 +195,8 @@ struct wrapper {
     }
 
     template <template <class> class Coarsening>
-    typename boost::disable_if<
-        typename backend::coarsening_is_supported<Backend, Coarsening>::type,
+    typename std::enable_if<
+        !backend::coarsening_is_supported<Backend, Coarsening>::value,
         void*
     >::type
     call_constructor(const params&) {
@@ -204,8 +204,8 @@ struct wrapper {
     }
 
     template <template <class> class Coarsening>
-    typename boost::enable_if<
-        typename backend::coarsening_is_supported<Backend, Coarsening>::type,
+    typename std::enable_if<
+        backend::coarsening_is_supported<Backend, Coarsening>::value,
         void
     >::type
     call_destructor() {
@@ -213,16 +213,16 @@ struct wrapper {
     }
 
     template <template <class> class Coarsening>
-    typename boost::disable_if<
-        typename backend::coarsening_is_supported<Backend, Coarsening>::type,
+    typename std::enable_if<
+        !backend::coarsening_is_supported<Backend, Coarsening>::value,
         void
     >::type
     call_destructor() {
     }
 
     template <template <class> class Coarsening, class Matrix>
-    typename boost::enable_if<
-        typename backend::coarsening_is_supported<Backend, Coarsening>::type,
+    typename std::enable_if<
+        backend::coarsening_is_supported<Backend, Coarsening>::value,
         std::tuple<
             std::shared_ptr<Matrix>,
             std::shared_ptr<Matrix>
@@ -233,8 +233,8 @@ struct wrapper {
     }
 
     template <template <class> class Coarsening, class Matrix>
-    typename boost::disable_if<
-        typename backend::coarsening_is_supported<Backend, Coarsening>::type,
+    typename std::enable_if<
+        !backend::coarsening_is_supported<Backend, Coarsening>::value,
         std::tuple<
             std::shared_ptr<Matrix>,
             std::shared_ptr<Matrix>
@@ -245,8 +245,8 @@ struct wrapper {
     }
 
     template <template <class> class Coarsening, class Matrix>
-    typename boost::enable_if<
-        typename backend::coarsening_is_supported<Backend, Coarsening>::type,
+    typename std::enable_if<
+        backend::coarsening_is_supported<Backend, Coarsening>::value,
         std::shared_ptr<Matrix>
     >::type
     make_coarse(const Matrix &A, const Matrix &P, const Matrix &R) const {
@@ -254,8 +254,8 @@ struct wrapper {
     }
 
     template <template <class> class Coarsening, class Matrix>
-    typename boost::disable_if<
-        typename backend::coarsening_is_supported<Backend, Coarsening>::type,
+    typename std::enable_if<
+        !backend::coarsening_is_supported<Backend, Coarsening>::value,
         std::shared_ptr<Matrix>
     >::type
     make_coarse(const Matrix&, const Matrix&, const Matrix&) const {

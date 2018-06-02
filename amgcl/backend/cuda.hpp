@@ -31,7 +31,7 @@ THE SOFTWARE.
  * \brief  CUDA backend.
  */
 
-#include <boost/type_traits.hpp>
+#include <type_traits>
 #include <memory>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/solver/skyline_lu.hpp>
@@ -145,7 +145,7 @@ class cuda_hyb_matrix {
         void spmv(
                 real alpha, thrust::device_vector<real> const &x,
                 real beta,  thrust::device_vector<real>       &y,
-                boost::false_type
+                std::false_type
             ) const
         {
             AMGCL_CALL_CUDA(
@@ -160,7 +160,7 @@ class cuda_hyb_matrix {
         void spmv(
                 real alpha, thrust::device_vector<real> const &x,
                 real beta,  thrust::device_vector<real>       &y,
-                boost::true_type
+                std::true_type
             ) const
         {
             AMGCL_CALL_CUDA(
@@ -244,8 +244,8 @@ class cuda_hyb_matrix {
 template <typename real, class DirectSolver = solver::cuda_skyline_lu<real> >
 struct cuda {
         static_assert(
-                boost::is_same<real, float>::value ||
-                boost::is_same<real, double>::value,
+                std::is_same<real, float>::value ||
+                std::is_same<real, double>::value,
                 "Unsupported value type for cuda backend"
                 );
 
@@ -255,7 +255,7 @@ struct cuda {
     typedef thrust::device_vector<real> matrix_diagonal;
     typedef DirectSolver                direct_solver;
 
-    struct provides_row_iterator : boost::false_type {};
+    struct provides_row_iterator : std::false_type {};
 
     /// Backend parameters.
     struct params {
@@ -381,7 +381,7 @@ struct spmv_impl<
     static void apply(Alpha alpha, const matrix &A, const vector &x,
             Beta beta, vector &y)
     {
-        A.spmv(alpha, x, beta, y, typename boost::is_same<V, double>::type());
+        A.spmv(alpha, x, beta, y, typename std::is_same<V, double>::type());
     }
 };
 
@@ -400,7 +400,7 @@ struct residual_impl<
             vector &r)
     {
         thrust::copy(rhs.begin(), rhs.end(), r.begin());
-        A.spmv(-1, x, 1, r, typename boost::is_same<V, double>::type());
+        A.spmv(-1, x, 1, r, typename std::is_same<V, double>::type());
     }
 };
 

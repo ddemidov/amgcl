@@ -152,7 +152,7 @@ struct block_crs {
     typedef typename builtin<real>::vector     matrix_diagonal;
     typedef solver::skyline_lu<value_type>     direct_solver;
 
-    struct provides_row_iterator : boost::false_type {};
+    struct provides_row_iterator : std::false_type {};
 
     /// Backend parameters.
     struct params {

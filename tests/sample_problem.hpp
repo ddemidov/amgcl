@@ -2,7 +2,7 @@
 #define TESTS_SAMPLE_PROBLEM_HPP
 
 #include <complex>
-#include <boost/type_traits.hpp>
+#include <type_traits>
 #include <amgcl/value_type/interface.hpp>
 
 // Generates matrix for poisson problem in a unit cube.

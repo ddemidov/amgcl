@@ -54,7 +54,7 @@ struct blaze {
     typedef real      value_type;
     typedef ptrdiff_t index_type;
 
-    struct provides_row_iterator : boost::false_type {};
+    struct provides_row_iterator : std::false_type {};
 
     typedef ::blaze::CompressedMatrix<real> matrix;
     typedef ::blaze::DynamicVector<real>    vector;

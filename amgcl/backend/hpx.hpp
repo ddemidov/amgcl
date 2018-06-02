@@ -214,7 +214,7 @@ struct HPX {
     typedef real      value_type;
     typedef ptrdiff_t index_type;
 
-    struct provides_row_iterator : boost::false_type {};
+    struct provides_row_iterator : std::false_type {};
 
     struct params {
         /// Number of vector elements in a single segment.

@@ -460,7 +460,7 @@ class QR {
 };
 
 template <class value_type>
-class QR<value_type, typename boost::enable_if< math::is_static_matrix<value_type> >::type>
+class QR<value_type, typename std::enable_if<math::is_static_matrix<value_type>::value>::type>
 {
     public:
         typedef typename amgcl::math::rhs_of<value_type>::type rhs_type;

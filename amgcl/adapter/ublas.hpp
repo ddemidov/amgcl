@@ -45,7 +45,7 @@ namespace backend {
 // Make builtin backend recognize ublas vectors as its own:
 template <typename T>
 struct is_builtin_vector< boost::numeric::ublas::vector<T> >
-    : boost::true_type {};
+    : std::true_type {};
 
 /// Adapts Boost.uBlas matrix.
 template <typename T>

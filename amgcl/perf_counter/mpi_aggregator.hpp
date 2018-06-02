@@ -34,7 +34,7 @@ THE SOFTWARE.
 
 #include <functional>
 #include <cmath>
-#include <boost/type_traits.hpp>
+#include <type_traits>
 #include <amgcl/mpi/util.hpp>
 
 namespace amgcl {
@@ -47,7 +47,7 @@ class mpi_aggregator {
 
         mpi_aggregator() : world(MPI_COMM_WORLD), dtype(amgcl::mpi::datatype<value_type>::get()) {
             if (SingleReaderPerNode) {
-                typedef boost::integral_constant<bool, sizeof(size_t) == sizeof(int)>::type _32bit;
+                typedef std::integral_constant<bool, sizeof(size_t) == sizeof(int)>::type _32bit;
 
                 char node_name[MPI_MAX_PROCESSOR_NAME];
                 int node_name_len, node_master;
@@ -98,11 +98,11 @@ class mpi_aggregator {
 
         Counter counter;
 
-        int name_hash(const char *name, boost::true_type) {
+        int name_hash(const char *name, std::true_type) {
             return std::hash<std::string>()(name);
         }
 
-        int name_hash(const char *name, boost::false_type) {
+        int name_hash(const char *name, std::false_type) {
             union {
                 size_t full;
                 struct {

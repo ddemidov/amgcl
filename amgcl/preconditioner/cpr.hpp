@@ -45,7 +45,7 @@ namespace preconditioner {
 template <class PPrecond, class SPrecond>
 class cpr {
     static_assert(
-            boost::is_same<
+            std::is_same<
                 typename PPrecond::backend_type,
                 typename SPrecond::backend_type
                 >::value,

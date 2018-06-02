@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include <boost/type_traits.hpp>
+#include <type_traits>
 
 #include <amgcl/amg.hpp>
 #include <amgcl/solver/runtime.hpp>

@@ -38,7 +38,7 @@ THE SOFTWARE.
 #  include <omp.h>
 #endif
 
-#include <boost/type_traits.hpp>
+#include <type_traits>
 #include <memory>
 #include <boost/range/iterator_range.hpp>
 
@@ -592,7 +592,7 @@ class numa_vector {
 
         template <class Vector>
         numa_vector(const Vector &other,
-                typename boost::disable_if<boost::is_integral<Vector>, int>::type = 0
+                typename std::enable_if<!std::is_integral<Vector>::value, int>::type = 0
                 ) : n(other.size()), p(new T[n])
         {
 #pragma omp parallel for
@@ -605,7 +605,7 @@ class numa_vector {
             : n(std::distance(beg, end)), p(new T[n])
         {
             BOOST_ASSERT( (
-                    boost::is_same<
+                    std::is_same<
                         std::random_access_iterator_tag,
                         typename std::iterator_traits<Iterator>::iterator_category
                     >::value
@@ -685,7 +685,7 @@ struct builtin {
 
     typedef typename math::rhs_of<value_type>::type rhs_type;
 
-    struct provides_row_iterator : boost::true_type {};
+    struct provides_row_iterator : std::true_type {};
 
     typedef crs<value_type, index_type>    matrix;
     typedef numa_vector<rhs_type>          vector;
@@ -761,22 +761,22 @@ struct builtin {
 };
 
 template <class T>
-struct is_builtin_vector : boost::false_type {};
+struct is_builtin_vector : std::false_type {};
 
 template <class V>
-struct is_builtin_vector< std::vector<V> > : boost::is_arithmetic<V> {};
+struct is_builtin_vector< std::vector<V> > : std::is_arithmetic<V> {};
 
 template <class V>
-struct is_builtin_vector< numa_vector<V> > : boost::true_type {};
+struct is_builtin_vector< numa_vector<V> > : std::true_type {};
 
 template <class Iterator>
-struct is_builtin_vector< boost::iterator_range<Iterator> > : boost::true_type {};
+struct is_builtin_vector< boost::iterator_range<Iterator> > : std::true_type {};
 
 //---------------------------------------------------------------------------
 // Specialization of backend interface
 //---------------------------------------------------------------------------
 template <typename T1, typename T2>
-struct backends_compatible< builtin<T1>, builtin<T2> > : boost::true_type {};
+struct backends_compatible< builtin<T1>, builtin<T2> > : std::true_type {};
 
 template < typename V, typename C, typename P >
 struct value_type< crs<V, C, P> > {
@@ -854,7 +854,7 @@ struct row_nonzeros_impl< crs<V, C, P> > {
 template < class Vec >
 struct clear_impl<
     Vec,
-    typename boost::enable_if< typename is_builtin_vector<Vec>::type >::type
+    typename std::enable_if< is_builtin_vector<Vec>::value >::type
     >
 {
     static void apply(Vec &x)
@@ -872,11 +872,9 @@ struct clear_impl<
 template < class Vec1, class Vec2 >
 struct inner_product_impl<
     Vec1, Vec2,
-    typename boost::enable_if<
-            typename boost::mpl::and_<
-                typename is_builtin_vector<Vec1>::type,
-                typename is_builtin_vector<Vec2>::type
-                >::type
+    typename std::enable_if<
+        is_builtin_vector<Vec1>::value &&
+        is_builtin_vector<Vec2>::value
         >::type
     >
 {
@@ -928,11 +926,9 @@ struct inner_product_impl<
 template <class A, class Vec1, class B, class Vec2 >
 struct axpby_impl<
     A, Vec1, B, Vec2,
-    typename boost::enable_if<
-            typename boost::mpl::and_<
-                typename is_builtin_vector<Vec1>::type,
-                typename is_builtin_vector<Vec2>::type
-                >::type
+    typename std::enable_if<
+        is_builtin_vector<Vec1>::value &&
+        is_builtin_vector<Vec2>::value
         >::type
     >
 {
@@ -956,12 +952,10 @@ struct axpby_impl<
 template < class A, class Vec1, class B, class Vec2, class C, class Vec3 >
 struct axpbypcz_impl<
     A, Vec1, B, Vec2, C, Vec3,
-    typename boost::enable_if<
-            typename boost::mpl::and_<
-                typename is_builtin_vector<Vec1>::type,
-                typename is_builtin_vector<Vec2>::type,
-                typename is_builtin_vector<Vec3>::type
-                >::type
+    typename std::enable_if<
+        is_builtin_vector<Vec1>::value &&
+        is_builtin_vector<Vec2>::value &&
+        is_builtin_vector<Vec3>::value
         >::type
     >
 {
@@ -985,12 +979,10 @@ struct axpbypcz_impl<
 template < class Alpha, class Vec1, class Vec2, class Beta, class Vec3 >
 struct vmul_impl<
     Alpha, Vec1, Vec2, Beta, Vec3,
-    typename boost::enable_if<
-            typename boost::mpl::and_<
-                typename is_builtin_vector<Vec1>::type,
-                typename is_builtin_vector<Vec2>::type,
-                typename is_builtin_vector<Vec3>::type
-                >::type
+    typename std::enable_if<
+        is_builtin_vector<Vec1>::value &&
+        is_builtin_vector<Vec2>::value &&
+        is_builtin_vector<Vec3>::value
         >::type
     >
 {
@@ -1014,11 +1006,9 @@ struct vmul_impl<
 template < class Vec1, class Vec2 >
 struct copy_impl<
     Vec1, Vec2,
-    typename boost::enable_if<
-            typename boost::mpl::and_<
-                typename is_builtin_vector<Vec1>::type,
-                typename is_builtin_vector<Vec2>::type
-                >::type
+    typename std::enable_if<
+        is_builtin_vector<Vec1>::value &&
+        is_builtin_vector<Vec2>::value
         >::type
     >
 {
@@ -1036,7 +1026,7 @@ namespace detail {
 
 template <typename V, typename C, typename P>
 struct use_builtin_matrix_ops< amgcl::backend::crs<V, C, P> >
-    : boost::true_type
+    : std::true_type
 {};
 
 } // namespace detail

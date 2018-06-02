@@ -37,7 +37,7 @@ THE SOFTWARE.
 #include <sstream>
 #include <numeric>
 
-#include <boost/type_traits.hpp>
+#include <type_traits>
 #include <tuple>
 
 #include <amgcl/util.hpp>
@@ -142,12 +142,12 @@ class mm_reader {
                 )
         {
             precondition(_sparse, format_error("not a sparse matrix"));
-            precondition(boost::is_complex<Val>::value == _complex,
+            precondition(amgcl::is_complex<Val>::value == _complex,
                     _complex ?
                         "attempt to read complex values into real vector" :
                         "attempt to read real values into complex vector"
                         );
-            precondition(boost::is_integral<Val>::value == _integer,
+            precondition(std::is_integral<Val>::value == _integer,
                     _integer ?
                         "attempt to read integer values into real vector" :
                         "attempt to read real values into integer vector"
@@ -250,12 +250,12 @@ class mm_reader {
                 )
         {
             precondition(!_sparse, format_error("not a dense array"));
-            precondition(boost::is_complex<Val>::value == _complex,
+            precondition(amgcl::is_complex<Val>::value == _complex,
                     _complex ?
                         "attempt to read complex values into real vector" :
                         "attempt to read real values into complex vector"
                         );
-            precondition(boost::is_integral<Val>::value == _integer,
+            precondition(std::is_integral<Val>::value == _integer,
                     _integer ?
                         "attempt to read integer values into real vector" :
                         "attempt to read real values into integer vector"
@@ -309,7 +309,7 @@ class mm_reader {
         }
 
         template <typename T>
-        typename boost::enable_if<typename boost::is_complex<T>::type, T>::type
+        typename std::enable_if<amgcl::is_complex<T>::value, T>::type
         read_value(std::istream &s) {
             typename math::scalar_of<T>::type x,y;
             precondition(s >> x >> y, format_error());
@@ -317,10 +317,10 @@ class mm_reader {
         }
 
         template <typename T>
-        typename boost::disable_if<typename boost::is_complex<T>::type, T>::type
+        typename std::enable_if<!amgcl::is_complex<T>::value, T>::type
         read_value(std::istream &s) {
             T x;
-            if (boost::is_same<T, char>::value) {
+            if (std::is_same<T, char>::value) {
                 // Special case:
                 // We want to read 8bit integers from MatrixMarket, not chars.
                 int i;
@@ -336,13 +336,13 @@ class mm_reader {
 
 namespace detail {
 template <typename Val>
-typename boost::enable_if<typename boost::is_complex<Val>::type, std::ostream&>::type
+typename std::enable_if<is_complex<Val>::value, std::ostream&>::type
 write_value(std::ostream &s, Val v) {
     return s << std::real(v) << " " << std::imag(v);
 }
 
 template <typename Val>
-typename boost::disable_if<typename boost::is_complex<Val>::type, std::ostream&>::type
+typename std::enable_if<!is_complex<Val>::value, std::ostream&>::type
 write_value(std::ostream &s, Val v) {
     return s << v;
 }
@@ -363,9 +363,9 @@ void mm_write(
 
     // Banner
     f << "%%MatrixMarket matrix array ";
-    if (boost::is_complex<Val>::value) {
+    if (is_complex<Val>::value) {
         f << "complex ";
-    } else if(boost::is_integral<Val>::value) {
+    } else if(std::is_integral<Val>::value) {
         f << "integer ";
     } else {
         f << "real ";
@@ -398,9 +398,9 @@ void mm_write(const std::string &fname, const Matrix &A) {
 
     // Banner
     f << "%%MatrixMarket matrix coordinate ";
-    if (boost::is_complex<Val>::value) {
+    if (is_complex<Val>::value) {
         f << "complex ";
-    } else if(boost::is_integral<Val>::value) {
+    } else if(std::is_integral<Val>::value) {
         f << "integer ";
     } else {
         f << "real ";

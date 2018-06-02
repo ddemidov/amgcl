@@ -33,7 +33,7 @@ THE SOFTWARE.
 
 #include <cmath>
 
-#include <boost/type_traits.hpp>
+#include <type_traits>
 
 #include <amgcl/value_type/interface.hpp>
 #include <amgcl/util.hpp>
@@ -71,7 +71,7 @@ namespace backend {
  * That is, a solver in SBackend may be used together with a preconditioner in PBackend.
  */
 template <class SBackend, class PBackend>
-struct backends_compatible : boost::is_same<SBackend, PBackend> {};
+struct backends_compatible : std::is_same<SBackend, PBackend> {};
 
 /// Metafunction that returns value type of a matrix or a vector type.
 template <class T, class Enable = void>
@@ -351,11 +351,11 @@ void vmul(Alpha alpha, const Vector1 &x, const Vector2 &y, Beta beta, Vector3 &z
 
 /// Is the relaxation supported by the backend?
 template <class Backend, template <class> class Relaxation, class Enable = void>
-struct relaxation_is_supported : boost::true_type {};
+struct relaxation_is_supported : std::true_type {};
 
 /// Is the coarsening supported by the backend?
 template <class Backend, template <class> class Coarsening, class Enable = void>
-struct coarsening_is_supported : boost::true_type {};
+struct coarsening_is_supported : std::true_type {};
 
 /// Linear combination of vectors
 /**

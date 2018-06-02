@@ -31,7 +31,7 @@ THE SOFTWARE.
  * \brief  Runtime-configurable smoother as standalone preconditioner.
  */
 
-#include <boost/type_traits.hpp>
+#include <type_traits>
 #include <boost/property_tree/ptree.hpp>
 
 #include <amgcl/relaxation/gauss_seidel.hpp>
@@ -253,8 +253,8 @@ struct wrapper {
     }
 
     template <template <class> class Relaxation, class Matrix>
-    typename boost::enable_if<
-        typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+    typename std::enable_if<
+        backend::relaxation_is_supported<Backend, Relaxation>::value,
         void*
     >::type
     call_constructor(
@@ -264,8 +264,8 @@ struct wrapper {
     }
 
     template <template <class> class Relaxation, class Matrix>
-    typename boost::disable_if<
-        typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+    typename std::enable_if<
+        !backend::relaxation_is_supported<Backend, Relaxation>::value,
         void*
     >::type
     call_constructor(const Matrix&, const params&, const backend_params&)
@@ -274,8 +274,8 @@ struct wrapper {
     }
 
     template <template <class> class Relaxation, class Matrix, class VectorRHS, class VectorX, class VectorTMP>
-    typename boost::enable_if<
-        typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+    typename std::enable_if<
+        backend::relaxation_is_supported<Backend, Relaxation>::value,
         void
     >::type
     call_apply_pre(
@@ -285,8 +285,8 @@ struct wrapper {
     }
 
     template <template <class> class Relaxation, class Matrix, class VectorRHS, class VectorX, class VectorTMP>
-    typename boost::disable_if<
-        typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+    typename std::enable_if<
+        !backend::relaxation_is_supported<Backend, Relaxation>::value,
         void
     >::type
     call_apply_pre(const Matrix&, const VectorRHS&, VectorX&, VectorTMP&) const {
@@ -294,8 +294,8 @@ struct wrapper {
     }
 
     template <template <class> class Relaxation, class Matrix, class VectorRHS, class VectorX, class VectorTMP>
-    typename boost::enable_if<
-        typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+    typename std::enable_if<
+        backend::relaxation_is_supported<Backend, Relaxation>::value,
         void
     >::type
     call_apply_post(
@@ -305,8 +305,8 @@ struct wrapper {
     }
 
     template <template <class> class Relaxation, class Matrix, class VectorRHS, class VectorX, class VectorTMP>
-    typename boost::disable_if<
-        typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+    typename std::enable_if<
+        !backend::relaxation_is_supported<Backend, Relaxation>::value,
         void
     >::type
     call_apply_post(const Matrix&, const VectorRHS&, VectorX&, VectorTMP&) const {
@@ -314,8 +314,8 @@ struct wrapper {
     }
 
     template <template <class> class Relaxation, class Matrix, class VectorRHS, class VectorX>
-    typename boost::enable_if<
-        typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+    typename std::enable_if<
+        backend::relaxation_is_supported<Backend, Relaxation>::value,
         void
     >::type
     call_apply(
@@ -325,8 +325,8 @@ struct wrapper {
     }
 
     template <template <class> class Relaxation, class Matrix, class VectorRHS, class VectorX>
-    typename boost::disable_if<
-        typename backend::relaxation_is_supported<Backend, Relaxation>::type,
+    typename std::enable_if<
+        !backend::relaxation_is_supported<Backend, Relaxation>::value,
         void
     >::type
     call_apply(const Matrix&, const VectorRHS&, VectorX&) const {

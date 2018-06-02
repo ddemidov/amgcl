@@ -65,7 +65,7 @@ AMG amg(std::make_tuple(n,
 #include <boost/range/const_iterator.hpp>
 #include <boost/range/value_type.hpp>
 #include <boost/range/size.hpp>
-#include <boost/type_traits.hpp>
+#include <type_traits>
 
 #include <amgcl/util.hpp>
 #include <amgcl/backend/interface.hpp>
@@ -82,7 +82,7 @@ struct value_type< std::tuple<N, PRng, CRng, VRng> >
 {
     typedef
         typename boost::range_value<
-                    typename boost::decay<VRng>::type
+                    typename std::decay<VRng>::type
                  >::type
         type;
 };
@@ -127,12 +127,12 @@ struct row_iterator< std::tuple<N, PRng, CRng, VRng> >
         public:
             typedef
                 typename boost::range_value<
-                            typename boost::decay<CRng>::type
+                            typename std::decay<CRng>::type
                          >::type
                 col_type;
             typedef
                 typename boost::range_value<
-                            typename boost::decay<VRng>::type
+                            typename std::decay<VRng>::type
                          >::type
                 val_type;
 
@@ -143,7 +143,7 @@ struct row_iterator< std::tuple<N, PRng, CRng, VRng> >
             {
                 typedef
                     typename boost::range_value<
-                                typename boost::decay<PRng>::type
+                                typename std::decay<PRng>::type
                              >::type
                     ptr_type;
 
@@ -176,13 +176,13 @@ struct row_iterator< std::tuple<N, PRng, CRng, VRng> >
         private:
             typedef
                 typename boost::range_const_iterator<
-                            typename boost::decay<VRng>::type
+                            typename std::decay<VRng>::type
                          >::type
                 val_iterator;
 
             typedef
                 typename boost::range_const_iterator<
-                            typename boost::decay<CRng>::type
+                            typename std::decay<CRng>::type
                          >::type
                 col_iterator;
 
@@ -216,7 +216,7 @@ struct ptr_data_impl< std::tuple<N, PRng, CRng, VRng> > {
     typedef std::tuple<N, PRng, CRng, VRng> Matrix;
     typedef
         typename boost::range_value<
-                    typename boost::decay<PRng>::type
+                    typename std::decay<PRng>::type
                  >::type
         ptr_type;
     typedef const ptr_type* type;
@@ -230,7 +230,7 @@ struct col_data_impl< std::tuple<N, PRng, CRng, VRng> > {
     typedef std::tuple<N, PRng, CRng, VRng> Matrix;
     typedef
         typename boost::range_value<
-                    typename boost::decay<CRng>::type
+                    typename std::decay<CRng>::type
                  >::type
         col_type;
     typedef const col_type* type;
@@ -244,7 +244,7 @@ struct val_data_impl< std::tuple<N, PRng, CRng, VRng> > {
     typedef std::tuple<N, PRng, CRng, VRng> Matrix;
     typedef
         typename boost::range_value<
-                    typename boost::decay<VRng>::type
+                    typename std::decay<VRng>::type
                  >::type
         val_type;
     typedef const val_type* type;
@@ -257,7 +257,7 @@ namespace detail {
 
 template < typename N, typename PRng, typename CRng, typename VRng >
 struct use_builtin_matrix_ops< std::tuple<N, PRng, CRng, VRng> >
-    : boost::true_type
+    : std::true_type
 {};
 
 } // namespace detail

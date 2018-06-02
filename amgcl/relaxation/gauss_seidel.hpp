@@ -359,10 +359,10 @@ template <class Backend>
 struct relaxation_is_supported<
     Backend,
     relaxation::gauss_seidel,
-    typename boost::disable_if<
-            typename Backend::provides_row_iterator
+    typename std::enable_if<
+        !Backend::provides_row_iterator::value
         >::type
-    > : boost::false_type
+    > : std::false_type
 {};
 
 } // namespace backend

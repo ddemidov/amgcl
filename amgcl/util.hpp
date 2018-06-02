@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include <iomanip>
 #include <string>
 #include <set>
+#include <complex>
 #include <limits>
 #include <stdexcept>
 #include <boost/io/ios_state.hpp>
@@ -166,6 +167,8 @@ T eps(size_t n) {
 
 } // namespace detail
 
+template <class T> struct is_complex : std::false_type {};
+template <class T> struct is_complex< std::complex<T> > : std::true_type {};
 } // namespace amgcl
 
 namespace std {

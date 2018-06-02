@@ -32,7 +32,7 @@ THE SOFTWARE.
 \ingroup adapters
 */
 
-#include <boost/type_traits.hpp>
+#include <type_traits>
 #include <boost/range/iterator_range.hpp>
 
 #include <amgcl/backend/interface.hpp>
@@ -43,7 +43,7 @@ namespace adapter {
 
 template <class Matrix>
 struct complex_adapter {
-    static_assert(boost::is_complex<typename backend::value_type<Matrix>::type>::value,
+    static_assert(is_complex<typename backend::value_type<Matrix>::type>::value,
             "value type should be complex");
 
     typedef typename backend::value_type<Matrix>::type::value_type val_type;
@@ -122,32 +122,32 @@ complex_adapter<Matrix> complex_matrix(const Matrix &A) {
 
 template <class Range>
 boost::iterator_range<
-    typename boost::add_pointer<
-        typename boost::conditional<
-            boost::is_const<Range>::value,
-            typename boost::add_const<
+    typename std::add_pointer<
+        typename std::conditional<
+            std::is_const<Range>::value,
+            typename std::add_const<
                 typename boost::range_value<
-                    typename boost::decay<Range>::type
+                    typename std::decay<Range>::type
                     >::type::value_type
                 >::type,
             typename boost::range_value<
-                typename boost::decay<Range>::type
+                typename std::decay<Range>::type
                 >::type::value_type
             >::type
         >::type
     >
 complex_range(Range &rng) {
     typedef
-        typename boost::add_pointer<
-            typename boost::conditional<
-                boost::is_const<Range>::value,
-                typename boost::add_const<
+        typename std::add_pointer<
+            typename std::conditional<
+                std::is_const<Range>::value,
+                typename std::add_const<
                     typename boost::range_value<
-                        typename boost::decay<Range>::type
+                        typename std::decay<Range>::type
                         >::type::value_type
                     >::type,
                 typename boost::range_value<
-                    typename boost::decay<Range>::type
+                    typename std::decay<Range>::type
                     >::type::value_type
                 >::type
             >::type
@@ -216,7 +216,7 @@ namespace detail {
 
 template <class Matrix>
 struct use_builtin_matrix_ops< amgcl::adapter::complex_adapter<Matrix> >
-    : boost::true_type
+    : std::true_type
 {};
 
 } // namespace detail

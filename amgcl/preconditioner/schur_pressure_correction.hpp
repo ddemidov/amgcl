@@ -47,13 +47,13 @@ namespace detail {
 // Same backends are always compatible
 template <class B1, class B2>
 struct compatible_backends
-    : boost::is_same<B1, B2>::type {};
+    : std::is_same<B1, B2>::type {};
 
 // Builtin backend allows mixing backends of different value types,
 // so that scalar and non-scalar backends may coexist.
 template <class V1, class V2>
 struct compatible_backends< backend::builtin<V1>, backend::builtin<V2> >
-    : boost::true_type {};
+    : std::true_type {};
 
 // Backend for schur complement preconditioner is selected as the one with
 // lower dimensionality of its value_type.
@@ -68,10 +68,10 @@ struct common_backend<B, B> {
 
 template <class V1, class V2>
 struct common_backend< backend::builtin<V1>, backend::builtin<V2>,
-    typename boost::disable_if<typename boost::is_same<V1, V2>::type>::type >
+    typename std::enable_if<!std::is_same<V1, V2>::value>::type >
 {
     typedef
-        typename boost::conditional<
+        typename std::conditional<
             (math::static_rows<V1>::value <= math::static_rows<V2>::value),
             backend::builtin<V1>, backend::builtin<V2>
             >::type

@@ -231,7 +231,7 @@ namespace detail {
 
 template <class RowBuilder>
 struct use_builtin_matrix_ops< amgcl::adapter::matrix_builder<RowBuilder> >
-    : boost::true_type
+    : std::true_type
 {};
 
 } // namespace detail

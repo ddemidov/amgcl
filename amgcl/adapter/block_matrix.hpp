@@ -222,7 +222,7 @@ namespace detail {
 
 template <class Matrix, class BlockType>
 struct use_builtin_matrix_ops< adapter::block_matrix_adapter<Matrix, BlockType> >
-    : boost::true_type
+    : std::true_type
 {};
 
 } // namespace detail

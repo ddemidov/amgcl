@@ -232,8 +232,8 @@ class solver {
         void *handle;
 
         template <class S, class V, class Matrix>
-        typename boost::enable_if_c<
-            boost::is_same<V, float>::value || boost::is_same<V, double>::value,
+        typename std::enable_if<
+            std::is_same<V, float>::value || std::is_same<V, double>::value,
             void
         >::type
         do_construct(amgcl::mpi::communicator comm, const Matrix &A, const params &prm) {
@@ -241,8 +241,8 @@ class solver {
         }
 
         template <class S, class V, class Matrix>
-        typename boost::disable_if_c<
-            boost::is_same<V, float>::value || boost::is_same<V, double>::value,
+        typename std::enable_if<
+            !std::is_same<V, float>::value && !std::is_same<V, double>::value,
             void
         >::type
         do_construct(amgcl::mpi::communicator, const Matrix&, const params&) {
@@ -250,8 +250,8 @@ class solver {
         }
 
         template <class S, class V, class Vec1, class Vec2>
-        typename boost::enable_if_c<
-            boost::is_same<V, float>::value || boost::is_same<V, double>::value,
+        typename std::enable_if<
+            std::is_same<V, float>::value || std::is_same<V, double>::value,
             void
         >::type
         do_solve(const Vec1 &rhs, Vec2 &x) const {
@@ -259,8 +259,8 @@ class solver {
         }
 
         template <class S, class V, class Vec1, class Vec2>
-        typename boost::disable_if_c<
-            boost::is_same<V, float>::value || boost::is_same<V, double>::value,
+        typename std::enable_if<
+            !std::is_same<V, float>::value && !std::is_same<V, double>::value,
             void
         >::type
         do_solve(const Vec1&, Vec2&) const {
@@ -268,8 +268,8 @@ class solver {
         }
 
         template <class S, class V>
-        typename boost::enable_if_c<
-            boost::is_same<V, float>::value || boost::is_same<V, double>::value,
+        typename std::enable_if<
+            std::is_same<V, float>::value || std::is_same<V, double>::value,
             void
         >::type
         do_destruct() {
@@ -277,8 +277,8 @@ class solver {
         }
 
         template <class S, class V>
-        typename boost::disable_if_c<
-            boost::is_same<V, float>::value || boost::is_same<V, double>::value,
+        typename std::enable_if<
+            !std::is_same<V, float>::value && !std::is_same<V, double>::value,
             void
         >::type
         do_destruct() {

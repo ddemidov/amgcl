@@ -37,7 +37,7 @@ THE SOFTWARE.
 #include <string>
 #include <vector>
 
-#include <boost/type_traits.hpp>
+#include <type_traits>
 #include <boost/io/ios_state.hpp>
 #include <amgcl/perf_counter/clock.hpp>
 

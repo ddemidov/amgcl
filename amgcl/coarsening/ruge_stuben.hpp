@@ -443,12 +443,10 @@ template <class Backend>
 struct coarsening_is_supported<
     Backend,
     coarsening::ruge_stuben,
-    typename boost::disable_if<
-            typename boost::is_arithmetic<
-                typename backend::value_type<Backend>::type
-            >::type
+    typename std::enable_if<
+        !std::is_arithmetic<typename backend::value_type<Backend>::type>::value
         >::type
-    > : boost::false_type
+    > : std::false_type
 {};
 
 } // namespace backend

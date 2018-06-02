@@ -2,7 +2,7 @@
 #include <functional>
 
 #include <boost/typeof/typeof.hpp>
-#include <boost/type_traits.hpp>
+#include <type_traits>
 #include <boost/iterator/transform_iterator.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>

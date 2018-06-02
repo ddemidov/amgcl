@@ -34,7 +34,7 @@ THE SOFTWARE.
 #include <iostream>
 #include <stdexcept>
 
-#include <boost/type_traits.hpp>
+#include <type_traits>
 #include <boost/property_tree/ptree.hpp>
 
 #include <amgcl/solver/cg.hpp>

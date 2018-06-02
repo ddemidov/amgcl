@@ -32,7 +32,7 @@ THE SOFTWARE.
 \ingroup adapters
 */
 
-#include <boost/type_traits.hpp>
+#include <type_traits>
 
 #include <amgcl/util.hpp>
 #include <amgcl/backend/builtin.hpp>
@@ -44,8 +44,8 @@ template <typename Ptr, typename Col, typename Val>
 std::shared_ptr< backend::crs<Val> >
 zero_copy(size_t n, const Ptr *ptr, const Col *col, const Val *val) {
     // Check that Ptr and Col types are binary-compatible with ptrdiff_t:
-    static_assert(boost::is_integral<Ptr>::value, "Unsupported Ptr type");
-    static_assert(boost::is_integral<Col>::value, "Unsupported Col type");
+    static_assert(std::is_integral<Ptr>::value, "Unsupported Ptr type");
+    static_assert(std::is_integral<Col>::value, "Unsupported Col type");
     static_assert(sizeof(Ptr) == sizeof(ptrdiff_t), "Unsupported Ptr type");
     static_assert(sizeof(Col) == sizeof(ptrdiff_t), "Unsupported Col type");
 

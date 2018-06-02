@@ -35,7 +35,7 @@ THE SOFTWARE.
 #include <vector>
 #include <numeric>
 
-#include <boost/type_traits.hpp>
+#include <type_traits>
 #include <amgcl/value_type/interface.hpp>
 
 #include <mpi.h>
@@ -98,14 +98,14 @@ struct datatype_impl<unsigned long long> {
 
 template <>
 struct datatype_impl<ptrdiff_t>
-    : boost::conditional<
+    : std::conditional<
         sizeof(ptrdiff_t) == sizeof(int), datatype_impl<int>, datatype_impl<long long>
         >::type
 {};
 
 template <>
 struct datatype_impl<size_t>
-    : boost::conditional<
+    : std::conditional<
         sizeof(size_t) == sizeof(unsigned), datatype_impl<unsigned>, datatype_impl<unsigned long long>
         >::type
 {};

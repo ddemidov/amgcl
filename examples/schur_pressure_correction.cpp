@@ -52,7 +52,7 @@ using amgcl::precondition;
 typedef amgcl::scoped_tic< amgcl::profiler<> > tic;
 
 template <class USolver, class PSolver, class Matrix>
-typename boost::enable_if_c<
+typename std::enable_if<
     (
         amgcl::math::static_rows<
             typename amgcl::preconditioner::detail::common_backend<
@@ -68,7 +68,7 @@ solve_schur(const Matrix&, const std::vector<double>&, boost::property_tree::ptr
 
 //---------------------------------------------------------------------------
 template <class USolver, class PSolver, class Matrix>
-typename boost::enable_if_c<
+typename std::enable_if<
     (
         amgcl::math::static_rows<
             typename amgcl::preconditioner::detail::common_backend<

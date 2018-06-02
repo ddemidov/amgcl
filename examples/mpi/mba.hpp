@@ -43,7 +43,7 @@ THE SOFTWARE.
 
 #include <boost/container/flat_map.hpp>
 #include <boost/multi_array.hpp>
-#include <boost/type_traits.hpp>
+#include <type_traits>
 #include <boost/io/ios_state.hpp>
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/lu.hpp>
@@ -52,10 +52,10 @@ namespace mba {
 namespace detail {
 
 template <size_t N, size_t M>
-struct power : boost::integral_constant<size_t, N * power<N, M-1>::value> {};
+struct power : std::integral_constant<size_t, N * power<N, M-1>::value> {};
 
 template <size_t N>
-struct power<N, 0> : boost::integral_constant<size_t, 1> {};
+struct power<N, 0> : std::integral_constant<size_t, 1> {};
 
 /// N-dimensional grid iterator (nested loop with variable depth).
 template <unsigned NDim>

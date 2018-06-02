@@ -46,7 +46,7 @@ namespace mpi {
 template <class USolver, class PSolver>
 class schur_pressure_correction {
     static_assert(
-            boost::is_same<
+            std::is_same<
                 typename USolver::backend_type,
                 typename PSolver::backend_type
                 >::value,

@@ -96,7 +96,7 @@ struct vexcl {
     typedef vex::vector<value_type>                        matrix_diagonal;
     typedef DirectSolver                                   direct_solver;
 
-    struct provides_row_iterator : boost::false_type {};
+    struct provides_row_iterator : std::false_type {};
 
     /// The VexCL backend parameters.
     struct params {

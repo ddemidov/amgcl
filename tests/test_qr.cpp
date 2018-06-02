@@ -47,7 +47,7 @@ struct make_random< amgcl::static_matrix<T,N,M> > {
 template <class value_type, amgcl::detail::storage_order order>
 void qr_factorize(int n, int m) {
     std::cout << "factorize " << n << " " << m << std::endl;
-    typedef typename boost::conditional<order == amgcl::detail::row_major,
+    typedef typename std::conditional<order == amgcl::detail::row_major,
             boost::c_storage_order,
             boost::fortran_storage_order
             >::type ma_storage_order;
@@ -83,7 +83,7 @@ void qr_factorize(int n, int m) {
 template <class value_type, amgcl::detail::storage_order order>
 void qr_solve(int n, int m) {
     std::cout << "solve " << n << " " << m << std::endl;
-    typedef typename boost::conditional<order == amgcl::detail::row_major,
+    typedef typename std::conditional<order == amgcl::detail::row_major,
             boost::c_storage_order,
             boost::fortran_storage_order
             >::type ma_storage_order;
