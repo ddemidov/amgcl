@@ -333,7 +333,7 @@ class ilu_solve< backend::builtin<value_type> > {
 
                     if (!lower) D[tid].reserve(thread_rows[tid]);
 
-                    BOOST_FOREACH(task &t, tasks[tid]) {
+                    for(task &t : tasks[tid]) {
                         ptrdiff_t loc_beg = ptr[tid].size() - 1;
                         ptrdiff_t loc_end = loc_beg;
 
@@ -363,7 +363,7 @@ class ilu_solve< backend::builtin<value_type> > {
                 {
                     int tid = thread_id();
 
-                    BOOST_FOREACH(const task &t, tasks[tid]) {
+                    for(const task &t : tasks[tid]) {
                         for(ptrdiff_t r = t.beg; r < t.end; ++r) {
                             ptrdiff_t i   = ord[tid][r];
                             ptrdiff_t beg = ptr[tid][r];

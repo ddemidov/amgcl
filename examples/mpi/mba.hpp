@@ -44,7 +44,6 @@ THE SOFTWARE.
 #include <boost/type_traits.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
-#include <boost/foreach.hpp>
 #include <boost/io/ios_state.hpp>
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/lu.hpp>
@@ -599,7 +598,7 @@ class MBA {
         double operator()(const point &p) const {
             double f = 0.0;
 
-            BOOST_FOREACH(const boost::shared_ptr<lattice> &psi, cl) {
+            for(const auto &psi : cl) {
                 f += (*psi)(p);
             }
 
@@ -608,7 +607,7 @@ class MBA {
 
         friend std::ostream& operator<<(std::ostream &os, const MBA &h) {
             size_t level = 0;
-            BOOST_FOREACH(const boost::shared_ptr<lattice> &psi, h.cl) {
+            for(const auto &psi : h.cl) {
                 os << "level " << ++level << ": ";
                 psi->report(os);
                 os << std::endl;

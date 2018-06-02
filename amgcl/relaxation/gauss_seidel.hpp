@@ -35,7 +35,6 @@ THE SOFTWARE.
 
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
-#include <boost/foreach.hpp>
 
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/util.hpp>
@@ -290,7 +289,7 @@ struct gauss_seidel {
                     ptr[tid].reserve(thread_rows[tid] + 1);
                     ptr[tid].push_back(0);
 
-                    BOOST_FOREACH(task &t, tasks[tid]) {
+                    for(task &t : tasks[tid]) {
                         ptrdiff_t loc_beg = ptr[tid].size() - 1;
                         ptrdiff_t loc_end = loc_beg;
 
@@ -319,7 +318,7 @@ struct gauss_seidel {
                 {
                     int tid = thread_id();
 
-                    BOOST_FOREACH(const task &t, tasks[tid]) {
+                    for(const task &t : tasks[tid]) {
                         for(ptrdiff_t r = t.beg; r < t.end; ++r) {
                             ptrdiff_t i   = ord[tid][r];
                             ptrdiff_t beg = ptr[tid][r];

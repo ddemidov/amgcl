@@ -36,7 +36,6 @@ THE SOFTWARE.
 #include <numeric>
 
 #include <boost/tuple/tuple.hpp>
-#include <boost/foreach.hpp>
 
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/value_type/interface.hpp>
@@ -237,7 +236,7 @@ boost::tuple<ptrdiff_t, ptrdiff_t> graph_perm_index(
     std::vector<ptrdiff_t> glo_part_cnt(npart);
     std::vector<ptrdiff_t> glo_part_beg(npart + 1);
 
-    BOOST_FOREACH(Idx p, part) ++loc_part_cnt[p];
+    for(Idx p : part) ++loc_part_cnt[p];
 
     MPI_Exscan(&loc_part_cnt[0], &loc_part_beg[0], npart, datatype<ptrdiff_t>(), MPI_SUM, comm);
     MPI_Allreduce(&loc_part_cnt[0], &glo_part_cnt[0], npart, datatype<ptrdiff_t>(), MPI_SUM, comm);

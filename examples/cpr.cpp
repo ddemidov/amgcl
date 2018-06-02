@@ -4,7 +4,6 @@
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
-#include <boost/foreach.hpp>
 
 #include <amgcl/make_solver.hpp>
 #include <amgcl/amg.hpp>
@@ -123,7 +122,7 @@ int main(int argc, char *argv[]) {
     if (vm.count("params")) read_json(vm["params"].as<string>(), prm);
 
     if (vm.count("prm")) {
-        BOOST_FOREACH(string v, vm["prm"].as<vector<string> >()) {
+        for(const string &v : vm["prm"].as<vector<string> >()) {
             amgcl::put(prm, v);
         }
     }

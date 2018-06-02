@@ -31,7 +31,6 @@ THE SOFTWARE.
  * \brief  Scaled Galerkin operator.
  */
 
-#include <boost/foreach.hpp>
 #include <amgcl/coarsening/detail/galerkin.hpp>
 
 namespace amgcl {

@@ -34,7 +34,6 @@ THE SOFTWARE.
 #include <vector>
 #include <numeric>
 
-#include <boost/foreach.hpp>
 #include <amgcl/util.hpp>
 #include <amgcl/backend/builtin.hpp>
 
@@ -179,7 +178,7 @@ struct plain_aggregates {
             // Temporarily mark undefined points adjacent to the new aggregate
             // as members of the aggregate.
             // If nobody claims them later, they will stay here.
-            BOOST_FOREACH(ptrdiff_t c, neib) {
+            for(ptrdiff_t c : neib) {
                 for(ptrdiff_t j = A.ptr[c], e = A.ptr[c+1]; j < e; ++j) {
                     ptrdiff_t cc = A.col[j];
                     if (strong_connection[j] && id[cc] == undefined)
@@ -193,7 +192,7 @@ struct plain_aggregates {
         // Some of the aggregates could potentially vanish during expansion
         // step (*) above. We need to exclude those and renumber the rest.
         std::vector<ptrdiff_t> cnt(count, 0);
-        BOOST_FOREACH(ptrdiff_t i, id)
+        for(ptrdiff_t i : id)
             if (i >= 0) cnt[i] = 1;
         std::partial_sum(cnt.begin(), cnt.end(), cnt.begin());
 

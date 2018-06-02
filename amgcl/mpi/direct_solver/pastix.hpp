@@ -39,7 +39,6 @@ See http://pastix.gforge.inria.fr
 
 #include <boost/static_assert.hpp>
 #include <boost/type_traits.hpp>
-#include <boost/foreach.hpp>
 
 #include <amgcl/util.hpp>
 #include <amgcl/backend/builtin.hpp>
@@ -118,8 +117,8 @@ class pastix : public solver_base< value_type, pastix<value_type, Distrib> > {
             std::vector<int> domain = comm.exclusive_sum(nrows);
 
             // PaStiX needs 1-based matrices:
-            BOOST_FOREACH(pastix_int_t &p, ptr) ++p;
-            BOOST_FOREACH(pastix_int_t &c, col) ++c;
+            for(pastix_int_t &p : ptr) ++p;
+            for(pastix_int_t &c : col) ++c;
 
             for(int i = 0, j = domain[comm.rank]; i < nrows; ++i)
                 row[i] = ++j;

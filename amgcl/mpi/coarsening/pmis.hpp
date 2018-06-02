@@ -34,7 +34,6 @@ THE SOFTWARE.
 #include <boost/tuple/tuple.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
-#include <boost/foreach.hpp>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
@@ -161,7 +160,7 @@ struct pmis {
 
         ptrdiff_t n_rem_cols = 0;
         boost::unordered_map<ptrdiff_t, int> rem_idx(2 * rem_cols.size());
-        BOOST_FOREACH(ptrdiff_t c, rem_cols) {
+        for(ptrdiff_t c : rem_cols) {
             if (c >= A_beg && c < A_end) continue;
             rem_idx[c] = n_rem_cols++;
         }
@@ -559,7 +558,7 @@ struct pmis {
                             }
                         }
 
-                        BOOST_FOREACH(ptrdiff_t k, nbr) {
+                        for(ptrdiff_t k : nbr) {
                             for(ptrdiff_t j = A_loc.ptr[k], e = A_loc.ptr[k+1]; j < e; ++j) {
                                 ptrdiff_t c = A_loc.col[j];
                                 if (c != k && loc_state[c] == undone) {

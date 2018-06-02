@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.9)
+cmake_minimum_required(VERSION 3.1)
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Build type")
     message(STATUS "No build type selected, default to ${CMAKE_BUILD_TYPE}")
@@ -44,6 +44,14 @@ find_package(Boost REQUIRED COMPONENTS
 #----------------------------------------------------------------------------
 add_library(amgcl INTERFACE)
 add_library(amgcl::amgcl ALIAS amgcl)
+
+target_compile_features(amgcl INTERFACE
+    cxx_auto_type
+    cxx_range_for
+    cxx_rvalue_references
+    cxx_right_angle_brackets
+    cxx_static_assert
+)
 
 target_include_directories(amgcl SYSTEM INTERFACE
     ${Boost_INCLUDE_DIRS}

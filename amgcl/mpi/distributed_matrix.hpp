@@ -31,7 +31,6 @@ THE SOFTWARE.
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/unordered_map.hpp>
-#include <boost/foreach.hpp>
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_real_distribution.hpp>
 
@@ -182,7 +181,7 @@ class comm_pattern {
             AMGCL_TOC("MPI Wait");
 
             // Shift columns to send to local numbering:
-            BOOST_FOREACH(ptrdiff_t &c, send.col) c -= loc_beg;
+            for(ptrdiff_t &c : send.col) c -= loc_beg;
 
             AMGCL_TOC("communication pattern");
         }
@@ -824,7 +823,7 @@ product(const distributed_matrix<Backend> &A, const distributed_matrix<Backend> 
 
     ptrdiff_t n_rem_cols = 0;
     boost::unordered_map<ptrdiff_t, int> rem_idx(2 * rem_cols.size());
-    BOOST_FOREACH(ptrdiff_t c, rem_cols) {
+    for(ptrdiff_t c : rem_cols) {
         if (c >= B_beg && c < B_end) continue;
         rem_idx[c] = n_rem_cols++;
     }

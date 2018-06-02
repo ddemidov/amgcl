@@ -35,7 +35,6 @@ THE SOFTWARE.
 #include <queue>
 #include <cmath>
 
-#include <boost/foreach.hpp>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
@@ -369,7 +368,7 @@ struct ilut {
                     }
                 }
 
-                BOOST_FOREACH(const nonzero &e, nz) idx[e.col] = -1;
+                for(const nonzero &e : nz) idx[e.col] = -1;
                 nz.clear();
             }
         };

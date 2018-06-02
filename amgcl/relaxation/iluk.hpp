@@ -36,7 +36,6 @@ THE SOFTWARE.
 #include <queue>
 #include <cmath>
 
-#include <boost/foreach.hpp>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
@@ -131,7 +130,7 @@ struct iluk {
 
             w.sort();
 
-            BOOST_FOREACH(const nonzero &e, w.nz) {
+            for(const nonzero &e : w.nz) {
                 if (e.col < i) {
                     Lcol.push_back(e.col);
                     Lval.push_back(e.val);
@@ -262,7 +261,7 @@ struct iluk {
             }
 
             void reset(ptrdiff_t d) {
-                BOOST_FOREACH(const nonzero &e, nz) idx[e.col] = -1;
+                for(const nonzero &e : nz) idx[e.col] = -1;
                 nz.clear();
                 dia = d;
             }

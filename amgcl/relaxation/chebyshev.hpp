@@ -33,7 +33,6 @@ THE SOFTWARE.
 
 #include <vector>
 #include <cmath>
-#include <boost/foreach.hpp>
 #include <boost/multi_array.hpp>
 #include <boost/math/constants/constants.hpp>
 
@@ -178,10 +177,10 @@ class chebyshev {
 
             backend::axpby(C[0], rhs, zero, x);
 
-            BOOST_FOREACH(scalar_type c, boost::make_iterator_range(C.begin() + 1, C.end()))
+            for(auto c = C.begin() + 1; c != C.end(); ++c)
             {
                 backend::spmv(one, A, x, zero, *q);
-                backend::axpbypcz(c, rhs, one, *q, zero, x);
+                backend::axpbypcz(*c, rhs, one, *q, zero, x);
             }
         }
 

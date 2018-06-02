@@ -189,7 +189,7 @@ int main(int argc, char *argv[]) {
     if (vm.count("params")) read_json(parameter_file, prm);
 
     if (vm.count("prm")) {
-        BOOST_FOREACH(std::string v, vm["prm"].as< std::vector<std::string> >()) {
+        for(const std::string &v : vm["prm"].as< std::vector<std::string> >()) {
             amgcl::put(prm, v);
         }
     }

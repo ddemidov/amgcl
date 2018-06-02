@@ -143,7 +143,7 @@ void test_problem(
     boost::shared_ptr<vector> x = Backend::create_vector(n, prm);
 
     // Test solvers
-    BOOST_FOREACH(amgcl::runtime::solver::type s, solver) {
+    for(amgcl::runtime::solver::type s : solver) {
         std::cout << "Solver: " << s << std::endl;
         try {
             test_solver<Backend>(
@@ -154,7 +154,7 @@ void test_problem(
     }
 
     // Test smoothers
-    BOOST_FOREACH(amgcl::runtime::relaxation::type r, relaxation) {
+    for(amgcl::runtime::relaxation::type r : relaxation) {
         std::cout << "Relaxation: " << r << std::endl;
         try {
             test_solver<Backend>(
@@ -172,7 +172,7 @@ void test_problem(
     }
 
     // Test coarsening
-    BOOST_FOREACH(amgcl::runtime::coarsening::type c, coarsening) {
+    for(amgcl::runtime::coarsening::type c : coarsening) {
         std::cout << "Coarsening: " << c << std::endl;
 
         try {

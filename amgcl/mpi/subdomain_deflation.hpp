@@ -379,7 +379,7 @@ class subdomain_deflation {
 
             {
                 ptrdiff_t nnz = 0;
-                BOOST_FOREACH(int j, nbrs) nnz += dv_size[j];
+                for(int j : nbrs) nnz += dv_size[j];
                 for(int k = 0; k <= ndv; ++k)
                     E.ptr[k] = k * nnz;
             }
@@ -431,7 +431,7 @@ class subdomain_deflation {
 
             for(int i = 0; i < ndv; ++i) {
                 int row_head = E.ptr[i];
-                BOOST_FOREACH(int j, nbrs) {
+                for(int j : nbrs) {
                     for(int k = 0; k < dv_size[j]; ++k) {
                         int c = dv_start[j] + k;
                         value_type v = math::zero<value_type>();

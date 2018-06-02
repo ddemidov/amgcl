@@ -4,7 +4,6 @@
 #include <vector>
 #include <utility>
 
-#include <boost/foreach.hpp>
 #include <boost/geometry.hpp>
 #include <boost/geometry/geometries/adapted/boost_array.hpp>
 #include <boost/geometry/geometries/box.hpp>
@@ -29,7 +28,7 @@ class domain_partition {
         std::pair<int, ptrdiff_t> index(point p) const {
             namespace bgi = boost::geometry::index;
 
-            BOOST_FOREACH(const process &v, rtree | bgi::adaptors::queried(bgi::intersects(p)) )
+            for(const process &v : rtree | bgi::adaptors::queried(bgi::intersects(p)) )
             {
                 return std::make_pair(v.second, local_index(v.first, p));
             }

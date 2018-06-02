@@ -38,7 +38,6 @@ THE SOFTWARE.
 #include <boost/io/ios_state.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
-#include <boost/foreach.hpp>
 
 #ifdef AMGCL_ASYNC_SETUP
 #  include <boost/atomic.hpp>
@@ -560,7 +559,7 @@ std::ostream& operator<<(std::ostream &os, const amg<B, C, R> &a)
     size_t sum_dof = 0;
     size_t sum_nnz = 0;
 
-    BOOST_FOREACH(const level &lvl, a.levels) {
+    for(const level &lvl : a.levels) {
         sum_dof += lvl.rows();
         sum_nnz += lvl.nonzeros();
     }
@@ -574,7 +573,7 @@ std::ostream& operator<<(std::ostream &os, const amg<B, C, R> &a)
         << "---------------------------------\n";
 
     size_t depth = 0;
-    BOOST_FOREACH(const level &lvl, a.levels) {
+    for(const level &lvl : a.levels) {
         os << std::setw(5)  << depth++
             << std::setw(13) << lvl.rows()
             << std::setw(15) << lvl.nonzeros() << " ("
