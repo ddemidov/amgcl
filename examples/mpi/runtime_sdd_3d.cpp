@@ -318,7 +318,7 @@ int main(int argc, char *argv[]) {
     size_t iters;
     double resid, tm_setup, tm_solve;
 
-    boost::function<double(ptrdiff_t, unsigned)> def_vec = boost::cref(def);
+    std::function<double(ptrdiff_t, unsigned)> def_vec = std::cref(def);
     prm.put("num_def_vec", def.dim());
     prm.put("def_vec",     &def_vec);
 

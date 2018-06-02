@@ -55,7 +55,7 @@ amgclHandle STDCALL amgcl_mpi_create(
         amgclHandle          params
         )
 {
-    boost::function<double(ptrdiff_t, unsigned)> dv = deflation_vectors(n_def_vec, def_vec_func, def_vec_data);
+    std::function<double(ptrdiff_t, unsigned)> dv = deflation_vectors(n_def_vec, def_vec_func, def_vec_data);
     boost::property_tree::ptree prm = *static_cast<Params*>(params);
     prm.put("num_def_vec", n_def_vec);
     prm.put("def_vec",     &dv);

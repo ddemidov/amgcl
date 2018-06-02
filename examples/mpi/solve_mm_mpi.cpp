@@ -318,7 +318,7 @@ int main(int argc, char *argv[]) {
             amgcl::runtime::mpi::direct::solver<double>
         > SDD;
 
-    boost::function<double(ptrdiff_t,unsigned)> dv = amgcl::mpi::constant_deflation(block_size);
+    std::function<double(ptrdiff_t,unsigned)> dv = amgcl::mpi::constant_deflation(block_size);
     prm.put("num_def_vec", block_size);
     prm.put("def_vec", &dv);
 

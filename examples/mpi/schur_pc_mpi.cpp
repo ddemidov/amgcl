@@ -265,7 +265,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    boost::function<double(ptrdiff_t,unsigned)> dv = amgcl::mpi::constant_deflation(1);
+    std::function<double(ptrdiff_t,unsigned)> dv = amgcl::mpi::constant_deflation(1);
     prm.put("precond.psolver.num_def_vec", 1);
     prm.put("precond.psolver.def_vec", &dv);
 

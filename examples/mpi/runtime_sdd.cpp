@@ -575,7 +575,7 @@ int main(int argc, char *argv[]) {
     renumbering renum(part, domain);
 
     prof.tic("deflation");
-    boost::function<double(ptrdiff_t,unsigned)> dv;
+    std::function<double(ptrdiff_t,unsigned)> dv;
     unsigned ndv = 1;
 
     if (deflation_type == "constant") {

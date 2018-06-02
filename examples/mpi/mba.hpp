@@ -39,6 +39,7 @@ THE SOFTWARE.
 #include <algorithm>
 #include <array>
 #include <memory>
+#include <functional>
 
 #include <boost/container/flat_map.hpp>
 #include <boost/multi_array.hpp>
@@ -46,7 +47,6 @@ THE SOFTWARE.
 #include <boost/io/ios_state.hpp>
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/lu.hpp>
-#include <boost/function.hpp>
 
 namespace mba {
 namespace detail {
@@ -194,7 +194,7 @@ class initial_approximation : public control_lattice<NDim> {
     public:
         typedef typename control_lattice<NDim>::point point;
 
-        initial_approximation(boost::function<double(const point&)> f)
+        initial_approximation(std::function<double(const point&)> f)
             : f(f) {}
 
         double operator()(const point &p) const {
@@ -205,7 +205,7 @@ class initial_approximation : public control_lattice<NDim> {
             os << "initial approximation";
         }
     private:
-        boost::function<double(const point&)> f;
+        std::function<double(const point&)> f;
 };
 
 template <unsigned NDim>
@@ -569,7 +569,7 @@ class MBA {
                 const point &coo_min, const point &coo_max, index grid,
                 CooIter coo_begin, CooIter coo_end, ValIter val_begin,
                 unsigned max_levels = 8, double tol = 1e-8, double min_fill = 0.5,
-                boost::function<double(point)> initial = boost::function<double(point)>()
+                std::function<double(point)> initial = std::function<double(point)>()
            )
         {
             init(
@@ -584,7 +584,7 @@ class MBA {
                 const point &coo_min, const point &coo_max, index grid,
                 CooRange coo, ValRange val,
                 unsigned max_levels = 8, double tol = 1e-8, double min_fill = 0.5,
-                boost::function<double(point)> initial = boost::function<double(point)>()
+                std::function<double(point)> initial = std::function<double(point)>()
            )
         {
             init(
@@ -628,7 +628,7 @@ class MBA {
                 const point &cmin, const point &cmax, index grid,
                 CooIter coo_begin, CooIter coo_end, ValIter val_begin,
                 unsigned max_levels, double tol, double min_fill,
-                boost::function<double(point)> initial
+                std::function<double(point)> initial
                 )
         {
             using namespace mba::detail;

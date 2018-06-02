@@ -38,7 +38,7 @@ THE SOFTWARE.
 
 #include <memory>
 #include <boost/multi_array.hpp>
-#include <boost/function.hpp>
+#include <functional>
 
 #include <mpi.h>
 
@@ -127,7 +127,7 @@ class subdomain_deflation {
             unsigned num_def_vec;
 
             // Value of deflation vector at the given row and column.
-            boost::function<double(ptrdiff_t, unsigned)> def_vec;
+            std::function<double(ptrdiff_t, unsigned)> def_vec;
 
             params() {}
 
@@ -144,7 +144,7 @@ class subdomain_deflation {
                         "Error in subdomain_deflation parameters: "
                         "def_vec is not set");
 
-                def_vec = *static_cast<boost::function<double(ptrdiff_t, unsigned)>*>(ptr);
+                def_vec = *static_cast<std::function<double(ptrdiff_t, unsigned)>*>(ptr);
 
                 AMGCL_PARAMS_CHECK(p, (local)(isolver)(dsolver)(num_def_vec)(def_vec));
             }
