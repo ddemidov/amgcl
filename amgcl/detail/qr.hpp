@@ -88,8 +88,6 @@ THE SOFTWARE.
 #include <complex>
 #include <cmath>
 
-#include <boost/math/special_functions/sign.hpp>
-
 #include <amgcl/util.hpp>
 #include <amgcl/value_type/interface.hpp>
 
@@ -385,7 +383,7 @@ class QR {
 
             if (math::is_zero(xnorm2)) return tau;
 
-            scalar_type beta = -boost::math::copysign(sqrt(sqr(math::norm(alpha)) + xnorm2), amgcl::detail::real(alpha));
+            scalar_type beta = -std::copysign(sqrt(sqr(math::norm(alpha)) + xnorm2), amgcl::detail::real(alpha));
 
             tau = math::identity<value_type>() - math::inverse(beta) * alpha;
             alpha = math::inverse(alpha - beta * math::identity<value_type>());

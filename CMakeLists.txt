@@ -91,6 +91,7 @@ target_compile_options(amgcl INTERFACE
 target_compile_definitions(amgcl INTERFACE
     # Compiler is MSVC:
     $<$<CXX_COMPILER_ID:MSVC>:NOMINMAX>
+    $<$<CXX_COMPILER_ID:MSVC>:_USE_MATH_DEFINES>
     $<$<CXX_COMPILER_ID:MSVC>:_VARIADIC_MAX=10>
     $<$<CXX_COMPILER_ID:MSVC>:_SCL_SECURE_NO_WARNINGS>
     )

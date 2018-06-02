@@ -34,7 +34,6 @@ THE SOFTWARE.
 #include <vector>
 #include <cmath>
 #include <boost/multi_array.hpp>
-#include <boost/math/constants/constants.hpp>
 
 #include <amgcl/detail/inverse.hpp>
 #include <amgcl/util.hpp>
@@ -93,12 +92,10 @@ class chebyshev {
             // Chebyshev polynomial roots on the interval [lo, hi].
             std::vector<scalar_type> roots(prm.degree);
             for(unsigned i = 0; i < prm.degree; ++i) {
-                using boost::math::constants::pi;
-                using boost::math::constants::half;
+                scalar_type pi   = static_cast<scalar_type>(M_PI);
+                scalar_type half = static_cast<scalar_type>(0.5);
 
-                roots[i] = lo + half<scalar_type>() * ( hi - lo ) * (
-                        1 + cos( pi<scalar_type>() * ( i + half<scalar_type>() ) / prm.degree )
-                        );
+                roots[i] = lo + half * (hi - lo) * (1 + cos( pi * ( i + half ) / prm.degree));
             }
 
             // Construct linear system to determine Chebyshev coefficients.
