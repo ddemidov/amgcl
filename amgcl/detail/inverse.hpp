@@ -33,32 +33,46 @@ THE SOFTWARE.
 
 #include <vector>
 #include <algorithm>
-#include <boost/multi_array.hpp>
-#include <boost/numeric/ublas/matrix.hpp>
-#include <boost/numeric/ublas/lu.hpp>
-
 #include <amgcl/util.hpp>
+#include <amgcl/value_type/interface.hpp>
 
 namespace amgcl {
 namespace detail {
 
     template <typename value_type>
-    static void inverse(size_t n, value_type *data) {
-        using namespace boost::numeric::ublas;
+    static void inverse(int n, value_type *A) {
+        // Perform LU-factorization of A in-place
+        for(int k = 0; k < n; ++k) {
+            value_type d = math::inverse(A[k*n+k]);
+            assert(!math::is_zero(d));
+            for(int i = k+1; i < n; ++i) {
+                A[i*n+k] *= d;
+                for(int j = k+1; j < n; ++j)
+                    A[i*n+j] -= A[i*n+k] * A[k*n+j];
+            }
+            A[k*n+k] = d;
+        }
 
-        matrix<value_type> A(n, n);
-        std::copy(data, data + n * n, &A.data()[0]);
+        // Invert identity matrix in-place to get the solution.
+        std::vector<value_type> y(n * n);
+        for(int k = 0; k < n; ++k) {
+            // Lower triangular solve:
+            for(int i = 0; i < n; ++i) {
+                value_type b = (i == k) ? math::identity<value_type>() : math::zero<value_type>();
+                for(int j = 0; j < i; ++j)
+                    b -= A[i*n+j] * y[j*n+k];
+                y[i*n+k] = b;
+            }
 
-        permutation_matrix<size_t> pm(n);
+            // Upper triangular solve:
+            for(int i = n; i --> 0; ) {
+                for(int j = i+1; j < n; ++j)
+                    y[i*n+k] -= A[i*n+j] * y[j*n+k];
+                y[i*n+k] *= A[i*n+i];
+            }
+        }
 
-        lu_factorize(A, pm);
-
-        matrix<value_type> I(n, n);
-        I.assign( identity_matrix<value_type>(n) );
-
-        lu_substitute(A, pm, I);
-
-        std::copy(&I.data()[0], &I.data()[0] + n * n, data);
+        std::copy(y.begin(), y.end(), A);
     }
 
 } // namespace detail
