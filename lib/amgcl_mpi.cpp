@@ -1,5 +1,5 @@
 #include <iostream>
-
+#include <functional>
 #include <type_traits>
 
 #include <amgcl/amg.hpp>

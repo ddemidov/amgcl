@@ -1,7 +1,5 @@
 #include <iostream>
-#include <functional>
 
-#include <boost/typeof/typeof.hpp>
 #include <type_traits>
 #include <boost/iterator/transform_iterator.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -70,14 +68,10 @@ amgclHandle STDCALL amgcl_precond_create(
         amgclHandle   prm
         )
 {
-    BOOST_AUTO(
-            A,
-            std::make_tuple(
-                n,
-                boost::make_iterator_range(ptr, ptr + n + 1),
-                boost::make_iterator_range(col, col + ptr[n]),
-                boost::make_iterator_range(val, val + ptr[n])
-                )
+    auto A = std::make_tuple(n,
+            boost::make_iterator_range(ptr, ptr + n + 1),
+            boost::make_iterator_range(col, col + ptr[n]),
+            boost::make_iterator_range(val, val + ptr[n])
             );
 
     if (prm)
@@ -95,24 +89,13 @@ amgclHandle STDCALL amgcl_precond_create_f(
         amgclHandle   prm
         )
 {
-    BOOST_AUTO(
-            ptr_c,
-            boost::make_transform_iterator(ptr, std::bind2nd(std::minus<int>(), 1))
-            );
+    auto ptr_c = boost::make_transform_iterator(ptr, [](int i){ return i - 1; });
+    auto col_c = boost::make_transform_iterator(col, [](int i){ return i - 1; });
 
-    BOOST_AUTO(
-            col_c,
-            boost::make_transform_iterator(col, std::bind2nd(std::minus<int>(), 1))
-            );
-
-    BOOST_AUTO(
-            A,
-            std::make_tuple(
-                n,
-                boost::make_iterator_range(ptr_c, ptr_c + n + 1),
-                boost::make_iterator_range(col_c, col_c + ptr[n]),
-                boost::make_iterator_range(val, val + ptr[n])
-                )
+    auto A = std::make_tuple(n,
+            boost::make_iterator_range(ptr_c, ptr_c + n + 1),
+            boost::make_iterator_range(col_c, col_c + ptr[n]),
+            boost::make_iterator_range(val, val + ptr[n])
             );
 
     if (prm)
@@ -153,14 +136,10 @@ amgclHandle STDCALL amgcl_solver_create(
         amgclHandle   prm
         )
 {
-    BOOST_AUTO(
-            A,
-            std::make_tuple(
-                n,
-                boost::make_iterator_range(ptr, ptr + n + 1),
-                boost::make_iterator_range(col, col + ptr[n]),
-                boost::make_iterator_range(val, val + ptr[n])
-                )
+    auto A = std::make_tuple(n,
+            boost::make_iterator_range(ptr, ptr + n + 1),
+            boost::make_iterator_range(col, col + ptr[n]),
+            boost::make_iterator_range(val, val + ptr[n])
             );
 
     if (prm)
@@ -178,23 +157,13 @@ amgclHandle STDCALL amgcl_solver_create_f(
         amgclHandle   prm
         )
 {
-    BOOST_AUTO(
-            ptr_c,
-            boost::make_transform_iterator(ptr, std::bind2nd(std::minus<int>(), 1))
-            );
-    BOOST_AUTO(
-            col_c,
-            boost::make_transform_iterator(col, std::bind2nd(std::minus<int>(), 1))
-            );
+    auto ptr_c = boost::make_transform_iterator(ptr, [](int i){ return i - 1; });
+    auto col_c = boost::make_transform_iterator(col, [](int i){ return i - 1; });
 
-    BOOST_AUTO(
-            A,
-            std::make_tuple(
-                n,
-                boost::make_iterator_range(ptr_c, ptr_c + n + 1),
-                boost::make_iterator_range(col_c, col_c + ptr[n]),
-                boost::make_iterator_range(val, val + ptr[n])
-                )
+    auto A = std::make_tuple(n,
+            boost::make_iterator_range(ptr_c, ptr_c + n + 1),
+            boost::make_iterator_range(col_c, col_c + ptr[n]),
+            boost::make_iterator_range(val, val + ptr[n])
             );
 
     if (prm)
