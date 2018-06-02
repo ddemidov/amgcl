@@ -316,7 +316,8 @@ template <typename T, int N>
 struct inverse_impl< static_matrix<T, N, N> >
 {
     static static_matrix<T, N, N> get(static_matrix<T, N, N> A) {
-        detail::inverse(N, A.data());
+        boost::array<T, N * N> buf;
+        detail::inverse(N, A.data(), buf.data());
         return A;
     }
 };

@@ -40,7 +40,7 @@ namespace amgcl {
 namespace detail {
 
     template <typename value_type>
-    static void inverse(int n, value_type *A) {
+    static void inverse(int n, value_type *A, value_type *t) {
         // Perform LU-factorization of A in-place
         for(int k = 0; k < n; ++k) {
             value_type d = math::inverse(A[k*n+k]);
@@ -54,25 +54,24 @@ namespace detail {
         }
 
         // Invert identity matrix in-place to get the solution.
-        std::vector<value_type> y(n * n);
         for(int k = 0; k < n; ++k) {
             // Lower triangular solve:
             for(int i = 0; i < n; ++i) {
                 value_type b = (i == k) ? math::identity<value_type>() : math::zero<value_type>();
                 for(int j = 0; j < i; ++j)
-                    b -= A[i*n+j] * y[j*n+k];
-                y[i*n+k] = b;
+                    b -= A[i*n+j] * t[j*n+k];
+                t[i*n+k] = b;
             }
 
             // Upper triangular solve:
             for(int i = n; i --> 0; ) {
                 for(int j = i+1; j < n; ++j)
-                    y[i*n+k] -= A[i*n+j] * y[j*n+k];
-                y[i*n+k] *= A[i*n+i];
+                    t[i*n+k] -= A[i*n+j] * t[j*n+k];
+                t[i*n+k] *= A[i*n+i];
             }
         }
 
-        std::copy(y.begin(), y.end(), A);
+        std::copy(t, t + n * n, A);
     }
 
 } // namespace detail

@@ -104,6 +104,8 @@ class chebyshev {
 
             // Construct linear system to determine Chebyshev coefficients.
             boost::multi_array<scalar_type, 2> S(boost::extents[prm.degree][prm.degree]);
+            std::vector<scalar_type> buf(prm.degree * prm.degree);
+
             std::vector<scalar_type> rhs(prm.degree);
             for(unsigned i = 0; i < prm.degree; ++i) {
                 scalar_type x = roots[i];
@@ -116,7 +118,7 @@ class chebyshev {
             }
 
             // Invert S, compute coefficients.
-            amgcl::detail::inverse(prm.degree, S.data());
+            amgcl::detail::inverse(prm.degree, S.data(), buf.data());
 
             scalar_type const_c = 1;
             for(unsigned i = 0; i < prm.degree; ++i) {
