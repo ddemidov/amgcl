@@ -431,7 +431,7 @@ struct copy_impl<V, thrust::device_vector<T> >
 template <class T, class V>
 struct copy_impl<thrust::device_vector<T>, V >
 {
-    static void apply(const V &x, thrust::device_vector<T> &y)
+    static void apply(const thrust::device_vector<T> &x, V &y)
     {
         thrust::copy(x.begin(), x.end(), y.begin());
     }
