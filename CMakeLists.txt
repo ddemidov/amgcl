@@ -29,13 +29,8 @@ if (WIN32)
 endif ()
 
 find_package(Boost REQUIRED COMPONENTS
-    chrono
-    date_time
     program_options
     serialization
-    system
-    thread
-    atomic
     unit_test_framework
     )
 
