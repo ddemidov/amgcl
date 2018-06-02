@@ -170,13 +170,11 @@ unsigned block_size(const wrapper<Backend> &w) {
                 typedef amgcl::mpi::coarsening::aggregation<Backend> C;
                 return block_size(*static_cast<const C*>(w.handle));
             }
-            break;
         case smoothed_aggregation:
             {
                 typedef amgcl::mpi::coarsening::smoothed_aggregation<Backend> C;
                 return block_size(*static_cast<const C*>(w.handle));
             }
-            break;
         default:
             throw std::invalid_argument("Unsupported coarsening type");
     }
