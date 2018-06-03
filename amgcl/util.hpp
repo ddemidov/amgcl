@@ -38,7 +38,6 @@ THE SOFTWARE.
 #include <complex>
 #include <limits>
 #include <stdexcept>
-#include <boost/io/ios_state.hpp>
 #include <boost/property_tree/ptree.hpp>
 
 /* Performance measurement macros
@@ -190,13 +189,14 @@ namespace std {
 // This allows to exchange pointers through boost::property_tree::ptree.
 template <class T>
 inline istream& operator>>(istream &is, T* &ptr) {
-    boost::io::ios_all_saver stream_state(is);
+    std::ios_base::fmtflags ff(is.flags());
 
     size_t val;
     is >> std::hex >> val;
 
     ptr = reinterpret_cast<T*>(val);
 
+    is.flags(ff);
     return is;
 }
 

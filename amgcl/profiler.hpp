@@ -36,9 +36,8 @@ THE SOFTWARE.
 #include <map>
 #include <string>
 #include <vector>
-
 #include <type_traits>
-#include <boost/io/ios_state.hpp>
+
 #include <amgcl/perf_counter/clock.hpp>
 
 
@@ -170,8 +169,9 @@ class profiler {
             if (stack.back() != &root)
                 out << "Warning! Profile is incomplete." << std::endl;
 
-            boost::io::ios_all_saver stream_state(out);
+            std::ios_base::fmtflags ff(out.flags());
             root.print(out, name, 0, root.length, root.total_width(name, 0));
+            out.flags(ff);
         }
 
         /// Sends formatted profiling data to an output stream.

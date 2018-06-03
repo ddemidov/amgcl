@@ -34,8 +34,6 @@ THE SOFTWARE.
 #include <iostream>
 #include <iomanip>
 #include <list>
-
-#include <boost/io/ios_state.hpp>
 #include <memory>
 
 #include <amgcl/backend/interface.hpp>
@@ -403,7 +401,7 @@ template <class B, class C, class R, class D, class I>
 std::ostream& operator<<(std::ostream &os, const amg<B, C, R, D, I> &a)
 {
     typedef typename amg<B, C, R, D, I>::level level;
-    boost::io::ios_all_saver stream_state(os);
+    std::ios_base::fmtflags ff(os.flags());
 
     size_t sum_dof = 0;
     size_t sum_nnz = 0;
@@ -431,6 +429,7 @@ std::ostream& operator<<(std::ostream &os, const amg<B, C, R, D, I> &a)
            << "%) [" << lvl.active_procs << "]" << std::endl;
     }
 
+    os.flags(ff);
     return os;
 }
 

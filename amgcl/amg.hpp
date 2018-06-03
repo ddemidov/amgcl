@@ -34,8 +34,6 @@ THE SOFTWARE.
 #include <iostream>
 #include <iomanip>
 #include <list>
-
-#include <boost/io/ios_state.hpp>
 #include <memory>
 
 #ifdef AMGCL_ASYNC_SETUP
@@ -549,7 +547,7 @@ template <class B, template <class> class C, template <class> class R>
 std::ostream& operator<<(std::ostream &os, const amg<B, C, R> &a)
 {
     typedef typename amg<B, C, R>::level level;
-    boost::io::ios_all_saver stream_state(os);
+    std::ios_base::fmtflags ff(os.flags());
 
     size_t sum_dof = 0;
     size_t sum_nnz = 0;
@@ -577,6 +575,7 @@ std::ostream& operator<<(std::ostream &os, const amg<B, C, R> &a)
             << "%)" << std::endl;
     }
 
+    os.flags(ff);
     return os;
 }
 
