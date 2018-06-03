@@ -35,7 +35,6 @@ THE SOFTWARE.
 #include <algorithm>
 
 #include <memory>
-#include <boost/iterator/counting_iterator.hpp>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/detail/qr.hpp>
@@ -132,10 +131,8 @@ std::shared_ptr<Matrix> tentative_prolongation(
     if (nullspace.cols > 0) {
         // Sort fine points by aggregate number.
         // Put points not belonging to any aggregate to the end of the list.
-        std::vector<ptrdiff_t> order(
-                boost::counting_iterator<ptrdiff_t>(0),
-                boost::counting_iterator<ptrdiff_t>(n)
-                );
+        std::vector<ptrdiff_t> order(0);
+        for(size_t i = 0; i < n; ++i) order[i] = i;
         std::stable_sort(order.begin(), order.end(), detail::skip_negative(aggr, block_size));
 
         // Precompute the shape of the prolongation operator.
