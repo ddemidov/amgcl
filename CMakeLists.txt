@@ -192,6 +192,7 @@ if (MPI_CXX_FOUND)
     target_include_directories(mpi_target INTERFACE ${MPI_CXX_INCLUDE_PATH})
     target_compile_options(mpi_target INTERFACE
         $<$<CXX_COMPILER_ID:GNU>:-Wno-long-long>
+        $<$<CXX_COMPILER_ID:GNU>:-Wno-literal-suffix>
         $<$<CXX_COMPILER_ID:Clang>:-Wno-long-long>
         )
 endif()
