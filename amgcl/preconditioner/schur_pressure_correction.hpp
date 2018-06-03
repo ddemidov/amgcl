@@ -172,7 +172,8 @@ class schur_pressure_correction {
                             );
                 }
 
-                AMGCL_PARAMS_CHECK_OPT(p, (usolver)(psolver)(approx_schur)(pmask_size), (pmask)(pmask_pattern));
+                check_params(p, {"usolver", "psolver", "approx_schur", "pmask_size"},
+                        {"pmask", "pmask_pattern"});
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path = "") const

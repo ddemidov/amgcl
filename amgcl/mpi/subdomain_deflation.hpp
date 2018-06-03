@@ -146,7 +146,7 @@ class subdomain_deflation {
 
                 def_vec = *static_cast<std::function<double(ptrdiff_t, unsigned)>*>(ptr);
 
-                AMGCL_PARAMS_CHECK(p, (local)(isolver)(dsolver)(num_def_vec)(def_vec));
+                check_params(p, {"local", "isolver", "dsolver", "num_def_vec", "def_vec"});
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {

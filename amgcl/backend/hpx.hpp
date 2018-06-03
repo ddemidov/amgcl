@@ -225,7 +225,7 @@ struct HPX {
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, grain_size)
         {
-            AMGCL_PARAMS_CHECK(p, (grain_size));
+            check_params(p, {"grain_size"});
         }
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {

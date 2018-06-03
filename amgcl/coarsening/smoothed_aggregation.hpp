@@ -111,7 +111,7 @@ struct smoothed_aggregation {
               AMGCL_PARAMS_IMPORT_VALUE(p, estimate_spectral_radius),
               AMGCL_PARAMS_IMPORT_VALUE(p, power_iters)
         {
-            AMGCL_PARAMS_CHECK(p, (aggr)(nullspace)(relax)(estimate_spectral_radius)(power_iters));
+            check_params(p, {"aggr", "nullspace", "relax", "estimate_spectral_radius", "power_iters"});
         }
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {

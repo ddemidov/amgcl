@@ -101,7 +101,7 @@ struct nullspace_params {
                     );
         }
 
-        AMGCL_PARAMS_CHECK(p, (cols)(rows)(B));
+        check_params(p, {"cols", "rows", "B"});
     }
 
     void get(boost::property_tree::ptree&, const std::string&) const {}

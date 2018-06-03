@@ -79,7 +79,7 @@ class cpr {
                   AMGCL_PARAMS_IMPORT_VALUE(p, block_size),
                   AMGCL_PARAMS_IMPORT_VALUE(p, active_rows)
             {
-                AMGCL_PARAMS_CHECK(p, (pprecond)(sprecond)(block_size)(active_rows));
+                check_params(p, {"pprecond", "sprecond", "block_size", "active_rows"});
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path = "") const

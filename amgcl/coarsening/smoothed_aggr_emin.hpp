@@ -69,7 +69,7 @@ struct smoothed_aggr_emin {
             : AMGCL_PARAMS_IMPORT_CHILD(p, aggr),
               AMGCL_PARAMS_IMPORT_CHILD(p, nullspace)
         {
-            AMGCL_PARAMS_CHECK(p, (aggr)(nullspace));
+            check_params(p, {"aggr", "nullspace"});
         }
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {

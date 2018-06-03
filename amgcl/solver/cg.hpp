@@ -97,7 +97,7 @@ class cg {
                   AMGCL_PARAMS_IMPORT_VALUE(p, tol),
                   AMGCL_PARAMS_IMPORT_VALUE(p, abstol)
             {
-                AMGCL_PARAMS_CHECK(p, (maxiter)(tol)(abstol));
+                check_params(p, {"maxiter", "tol", "abstol"});
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {

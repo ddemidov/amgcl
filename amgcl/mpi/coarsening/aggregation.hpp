@@ -77,7 +77,7 @@ struct aggregation {
             : AMGCL_PARAMS_IMPORT_CHILD(p, aggr),
               AMGCL_PARAMS_IMPORT_VALUE(p, over_interp)
         {
-            AMGCL_PARAMS_CHECK(p, (aggr)(over_interp));
+            check_params(p, {"aggr", "over_interp"});
         }
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {

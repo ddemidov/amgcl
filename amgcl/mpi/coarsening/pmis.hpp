@@ -67,7 +67,7 @@ struct pmis {
             : AMGCL_PARAMS_IMPORT_VALUE(p, eps_strong),
               AMGCL_PARAMS_IMPORT_VALUE(p, block_size)
         {
-            AMGCL_PARAMS_CHECK(p, (eps_strong)(block_size));
+            check_params(p, {"eps_strong", "block_size"});
         }
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {

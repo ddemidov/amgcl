@@ -63,7 +63,7 @@ class ilu_solve {
                 : AMGCL_PARAMS_IMPORT_VALUE(p, iters)
                 , AMGCL_PARAMS_IMPORT_VALUE(p, damping)
             {
-                AMGCL_PARAMS_CHECK(p, (iters)(damping));
+                check_params(p, {"iters", "damping"});
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
@@ -134,7 +134,7 @@ class ilu_solve< backend::builtin<value_type> > {
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_VALUE(p, serial)
             {
-                AMGCL_PARAMS_CHECK(p, (serial));
+                check_params(p, {"serial"});
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {

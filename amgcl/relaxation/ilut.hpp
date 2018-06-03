@@ -85,7 +85,7 @@ struct ilut {
             , AMGCL_PARAMS_IMPORT_VALUE(p, damping)
             , AMGCL_PARAMS_IMPORT_CHILD(p, solve)
         {
-            AMGCL_PARAMS_CHECK(p, (p)(tau)(damping)(solve));
+            check_params(p, {"p", "tau", "damping", "solve"});
         }
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {

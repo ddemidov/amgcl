@@ -64,7 +64,7 @@ struct parmetis {
               AMGCL_PARAMS_IMPORT_VALUE(p, min_per_proc),
               AMGCL_PARAMS_IMPORT_VALUE(p, shrink_ratio)
         {
-            AMGCL_PARAMS_CHECK(p, (enable)(min_per_proc)(shrink_ratio));
+            check_params(p, {"enable", "min_per_proc", "shrink_ratio"});
         }
 
         void get(

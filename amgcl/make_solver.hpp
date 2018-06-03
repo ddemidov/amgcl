@@ -73,7 +73,7 @@ class make_solver {
                 : AMGCL_PARAMS_IMPORT_CHILD(p, precond),
                   AMGCL_PARAMS_IMPORT_CHILD(p, solver)
             {
-                AMGCL_PARAMS_CHECK(p, (precond)(solver));
+                check_params(p, {"precond", "solver"});
             }
 
             void get( boost::property_tree::ptree &p,

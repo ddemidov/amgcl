@@ -65,7 +65,7 @@ struct damped_jacobi {
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, damping)
         {
-            AMGCL_PARAMS_CHECK(p, (damping));
+            check_params(p, {"damping"});
         }
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {

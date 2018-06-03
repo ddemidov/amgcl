@@ -5,7 +5,7 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/range/iterator_range.hpp>
-#include <boost/typeof/typeof.hpp>
+#include <boost/preprocessor/seq/for_each.hpp>
 
 
 #if defined(SOLVER_BACKEND_VEXCL)
@@ -87,18 +87,17 @@ std::tuple<size_t, double> block_solve(
 
     ;
 
-    BOOST_AUTO(A_raw, (std::tie(rows, ptr, col, val)));
-    BOOST_AUTO(A_blk, (amgcl::adapter::block_matrix<value_type>(A_raw)));
+    auto A = amgcl::adapter::block_matrix<value_type>(std::tie(rows, ptr, col, val));
 
     std::tuple<size_t, double> info;
 
     if (reorder) {
         prof.tic("reorder");
-        amgcl::adapter::reorder<> perm(A_blk);
+        amgcl::adapter::reorder<> perm(A);
         prof.toc("reorder");
 
         prof.tic("setup");
-        Solver solve(perm(A_blk), prm);
+        Solver solve(perm(A), prm);
         prof.toc("setup");
 
         std::cout << solve.precond() << std::endl;
@@ -116,7 +115,7 @@ std::tuple<size_t, double> block_solve(
         perm.inverse(X, xptr);
     } else {
         prof.tic("setup");
-        Solver solve(A_blk, prm);
+        Solver solve(A, prm);
         prof.toc("setup");
 
         std::cout << solve.precond() << std::endl;
@@ -171,18 +170,17 @@ std::tuple<size_t, double> block_solve(
     vex::scoped_program_header header(ctx,
             amgcl::backend::vexcl_static_matrix_declaration<double,B>());
 
-    BOOST_AUTO(A_raw, (std::tie(rows, ptr, col, val)));
-    BOOST_AUTO(A_blk, (amgcl::adapter::block_matrix<value_type>(A_raw)));
+    auto A = amgcl::adapter::block_matrix<value_type>(std::tie(rows, ptr, col, val));
 
     std::tuple<size_t, double> info;
 
     if (reorder) {
         prof.tic("reorder");
-        amgcl::adapter::reorder<> perm(A_blk);
+        amgcl::adapter::reorder<> perm(A);
         prof.toc("reorder");
 
         prof.tic("setup");
-        Solver solve(perm(A_blk), prm, bprm);
+        Solver solve(perm(A), prm, bprm);
         prof.toc("setup");
 
         std::cout << solve.precond() << std::endl;
@@ -206,7 +204,7 @@ std::tuple<size_t, double> block_solve(
         perm.inverse(tmp, xptr);
     } else {
         prof.tic("setup");
-        Solver solve(A_blk, prm, bprm);
+        Solver solve(A, prm, bprm);
         prof.toc("setup");
 
         std::cout << solve.precond() << std::endl;

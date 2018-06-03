@@ -66,7 +66,7 @@ struct gauss_seidel {
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, serial)
         {
-            AMGCL_PARAMS_CHECK(p, (serial));
+            check_params(p, {"serial"});
         }
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {

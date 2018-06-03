@@ -267,7 +267,7 @@ struct cuda {
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, cusparse_handle)
         {
-            AMGCL_PARAMS_CHECK(p, (cusparse_handle));
+            check_params(p, {"cusparse_handle"});
         }
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {

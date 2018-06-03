@@ -128,8 +128,7 @@ class amg {
                   AMGCL_PARAMS_IMPORT_VALUE(p, ncycle),
                   AMGCL_PARAMS_IMPORT_VALUE(p, pre_cycles)
             {
-                AMGCL_PARAMS_CHECK(p, (coarsening)(relax)(direct)(repart)(coarse_enough)
-                        (direct_coarse)(max_levels)(npre)(npost)(ncycle)(pre_cycles));
+                check_params(p, {"coarsening", "relax", "direct", "repart", "coarse_enough",  "direct_coarse", "max_levels", "npre", "npost", "ncycle", "pre_cycles"});
 
                 amgcl::precondition(max_levels > 0, "max_levels should be positive");
             }
