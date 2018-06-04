@@ -101,7 +101,6 @@ struct ilut {
     ilut( const Matrix &A, const params &prm, const typename Backend::params &bprm)
       : prm(prm)
     {
-        typedef typename backend::row_iterator<Matrix>::type row_iterator;
         const size_t n = backend::rows(A);
 
         size_t Lnz = 0, Unz = 0;
@@ -141,7 +140,7 @@ struct ilut {
 
             scalar_type tol = math::zero<scalar_type>();
 
-            for(row_iterator a = backend::row_begin(A, i); a; ++a) {
+            for(auto a = backend::row_begin(A, i); a; ++a) {
                 w[a.col()] = a.value();
                 tol += math::norm(a.value());
 

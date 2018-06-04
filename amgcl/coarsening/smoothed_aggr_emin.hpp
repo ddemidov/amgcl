@@ -180,11 +180,6 @@ struct smoothed_aggr_emin {
                 std::vector<Val> &omega
                 )
         {
-            typedef backend::crs<Val, Col, Ptr> PMatrix;
-
-            typedef typename PMatrix::row_iterator Piterator;
-            typedef typename AMatrix::row_iterator Aiterator;
-
             const size_t n  = rows(P_tent);
             const size_t nc = cols(P_tent);
 
@@ -209,11 +204,11 @@ struct smoothed_aggr_emin {
                     adap_val.clear();
 
                     // Form current row of ADAP matrix.
-                    for(Aiterator a = A.row_begin(ia); a; ++a) {
+                    for(auto a = A.row_begin(ia); a; ++a) {
                         Col ca  = a.col();
                         Val va  = math::inverse(Adia[ca]) * a.value();
 
-                        for(Piterator p = AP->row_begin(ca); p; ++p) {
+                        for(auto p = AP->row_begin(ca); p; ++p) {
                             Col c = p.col();
                             Val v = va * p.value();
 

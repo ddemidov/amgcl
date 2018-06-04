@@ -350,8 +350,6 @@ class make_scaling_solver {
                 const backend_params &bprm = backend_params()
                 )
         {
-            typedef typename backend::row_iterator<Matrix>::type row_iterator;
-
             const ptrdiff_t n = backend::rows(A);
             std::vector<value_type> w(n);
 
@@ -359,7 +357,7 @@ class make_scaling_solver {
             for(ptrdiff_t i = 0; i < n; ++i) {
                 scalar_type sum = math::zero<scalar_type>();
 
-                for(row_iterator a = backend::row_begin(A, i); a; ++a)
+                for(auto a = backend::row_begin(A, i); a; ++a)
                     sum += a.value() * a.value();
 
                 w[i] = 1 / sqrt(sqrt(sum));

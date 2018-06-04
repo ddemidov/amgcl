@@ -90,7 +90,6 @@ struct iluk {
       : prm(prm)
     {
         typedef typename backend::builtin<value_type>::matrix build_matrix;
-        typedef typename backend::row_iterator<Matrix>::type row_iterator;
 
         const size_t n = backend::rows(A);
 
@@ -113,7 +112,7 @@ struct iluk {
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
             w.reset(i);
 
-            for(row_iterator a = backend::row_begin(A, i); a; ++a) {
+            for(auto a = backend::row_begin(A, i); a; ++a) {
                 w.add(a.col(), a.value(), 0);
             }
 

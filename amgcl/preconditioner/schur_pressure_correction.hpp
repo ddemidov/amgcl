@@ -277,8 +277,6 @@ class schur_pressure_correction {
 
         void init(const std::shared_ptr<build_matrix> &K, const backend_params &bprm)
         {
-            typedef typename backend::row_iterator<build_matrix>::type row_iterator;
-
             this->K = backend_type::copy_matrix(K, bprm);
 
             // Extract matrix subblocks.
@@ -301,7 +299,7 @@ class schur_pressure_correction {
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
                 ptrdiff_t ci = idx[i];
                 char      pi = prm.pmask[i];
-                for(row_iterator k = backend::row_begin(*K, i); k; ++k) {
+                for(auto k = backend::row_begin(*K, i); k; ++k) {
                     char pj = prm.pmask[k.col()];
 
                     if (pi) {
@@ -340,7 +338,7 @@ class schur_pressure_correction {
                     up_head = Kup->ptr[ci];
                 }
 
-                for(row_iterator k = backend::row_begin(*K, i); k; ++k) {
+                for(auto k = backend::row_begin(*K, i); k; ++k) {
                     ptrdiff_t  j = k.col();
                     value_type v = k.value();
                     ptrdiff_t cj = idx[j];

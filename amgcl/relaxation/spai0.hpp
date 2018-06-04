@@ -59,8 +59,6 @@ struct spai0 {
     template <class Matrix>
     spai0( const Matrix &A, const params &, const typename Backend::params &backend_prm)
     {
-        typedef typename backend::row_iterator<Matrix>::type row_iterator;
-
         const size_t n = rows(A);
 
         auto m = std::make_shared< backend::numa_vector<value_type> >(n, false);
@@ -70,7 +68,7 @@ struct spai0 {
             value_type  num = math::zero<value_type>();
             scalar_type den = math::zero<scalar_type>();
 
-            for(row_iterator a = backend::row_begin(A, i); a; ++a) {
+            for(auto a = backend::row_begin(A, i); a; ++a) {
                 value_type v = a.value();
                 scalar_type norm_v = math::norm(v);
                 den += norm_v * norm_v;

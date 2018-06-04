@@ -79,8 +79,6 @@ struct bcrs {
     {
 #pragma omp parallel
         {
-            typedef typename backend::row_iterator<Matrix>::type row_iterator;
-
             std::vector<ptrdiff_t> marker(bcols, -1);
 
             // Count number of nonzeros in block matrix.
@@ -89,7 +87,7 @@ struct bcrs {
                 ptr_type ia = ib * block_size;
 
                 for(size_t k = 0; k < block_size && ia < static_cast<ptr_type>(nrows); ++k, ++ia) {
-                    for(row_iterator a = backend::row_begin(A, ia); a; ++a) {
+                    for(auto a = backend::row_begin(A, ia); a; ++a) {
                         col_type cb = a.col() / block_size;
 
                         if (marker[cb] != static_cast<col_type>(ib)) {
@@ -117,7 +115,7 @@ struct bcrs {
                 ptr_type row_end = row_beg;
 
                 for(size_t k = 0; k < block_size && ia < static_cast<ptr_type>(nrows); ++k, ++ia) {
-                    for(row_iterator a = backend::row_begin(A, ia); a; ++a) {
+                    for(auto a = backend::row_begin(A, ia); a; ++a) {
                         col_type cb = a.col() / block_size;
                         col_type cc = a.col() % block_size;
                         val_type va = a.value();

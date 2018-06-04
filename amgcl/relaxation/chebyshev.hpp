@@ -185,7 +185,6 @@ class chebyshev {
         // matrix
         template <class Matrix>
         static scalar_type spectral_radius(const Matrix &A) {
-            typedef typename backend::row_iterator<Matrix>::type row_iterator;
             const ptrdiff_t n = rows(A);
 
             scalar_type emax = 0;
@@ -197,7 +196,7 @@ class chebyshev {
                 for(ptrdiff_t i = 0; i < n; ++i) {
                     scalar_type hi = 0;
 
-                    for(row_iterator a = backend::row_begin(A, i); a; ++a)
+                    for(auto a = backend::row_begin(A, i); a; ++a)
                         hi += math::norm( a.value() );
 
                     my_emax = std::max(my_emax, hi);

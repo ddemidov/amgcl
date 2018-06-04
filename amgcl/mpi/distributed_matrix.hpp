@@ -321,8 +321,6 @@ class distributed_matrix {
               n_loc_cols(_n_loc_cols < 0 ? n_loc_rows : _n_loc_cols),
               n_loc_nonzeros(backend::nonzeros(A))
         {
-            typedef typename backend::row_iterator<Matrix>::type row_iterator;
-
             // Get sizes of each domain in comm.
             std::vector<ptrdiff_t> domain = comm.exclusive_sum(n_loc_cols);
             ptrdiff_t loc_beg = domain[comm.rank];
@@ -344,7 +342,7 @@ class distributed_matrix {
 
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < n_loc_rows; ++i) {
-                for(row_iterator a = backend::row_begin(A, i); a; ++a) {
+                for(auto a = backend::row_begin(A, i); a; ++a) {
                     ptrdiff_t c = a.col();
 
                     if (loc_beg <= c && c < loc_end)
@@ -362,7 +360,7 @@ class distributed_matrix {
                 ptrdiff_t loc_head = A_loc.ptr[i];
                 ptrdiff_t rem_head = A_rem.ptr[i];
 
-                for(row_iterator a = backend::row_begin(A, i); a; ++a) {
+                for(auto a = backend::row_begin(A, i); a; ++a) {
                     ptrdiff_t  c = a.col();
                     value_type v = a.value();
 

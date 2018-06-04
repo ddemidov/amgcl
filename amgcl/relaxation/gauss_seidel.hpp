@@ -145,7 +145,6 @@ struct gauss_seidel {
         static void serial_sweep(
                 const Matrix &A, const VectorRHS &rhs, VectorX &x, bool forward)
         {
-            typedef typename backend::row_iterator<Matrix>::type row_iterator;
             typedef typename backend::value_type<Matrix>::type val_type;
             typedef typename math::rhs_of<val_type>::type rhs_type;
 
@@ -159,7 +158,7 @@ struct gauss_seidel {
                 rhs_type X = rhs[i];
                 val_type D = math::identity<val_type>();
 
-                for (row_iterator a = backend::row_begin(A, i); a; ++a) {
+                for (auto a = backend::row_begin(A, i); a; ++a) {
                     ptrdiff_t c = a.col();
                     val_type  v = a.value();
 
@@ -197,8 +196,6 @@ struct gauss_seidel {
                 : nthreads(num_threads()), tasks(nthreads),
                   ptr(nthreads), col(nthreads), val(nthreads), ord(nthreads)
             {
-                typedef typename backend::row_iterator<Matrix>::type row_iterator;
-
                 ptrdiff_t n    = backend::rows(A);
                 ptrdiff_t nlev = 0;
 
@@ -213,7 +210,7 @@ struct gauss_seidel {
                 for(ptrdiff_t i = beg; i != end; i += inc) {
                     ptrdiff_t l = level[i];
 
-                    for(row_iterator a = row_begin(A, i); a; ++a) {
+                    for(auto a = row_begin(A, i); a; ++a) {
                         ptrdiff_t c = a.col();
 
                         if (forward) {
@@ -297,7 +294,7 @@ struct gauss_seidel {
 
                             ord[tid].push_back(i);
 
-                            for(row_iterator a = row_begin(A, i); a; ++a) {
+                            for(auto a = row_begin(A, i); a; ++a) {
                                 col[tid].push_back(a.col());
                                 val[tid].push_back(a.value());
                             }

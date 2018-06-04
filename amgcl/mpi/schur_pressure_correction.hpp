@@ -241,12 +241,10 @@ class schur_pressure_correction {
 
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < n; ++i) {
-                typedef typename backend::row_iterator<build_matrix>::type row_iterator;
-
                 ptrdiff_t ci = idx[i];
                 char      pi = prm.pmask[i];
 
-                for(row_iterator a = row_begin(K_loc, i); a; ++a) {
+                for(auto a = row_begin(K_loc, i); a; ++a) {
                     char pj = prm.pmask[a.col()];
 
                     if (pi) {
@@ -264,7 +262,7 @@ class schur_pressure_correction {
                     }
                 }
 
-                for(row_iterator a = row_begin(K_rem, i); a; ++a) {
+                for(auto a = row_begin(K_rem, i); a; ++a) {
                     char pj = rmask[a.col()];
 
                     if (pi) {
@@ -298,8 +296,6 @@ class schur_pressure_correction {
             // Fill subblocks of the system matrix.
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < n; ++i) {
-                typedef typename backend::row_iterator<build_matrix>::type row_iterator;
-
                 ptrdiff_t ci = idx[i];
                 char      pi = prm.pmask[i];
 
@@ -320,7 +316,7 @@ class schur_pressure_correction {
                     up_rem_head = Kup_rem->ptr[ci];
                 }
 
-                for(row_iterator a = row_begin(K_loc, i); a; ++a) {
+                for(auto a = row_begin(K_loc, i); a; ++a) {
                     ptrdiff_t  j = a.col();
                     value_type v = a.value();
                     char      pj = prm.pmask[j];
@@ -349,7 +345,7 @@ class schur_pressure_correction {
                     }
                 }
 
-                for(row_iterator a = row_begin(K_rem, i); a; ++a) {
+                for(auto a = row_begin(K_rem, i); a; ++a) {
                     ptrdiff_t  j = a.col();
                     value_type v = a.value();
                     char      pj = rmask[j];

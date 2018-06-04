@@ -63,11 +63,10 @@ struct spai1 {
     template <class Matrix>
     spai1( const Matrix &A, const params &, const typename Backend::params &backend_prm)
     {
-        typedef typename backend::value_type<Matrix>::type   value_type;
-        typedef typename backend::row_iterator<Matrix>::type row_iterator;
+        typedef typename backend::value_type<Matrix>::type value_type;
 
-        const size_t n   = backend::rows(A);
-        const size_t m   = backend::cols(A);
+        const size_t n = backend::rows(A);
+        const size_t m = backend::cols(A);
 
         auto Ainv = std::make_shared<Matrix>(A);
 
@@ -108,7 +107,7 @@ struct spai1 {
                 for(ptrdiff_t j = row_beg; j < row_end; ++j) {
                     ptrdiff_t c = A.col[j];
 
-                    for(row_iterator a = row_begin(A, c); a; ++a)
+                    for(auto a = row_begin(A, c); a; ++a)
                         B[marker[a.col()] + J.size() * (j - row_beg)] = a.value();
                 }
 

@@ -121,15 +121,13 @@ struct crs {
         nrows(backend::rows(A)), ncols(backend::cols(A)),
         nnz(0), ptr(0), col(0), val(0), own_data(true)
     {
-        typedef typename backend::row_iterator<Matrix>::type row_iterator;
-
         ptr = new ptr_type[nrows + 1];
         ptr[0] = 0;
 
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(nrows); ++i) {
             int row_width = 0;
-            for(row_iterator a = backend::row_begin(A, i); a; ++a) ++row_width;
+            for(auto a = backend::row_begin(A, i); a; ++a) ++row_width;
             ptr[i+1] = row_width;
         }
 
@@ -140,7 +138,7 @@ struct crs {
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(nrows); ++i) {
             ptr_type row_head = ptr[i];
-            for(row_iterator a = backend::row_begin(A, i); a; ++a) {
+            for(auto a = backend::row_begin(A, i); a; ++a) {
                 col[row_head] = a.col();
                 val[row_head] = a.value();
 
@@ -653,13 +651,12 @@ class numa_vector {
 template < typename V, typename C, typename P >
 std::shared_ptr< numa_vector<V> > diagonal(const crs<V, C, P> &A, bool invert = false)
 {
-    typedef typename crs<V, C, P>::row_iterator row_iterator;
     const size_t n = rows(A);
     auto dia = std::make_shared< numa_vector<V> >(n, false);
 
 #pragma omp parallel for
     for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-        for(row_iterator a = A.row_begin(i); a; ++a) {
+        for(auto a = A.row_begin(i); a; ++a) {
             if (a.col() == i) {
                 (*dia)[i] = invert ? math::inverse(a.value()) : a.value();
                 break;

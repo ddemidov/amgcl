@@ -264,9 +264,6 @@ struct ruge_stuben {
                 std::vector<char>                  &cf
                 )
         {
-            typedef backend::crs<Val, Col, Ptr>                  matrix;
-            typedef typename backend::row_iterator<matrix>::type row_iterator;
-
             typedef typename math::scalar_of<Val>::type Scalar;
 
             const size_t n   = rows(A);
@@ -284,7 +281,7 @@ struct ruge_stuben {
 
                 Val a_min = math::zero<Val>();
 
-                for(row_iterator a = row_begin(A, i); a; ++a)
+                for(auto a = row_begin(A, i); a; ++a)
                     if (a.col() != i) a_min = std::min(a_min, a.value());
 
                 if (math::norm(a_min) < eps) {

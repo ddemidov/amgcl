@@ -387,7 +387,6 @@ void mm_write(
 template <class Matrix>
 void mm_write(const std::string &fname, const Matrix &A) {
     typedef typename backend::value_type<Matrix>::type Val;
-    typedef typename backend::row_iterator<Matrix>::type row_iterator;
 
     const size_t rows = backend::rows(A);
     const size_t cols = backend::cols(A);
@@ -412,7 +411,7 @@ void mm_write(const std::string &fname, const Matrix &A) {
 
     // Data
     for(size_t i = 0; i < rows; ++i) {
-        for(row_iterator a = backend::row_begin(A, i); a; ++a) {
+        for(auto a = backend::row_begin(A, i); a; ++a) {
             f << i + 1 << " " << a.col() + 1 << " ";
             detail::write_value(f, a.value()) << "\n";
         }

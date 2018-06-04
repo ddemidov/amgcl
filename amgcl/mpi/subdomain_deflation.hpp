@@ -202,7 +202,6 @@ class subdomain_deflation {
         {
             AMGCL_TIC("setup deflation");
             typedef backend::crs<value_type, ptrdiff_t>                build_matrix;
-            typedef typename backend::row_iterator<build_matrix>::type row_iterator;
 
             // Lets see how many deflation vectors are there.
             std::vector<ptrdiff_t> dv_size(comm.size);
@@ -336,7 +335,7 @@ class subdomain_deflation {
                     ptrdiff_t az_rem_head = az_rem->ptr[i];
                     ptrdiff_t az_rem_tail = az_rem_head;
 
-                    for(row_iterator a = backend::row_begin(*a_rem, i); a; ++a) {
+                    for(auto a = backend::row_begin(*a_rem, i); a; ++a) {
                         ptrdiff_t  c = a.col();
                         value_type v = a.value();
 
