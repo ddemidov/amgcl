@@ -59,17 +59,17 @@ struct smoothed_aggregation {
         /// Relaxation factor.
         scalar_type relax;
 
-        // Use power iterations to estimate the matrix spectral radius.
+        // Estimate the matrix spectral radius.
         // This usually improves convergence rate and results in faster solves,
         // but costs some time during setup.
         bool estimate_spectral_radius;
 
         // Number of power iterations to apply for the spectral radius
-        // estimation.
+        // estimation. Use Gershgorin disk theorem when power_iters = 0.
         int power_iters;
 
         params()
-            : relax(1.0f), estimate_spectral_radius(false), power_iters(5)
+            : relax(1.0f), estimate_spectral_radius(false), power_iters(0)
         { }
 
         params(const boost::property_tree::ptree &p)
@@ -114,7 +114,7 @@ struct smoothed_aggregation {
 
         scalar_type omega = prm.relax;
         if (prm.estimate_spectral_radius) {
-            omega *= static_cast<scalar_type>(4.0/3) / spectral_radius(A, prm.power_iters);
+            omega *= static_cast<scalar_type>(4.0/3) / backend::spectral_radius<true>(A, prm.power_iters);
         } else {
             omega *= static_cast<scalar_type>(2.0/3);
         }

@@ -668,143 +668,140 @@ std::shared_ptr< numa_vector<V> > diagonal(const crs<V, C, P> &A, bool invert = 
     return dia;
 }
 
-// Uses power iteration to estimate spectral readius of the matrix,
-// scaled by its inverse diagonal.
-template <class Matrix>
+// Estimate spectral radius of the matrix.
+// Use Gershgorin disk theorem when power_iters == 0,
+// Use Power method when power_iters > 0.
+// When scale = true, scale the matrix by its inverse diagonal.
+template <bool scale, class Matrix>
 static typename math::scalar_of<typename backend::value_type<Matrix>::type>::type
-spectral_radius(const Matrix &A, int power_iters) {
+spectral_radius(const Matrix &A, int power_iters = 0) {
     AMGCL_TIC("spectral radius");
     typedef typename backend::value_type<Matrix>::type   value_type;
     typedef typename math::rhs_of<value_type>::type      rhs_type;
     typedef typename math::scalar_of<value_type>::type   scalar_type;
 
     const ptrdiff_t n = backend::rows(A);
+    scalar_type radius;
 
-    backend::numa_vector<value_type> D(n, false);
-    backend::numa_vector<rhs_type>   b0(n, false), b1(n, false);
-
-    // Fill the initial vector with random values.
-    // Also extract the inverted matrix diagonal values.
-    scalar_type b0_norm = 0;
-#pragma omp parallel
-    {
-#ifdef _OPENMP
-        int tid = omp_get_thread_num();
-#else
-        int tid = 0;
-#endif
-        std::mt19937 rng(tid);
-        std::uniform_real_distribution<scalar_type> rnd(-1, 1);
-
-        scalar_type loc_norm = 0;
-
-#pragma omp for nowait
-        for(ptrdiff_t i = 0; i < n; ++i) {
-            rhs_type v = math::constant<rhs_type>(rnd(rng));
-
-            b0[i] = v;
-            loc_norm += math::norm(math::inner_product(v,v));
-
-            for(ptrdiff_t j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
-                if (A.col[j] == i) {
-                    D[i] = math::inverse(A.val[j]);
-                    break;
-                }
-            }
-        }
-
-#pragma omp critical
-        b0_norm += loc_norm;
-    }
-
-    // Normalize b0
-    b0_norm = 1 / sqrt(b0_norm);
-#pragma omp parallel for
-    for(ptrdiff_t i = 0; i < n; ++i) {
-        b0[i] = b0_norm * b0[i];
-    }
-
-    scalar_type radius = 1;
-
-    for(int iter = 0; iter < power_iters;) {
-        // b1 = (D * A) * b0
-        // b1_norm = ||b1||
-        // radius = <b1,b0>
-        scalar_type b1_norm = 0;
+    if (power_iters <= 0) {
+        // Use Gershgorin disk theorem.
         radius = 0;
+
 #pragma omp parallel
         {
-            scalar_type loc_norm = 0;
-            scalar_type loc_radi = 0;
+            scalar_type emax = 0;
+            value_type  dia = math::identity<value_type>();
 
 #pragma omp for nowait
             for(ptrdiff_t i = 0; i < n; ++i) {
-                rhs_type s = math::zero<rhs_type>();
+                scalar_type s = 0;
 
                 for(ptrdiff_t j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
-                    s += A.val[j] * b0[A.col[j]];
+                    ptrdiff_t  c = A.col[j];
+                    value_type v = A.val[j];
+
+                    s += math::norm(v);
+
+                    if (scale && c == i) dia = v;
                 }
 
-                s = D[i] * s;
+                if (scale) s *= math::norm(math::inverse(dia)); 
 
-                loc_norm += math::norm(math::inner_product(s, s));
-                loc_radi += math::norm(math::inner_product(s, b0[i]));
-
-                b1[i] = s;
+                emax = std::max(emax, s);
             }
 
 #pragma omp critical
-            {
-                b1_norm += loc_norm;
-                radius  += loc_radi;
+            radius = std::max(radius, emax);
+        }
+    } else {
+        // Power method.
+        backend::numa_vector<rhs_type> b0(n, false), b1(n, false);
+
+        // Fill the initial vector with random values.
+        // Also extract the inverted matrix diagonal values.
+        scalar_type b0_norm = 0;
+#pragma omp parallel
+        {
+#ifdef _OPENMP
+            int tid = omp_get_thread_num();
+#else
+            int tid = 0;
+#endif
+            std::mt19937 rng(tid);
+            std::uniform_real_distribution<scalar_type> rnd(-1, 1);
+
+            scalar_type loc_norm = 0;
+
+#pragma omp for nowait
+            for(ptrdiff_t i = 0; i < n; ++i) {
+                rhs_type v = math::constant<rhs_type>(rnd(rng));
+
+                b0[i] = v;
+                loc_norm += math::norm(math::inner_product(v,v));
             }
+
+#pragma omp critical
+            b0_norm += loc_norm;
         }
 
-        if (++iter < power_iters) {
-            // b0 = b1 / b1_norm
-            b1_norm = 1 / sqrt(b1_norm);
+        // Normalize b0
+        b0_norm = 1 / sqrt(b0_norm);
 #pragma omp parallel for
-            for(ptrdiff_t i = 0; i < n; ++i) {
-                b0[i] = b1_norm * b1[i];
+        for(ptrdiff_t i = 0; i < n; ++i) {
+            b0[i] = b0_norm * b0[i];
+        }
+
+        for(int iter = 0; iter < power_iters;) {
+            // b1 = scale ? (D^1 * A) * b0 : A * b0
+            // b1_norm = ||b1||
+            // radius = <b1,b0>
+            scalar_type b1_norm = 0;
+            radius = 0;
+#pragma omp parallel
+            {
+                scalar_type loc_norm = 0;
+                scalar_type loc_radi = 0;
+                value_type  dia = math::identity<value_type>();
+
+#pragma omp for nowait
+                for(ptrdiff_t i = 0; i < n; ++i) {
+                    rhs_type s = math::zero<rhs_type>();
+
+                    for(ptrdiff_t j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
+                        ptrdiff_t  c = A.col[j];
+                        value_type v = A.val[j];
+                        if (scale && c == i) dia = v;
+                        s += v * b0[c];
+                    }
+
+                    if (scale) s = math::inverse(dia) * s;
+
+                    loc_norm += math::norm(math::inner_product(s, s));
+                    loc_radi += math::norm(math::inner_product(s, b0[i]));
+
+                    b1[i] = s;
+                }
+
+#pragma omp critical
+                {
+                    b1_norm += loc_norm;
+                    radius  += loc_radi;
+                }
+            }
+
+            if (++iter < power_iters) {
+                // b0 = b1 / b1_norm
+                b1_norm = 1 / sqrt(b1_norm);
+#pragma omp parallel for
+                for(ptrdiff_t i = 0; i < n; ++i) {
+                    b0[i] = b1_norm * b1[i];
+                }
             }
         }
     }
     AMGCL_TOC("spectral radius");
 
     return radius < 0 ? static_cast<scalar_type>(2) : radius;
-}
-
-
-// Uses Gershgorin disc theorem to estimate spectral radius of the matrix
-template <class Matrix>
-static typename math::scalar_of<typename backend::value_type<Matrix>::type>::type
-spectral_radius(const Matrix &A) {
-    typedef typename math::scalar_of<typename backend::value_type<Matrix>::type>::type scalar_type;
-
-    AMGCL_TIC("spectral radius");
-    const ptrdiff_t n = rows(A);
-
-    scalar_type emax = 0;
-
-#pragma omp parallel
-    {
-        scalar_type my_emax = 0;
-#pragma omp for nowait
-        for(ptrdiff_t i = 0; i < n; ++i) {
-            scalar_type hi = 0;
-
-            for(auto a = backend::row_begin(A, i); a; ++a)
-                hi += math::norm( a.value() );
-
-            my_emax = std::max(my_emax, hi);
-        }
-
-#pragma omp critical
-        emax = std::max(emax, my_emax);
-    }
-    AMGCL_TOC("spectral radius");
-
-    return emax;
 }
 
 /**

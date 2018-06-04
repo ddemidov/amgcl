@@ -999,189 +999,6 @@ product(const distributed_matrix<Backend> &A, const distributed_matrix<Backend> 
     return std::make_shared<distributed_matrix<Backend> >(A.comm(), c_loc, c_rem);
 }
 
-template <class Backend>
-typename math::scalar_of<typename Backend::value_type>::type
-spectral_radius(const distributed_matrix<Backend> &A, int power_iters)
-{
-    AMGCL_TIC("spectral radius");
-    typedef typename Backend::value_type               value_type;
-    typedef typename math::rhs_of<value_type>::type    rhs_type;
-    typedef typename math::scalar_of<value_type>::type scalar_type;
-    typedef backend::crs<value_type>                   build_matrix;
-
-    communicator comm = A.comm();
-
-    const build_matrix &A_loc = *A.local();
-    const build_matrix &A_rem = *A.remote();
-    const comm_pattern<Backend> &C = A.cpat();
-
-    const ptrdiff_t n = A_loc.nrows;
-
-    backend::numa_vector<value_type> D(n, false);
-    backend::numa_vector<rhs_type>   b0(n, false), b1(n, false);
-    backend::numa_vector<ptrdiff_t>  rem_col(A_rem.nnz, false);
-
-    // Fill the initial vector with random values.
-    // Also extract the inverted matrix diagonal values.
-    scalar_type b0_loc_norm = 0;
-
-#pragma omp parallel
-    {
-#ifdef _OPENMP
-        int tid = omp_get_thread_num();
-        int nt  = omp_get_max_threads();
-#else
-        int tid = 0;
-        int nt  = 1;
-#endif
-        std::mt19937 rng(comm.size * nt + tid);
-        std::uniform_real_distribution<scalar_type> rnd(-1, 1);
-
-        scalar_type t_norm = 0;
-
-#pragma omp for nowait
-        for(ptrdiff_t i = 0; i < n; ++i) {
-            rhs_type v = math::constant<rhs_type>(rnd(rng));
-
-            b0[i] = v;
-            t_norm += math::norm(math::inner_product(v,v));
-
-            for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j) {
-                if (A_loc.col[j] == i) {
-                    D[i] = math::inverse(A_loc.val[j]);
-                    break;
-                }
-            }
-
-            for(ptrdiff_t j = A_rem.ptr[i], e = A_rem.ptr[i+1]; j < e; ++j) {
-                rem_col[j] = C.local_index(A_rem.col[j]);
-            }
-        }
-
-#pragma omp critical
-        b0_loc_norm += t_norm;
-    }
-
-    scalar_type b0_norm = comm.reduce(MPI_SUM, b0_loc_norm);
-
-    // Normalize b0
-    b0_norm = 1 / sqrt(b0_norm);
-#pragma omp parallel for
-    for(ptrdiff_t i = 0; i < n; ++i) {
-        b0[i] = b0_norm * b0[i];
-    }
-
-    std::vector<rhs_type> b0_send(C.send.count());
-    std::vector<rhs_type> b0_recv(C.recv.count());
-
-    for(size_t i = 0, m = C.send.count(); i < m; ++i)
-        b0_send[i] = b0[C.send.col[i]];
-    C.exchange(&b0_send[0], &b0_recv[0]);
-
-    scalar_type radius = 1;
-
-    for(int iter = 0; iter < power_iters;) {
-        // b1 = (D * A) * b0
-        // b1_norm = ||b1||
-        // radius = <b1,b0>
-        scalar_type b1_loc_norm = 0;
-        scalar_type loc_radius = 0;
-
-#pragma omp parallel
-        {
-            scalar_type t_norm = 0;
-            scalar_type t_radi = 0;
-
-#pragma omp for nowait
-            for(ptrdiff_t i = 0; i < n; ++i) {
-                rhs_type s = math::zero<rhs_type>();
-
-                for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j)
-                    s += A_loc.val[j] * b0[A_loc.col[j]];
-
-                for(ptrdiff_t j = A_rem.ptr[i], e = A_rem.ptr[i+1]; j < e; ++j)
-                    s += A_rem.val[j] * b0_recv[rem_col[j]];
-
-                s = D[i] * s;
-
-                t_norm += math::norm(math::inner_product(s, s));
-                t_radi += math::norm(math::inner_product(s, b0[i]));
-
-                b1[i] = s;
-            }
-
-#pragma omp critical
-            {
-                b1_loc_norm += t_norm;
-                loc_radius  += t_radi;
-            }
-        }
-
-        radius = comm.reduce(MPI_SUM, loc_radius);
-
-        if (++iter < power_iters) {
-            scalar_type b1_norm;
-            b1_norm = comm.reduce(MPI_SUM, b1_loc_norm);
-
-            // b0 = b1 / b1_norm
-            b1_norm = 1 / sqrt(b1_norm);
-#pragma omp parallel for
-            for(ptrdiff_t i = 0; i < n; ++i) {
-                b0[i] = b1_norm * b1[i];
-            }
-
-            for(size_t i = 0, m = C.send.count(); i < m; ++i)
-                b0_send[i] = b0[C.send.col[i]];
-            C.exchange(&b0_send[0], &b0_recv[0]);
-        }
-    }
-    AMGCL_TOC("spectral radius");
-
-    return radius < 0 ? static_cast<scalar_type>(2) : radius;
-}
-
-// Uses Gershgorin disc theorem to estimate spectral radius of the matrix
-template <class Backend>
-typename math::scalar_of<typename Backend::value_type>::type
-spectral_radius(const distributed_matrix<Backend> &A) {
-    AMGCL_TIC("spectral radius");
-    typedef typename Backend::value_type               value_type;
-    typedef typename math::scalar_of<value_type>::type scalar_type;
-    typedef backend::crs<value_type>                   build_matrix;
-
-    communicator comm = A.comm();
-
-    const build_matrix &A_loc = *A.local();
-    const build_matrix &A_rem = *A.remote();
-
-    const ptrdiff_t n = A_loc.nrows;
-
-    scalar_type emax = 0;
-
-#pragma omp parallel
-    {
-        scalar_type my_emax = 0;
-#pragma omp for nowait
-        for(ptrdiff_t i = 0; i < n; ++i) {
-            scalar_type hi = 0;
-
-            for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j)
-                hi += math::norm(A_loc.val[j]);
-
-            for(ptrdiff_t j = A_rem.ptr[i], e = A_rem.ptr[i+1]; j < e; ++j)
-                hi += math::norm(A_rem.val[j]);
-
-            my_emax = std::max(my_emax, hi);
-        }
-
-#pragma omp critical
-        emax = std::max(emax, my_emax);
-    }
-    AMGCL_TOC("spectral radius");
-
-    return comm.reduce(MPI_MAX, emax);
-}
-
 template <class Backend, class T>
 void scale(distributed_matrix<Backend> &A, T s) {
     typedef typename Backend::value_type value_type;
@@ -1243,6 +1060,175 @@ struct residual_impl<mpi::distributed_matrix<Backend>, Vec1, Vec2, Vec3>
     }
 };
 
+// Estimate spectral radius of the matrix.
+template <bool scale, class Backend>
+typename math::scalar_of<typename Backend::value_type>::type
+spectral_radius(const mpi::distributed_matrix<Backend> &A, int power_iters = 0)
+{
+    AMGCL_TIC("spectral radius");
+    typedef typename Backend::value_type               value_type;
+    typedef typename math::rhs_of<value_type>::type    rhs_type;
+    typedef typename math::scalar_of<value_type>::type scalar_type;
+    typedef backend::crs<value_type>                   build_matrix;
+
+    mpi::communicator comm = A.comm();
+
+    const build_matrix &A_loc = *A.local();
+    const build_matrix &A_rem = *A.remote();
+    const mpi::comm_pattern<Backend> &C = A.cpat();
+
+    const ptrdiff_t n = A_loc.nrows;
+    scalar_type radius = 0;
+
+    if (power_iters <= 0) {
+#pragma omp parallel
+        {
+            scalar_type emax = 0;
+            value_type  dia = math::identity<value_type>();
+
+#pragma omp for nowait
+            for(ptrdiff_t i = 0; i < n; ++i) {
+                scalar_type s = 0;
+
+                for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j) {
+                    ptrdiff_t  c = A_loc.col[j];
+                    value_type v = A_loc.val[j];
+
+                    s += math::norm(v);
+
+                    if (scale && c == i) dia = v;
+                }
+
+                for(ptrdiff_t j = A_rem.ptr[i], e = A_rem.ptr[i+1]; j < e; ++j)
+                    s += math::norm(A_rem.val[j]);
+
+                if (scale) s *= math::norm(math::inverse(dia)); 
+
+                emax = std::max(emax, s);
+            }
+
+#pragma omp critical
+            radius = std::max(radius, emax);
+        }
+    } else {
+        backend::numa_vector<rhs_type>   b0(n, false), b1(n, false);
+        backend::numa_vector<ptrdiff_t>  rem_col(A_rem.nnz, false);
+
+        // Fill the initial vector with random values.
+        // Also extract the inverted matrix diagonal values.
+        scalar_type b0_loc_norm = 0;
+
+#pragma omp parallel
+        {
+#ifdef _OPENMP
+            int tid = omp_get_thread_num();
+            int nt  = omp_get_max_threads();
+#else
+            int tid = 0;
+            int nt  = 1;
+#endif
+            std::mt19937 rng(comm.size * nt + tid);
+            std::uniform_real_distribution<scalar_type> rnd(-1, 1);
+
+            scalar_type t_norm = 0;
+
+#pragma omp for nowait
+            for(ptrdiff_t i = 0; i < n; ++i) {
+                rhs_type v = math::constant<rhs_type>(rnd(rng));
+
+                b0[i] = v;
+                t_norm += math::norm(math::inner_product(v,v));
+
+                for(ptrdiff_t j = A_rem.ptr[i], e = A_rem.ptr[i+1]; j < e; ++j) {
+                    rem_col[j] = C.local_index(A_rem.col[j]);
+                }
+            }
+
+#pragma omp critical
+            b0_loc_norm += t_norm;
+        }
+
+        scalar_type b0_norm = comm.reduce(MPI_SUM, b0_loc_norm);
+
+        // Normalize b0
+        b0_norm = 1 / sqrt(b0_norm);
+#pragma omp parallel for
+        for(ptrdiff_t i = 0; i < n; ++i) {
+            b0[i] = b0_norm * b0[i];
+        }
+
+        std::vector<rhs_type> b0_send(C.send.count());
+        std::vector<rhs_type> b0_recv(C.recv.count());
+
+        for(size_t i = 0, m = C.send.count(); i < m; ++i)
+            b0_send[i] = b0[C.send.col[i]];
+        C.exchange(&b0_send[0], &b0_recv[0]);
+
+        for(int iter = 0; iter < power_iters;) {
+            // b1 = (D * A) * b0
+            // b1_norm = ||b1||
+            // radius = <b1,b0>
+            scalar_type b1_loc_norm = 0;
+            scalar_type loc_radius = 0;
+
+#pragma omp parallel
+            {
+                scalar_type t_norm = 0;
+                scalar_type t_radi = 0;
+                value_type  dia = math::identity<value_type>();
+
+#pragma omp for nowait
+                for(ptrdiff_t i = 0; i < n; ++i) {
+                    rhs_type s = math::zero<rhs_type>();
+
+                    for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j) {
+                        ptrdiff_t  c = A_loc.col[j];
+                        value_type v = A_loc.val[j];
+                        if (scale && c == i) dia = v;
+                        s += v * b0[c];
+                    }
+
+                    for(ptrdiff_t j = A_rem.ptr[i], e = A_rem.ptr[i+1]; j < e; ++j)
+                        s += A_rem.val[j] * b0_recv[rem_col[j]];
+
+                    if (scale) s = math::inverse(dia) * s;
+
+                    t_norm += math::norm(math::inner_product(s, s));
+                    t_radi += math::norm(math::inner_product(s, b0[i]));
+
+                    b1[i] = s;
+                }
+
+#pragma omp critical
+                {
+                    b1_loc_norm += t_norm;
+                    loc_radius  += t_radi;
+                }
+            }
+
+            radius = comm.reduce(MPI_SUM, loc_radius);
+
+            if (++iter < power_iters) {
+                scalar_type b1_norm;
+                b1_norm = comm.reduce(MPI_SUM, b1_loc_norm);
+
+                // b0 = b1 / b1_norm
+                b1_norm = 1 / sqrt(b1_norm);
+#pragma omp parallel for
+                for(ptrdiff_t i = 0; i < n; ++i) {
+                    b0[i] = b1_norm * b1[i];
+                }
+
+                for(size_t i = 0, m = C.send.count(); i < m; ++i)
+                    b0_send[i] = b0[C.send.col[i]];
+                C.exchange(&b0_send[0], &b0_recv[0]);
+            }
+        }
+    }
+    AMGCL_TOC("spectral radius");
+
+    return radius < 0 ? static_cast<scalar_type>(2) : radius;
+}
 } // namespace backend
 } // namespace amgcl
 

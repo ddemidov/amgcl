@@ -62,18 +62,25 @@ class chebyshev {
             /// Lowest-to-highest eigen value ratio.
             float lower;
 
-            params() : degree(5), lower(1.0f / 30) {}
+            // Number of power iterations to apply for the spectral radius
+            // estimation. When 0, use Gershgorin disk theorem to estimate
+            // spectral radius.
+            int power_iters;
+
+            params() : degree(5), lower(1.0f / 30), power_iters(0) {}
 
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_VALUE(p, degree),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, lower)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, lower),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, power_iters)
             {
-                check_params(p, {"degree", "lower"});
+                check_params(p, {"degree", "lower", "power_iters"});
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, degree);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, lower);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, power_iters);
             }
         } prm;
 
@@ -86,7 +93,7 @@ class chebyshev {
                 p( Backend::create_vector(rows(A), backend_prm) ),
                 q( Backend::create_vector(rows(A), backend_prm) )
         {
-            scalar_type hi = spectral_radius(A);
+            scalar_type hi = backend::spectral_radius</*scale=*/false>(A, prm.power_iters);
             scalar_type lo = hi * prm.lower;
 
             // Chebyshev polynomial roots on the interval [lo, hi].
