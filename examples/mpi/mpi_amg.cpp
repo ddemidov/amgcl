@@ -35,6 +35,7 @@
 #include <amgcl/mpi/partition/runtime.hpp>
 
 #include <amgcl/io/mm.hpp>
+#include <amgcl/io/binary.hpp>
 #include <amgcl/profiler.hpp>
 
 #ifndef AMGCL_BLOCK_SIZES
@@ -149,6 +150,40 @@ ptrdiff_t read_matrix_market(
     } else {
         amgcl::io::mm_reader rhs_mm(rhs_file);
         rhs_mm(rhs, row_beg, row_end);
+    }
+
+    return chunk;
+}
+
+//---------------------------------------------------------------------------
+ptrdiff_t read_binary(
+        amgcl::mpi::communicator comm,
+        const std::string &A_file, const std::string &rhs_file, int block_size,
+        std::vector<ptrdiff_t> &ptr,
+        std::vector<ptrdiff_t> &col,
+        std::vector<double>    &val,
+        std::vector<double>    &rhs)
+{
+    ptrdiff_t n = amgcl::io::crs_size<ptrdiff_t>(A_file);
+
+    ptrdiff_t chunk = (n + comm.size - 1) / comm.size;
+    if (chunk % block_size != 0) {
+        chunk += block_size - chunk % block_size;
+    }
+
+    ptrdiff_t row_beg = std::min(n, chunk * comm.rank);
+    ptrdiff_t row_end = std::min(n, row_beg + chunk);
+
+    chunk = row_end - row_beg;
+
+    amgcl::io::read_crs(A_file, n, ptr, col, val, row_beg, row_end);
+
+    if (rhs_file.empty()) {
+        rhs.resize(chunk);
+        std::fill(rhs.begin(), rhs.end(), 1.0);
+    } else {
+        ptrdiff_t rows, cols;
+        amgcl::io::read_dense(rhs_file, rows, cols, rhs, row_beg, row_end);
     }
 
     return chunk;
@@ -412,6 +447,12 @@ int main(int argc, char *argv[]) {
          "Should only be provided together with a system matrix. "
         )
         (
+         "binary,B",
+         po::bool_switch()->default_value(false),
+         "When specified, treat input files as binary instead of as MatrixMarket. "
+         "It is assumed the files were converted to binary format with mm2bin utility. "
+        )
+        (
          "block-size,b",
          po::value<int>()->default_value(1),
          "The block size of the system matrix. "
@@ -482,10 +523,17 @@ int main(int argc, char *argv[]) {
 
     if (vm.count("matrix")) {
         prof.tic("read");
-        n = read_matrix_market(comm,
-                vm["matrix"].as<std::string>(),
-                vm["rhs"].as<std::string>(),
-                block_size * aggr_block, ptr, col, val, rhs);
+        if (vm["binary"].as<bool>()) {
+            n = read_binary(comm,
+                    vm["matrix"].as<std::string>(),
+                    vm["rhs"].as<std::string>(),
+                    block_size * aggr_block, ptr, col, val, rhs);
+        } else {
+            n = read_matrix_market(comm,
+                    vm["matrix"].as<std::string>(),
+                    vm["rhs"].as<std::string>(),
+                    block_size * aggr_block, ptr, col, val, rhs);
+        }
         prof.toc("read");
     } else {
         prof.tic("assemble");

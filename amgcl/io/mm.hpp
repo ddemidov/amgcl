@@ -179,7 +179,9 @@ class mm_reader {
             std::vector<Idx> _col; _col.reserve(_nnz);
             std::vector<Val> _val; _val.reserve(_nnz);
 
-            ptr.resize(n+1); std::fill(ptr.begin(), ptr.end(), 0);
+            ptrdiff_t chunk = row_end - row_beg;
+
+            ptr.resize(chunk + 1); std::fill(ptr.begin(), ptr.end(), 0);
 
             for(size_t k = 0; k < nnz; ++k) {
                 precondition(std::getline(f, line), format_error("unexpected eof"));
@@ -231,14 +233,14 @@ class mm_reader {
             ptr.front() = 0;
 
 #pragma omp parallel for
-            for(ptrdiff_t i = 0; i < n; ++i) {
+            for(ptrdiff_t i = 0; i < chunk; ++i) {
                 Idx beg = ptr[i];
                 Idx end = ptr[i+1];
 
                 amgcl::detail::sort_row(&col[0] + beg, &val[0] + beg, end - beg);
             }
 
-            return std::make_tuple(row_end - row_beg, m);
+            return std::make_tuple(chunk, m);
         }
 
         /// Read dense array from the file.
