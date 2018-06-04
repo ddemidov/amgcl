@@ -65,21 +65,27 @@ struct wrapper {
                 handle = static_cast<void*>(new amgcl::mpi::relaxation::type<Backend>(A, prm, bprm)); \
                 break
 
-#define AMGCL_RELAX_LOCAL(type) \
+#define AMGCL_RELAX_LOCAL_DISTR(type) \
+            case runtime::relaxation::type: \
+                handle = call_constructor<amgcl::relaxation::type>(A, prm, bprm); \
+                break;
+
+#define AMGCL_RELAX_LOCAL_LOCAL(type) \
             case runtime::relaxation::type: \
                 handle = call_constructor<amgcl::relaxation::type>(*A.local(), prm, bprm); \
                 break;
 
             AMGCL_RELAX_DISTR(spai0);
-            AMGCL_RELAX_LOCAL(damped_jacobi);
-            AMGCL_RELAX_LOCAL(ilu0);
-            AMGCL_RELAX_LOCAL(iluk);
-            AMGCL_RELAX_LOCAL(ilut);
-            AMGCL_RELAX_LOCAL(spai1);
-            AMGCL_RELAX_LOCAL(chebyshev);
-            AMGCL_RELAX_LOCAL(gauss_seidel);
+            AMGCL_RELAX_LOCAL_DISTR(chebyshev);
+            AMGCL_RELAX_LOCAL_LOCAL(damped_jacobi);
+            AMGCL_RELAX_LOCAL_LOCAL(ilu0);
+            AMGCL_RELAX_LOCAL_LOCAL(iluk);
+            AMGCL_RELAX_LOCAL_LOCAL(ilut);
+            AMGCL_RELAX_LOCAL_LOCAL(spai1);
+            AMGCL_RELAX_LOCAL_LOCAL(gauss_seidel);
 
-#undef AMGCL_RELAX_LOCAL
+#undef AMGCL_RELAX_LOCAL_LOCAL
+#undef AMGCL_RELAX_LOCAL_DISTR
 #undef AMGCL_RELAX_DISTR
 
             default:

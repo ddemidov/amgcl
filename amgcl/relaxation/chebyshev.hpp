@@ -180,34 +180,6 @@ class chebyshev {
                 backend::axpbypcz(*c, rhs, one, *q, zero, x);
             }
         }
-
-        // Uses Gershgorin disc theorem to estimate spectral radius of the
-        // matrix
-        template <class Matrix>
-        static scalar_type spectral_radius(const Matrix &A) {
-            const ptrdiff_t n = rows(A);
-
-            scalar_type emax = 0;
-
-#pragma omp parallel
-            {
-                scalar_type my_emax = 0;
-#pragma omp for nowait
-                for(ptrdiff_t i = 0; i < n; ++i) {
-                    scalar_type hi = 0;
-
-                    for(auto a = backend::row_begin(A, i); a; ++a)
-                        hi += math::norm( a.value() );
-
-                    my_emax = std::max(my_emax, hi);
-                }
-
-#pragma omp critical
-                emax = std::max(emax, my_emax);
-            }
-
-            return emax;
-        }
 };
 
 } // namespace relaxation

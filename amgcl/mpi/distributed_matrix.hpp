@@ -999,7 +999,6 @@ product(const distributed_matrix<Backend> &A, const distributed_matrix<Backend> 
     return std::make_shared<distributed_matrix<Backend> >(A.comm(), c_loc, c_rem);
 }
 
-// Do not compute values, and do not touch inner points.
 template <class Backend>
 typename math::scalar_of<typename Backend::value_type>::type
 spectral_radius(const distributed_matrix<Backend> &A, int power_iters)
@@ -1141,6 +1140,48 @@ spectral_radius(const distributed_matrix<Backend> &A, int power_iters)
     return radius < 0 ? static_cast<scalar_type>(2) : radius;
 }
 
+// Uses Gershgorin disc theorem to estimate spectral radius of the matrix
+template <class Backend>
+typename math::scalar_of<typename Backend::value_type>::type
+spectral_radius(const distributed_matrix<Backend> &A) {
+    AMGCL_TIC("spectral radius");
+    typedef typename Backend::value_type               value_type;
+    typedef typename math::scalar_of<value_type>::type scalar_type;
+    typedef backend::crs<value_type>                   build_matrix;
+
+    communicator comm = A.comm();
+
+    const build_matrix &A_loc = *A.local();
+    const build_matrix &A_rem = *A.remote();
+
+    const ptrdiff_t n = A_loc.nrows;
+
+    scalar_type emax = 0;
+
+#pragma omp parallel
+    {
+        scalar_type my_emax = 0;
+#pragma omp for nowait
+        for(ptrdiff_t i = 0; i < n; ++i) {
+            scalar_type hi = 0;
+
+            for(ptrdiff_t j = A_loc.ptr[i], e = A_loc.ptr[i+1]; j < e; ++j)
+                hi += math::norm(A_loc.val[j]);
+
+            for(ptrdiff_t j = A_rem.ptr[i], e = A_rem.ptr[i+1]; j < e; ++j)
+                hi += math::norm(A_rem.val[j]);
+
+            my_emax = std::max(my_emax, hi);
+        }
+
+#pragma omp critical
+        emax = std::max(emax, my_emax);
+    }
+    AMGCL_TOC("spectral radius");
+
+    return comm.reduce(MPI_MAX, emax);
+}
+
 template <class Backend, class T>
 void scale(distributed_matrix<Backend> &A, T s) {
     typedef typename Backend::value_type value_type;
@@ -1169,6 +1210,14 @@ void sort_rows(distributed_matrix<Backend> &A) {
 } // namespace mpi
 
 namespace backend {
+
+template <class Backend>
+struct rows_impl< mpi::distributed_matrix<Backend> >
+{
+    static size_t get(const mpi::distributed_matrix<Backend> &A) {
+        return A.loc_rows();
+    }
+};
 
 template <class Backend, class Alpha, class Vec1, class Beta,  class Vec2>
 struct spmv_impl<Alpha, mpi::distributed_matrix<Backend>, Vec1, Beta, Vec2>
