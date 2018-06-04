@@ -171,7 +171,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
 	    list(APPEND CUDA_NVCC_FLAGS
 		${CUDA_ARCH_FLAGS} -Wno-deprecated-gpu-targets)
 
-            list(APPEND CUDA_NVCC_FLAGS -Xcompiler -std=c++03 -Xcompiler -Wno-vla)
+            list(APPEND CUDA_NVCC_FLAGS -Xcompiler -std=c++11 -Xcompiler -Wno-vla)
         endif()
 
         add_library(cuda_target INTERFACE)
