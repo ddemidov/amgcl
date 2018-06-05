@@ -269,8 +269,9 @@ inline const boost::property_tree::ptree& empty_ptree() {
 struct empty_params {
     empty_params() {}
     empty_params(const boost::property_tree::ptree &p) {
-        for(boost::property_tree::ptree::const_iterator v = p.begin(), e = p.end(); v != e; ++v)
-            AMGCL_PARAM_UNKNOWN(v->first);
+        for(const auto &v : p) {
+            AMGCL_PARAM_UNKNOWN(v.first);
+        }
     }
     void get(boost::property_tree::ptree&, const std::string&) const {}
 };

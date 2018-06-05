@@ -59,16 +59,16 @@ class EigenSolver {
             : n( backend::rows(A) )
         {
             typedef
-                typename boost::remove_const<
-                    typename boost::remove_pointer<
+                typename std::remove_const<
+                    typename std::remove_pointer<
                         typename backend::col_data_impl<Matrix>::type
                         >::type
                     >::type
                 col_type;
 
             typedef
-                typename boost::remove_const<
-                    typename boost::remove_pointer<
+                typename std::remove_const<
+                    typename std::remove_pointer<
                         typename backend::ptr_data_impl<Matrix>::type
                         >::type
                     >::type

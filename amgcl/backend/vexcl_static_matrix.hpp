@@ -116,9 +116,9 @@ class ell<amgcl::static_matrix<T, N, N>, Col, Ptr> {
                 const ColRange &col,
                 const ValRange &val,
                 bool fast = true
-           ) :
-            q(q[0]), n(nrows), m(ncols), nnz(boost::size(val)),
-            ell_pitch(alignup(nrows, 16U)), csr_nnz(0)
+           ) : q(q[0]), n(nrows), m(ncols),
+               nnz(std::distance(std::begin(val), std::end(val))),
+               ell_pitch(alignup(nrows, 16U)), csr_nnz(0)
         {
             precondition(q.size() == 1,
                     "sparse::ell is only supported for single-device contexts");

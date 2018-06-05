@@ -33,6 +33,7 @@ THE SOFTWARE.
 
 #include <type_traits>
 #include <memory>
+
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/solver/skyline_lu.hpp>
 #include <amgcl/util.hpp>
@@ -180,8 +181,8 @@ class cuda_hyb_matrix {
 
         cusparseHandle_t handle;
 
-        std::shared_ptr<boost::remove_pointer<cusparseMatDescr_t>::type> desc;
-        std::shared_ptr<boost::remove_pointer<cusparseHybMat_t>::type>   mat;
+        std::shared_ptr<std::remove_pointer<cusparseMatDescr_t>::type> desc;
+        std::shared_ptr<std::remove_pointer<cusparseHybMat_t>::type>   mat;
 
         static cusparseMatDescr_t create_description() {
             cusparseMatDescr_t desc;
@@ -600,7 +601,7 @@ class cuda_event {
             return delta / 1000.0f;
         }
     private:
-        std::shared_ptr<boost::remove_pointer<cudaEvent_t>::type> e;
+        std::shared_ptr<std::remove_pointer<cudaEvent_t>::type> e;
 
         static cudaEvent_t create_event() {
             cudaEvent_t e;

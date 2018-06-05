@@ -32,8 +32,9 @@ THE SOFTWARE.
  */
 
 #include <iostream>
-
 #include <memory>
+
+#include <boost/range/iterator_range.hpp>
 
 #include <amgcl/solver/skyline_lu.hpp>
 #include <vexcl/vexcl.hpp>
