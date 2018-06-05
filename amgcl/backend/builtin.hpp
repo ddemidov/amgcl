@@ -41,8 +41,6 @@ THE SOFTWARE.
 #  include <omp.h>
 #endif
 
-#include <boost/range/iterator_range.hpp>
-
 #include <amgcl/util.hpp>
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/solver/skyline_lu.hpp>
@@ -87,15 +85,18 @@ struct crs {
         nrows(nrows), ncols(ncols), nnz(0),
         ptr(0), col(0), val(0), own_data(true)
     {
-        precondition(nrows + 1 == boost::size(ptr_range),
+        precondition(static_cast<ptrdiff_t>(nrows + 1) == std::distance(
+                    std::begin(ptr_range), std::end(ptr_range)),
                 "ptr_range has wrong size in crs constructor");
 
         nnz = ptr_range[nrows];
 
-        precondition(boost::size(col_range) == nnz,
+        precondition(static_cast<ptrdiff_t>(nnz) == std::distance(
+                    std::begin(col_range), std::end(col_range)),
                 "col_range has wrong size in crs constructor");
 
-        precondition(boost::size(val_range) == nnz,
+        precondition(static_cast<ptrdiff_t>(nnz) == std::distance(
+                    std::begin(val_range), std::end(val_range)),
                 "val_range has wrong size in crs constructor");
 
         ptr = new ptr_type[nrows + 1];
@@ -799,8 +800,7 @@ spectral_radius(const Matrix &A, int power_iters = 0) {
 }
 
 /**
- * The builtin backend does not have any dependencies except for the
- * <a href="http://www.boost.org">Boost</a> libraries, and uses OpenMP for
+ * The builtin backend does not have any dependencies, and uses OpenMP for
  * parallelization. Matrices are stored in the CRS format, and vectors are
  * instances of ``std::vector<value_type>``. There is no usual overhead of
  * moving the constructed hierarchy to the builtin backend, since the backend
@@ -896,9 +896,6 @@ struct is_builtin_vector< std::vector<V> > : std::is_arithmetic<V> {};
 
 template <class V>
 struct is_builtin_vector< numa_vector<V> > : std::true_type {};
-
-template <class Iterator>
-struct is_builtin_vector< boost::iterator_range<Iterator> > : std::true_type {};
 
 //---------------------------------------------------------------------------
 // Specialization of backend interface
@@ -1165,6 +1162,19 @@ struct use_builtin_matrix_ops< amgcl::backend::crs<V, C, P> >
 {};
 
 } // namespace detail
+
+} // namespace backend
+} // namespace amgcl
+
+
+// Allow to use boost::iterator_range as vector in builtin backend:
+namespace boost { template <class Iterator> class iterator_range; }
+
+namespace amgcl {
+namespace backend {
+
+template <class Iterator>
+struct is_builtin_vector< boost::iterator_range<Iterator> > : std::true_type {};
 
 } // namespace backend
 } // namespace amgcl
