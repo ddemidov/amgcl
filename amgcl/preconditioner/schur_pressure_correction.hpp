@@ -456,7 +456,7 @@ class schur_pressure_correction {
             return os;
         }
 
-#if defined(AMGCL_DEBUG) || !defined(NDEBUG)
+#if defined(AMGCL_DEBUG)
         template <typename I, typename E>
         static void report(const std::string &name, const std::tuple<I, E> &c) {
             std::cout << name << " (" << std::get<0>(c) << ", " << std::get<1>(c) << ")\n";
