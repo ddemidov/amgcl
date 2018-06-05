@@ -307,7 +307,7 @@ class bicgstabl {
                     }
                 }
 
-                std::copy(MZb.data(), MZb.data() + MZb.size(), MZa.data());
+                std::copy(MZa.data(), MZa.data() + MZa.size(), MZb.data());
 
                 if (prm.convex || L == 1) {
                     Y0[0] = -one;
