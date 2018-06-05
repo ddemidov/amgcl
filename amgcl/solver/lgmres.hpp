@@ -70,8 +70,6 @@ THE SOFTWARE.
 #include <cmath>
 #include <tuple>
 
-#include <boost/circular_buffer.hpp>
-
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/solver/detail/default_inner_product.hpp>
 #include <amgcl/solver/detail/givens_rotations.hpp>
@@ -413,8 +411,8 @@ class lgmres {
         std::shared_ptr<vector> r;
         mutable std::vector< std::shared_ptr<vector> > vs, ws;
         mutable std::vector< std::shared_ptr<vector> > outer_v_data, outer_Av_data;
-        mutable boost::circular_buffer< std::shared_ptr<vector> > outer_v;
-        mutable boost::circular_buffer< std::shared_ptr<vector> > outer_Av;
+        mutable circular_buffer< std::shared_ptr<vector> > outer_v;
+        mutable circular_buffer< std::shared_ptr<vector> > outer_Av;
 
 
         InnerProduct inner_product;

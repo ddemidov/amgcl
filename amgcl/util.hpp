@@ -221,6 +221,44 @@ class multi_array {
         }
 };
 
+template <class T>
+class circular_buffer {
+    public:
+        circular_buffer(size_t n) : start(0) {
+            buf.reserve(n);
+        }
+
+        size_t size() const {
+            return buf.size();
+        }
+
+        void push_back(const T &v) {
+            if (buf.size() < buf.capacity()) {
+                buf.push_back(v);
+            } else {
+                buf[start] = v;
+                start = (start + 1) % buf.capacity();
+            }
+        }
+
+        const T& operator[](size_t i) const {
+            return buf[(start + i) % buf.capacity()];
+        }
+
+        T& operator[](size_t i) {
+            return buf[(start + i) % buf.capacity()];
+        }
+
+        void clear() {
+            buf.clear();
+            start = 0;
+        }
+
+    private:
+        size_t start;
+        std::vector<T> buf;
+};
+
 namespace detail {
 
 inline const boost::property_tree::ptree& empty_ptree() {
