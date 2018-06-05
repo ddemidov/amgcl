@@ -32,8 +32,6 @@ THE SOFTWARE.
 \ingroup adapters
 */
 
-#include <boost/container/static_vector.hpp>
-
 #include <amgcl/util.hpp>
 #include <amgcl/backend/detail/matrix_ops.hpp>
 
@@ -73,19 +71,21 @@ struct block_matrix_adapter {
         typedef ptrdiff_t col_type;
         typedef BlockType val_type;
 
-        boost::container::static_vector<Base, BlockSize> base;
+        std::array<char, sizeof(Base) * BlockSize> buf;
+        Base * base;
 
         bool done;
         col_type cur_col;
         val_type cur_val;
 
-        row_iterator(const Matrix &A, col_type row) : done(true) {
+        row_iterator(const Matrix &A, col_type row)
+            : base(reinterpret_cast<Base*>(buf.data())), done(true)
+        {
             for(int i = 0; i < BlockSize; ++i) {
-                Base a = backend::row_begin(A, row * BlockSize + i);
-                base.push_back(a);
+                new (base + i) Base(backend::row_begin(A, row * BlockSize + i));
 
-                if (a) {
-                    col_type col = a.col() / BlockSize;
+                if (base[i]) {
+                    col_type col = base[i].col() / BlockSize;
                     if (done) {
                         cur_col = col;
                         done = false;
@@ -106,6 +106,10 @@ struct block_matrix_adapter {
                     cur_val(i, base[i].col() % BlockSize) = base[i].value();
                 }
             }
+        }
+
+        ~row_iterator() {
+            for(int i = 0; i < BlockSize; ++i) base[i].~Base();
         }
 
         operator bool() const {

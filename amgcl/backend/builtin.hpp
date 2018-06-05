@@ -33,19 +33,15 @@ THE SOFTWARE.
 
 #include <vector>
 #include <numeric>
+#include <memory>
 #include <random>
+#include <type_traits>
 
 #ifdef _OPENMP
 #  include <omp.h>
 #endif
 
-#include <type_traits>
-#include <memory>
 #include <boost/range/iterator_range.hpp>
-
-#if BOOST_VERSION > 105800
-#include <boost/container/small_vector.hpp>
-#endif
 
 #include <amgcl/util.hpp>
 #include <amgcl/backend/interface.hpp>
@@ -1020,16 +1016,23 @@ struct inner_product_impl<
     {
         const size_t n = x.size();
 #ifdef _OPENMP
+        return_type              _sum_stat[64];
+        std::vector<return_type> _sum_dyna;
+        return_type              *sum;
+
         const int nt = omp_get_max_threads();
+
+        if (nt < 64) {
+            sum = _sum_stat;
+        } else {
+            _sum_dyna.resize(nt);
+            sum = _sum_dyna.data();
+        }
 #else
         const int nt = 1;
+        return_type sum[1];
 #endif
-        
-#if BOOST_VERSION > 105800
-        boost::container::small_vector<return_type, 64> sum(nt);
-#else
-        std::vector<return_type> sum(nt);
-#endif
+
         
 #pragma omp parallel
         {
@@ -1053,7 +1056,7 @@ struct inner_product_impl<
             sum[tid] = s;
         }
 
-        return std::accumulate(sum.begin(), sum.end(), math::zero<return_type>());
+        return std::accumulate(sum, sum + nt, math::zero<return_type>());
     }
 };
 
