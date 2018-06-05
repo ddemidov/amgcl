@@ -24,8 +24,6 @@ namespace amgcl { profiler<> prof; }
 using amgcl::prof;
 using amgcl::precondition;
 
-typedef amgcl::scoped_tic< amgcl::profiler<> > scoped_tic;
-
 //---------------------------------------------------------------------------
 struct renumbering {
     const domain_partition<2> &part;
@@ -68,7 +66,7 @@ std::tuple<size_t, double> solve(
     prof.toc("setup");
 
     {
-        scoped_tic t2(prof, "solve");
+        auto t2 = prof.scoped_tic("solve");
         return solve(rhs, x);
     }
 }

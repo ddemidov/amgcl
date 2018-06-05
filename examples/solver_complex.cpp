@@ -26,8 +26,6 @@ namespace amgcl { profiler<> prof; }
 using amgcl::prof;
 using amgcl::precondition;
 
-typedef amgcl::scoped_tic< amgcl::profiler<> > scoped_tic;
-
 //---------------------------------------------------------------------------
 template <template <class> class Precond>
 std::tuple<size_t, double> solve(
@@ -55,7 +53,7 @@ std::tuple<size_t, double> solve(
     std::cout << solve.precond() << std::endl;
 
     {
-        scoped_tic t(prof, "solve");
+        auto t = prof.scoped_tic("solve");
         return solve(rhs, x);
     }
 }
@@ -156,7 +154,7 @@ int main(int argc, char *argv[]) {
     vector< std::complex<double> > val, rhs, null, x;
 
     if (vm.count("matrix")) {
-        scoped_tic t(prof, "reading");
+        auto t = prof.scoped_tic("reading");
 
         string Afile = vm["matrix"].as<string>();
 
@@ -188,7 +186,7 @@ int main(int argc, char *argv[]) {
             prm.put("precond.coarsening.nullspace.B",    &null[0]);
         }
     } else {
-        scoped_tic t(prof, "assembling");
+        auto t = prof.scoped_tic("assembling");
         rows = sample_problem(vm["size"].as<int>(), val, col, ptr, rhs);
     }
 
@@ -204,7 +202,7 @@ int main(int argc, char *argv[]) {
             prm, rows, ptr, col, val, rhs, x);
 
     if (vm.count("output")) {
-        scoped_tic t(prof, "write");
+        auto t = prof.scoped_tic("write");
         amgcl::io::mm_write(vm["output"].as<string>(), &x[0], x.size());
     }
 

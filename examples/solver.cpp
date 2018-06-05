@@ -60,8 +60,6 @@ namespace amgcl { profiler<> prof; }
 using amgcl::prof;
 using amgcl::precondition;
 
-typedef amgcl::scoped_tic< amgcl::profiler<> > scoped_tic;
-
 #ifdef SOLVER_BACKEND_BUILTIN
 //---------------------------------------------------------------------------
 template <int B, template <class> class Precond>
@@ -482,7 +480,7 @@ int main(int argc, char *argv[]) {
     vector<double> val, rhs, null, x;
 
     if (vm.count("matrix")) {
-        scoped_tic t(prof, "reading");
+        auto t = prof.scoped_tic("reading");
 
         string Afile  = vm["matrix"].as<string>();
         bool   binary = vm["binary"].as<bool>();
@@ -529,7 +527,7 @@ int main(int argc, char *argv[]) {
             prm.put("precond.coarsening.nullspace.B",    &null[0]);
         }
     } else {
-        scoped_tic t(prof, "assembling");
+        auto t = prof.scoped_tic("assembling");
         rows = sample_problem(vm["size"].as<int>(), val, col, ptr, rhs, vm["anisotropy"].as<double>());
     }
 
@@ -548,7 +546,7 @@ int main(int argc, char *argv[]) {
             block_size, vm["reorder"].as<bool>());
 
     if (vm.count("output")) {
-        scoped_tic t(prof, "write");
+        auto t = prof.scoped_tic("write");
         amgcl::io::mm_write(vm["output"].as<string>(), &x[0], x.size());
     }
 

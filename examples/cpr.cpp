@@ -21,13 +21,11 @@ namespace amgcl { profiler<> prof; }
 using amgcl::prof;
 using amgcl::precondition;
 
-typedef amgcl::scoped_tic< amgcl::profiler<> > tic;
-
 //---------------------------------------------------------------------------
 template <class Matrix>
 void solve_cpr(const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
 {
-    tic t1(prof, "CPR");
+    auto t1 = prof.scoped_tic("CPR");
 
     typedef amgcl::backend::builtin<double> Backend;
 
@@ -46,7 +44,7 @@ void solve_cpr(const Matrix &K, const std::vector<double> &rhs, boost::property_
 
     std::cout << solve.precond() << std::endl;
 
-    tic t2(prof, "solve");
+    auto t2 = prof.scoped_tic("solve");
     std::vector<double> x(rhs.size(), 0.0);
 
     size_t iters;
@@ -136,7 +134,7 @@ int main(int argc, char *argv[]) {
     std::vector<char> pm;
 
     {
-        tic t(prof, "reading");
+        auto t = prof.scoped_tic("reading");
 
         string Afile  = vm["matrix"].as<string>();
         bool   binary = vm["binary"].as<bool>();

@@ -48,8 +48,6 @@ namespace amgcl { profiler<> prof; }
 using amgcl::prof;
 using amgcl::precondition;
 
-typedef amgcl::scoped_tic< amgcl::profiler<> > tic;
-
 template <class USolver, class PSolver, class Matrix>
 typename std::enable_if<
     (
@@ -101,7 +99,7 @@ solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tre
     }
 #endif
 
-    tic t1(prof, "schur_complement");
+    auto t1 = prof.scoped_tic("schur_complement");
 
     prof.tic("setup");
     amgcl::make_solver<
@@ -284,7 +282,7 @@ int main(int argc, char *argv[]) {
     std::vector<char> pm;
 
     {
-        tic t(prof, "reading");
+        auto t = prof.scoped_tic("reading");
 
         string Afile  = vm["matrix"].as<string>();
         bool   binary = vm["binary"].as<bool>();
