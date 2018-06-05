@@ -165,7 +165,6 @@ struct crs {
         }
     }
 
-#ifndef BOOST_NO_CXX11_RVALUE_REFERENCES
     crs(crs &&other) :
         nrows(other.nrows), ncols(other.ncols), nnz(other.nnz),
         ptr(other.ptr), col(other.col), val(other.val),
@@ -214,7 +213,6 @@ struct crs {
 
         return *this;
     }
-#endif
 
     void free_data() {
         if (own_data) {
@@ -599,12 +597,12 @@ class numa_vector {
         numa_vector(Iterator beg, Iterator end)
             : n(std::distance(beg, end)), p(new T[n])
         {
-            BOOST_ASSERT( (
-                    std::is_same<
-                        std::random_access_iterator_tag,
-                        typename std::iterator_traits<Iterator>::iterator_category
-                    >::value
-                    ) );
+            static_assert(std::is_same<
+                    std::random_access_iterator_tag,
+                    typename std::iterator_traits<Iterator>::iterator_category
+                    >::value,
+                    "Iterator has to be random access");
+
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i)
                 p[i] = beg[i];

@@ -174,15 +174,7 @@ struct wrapper {
 
     template <class Matrix, class Precond, class Vec1, class Vec2>
     std::tuple<size_t, scalar_type> operator()(
-            Matrix  const &A,
-            Precond const &P,
-            Vec1    const &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-            Vec2          &x
-#else
-            Vec2          &&x
-#endif
-            ) const
+            const Matrix &A, const Precond &P, const Vec1 &rhs, Vec2 &&x) const
     {
         switch(s) {
 
@@ -207,14 +199,7 @@ struct wrapper {
 
     template <class Precond, class Vec1, class Vec2>
     std::tuple<size_t, scalar_type> operator()(
-            Precond const &P,
-            Vec1    const &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-            Vec2          &x
-#else
-            Vec2          &&x
-#endif
-            ) const
+            const Precond &P, const Vec1 &rhs, Vec2 &&x) const
     {
         return (*this)(P.system_matrix(), P, rhs, x);
     }

@@ -73,14 +73,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <amgcl/detail/qr.hpp>
 #include <amgcl/util.hpp>
 
-// std::real is not overloaded for scalar arguments pre c++11:
-#if !defined(BOOST_HAS_TR1_COMPLEX_OVERLOADS) || __cplusplus <= 199711L
-namespace std {
-inline float real(float x) { return x; }
-inline double real(double x) { return x; }
-}
-#endif
-
 namespace amgcl {
 namespace solver {
 
@@ -202,15 +194,7 @@ class bicgstabl {
          */
         template <class Matrix, class Precond, class Vec1, class Vec2>
         std::tuple<size_t, scalar_type> operator()(
-                Matrix  const &A,
-                Precond const &P,
-                Vec1    const &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-                Vec2          &x
-#else
-                Vec2          &&x
-#endif
-                ) const
+                const Matrix &A, const Precond &P, const Vec1 &rhs, Vec2 &&x) const
         {
             namespace side = preconditioner::side;
 
@@ -424,14 +408,7 @@ done:
          */
         template <class Precond, class Vec1, class Vec2>
         std::tuple<size_t, scalar_type> operator()(
-                Precond const &P,
-                Vec1    const &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-                Vec2          &x
-#else
-                Vec2          &&x
-#endif
-                ) const
+                const Precond &P, const Vec1 &rhs, Vec2 &&x) const
         {
             return (*this)(P.system_matrix(), P, rhs, x);
         }

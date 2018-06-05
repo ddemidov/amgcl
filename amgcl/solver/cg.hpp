@@ -135,15 +135,7 @@ class cg {
          */
         template <class Matrix, class Precond, class Vec1, class Vec2>
         std::tuple<size_t, scalar_type> operator()(
-                Matrix  const &A,
-                Precond const &P,
-                Vec1    const &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-                Vec2          &x
-#else
-                Vec2          &&x
-#endif
-                ) const
+                const Matrix &A, const Precond &P, const Vec1 &rhs, Vec2 &&x) const
         {
             static const coef_type one  = math::identity<coef_type>();
             static const coef_type zero = math::zero<coef_type>();
@@ -195,14 +187,7 @@ class cg {
          */
         template <class Precond, class Vec1, class Vec2>
         std::tuple<size_t, scalar_type> operator()(
-                Precond const &P,
-                Vec1    const &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-                Vec2          &x
-#else
-                Vec2          &&x
-#endif
-                ) const
+                const Precond &P, const Vec1 &rhs, Vec2 &&x) const
         {
             return (*this)(P.system_matrix(), P, rhs, x);
         }

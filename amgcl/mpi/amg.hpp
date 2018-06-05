@@ -172,28 +172,12 @@ class amg {
         }
 
         template <class Vec1, class Vec2>
-        void cycle(
-                const Vec1 &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-                Vec2       &x
-#else
-                Vec2       &&x
-#endif
-                ) const
-        {
+        void cycle(const Vec1 &rhs, Vec2 &&x) const {
             cycle(levels.begin(), rhs, x);
         }
 
         template <class Vec1, class Vec2>
-        void apply(
-                const Vec1 &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-                Vec2       &x
-#else
-                Vec2       &&x
-#endif
-                ) const
-        {
+        void apply(const Vec1 &rhs, Vec2 &&x) const {
             if (prm.pre_cycles) {
                 backend::clear(x);
                 for(unsigned i = 0; i < prm.pre_cycles; ++i)

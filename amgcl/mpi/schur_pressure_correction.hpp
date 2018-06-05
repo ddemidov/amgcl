@@ -499,15 +499,7 @@ class schur_pressure_correction {
         }
 
         template <class Vec1, class Vec2>
-        void apply(
-                const Vec1 &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-                Vec2       &x
-#else
-                Vec2       &&x
-#endif
-                ) const
-        {
+        void apply(const Vec1 &rhs, Vec2 &&x) const {
             AMGCL_TIC("split variables");
             backend::spmv(1, *x2u, rhs, 0, *rhs_u);
             backend::spmv(1, *x2p, rhs, 0, *rhs_p);

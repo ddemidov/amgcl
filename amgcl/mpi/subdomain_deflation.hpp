@@ -455,15 +455,7 @@ class subdomain_deflation {
         }
 
         template <class Vec1, class Vec2>
-        void apply(
-                const Vec1 &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-                Vec2       &x
-#else
-                Vec2       &&x
-#endif
-                ) const
-        {
+        void apply(const Vec1 &rhs, Vec2 &&x) const {
             size_t iters;
             double error;
             backend::clear(x);
@@ -480,14 +472,7 @@ class subdomain_deflation {
 
         template <class Matrix, class Vec1, class Vec2>
         std::tuple<size_t, value_type> operator()(
-                Matrix  const &A,
-                Vec1    const &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-                Vec2          &x
-#else
-                Vec2          &&x
-#endif
-                ) const
+                const Matrix &A, const Vec1 &rhs, Vec2 &&x) const
         {
             std::tuple<size_t, value_type> cnv = S(make_sdd_projected_matrix(*this, A), *P, rhs, x);
             postprocess(rhs, x);
@@ -496,15 +481,7 @@ class subdomain_deflation {
 
         template <class Vec1, class Vec2>
         std::tuple<size_t, value_type>
-        operator()(
-                const Vec1 &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-                Vec2          &x
-#else
-                Vec2          &&x
-#endif
-                ) const
-        {
+        operator()(const Vec1 &rhs, Vec2 &&x) const {
             std::tuple<size_t, value_type> cnv = S(make_sdd_projected_matrix(*this, *A), *P, rhs, x);
             postprocess(rhs, x);
             return cnv;

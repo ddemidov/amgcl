@@ -114,41 +114,18 @@ class make_solver {
 
         template <class Matrix, class Vec1, class Vec2>
         std::tuple<size_t, scalar_type> operator()(
-                Matrix  const &A,
-                Vec1    const &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-                Vec2          &x
-#else
-                Vec2          &&x
-#endif
-                ) const
+                const Matrix &A, const Vec1 &rhs, Vec2 &&x) const
         {
             return S(A, P, rhs, x);
         }
 
         template <class Vec1, class Vec2>
-        std::tuple<size_t, scalar_type> operator()(
-                Vec1    const &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-                Vec2          &x
-#else
-                Vec2          &&x
-#endif
-                ) const
-        {
+        std::tuple<size_t, scalar_type> operator()(const Vec1 &rhs, Vec2 &&x) const {
             return S(P, rhs, x);
         }
 
         template <class Vec1, class Vec2>
-        void apply(
-                const Vec1 &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-                Vec2       &x
-#else
-                Vec2       &&x
-#endif
-                ) const
-        {
+        void apply(const Vec1 &rhs, Vec2 &&x) const {
             backend::clear(x);
             (*this)(rhs, x);
         }

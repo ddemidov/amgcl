@@ -72,14 +72,7 @@ class make_block_solver {
 
         template <class Matrix, class Vec1, class Vec2>
         std::tuple<size_t, scalar_type> operator()(
-                Matrix  const &A,
-                Vec1    const &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-                Vec2          &x
-#else
-                Vec2          &&x
-#endif
-                ) const
+                const Matrix &A, const Vec1 &rhs, Vec2 &&x) const
         {
             const size_t n = backend::rows(system_matrix());
 
@@ -93,15 +86,8 @@ class make_block_solver {
         }
 
         template <class Vec1, class Vec2>
-        std::tuple<size_t, scalar_type> operator()(
-                Vec1    const &rhs,
-#ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-                Vec2          &x
-#else
-                Vec2          &&x
-#endif
-                ) const
-        {
+        std::tuple<size_t, scalar_type>
+        operator()(const Vec1 &rhs, Vec2 &&x) const {
             const size_t n = backend::rows(system_matrix());
 
             rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&rhs[0]);
