@@ -60,11 +60,7 @@ AMG amg(std::make_tuple(n,
 
 #include <vector>
 #include <numeric>
-
 #include <tuple>
-#include <boost/range/const_iterator.hpp>
-#include <boost/range/value_type.hpp>
-#include <boost/range/size.hpp>
 #include <type_traits>
 
 #include <amgcl/util.hpp>
@@ -80,20 +76,13 @@ namespace backend {
 template < typename N, typename PRng, typename CRng, typename VRng >
 struct value_type< std::tuple<N, PRng, CRng, VRng> >
 {
-    typedef
-        typename boost::range_value<
-                    typename std::decay<VRng>::type
-                 >::type
-        type;
+    typedef typename std::decay<decltype(std::declval<VRng>()[0])>::type type;
 };
 
 template < typename N, typename PRng, typename CRng, typename VRng >
 struct rows_impl< std::tuple<N, PRng, CRng, VRng> >
 {
-    static size_t get(
-            const std::tuple<N, PRng, CRng, VRng> &A
-            )
-    {
+    static size_t get(const std::tuple<N, PRng, CRng, VRng> &A) {
         return std::get<0>(A);
     }
 };
@@ -101,10 +90,7 @@ struct rows_impl< std::tuple<N, PRng, CRng, VRng> >
 template < typename N, typename PRng, typename CRng, typename VRng >
 struct cols_impl< std::tuple<N, PRng, CRng, VRng> >
 {
-    static size_t get(
-            const std::tuple<N, PRng, CRng, VRng> &A
-            )
-    {
+    static size_t get(const std::tuple<N, PRng, CRng, VRng> &A) {
         return std::get<0>(A);
     }
 };
@@ -112,10 +98,7 @@ struct cols_impl< std::tuple<N, PRng, CRng, VRng> >
 template < typename N, typename PRng, typename CRng, typename VRng >
 struct nonzeros_impl< std::tuple<N, PRng, CRng, VRng> >
 {
-    static size_t get(
-            const std::tuple<N, PRng, CRng, VRng> &A
-            )
-    {
+    static size_t get(const std::tuple<N, PRng, CRng, VRng> &A) {
         return std::get<1>(A)[std::get<0>(A)];
     }
 };
@@ -125,27 +108,15 @@ struct row_iterator< std::tuple<N, PRng, CRng, VRng> >
 {
     class type {
         public:
-            typedef
-                typename boost::range_value<
-                            typename std::decay<CRng>::type
-                         >::type
-                col_type;
-            typedef
-                typename boost::range_value<
-                            typename std::decay<VRng>::type
-                         >::type
-                val_type;
+            typedef typename std::decay<decltype(std::declval<CRng>()[0])>::type col_type;
+            typedef typename std::decay<decltype(std::declval<VRng>()[0])>::type val_type;
 
             type(const std::tuple<N, PRng, CRng, VRng> &A, size_t row)
-                : m_col(boost::begin(std::get<2>(A)))
-                , m_end(boost::begin(std::get<2>(A)))
-                , m_val(boost::begin(std::get<3>(A)))
+                : m_col(std::begin(std::get<2>(A)))
+                , m_end(std::begin(std::get<2>(A)))
+                , m_val(std::begin(std::get<3>(A)))
             {
-                typedef
-                    typename boost::range_value<
-                                typename std::decay<PRng>::type
-                             >::type
-                    ptr_type;
+                typedef typename std::decay<decltype(std::declval<PRng>()[0])>::type ptr_type;
 
                 ptr_type row_begin = std::get<1>(A)[row];
                 ptr_type row_end   = std::get<1>(A)[row + 1];
@@ -174,17 +145,8 @@ struct row_iterator< std::tuple<N, PRng, CRng, VRng> >
             }
 
         private:
-            typedef
-                typename boost::range_const_iterator<
-                            typename std::decay<VRng>::type
-                         >::type
-                val_iterator;
-
-            typedef
-                typename boost::range_const_iterator<
-                            typename std::decay<CRng>::type
-                         >::type
-                col_iterator;
+            typedef decltype(std::begin(std::declval<VRng>())) val_iterator;
+            typedef decltype(std::begin(std::declval<CRng>())) col_iterator;
 
             col_iterator m_col;
             col_iterator m_end;
@@ -214,11 +176,7 @@ struct row_nonzeros_impl< std::tuple<N, PRng, CRng, VRng> > {
 template < typename N, typename PRng, typename CRng, typename VRng >
 struct ptr_data_impl< std::tuple<N, PRng, CRng, VRng> > {
     typedef std::tuple<N, PRng, CRng, VRng> Matrix;
-    typedef
-        typename boost::range_value<
-                    typename std::decay<PRng>::type
-                 >::type
-        ptr_type;
+    typedef typename std::decay<decltype(std::declval<PRng>()[0])>::type ptr_type;
     typedef const ptr_type* type;
     static type get(const Matrix &A) {
         return &std::get<1>(A)[0];
@@ -228,11 +186,7 @@ struct ptr_data_impl< std::tuple<N, PRng, CRng, VRng> > {
 template < typename N, typename PRng, typename CRng, typename VRng >
 struct col_data_impl< std::tuple<N, PRng, CRng, VRng> > {
     typedef std::tuple<N, PRng, CRng, VRng> Matrix;
-    typedef
-        typename boost::range_value<
-                    typename std::decay<CRng>::type
-                 >::type
-        col_type;
+    typedef typename std::decay<decltype(std::declval<CRng>()[0])>::type col_type;
     typedef const col_type* type;
     static type get(const Matrix &A) {
         return &std::get<2>(A)[0];
@@ -242,11 +196,7 @@ struct col_data_impl< std::tuple<N, PRng, CRng, VRng> > {
 template < typename N, typename PRng, typename CRng, typename VRng >
 struct val_data_impl< std::tuple<N, PRng, CRng, VRng> > {
     typedef std::tuple<N, PRng, CRng, VRng> Matrix;
-    typedef
-        typename boost::range_value<
-                    typename std::decay<VRng>::type
-                 >::type
-        val_type;
+    typedef typename std::decay<decltype(std::declval<VRng>()[0])>::type val_type;
     typedef const val_type* type;
     static type get(const Matrix &A) {
         return &std::get<3>(A)[0];
