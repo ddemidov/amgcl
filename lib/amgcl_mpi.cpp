@@ -2,6 +2,8 @@
 #include <functional>
 #include <type_traits>
 
+#include <boost/range/iterator_range.hpp>
+
 #include <amgcl/amg.hpp>
 #include <amgcl/solver/runtime.hpp>
 #include <amgcl/coarsening/runtime.hpp>
