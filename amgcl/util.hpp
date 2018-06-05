@@ -156,6 +156,71 @@ inline void put(boost::property_tree::ptree &p, const std::string &param) {
     p.put(param.substr(0, eq_pos), param.substr(eq_pos + 1));
 }
 
+// N-dimensional dense matrix
+template <class T, int N>
+class multi_array {
+    static_assert(N > 0, "Wrong number of dimensions");
+
+    public:
+        template <class... I>
+        multi_array(I... n) {
+            static_assert(sizeof...(I) == N, "Wrong number of dimensions");
+            buf.resize(init(n...));
+        }
+
+        size_t size() const {
+            return buf.size();
+        }
+
+        int stride(int i) const {
+            return strides[i];
+        }
+
+        template <class... I>
+        T operator()(I... i) const {
+            static_assert(sizeof...(I) == N, "Wrong number of indices");
+            return buf[index(i...)];
+        }
+
+        template <class... I>
+        T& operator()(I... i) {
+            static_assert(sizeof...(I) == N, "Wrong number of indices");
+            return buf[index(i...)];
+        }
+
+        const T* data() const {
+            return buf.data();
+        }
+
+        T* data() {
+            return buf.data();
+        }
+    private:
+        std::array<int, N> strides;
+        std::vector<T>  buf;
+
+        template <class... I>
+        int index(int i, I... tail) const {
+            return strides[N - sizeof...(I) - 1] * i + index(tail...);
+        }
+
+        int index(int i) const {
+            return strides[N-1] * i;
+        }
+
+        template <class... I>
+        int init(int i, I... tail) {
+            int size = init(tail...);
+            strides[N - sizeof...(I) - 1] = size;
+            return i * size;
+        }
+
+        int init(int i) {
+            strides[N-1] = 1;
+            return i;
+        }
+};
+
 namespace detail {
 
 inline const boost::property_tree::ptree& empty_ptree() {

@@ -34,8 +34,6 @@ THE SOFTWARE.
 #include <vector>
 #include <algorithm>
 #include <cmath>
-
-#include <boost/multi_array.hpp>
 #include <tuple>
 
 #include <amgcl/backend/interface.hpp>
@@ -111,7 +109,7 @@ class fgmres {
                 const InnerProduct &inner_product = InnerProduct()
              )
             : prm(prm), n(n),
-              H(boost::extents[prm.M + 1][prm.M]),
+              H(prm.M + 1, prm.M),
               s(prm.M + 1), cs(prm.M + 1), sn(prm.M + 1),
               r( Backend::create_vector(n, bprm) ),
               inner_product(inner_product)
@@ -183,18 +181,18 @@ class fgmres {
                             math::zero<scalar_type>(), v_new);
 
                     for(unsigned k = 0; k <= j; ++k) {
-                        H[k][j] = inner_product(v_new, *v[k]);
-                        backend::axpby(-H[k][j], *v[k], math::identity<scalar_type>(), v_new);
+                        H(k, j) = inner_product(v_new, *v[k]);
+                        backend::axpby(-H(k, j), *v[k], math::identity<scalar_type>(), v_new);
                     }
-                    H[j+1][j] = norm(v_new);
+                    H(j+1, j) = norm(v_new);
 
-                    backend::axpby(math::inverse(H[j+1][j]), v_new, math::zero<scalar_type>(), v_new);
+                    backend::axpby(math::inverse(H(j+1, j)), v_new, math::zero<scalar_type>(), v_new);
 
                     for(unsigned k = 0; k < j; ++k)
-                        detail::apply_plane_rotation(H[k][j], H[k+1][j], cs[k], sn[k]);
+                        detail::apply_plane_rotation(H(k, j), H(k+1, j), cs[k], sn[k]);
 
-                    detail::generate_plane_rotation(H[j][j], H[j+1][j], cs[j], sn[j]);
-                    detail::apply_plane_rotation(H[j][j], H[j+1][j], cs[j], sn[j]);
+                    detail::generate_plane_rotation(H(j, j), H(j+1, j), cs[j], sn[j]);
+                    detail::apply_plane_rotation(H(j, j), H(j+1, j), cs[j], sn[j]);
                     detail::apply_plane_rotation(s[j], s[j+1], cs[j], sn[j]);
 
                     scalar_type inner_res = std::abs(s[j+1]);
@@ -207,9 +205,9 @@ class fgmres {
 
                 // -- GMRES terminated: eval solution
                 for (unsigned i = j; i --> 0; ) {
-                    s[i] /= H[i][i];
+                    s[i] /= H(i, i);
                     for (unsigned k = 0; k < i; ++k)
-                        s[k] -= H[k][i] * s[i];
+                        s[k] -= H(k, i) * s[i];
                 }
 
                 backend::lin_comb(j, s, z, math::identity<scalar_type>(), x);
@@ -242,7 +240,7 @@ class fgmres {
     private:
         size_t n;
 
-        mutable boost::multi_array<coef_type, 2> H;
+        mutable multi_array<coef_type, 2> H;
         mutable std::vector<coef_type> s, cs, sn;
         std::shared_ptr<vector> r;
         std::vector< std::shared_ptr<vector> > v;

@@ -35,9 +35,7 @@ THE SOFTWARE.
 #include <vector>
 #include <algorithm>
 #include <numeric>
-
 #include <memory>
-#include <boost/multi_array.hpp>
 #include <functional>
 
 #include <mpi.h>
@@ -389,8 +387,8 @@ class subdomain_deflation {
 #else
             int nthreads = 1;
 #endif
-            boost::multi_array<value_type, 3> erow(boost::extents[nthreads][ndv][nz]);
-            std::fill_n(erow.data(), erow.num_elements(), 0);
+            multi_array<value_type, 3> erow(nthreads, ndv, nz);
+            std::fill_n(erow.data(), erow.size(), 0);
 
             {
                 ptrdiff_t dv_offset = dv_start[comm.rank];
@@ -413,7 +411,7 @@ class subdomain_deflation {
                             value_type v = az_loc->val[k];
 
                             for(ptrdiff_t j = 0; j < ndv; ++j)
-                                erow[tid][j][c] += v * z[j];
+                                erow(tid, j, c) += v * z[j];
                         }
 
                         for(ptrdiff_t k = az_rem->ptr[i], e = az_rem->ptr[i+1]; k < e; ++k) {
@@ -421,7 +419,7 @@ class subdomain_deflation {
                             value_type v = az_rem->val[k];
 
                             for(ptrdiff_t j = 0; j < ndv; ++j)
-                                erow[tid][j][c] += v * z[j];
+                                erow(tid, j, c) += v * z[j];
                         }
                     }
                 }
@@ -434,7 +432,7 @@ class subdomain_deflation {
                         int c = dv_start[j] + k;
                         value_type v = math::zero<value_type>();
                         for(int t = 0; t < nthreads; ++t)
-                            v += erow[t][i][c];
+                            v += erow(t, i, c);
 
                         E.col[row_head] = c;
                         E.val[row_head] = v;

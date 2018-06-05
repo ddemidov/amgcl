@@ -66,7 +66,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <tuple>
-#include <boost/multi_array.hpp>
 
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/solver/detail/default_inner_product.hpp>
@@ -176,8 +175,8 @@ class bicgstabl {
               B ( Backend::create_vector(n, backend_prm) ),
               T ( Backend::create_vector(n, backend_prm) ),
               R(prm.L + 1), U(prm.L + 1),
-              MZa(boost::extents[prm.L + 1][prm.L + 1]),
-              MZb(boost::extents[prm.L + 1][prm.L + 1]),
+              MZa(prm.L + 1, prm.L + 1),
+              MZb(prm.L + 1, prm.L + 1),
               Y0(prm.L + 1), YL(prm.L + 1),
               inner_product(inner_product)
         {
@@ -297,34 +296,34 @@ class bicgstabl {
                 // Polynomial part
                 for(int i = 0; i <= L; ++i) {
                     for(int j = 0; j <= i; ++j) {
-                        MZa[i][j] = inner_product(*R[i], *R[j]);
+                        MZa(i, j) = inner_product(*R[i], *R[j]);
                     }
                 }
 
                 // Symmetrize MZa
                 for (int i = 0; i <= L; ++i) {
                     for (int j = i+1; j <= L; ++j) {
-                        MZa[i][j] = MZa[j][i] = math::adjoint(MZa[j][i]);
+                        MZa(i, j) = MZa(j, i) = math::adjoint(MZa(j, i));
                     }
                 }
 
-                MZb = MZa;
+                std::copy(MZb.data(), MZb.data() + MZb.size(), MZa.data());
 
                 if (prm.convex || L == 1) {
                     Y0[0] = -one;
 
-                    qr.solve(L, L, MZa.strides()[0], MZa.strides()[1],
-                            &MZa[1][1], &MZb[0][1], &Y0[1]);
+                    qr.solve(L, L, MZa.stride(0), MZa.stride(1),
+                            &MZa(1, 1), &MZb(0, 1), &Y0[1]);
                 } else {
                     Y0[0] = -one;
                     Y0[L] = zero;
-                    qr.solve(L-1, L-1, MZa.strides()[0], MZa.strides()[1],
-                            &MZa[1][1], &MZb[0][1], &Y0[1]);
+                    qr.solve(L-1, L-1, MZa.stride(0), MZa.stride(1),
+                            &MZa(1, 1), &MZb(0, 1), &Y0[1]);
 
                     YL[0] = zero;
                     YL[L] = -one;
-                    qr.solve(L-1, L-1, MZa.strides()[0], MZa.strides()[1],
-                            &MZa[1][1], &MZb[L][1], &YL[1], /*computed=*/true);
+                    qr.solve(L-1, L-1, MZa.stride(0), MZa.stride(1),
+                            &MZa(1, 1), &MZb(L, 1), &YL[1], /*computed=*/true);
 
                     coef_type dot0 = zero;
                     coef_type dot1 = zero;
@@ -334,7 +333,7 @@ class bicgstabl {
                         coef_type sL = zero;
 
                         for(int j = 0; j <= L; ++j) {
-                            coef_type M = MZb[i][j];
+                            coef_type M = MZb(i, j);
                             s0 += M * Y0[j];
                             sL += M * YL[j];
                         }
@@ -455,7 +454,7 @@ done:
         mutable std::vector< std::shared_ptr< vector > > R;
         mutable std::vector< std::shared_ptr< vector > > U;
 
-        mutable boost::multi_array<coef_type, 2> MZa, MZb;
+        mutable multi_array<coef_type, 2> MZa, MZb;
         mutable std::vector<coef_type> Y0, YL;
         mutable amgcl::detail::QR<coef_type> qr;
 

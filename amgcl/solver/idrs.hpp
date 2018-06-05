@@ -155,7 +155,7 @@ class idrs {
                 const InnerProduct &inner_product = InnerProduct()
              )
             : prm(prm), n(n), inner_product(inner_product),
-              M(boost::extents[prm.s][prm.s]),
+              M(prm.s, prm.s),
               f(prm.s), c(prm.s),
               r(Backend::create_vector(n, bprm)),
               v(Backend::create_vector(n, bprm)),
@@ -276,7 +276,7 @@ class idrs {
                 backend::clear(*U[i]);
 
                 for(unsigned j = 0; j < prm.s; ++j)
-                    M[i][j] = (i == j);
+                    M(i, j) = (i == j);
             }
 
             scalar_type eps_replace = norm_rhs / (
@@ -300,8 +300,8 @@ class idrs {
                     for(unsigned i = k; i < prm.s; ++i) {
                         c[i] = f[i];
                         for(unsigned j = k; j < i; ++j)
-                            c[i] -= M[i][j] * c[j];
-                        c[i] = math::inverse(M[i][i]) * c[i];
+                            c[i] -= M(i, j) * c[j];
+                        c[i] = math::inverse(M(i, i)) * c[i];
 
                         backend::axpby(-c[i], *G[i], one, *v);
                     }
@@ -318,7 +318,7 @@ class idrs {
 
                     // Bi-Orthogonalise the new basis vectors:
                     for(unsigned i = 0; i < k; ++i) {
-                        coef_type alpha = inner_product(*G[k], *P[i]) / M[i][i];
+                        coef_type alpha = inner_product(*G[k], *P[i]) / M(i, i);
 
                         backend::axpby(-alpha, *G[i], one, *G[k]);
                         backend::axpby(-alpha, *U[i], one, *U[k]);
@@ -326,12 +326,12 @@ class idrs {
 
                     // New column of M = P'*G  (first k-1 entries are zero)
                     for(unsigned i = k; i < prm.s; ++i)
-                        M[i][k] = inner_product(*G[k], *P[i]);
+                        M(i, k) = inner_product(*G[k], *P[i]);
 
-                    precondition(!math::is_zero(M[k][k]), "IDR(s) breakdown: zero M[k,k]");
+                    precondition(!math::is_zero(M(k, k)), "IDR(s) breakdown: zero M[k,k]");
 
                     // Make r orthogonal to q_i, i = [0..k)
-                    coef_type beta = math::inverse(M[k][k]) * f[k];
+                    coef_type beta = math::inverse(M(k, k)) * f[k];
                     backend::axpby(-beta, *G[k], one, *r);
                     backend::axpby( beta, *U[k], one,  x);
 
@@ -353,7 +353,7 @@ class idrs {
 
                     // New f = P'*r (first k  components are zero)
                     for(unsigned i = k + 1; i < prm.s; ++i)
-                        f[i] -= beta * M[i][k];
+                        f[i] -= beta * M(i, k);
                 }
 
                 if (res_norm <= eps || iter >= prm.maxiter) break;
@@ -425,7 +425,7 @@ class idrs {
 
         InnerProduct inner_product;
 
-        mutable boost::multi_array<coef_type,2> M;
+        mutable multi_array<coef_type,2> M;
         mutable std::vector<coef_type> f, c;
 
         std::shared_ptr<vector> r, v, t;

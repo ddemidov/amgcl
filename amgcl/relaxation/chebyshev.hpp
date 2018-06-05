@@ -33,7 +33,6 @@ THE SOFTWARE.
 
 #include <vector>
 #include <cmath>
-#include <boost/multi_array.hpp>
 
 #include <amgcl/detail/inverse.hpp>
 #include <amgcl/util.hpp>
@@ -106,7 +105,7 @@ class chebyshev {
             }
 
             // Construct linear system to determine Chebyshev coefficients.
-            boost::multi_array<scalar_type, 2> S(boost::extents[prm.degree][prm.degree]);
+            multi_array<scalar_type, 2> S(prm.degree, prm.degree);
             std::vector<scalar_type> buf(prm.degree * prm.degree);
 
             std::vector<scalar_type> rhs(prm.degree);
@@ -114,7 +113,7 @@ class chebyshev {
                 scalar_type x = roots[i];
                 scalar_type x_to_j = 1;
                 for(unsigned j = 0; j < prm.degree; ++j) {
-                    S[i][j] = x_to_j;
+                    S(i,j) = x_to_j;
                     x_to_j *= x;
                 }
                 rhs[i] = -x_to_j;
@@ -127,7 +126,7 @@ class chebyshev {
             for(unsigned i = 0; i < prm.degree; ++i) {
                 scalar_type c = 0;
                 for(unsigned j = 0; j < prm.degree; ++j)
-                    c += S[i][j] * rhs[j];
+                    c += S(i,j) * rhs[j];
                 if (i == 0)
                     const_c = c;
                 else

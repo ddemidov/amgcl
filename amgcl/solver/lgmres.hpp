@@ -68,10 +68,9 @@ THE SOFTWARE.
 #include <vector>
 #include <algorithm>
 #include <cmath>
-
-#include <boost/multi_array.hpp>
-#include <boost/circular_buffer.hpp>
 #include <tuple>
+
+#include <boost/circular_buffer.hpp>
 
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/solver/detail/default_inner_product.hpp>
@@ -182,8 +181,8 @@ class lgmres {
                 const InnerProduct &inner_product = InnerProduct()
              )
             : prm(prm), n(n),
-              H(boost::extents[prm.M + 1][prm.M]),
-              H0(boost::extents[prm.M + 1][prm.M]),
+              H(prm.M + 1, prm.M),
+              H0(prm.M + 1, prm.M),
               s(prm.M + 1), cs(prm.M + 1), sn(prm.M + 1),
               r( Backend::create_vector(n, bprm) ),
               ws(prm.M + prm.K), outer_v(prm.K), outer_Av(prm.K),
@@ -315,18 +314,18 @@ class lgmres {
                     }
 
                     for(unsigned k = 0; k <= j; ++k) {
-                        H0[k][j] = H[k][j] = inner_product(v_new, *vs[k]);
-                        backend::axpby(-H[k][j], *vs[k], one, v_new);
+                        H0(k, j) = H(k, j) = inner_product(v_new, *vs[k]);
+                        backend::axpby(-H(k, j), *vs[k], one, v_new);
                     }
-                    H0[j+1][j] = H[j+1][j] = norm(v_new);
+                    H0(j+1, j) = H(j+1, j) = norm(v_new);
 
-                    backend::axpby(math::inverse(H[j+1][j]), v_new, zero, v_new);
+                    backend::axpby(math::inverse(H(j+1, j)), v_new, zero, v_new);
 
                     for(unsigned k = 0; k < j; ++k)
-                        detail::apply_plane_rotation(H[k][j], H[k+1][j], cs[k], sn[k]);
+                        detail::apply_plane_rotation(H(k, j), H(k+1, j), cs[k], sn[k]);
 
-                    detail::generate_plane_rotation(H[j][j], H[j+1][j], cs[j], sn[j]);
-                    detail::apply_plane_rotation(H[j][j], H[j+1][j], cs[j], sn[j]);
+                    detail::generate_plane_rotation(H(j, j), H(j+1, j), cs[j], sn[j]);
+                    detail::apply_plane_rotation(H(j, j), H(j+1, j), cs[j], sn[j]);
                     detail::apply_plane_rotation(s[j], s[j+1], cs[j], sn[j]);
 
                     scalar_type inner_res = std::abs(s[j+1]);
@@ -339,9 +338,9 @@ class lgmres {
 
                 // -- GMRES terminated: eval solution
                 for (unsigned i = j; i --> 0; ) {
-                    s[i] /= H[i][i];
+                    s[i] /= H(i, i);
                     for (unsigned k = 0; k < i; ++k)
-                        s[k] -= H[k][i] * s[i];
+                        s[k] -= H(k, i) * s[i];
                 }
 
                 vector &dx = *r;
@@ -372,7 +371,7 @@ class lgmres {
                         for(unsigned k = 0; k <= j; ++k) {
                             coef_type sum = math::zero<coef_type>();
                             for(unsigned i = k ? k-1 : 0; i < j; ++i)
-                                sum += H0[k][i] * s[i];
+                                sum += H0(k, i) * s[i];
                             y[k] = sum * norm_dx;
                         }
 
@@ -409,7 +408,7 @@ class lgmres {
     private:
         size_t n;
 
-        mutable boost::multi_array<coef_type, 2> H, H0;
+        mutable multi_array<coef_type, 2> H, H0;
         mutable std::vector<coef_type> s, cs, sn, y;
         std::shared_ptr<vector> r;
         mutable std::vector< std::shared_ptr<vector> > vs, ws;

@@ -32,9 +32,7 @@ THE SOFTWARE.
  */
 
 #include <vector>
-
 #include <memory>
-#include <boost/multi_array.hpp>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
@@ -167,7 +165,7 @@ class cpr {
 #pragma omp parallel
             {
                 std::vector<row_iterator> k; k.reserve(B);
-                boost::multi_array<value_type, 2> v(boost::extents[B][B]);
+                multi_array<value_type, 2> v(B, B);
 
 #pragma omp for
                 for(ptrdiff_t ip = 0; ip < static_cast<ptrdiff_t>(np); ++ip) {
@@ -203,11 +201,11 @@ class cpr {
                             // Capture its (transposed) value,
                             // invert it and put the relevant row into fpp.
                             for(int i = 0; i < B; ++i)
-                                for(int j = 0; j < B; ++j) v[i][j] = 0;
+                                for(int j = 0; j < B; ++j) v(i,j) = 0;
 
                             for(int i = 0; i < B; ++i)
                                 for(; k[i] && k[i].col() < end; ++k[i])
-                                    v[k[i].col() % B][i] = k[i].value();
+                                    v(k[i].col() % B, i) = k[i].value();
 
                             invert(v, &fpp->val[ik]);
                         } else {
@@ -327,18 +325,18 @@ class cpr {
 
         // Inverts dense matrix A;
         // Returns the first column of the inverted matrix.
-        void invert(boost::multi_array<value_type, 2> &A, value_type *y)
+        void invert(multi_array<value_type, 2> &A, value_type *y)
         {
             const int B = prm.block_size;
 
             // Perform LU-factorization of A in-place
             for(int k = 0; k < B; ++k) {
-                value_type d = A[k][k];
+                value_type d = A(k,k);
                 assert(!math::is_zero(d));
                 for(int i = k+1; i < B; ++i) {
-                    A[i][k] /= d;
+                    A(i,k) /= d;
                     for(int j = k+1; j < B; ++j)
-                        A[i][j] -= A[i][k] * A[k][j];
+                        A(i,j) -= A(i,k) * A(k,j);
                 }
             }
 
@@ -347,15 +345,15 @@ class cpr {
             for(int i = 0; i < B; ++i) {
                 value_type b = static_cast<value_type>(i == 0);
                 for(int j = 0; j < i; ++j)
-                    b -= A[i][j] * y[j];
+                    b -= A(i,j) * y[j];
                 y[i] = b;
             }
 
             // Upper triangular solve:
             for(int i = B; i --> 0; ) {
                 for(int j = i+1; j < B; ++j)
-                    y[i] -= A[i][j] * y[j];
-                y[i] /= A[i][i];
+                    y[i] -= A(i,j) * y[j];
+                y[i] /= A(i,i);
             }
         }
 
