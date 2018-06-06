@@ -201,6 +201,8 @@ struct crs {
                 }
             }
         }
+
+        return *this;
     }
 
     const crs& operator=(crs &&other) {
