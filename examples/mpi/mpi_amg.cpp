@@ -296,7 +296,7 @@ void solve_block(
             rhs, bprm, ptype, prm.get("precond.coarsening.aggr.block_size", 1));
 
     prof.tic("setup");
-    Solver solve(comm, A, prm);
+    Solver solve(comm, A, prm, bprm);
     prof.toc("setup");
 
     if (comm.rank == 0) {
@@ -382,7 +382,7 @@ void solve_scalar(
             prm.get("precond.coarsening.aggr.block_size", 1));
 
     prof.tic("setup");
-    Solver solve(comm, A, prm);
+    Solver solve(comm, A, prm, bprm);
     prof.toc("setup");
 
     if (comm.rank == 0) {
