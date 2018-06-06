@@ -52,22 +52,23 @@ class solver_base {
             n = Astrip.nrows;
 
             std::vector<int> domain = comm.exclusive_sum(n);
-            uniform_n = true;
+            std::vector<int> active; active.reserve(comm.size);
+
+            // Find out how many ranks are active (own non-zero matrix rows):
+            int active_rank = 0;
             for(int i = 0; i < comm.size; ++i) {
-                if (domain[i+1] - domain[i] != n) {
-                    uniform_n = false;
-                    break;
+                if (domain[i+1] - domain[i] > 0) {
+                    if (comm.rank == i) active_rank = active.size();
+                    active.push_back(i);
                 }
             }
 
             // Consolidate the matrix on a fewer processes.
-            int nmasters = std::min(comm.size, solver().comm_size(domain.back()));
-            int slaves_per_master = (comm.size + nmasters - 1) / nmasters;
-            int group_beg = (comm.rank / slaves_per_master) * slaves_per_master;
-            int group_end = std::min(group_beg + slaves_per_master, comm.size);
-            int group_size = group_end - group_beg;
+            int nmasters = std::min<int>(active.size(), solver().comm_size(domain.back()));
+            int slaves_per_master = (active.size() + nmasters - 1) / nmasters;
+            int group_beg = (active_rank / slaves_per_master) * slaves_per_master;
 
-            group_master = group_beg;
+            group_master = active[group_beg];
 
             // Communicator for masters (used to solve the coarse problem):
             MPI_Comm_split(comm,
@@ -75,80 +76,91 @@ class solver_base {
                     comm.rank, &masters_comm
                     );
 
-            // Communicator for slaves (used to send/recv coarse data):
-            MPI_Comm_split(comm, group_master, comm.rank, &slaves_comm);
-
-            // Count rows in local chunk of the consolidated matrix.
-            int nloc;
-            MPI_Reduce(&n, &nloc, 1, MPI_INT, MPI_SUM, 0, slaves_comm);
+            if (!n) return; // I am not active
 
             // Shift from row pointers to row widths:
             std::vector<ptrdiff_t> widths(n);
             for(ptrdiff_t i = 0; i < n; ++i)
                 widths[i] = Astrip.ptr[i+1] - Astrip.ptr[i];
 
-            // Consolidate the matrix on group masters
             if (comm.rank == group_master) {
+                int group_end = std::min<int>(group_beg + slaves_per_master, active.size());
+                group_beg += 1;
+                int group_size = group_end - group_beg;
+
+                std::vector<MPI_Request> cnt_req(group_size);
+                std::vector<MPI_Request> col_req(group_size);
+                std::vector<MPI_Request> val_req(group_size);
+
+                solve_req.resize(group_size);
+                slaves.reserve(group_size);
+                counts.reserve(group_size);
+
+                // Count rows in local chunk of the consolidated matrix,
+                // see who is reporting to us.
+                int nloc = n;
+                for(int j = group_beg; j < group_end; ++j) {
+                    int i = active[j];
+
+                    int m = domain[i+1] - domain[i];
+                    nloc += m;
+                    counts.push_back(m);
+                    slaves.push_back(i);
+                }
+
+                // Get matrix chunks from my slaves.
                 build_matrix A;
                 A.set_size(nloc, domain.back(), false);
                 A.ptr[0] = 0;
+
                 cons_f.resize(A.nrows);
                 cons_x.resize(A.nrows);
 
-                count.resize(group_size);
-                displ.resize(group_size);
+                int shift = n+1;
+                std::copy(widths.begin(), widths.end(), &A.ptr[1]);
 
-                if (uniform_n) {
-                    MPI_Gather(&widths[0], n, datatype<ptrdiff_t>(),
-                            &A.ptr[1], n, datatype<ptrdiff_t>(), 0, slaves_comm);
-                } else {
+                for(int j = 0; j < group_size; ++j) {
+                    int i = slaves[j];
 
-                    for(int i = 0, j = group_beg; j < group_end; ++i, ++j) {
-                        count[i] = domain[j+1] - domain[j];
-                        displ[i] = i ? displ[i-1] + count[i-1] : 0;
-                    }
+                    MPI_Irecv(&A.ptr[shift], counts[j], datatype<ptrdiff_t>(),
+                            i, cnt_tag, comm, &cnt_req[j]);
 
-                    MPI_Gatherv(&widths[0], n, datatype<ptrdiff_t>(),
-                            &A.ptr[1], &count[0], &displ[0], datatype<ptrdiff_t>(),
-                            0, slaves_comm);
+                    shift += counts[j];
                 }
+
+                MPI_Waitall(cnt_req.size(), &cnt_req[0], MPI_STATUSES_IGNORE);
 
                 A.set_nonzeros(A.scan_row_sizes());
 
-                std::vector<int> nnz_count(group_size);
-                std::vector<int> nnz_displ(group_size);
+                std::copy(Astrip.col, Astrip.col + Astrip.nnz, A.col);
+                std::copy(Astrip.val, Astrip.val + Astrip.nnz, A.val);
 
-                for(int i = 0, j = group_beg, d0 = domain[group_beg]; j < group_end; ++i, ++j) {
-                    nnz_count[i] = A.ptr[domain[j+1] - d0] - A.ptr[domain[j] - d0];
-                    nnz_displ[i] = i ? nnz_displ[i-1] + nnz_count[i-1] : 0;
+                shift = Astrip.nnz;
+                for(int j = 0, d0 = domain[comm.rank]; j < group_size; ++j) {
+                    int i = slaves[j];
+
+                    int nnz = A.ptr[domain[i+1] - d0] - A.ptr[domain[i] - d0];
+
+                    MPI_Irecv(A.col + shift, nnz, datatype<ptrdiff_t>(),
+                            i, col_tag, comm, &col_req[j]);
+
+                    MPI_Irecv(A.val + shift, nnz, datatype<value_type>(),
+                            i, val_tag, comm, &val_req[j]);
+
+                    shift += nnz;
                 }
 
-                MPI_Gatherv(&Astrip.col[0], Astrip.nnz, datatype<ptrdiff_t>(),
-                        &A.col[0], &nnz_count[0], &nnz_displ[0], datatype<ptrdiff_t>(),
-                        0, slaves_comm);
-
-                MPI_Gatherv(&Astrip.val[0], Astrip.nnz, datatype<value_type>(),
-                        &A.val[0], &nnz_count[0], &nnz_displ[0], datatype<value_type>(),
-                        0, slaves_comm);
+                MPI_Waitall(col_req.size(), &col_req[0], MPI_STATUSES_IGNORE);
+                MPI_Waitall(val_req.size(), &val_req[0], MPI_STATUSES_IGNORE);
 
                 solver().init(masters_comm, A);
             } else {
-                if (uniform_n) {
-                    MPI_Gather(&widths[0], n, datatype<ptrdiff_t>(),
-                            NULL, n, datatype<ptrdiff_t>(), 0, slaves_comm);
-                } else {
-                    MPI_Gatherv(&widths[0], n, datatype<ptrdiff_t>(),
-                            NULL, NULL, NULL, datatype<ptrdiff_t>(),
-                            0, slaves_comm);
-                }
-
-                MPI_Gatherv(&Astrip.col[0], Astrip.nnz, datatype<ptrdiff_t>(),
-                        NULL, NULL, NULL, datatype<ptrdiff_t>(),
-                        0, slaves_comm);
-
-                MPI_Gatherv(&Astrip.val[0], Astrip.nnz, datatype<value_type>(),
-                        NULL, NULL, NULL, datatype<value_type>(),
-                        0, slaves_comm);
+                MPI_Send(widths.data(), n, datatype<ptrdiff_t>(),
+                        group_master, cnt_tag, comm);
+                MPI_Send(Astrip.col, Astrip.nnz, datatype<ptrdiff_t>(),
+                        group_master, col_tag, comm);
+                MPI_Send(Astrip.val, Astrip.nnz, datatype<value_type>(),
+                        group_master, val_tag, comm);
             }
 
             host_v.resize(n);
@@ -188,7 +200,6 @@ class solver_base {
 
         virtual ~solver_base() {
             if (masters_comm != MPI_COMM_NULL) MPI_Comm_free(&masters_comm);
-            if (slaves_comm  != MPI_COMM_NULL) MPI_Comm_free(&slaves_comm);
         }
 
         Solver& solver() {
@@ -203,48 +214,55 @@ class solver_base {
         void operator()(const VecF &f, VecX &x) const {
             static const MPI_Datatype T = datatype<rhs_type>();
 
+            if (!n) return;
+
             backend::copy(f, host_v);
 
             if (comm.rank == group_master) {
-                if (uniform_n) {
-                    MPI_Gather(const_cast<rhs_type*>(&host_v[0]), n, T,
-                            &cons_f[0], n, T, 0, slaves_comm);
-                } else {
-                    MPI_Gatherv(const_cast<rhs_type*>(&host_v[0]), n, T, &cons_f[0],
-                            const_cast<int*>(&count[0]), const_cast<int*>(&displ[0]),
-                            T, 0, slaves_comm);
+                std::copy(host_v.begin(), host_v.end(), cons_f.begin());
+
+                int shift = n, j = 0;
+                for(int i : slaves) {
+                    MPI_Irecv(&cons_f[shift], counts[j], T, i, rhs_tag, comm, &solve_req[j]);
+                    shift += counts[j++];
                 }
+
+                MPI_Waitall(solve_req.size(), &solve_req[0], MPI_STATUSES_IGNORE);
 
                 solver().solve(cons_f, cons_x);
 
-                if (uniform_n) {
-                    MPI_Scatter(&cons_x[0], n, T, &host_v[0], n, T, 0, slaves_comm);
-                } else {
-                    MPI_Scatterv(&cons_x[0], const_cast<int*>(&count[0]),
-                            const_cast<int*>(&displ[0]), T, &host_v[0], n,
-                            T, 0, slaves_comm);
+                std::copy(cons_x.begin(), cons_x.begin() + n, host_v.begin());
+                shift = n;
+                j = 0;
+
+                for(int i : slaves) {
+                    MPI_Isend(&cons_x[shift], counts[j], T, i, sol_tag, comm, &solve_req[j]);
+                    shift += counts[j++];
                 }
+
+                MPI_Waitall(solve_req.size(), &solve_req[0], MPI_STATUSES_IGNORE);
             } else {
-                if (uniform_n) {
-                    MPI_Gather(const_cast<rhs_type*>(&host_v[0]), n, T, NULL, n, T, 0, slaves_comm);
-                    MPI_Scatter(NULL, n, T, &host_v[0], n, T, 0, slaves_comm);
-                } else {
-                    MPI_Gatherv(const_cast<rhs_type*>(&host_v[0]), n, T, NULL, NULL, NULL, T, 0, slaves_comm);
-                    MPI_Scatterv(NULL, NULL, NULL, T, &host_v[0], n, T, 0, slaves_comm);
-                }
+                MPI_Send(&host_v[0], n, T, group_master, rhs_tag, comm);
+                MPI_Recv(&host_v[0], n, T, group_master, sol_tag, comm, MPI_STATUS_IGNORE);
             }
 
             backend::copy(host_v, x);
         }
     private:
+        static const int cnt_tag = 5001;
+        static const int col_tag = 5002;
+        static const int val_tag = 5003;
+        static const int rhs_tag = 5004;
+        static const int sol_tag = 5005;
 
         communicator comm;
         int          n;
-        bool         uniform_n;
         int          group_master;
-        MPI_Comm     masters_comm, slaves_comm;
-        std::vector<int> count, displ;
+        MPI_Comm     masters_comm;
+        std::vector<int> slaves;
+        std::vector<int> counts;
         mutable std::vector<rhs_type> cons_f, cons_x, host_v;
+        mutable std::vector<MPI_Request> solve_req;
 };
 
 } // namespace direct
