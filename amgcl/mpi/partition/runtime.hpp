@@ -32,6 +32,7 @@ THE SOFTWARE.
  */
 
 #include <memory>
+#include <boost/property_tree/ptree.hpp>
 
 #include <amgcl/mpi/partition/merge.hpp>
 

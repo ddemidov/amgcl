@@ -61,6 +61,7 @@ class pointwise_aggregates {
 
             params() : block_size(1) {}
 
+#ifdef BOOST_VERSION
             params(const boost::property_tree::ptree &p)
                 : plain_aggregates::params(p),
                   AMGCL_PARAMS_IMPORT_VALUE(p, block_size)
@@ -72,6 +73,7 @@ class pointwise_aggregates {
                 plain_aggregates::params::get(p, path);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, block_size);
             }
+#endif
         };
 
         static const ptrdiff_t undefined = -1;

@@ -129,6 +129,7 @@ class subdomain_deflation {
 
             params() {}
 
+#ifdef BOOST_VERSION
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, local),
                   AMGCL_PARAMS_IMPORT_CHILD(p, isolver),
@@ -153,6 +154,7 @@ class subdomain_deflation {
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, dsolver);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, num_def_vec);
             }
+#endif
         };
 
         typedef typename backend_type::value_type value_type;

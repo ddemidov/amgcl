@@ -57,6 +57,7 @@ struct merge {
             enable(false), min_per_proc(10000), shrink_ratio(8)
         {}
 
+#ifdef BOOST_VERSION
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, enable),
               AMGCL_PARAMS_IMPORT_VALUE(p, min_per_proc),
@@ -74,6 +75,7 @@ struct merge {
             AMGCL_PARAMS_EXPORT_VALUE(p, path, min_per_proc);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, shrink_ratio);
         }
+#endif
     } prm;
 
     merge(const params &prm = params()) : prm(prm) {}

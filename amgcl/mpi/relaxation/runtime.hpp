@@ -32,6 +32,9 @@ THE SOFTWARE.
  */
 
 #include <memory>
+
+#include <boost/property_tree/ptree.hpp>
+
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/value_type/interface.hpp>
 #include <amgcl/relaxation/runtime.hpp>

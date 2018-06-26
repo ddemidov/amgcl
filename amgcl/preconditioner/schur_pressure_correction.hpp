@@ -121,6 +121,7 @@ class schur_pressure_correction {
 
             params() : approx_schur(true) {}
 
+#ifdef BOOST_VERSION
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, usolver),
                   AMGCL_PARAMS_IMPORT_CHILD(p, psolver),
@@ -182,6 +183,7 @@ class schur_pressure_correction {
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, psolver);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, approx_schur);
             }
+#endif
         } prm;
 
         template <class Matrix>

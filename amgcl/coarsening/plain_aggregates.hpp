@@ -74,6 +74,7 @@ struct plain_aggregates {
 
         params() : eps_strong(0.08f) {}
 
+#ifdef BOOST_VERSION
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, eps_strong)
         {
@@ -83,6 +84,7 @@ struct plain_aggregates {
         void get(boost::property_tree::ptree &p, const std::string &path) const {
             AMGCL_PARAMS_EXPORT_VALUE(p, path, eps_strong);
         }
+#endif
     };
 
     static const ptrdiff_t undefined = -1;

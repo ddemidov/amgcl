@@ -73,6 +73,7 @@ struct aggregation {
 
         params() : over_interp(1.5f) { }
 
+#ifdef BOOST_VERSION
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_CHILD(p, aggr),
               AMGCL_PARAMS_IMPORT_VALUE(p, over_interp)
@@ -84,6 +85,7 @@ struct aggregation {
             AMGCL_PARAMS_EXPORT_CHILD(p, path, aggr);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, over_interp);
         }
+#endif
     } prm;
 
     aggregation(const params &prm = params()) : prm(prm) {}
