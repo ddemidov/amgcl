@@ -31,6 +31,8 @@ THE SOFTWARE.
  * \brief  Runtime wrapper for distributed coarsening schemes.
  */
 
+#include <boost/property_tree/ptree.hpp>
+
 #include <amgcl/util.hpp>
 #include <amgcl/mpi/util.hpp>
 #include <amgcl/mpi/distributed_matrix.hpp>

@@ -71,6 +71,7 @@ class cpr {
 
             params() : block_size(2), active_rows(0) {}
 
+#ifdef BOOST_VERSION
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, pprecond),
                   AMGCL_PARAMS_IMPORT_CHILD(p, sprecond),
@@ -87,6 +88,7 @@ class cpr {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, block_size);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, active_rows);
             }
+#endif
         } prm;
 
         template <class Matrix>

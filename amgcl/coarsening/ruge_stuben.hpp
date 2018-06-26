@@ -81,6 +81,7 @@ struct ruge_stuben {
 
         params() : eps_strong(0.25f), do_trunc(true), eps_trunc(0.2f) {}
 
+#ifdef BOOST_VERSION
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, eps_strong),
               AMGCL_PARAMS_IMPORT_VALUE(p, do_trunc),
@@ -94,6 +95,7 @@ struct ruge_stuben {
             AMGCL_PARAMS_EXPORT_VALUE(p, path, do_trunc);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, eps_trunc);
         }
+#endif
     } prm;
 
     ruge_stuben(const params &prm = params()) : prm(prm) {}

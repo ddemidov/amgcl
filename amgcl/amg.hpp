@@ -155,6 +155,7 @@ class amg {
 #endif
             {}
 
+#ifdef BOOST_VERSION
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, coarsening),
                   AMGCL_PARAMS_IMPORT_CHILD(p, relax),
@@ -196,6 +197,7 @@ class amg {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, async_setup);
 #endif
             }
+#endif
         } prm;
 
         /// Builds the AMG hierarchy for the system matrix.

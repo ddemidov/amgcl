@@ -59,6 +59,7 @@ class ilu_solve {
 
             params() : iters(2), damping(0.72) {}
 
+#ifdef BOOST_VERSION
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_VALUE(p, iters)
                 , AMGCL_PARAMS_IMPORT_VALUE(p, damping)
@@ -70,6 +71,7 @@ class ilu_solve {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, iters);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, damping);
             }
+#endif
         } prm;
 
     public:
@@ -131,6 +133,7 @@ class ilu_solve< backend::builtin<value_type> > {
 
             params() : serial(num_threads() < 4) {}
 
+#ifdef BOOST_VERSION
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_VALUE(p, serial)
             {
@@ -140,6 +143,7 @@ class ilu_solve< backend::builtin<value_type> > {
             void get(boost::property_tree::ptree &p, const std::string &path) const {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, serial);
             }
+#endif
         } prm;
 
         ilu_solve(

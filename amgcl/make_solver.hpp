@@ -69,6 +69,7 @@ class make_solver {
 
             params() {}
 
+#ifdef BOOST_VERSION
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, precond),
                   AMGCL_PARAMS_IMPORT_CHILD(p, solver)
@@ -83,6 +84,7 @@ class make_solver {
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, precond);
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, solver);
             }
+#endif
         } prm;
 
         /** Sets up the preconditioner and creates the iterative solver. */
@@ -189,10 +191,12 @@ class make_solver {
             return P.system_matrix();
         }
 
+#ifdef BOOST_VERSION
         /// Stores the parameters used during construction into the property tree \p p.
         void get_params(boost::property_tree::ptree &p) const {
             prm.get(p);
         }
+#endif
 
         /// Returns the size of the system matrix.
         size_t size() const {

@@ -63,6 +63,7 @@ struct gauss_seidel {
 
         params() : serial(false) {}
 
+#ifdef BOOST_VERSION
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, serial)
         {
@@ -72,6 +73,7 @@ struct gauss_seidel {
         void get(boost::property_tree::ptree &p, const std::string &path) const {
             AMGCL_PARAMS_EXPORT_VALUE(p, path, serial);
         }
+#endif
     };
 
     bool is_serial;

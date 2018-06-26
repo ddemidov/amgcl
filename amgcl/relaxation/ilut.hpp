@@ -79,6 +79,7 @@ struct ilut {
 
         params() : p(2), tau(1e-2f), damping(1) {}
 
+#ifdef BOOST_VERSION
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, p)
             , AMGCL_PARAMS_IMPORT_VALUE(p, tau)
@@ -94,6 +95,7 @@ struct ilut {
             AMGCL_PARAMS_EXPORT_VALUE(p, path, damping);
             AMGCL_PARAMS_EXPORT_CHILD(p, path, solve);
         }
+#endif
     } prm;
 
     /// \copydoc amgcl::relaxation::damped_jacobi::damped_jacobi

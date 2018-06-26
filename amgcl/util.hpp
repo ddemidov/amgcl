@@ -38,7 +38,11 @@ THE SOFTWARE.
 #include <complex>
 #include <limits>
 #include <stdexcept>
-#include <boost/property_tree/ptree.hpp>
+#include <cstddef>
+
+#ifdef BOOST_VERSION
+#  include <boost/property_tree/ptree.hpp>
+#endif
 
 /* Performance measurement macros
  *
@@ -84,6 +88,8 @@ void precondition(const Condition &condition, const Message &message) {
 #  pragma warning(pop)
 #endif
 }
+
+#ifdef BOOST_VERSION
 
 #define AMGCL_PARAMS_IMPORT_VALUE(p, name)                                     \
     name( p.get(#name, params().name) )
@@ -155,6 +161,33 @@ inline void put(boost::property_tree::ptree &p, const std::string &param) {
         throw std::invalid_argument("param in amgcl::put() should have \"key=value\" format!");
     p.put(param.substr(0, eq_pos), param.substr(eq_pos + 1));
 }
+
+#endif
+
+namespace detail {
+
+#ifdef BOOST_VERSION
+inline const boost::property_tree::ptree& empty_ptree() {
+    static const boost::property_tree::ptree p;
+    return p;
+}
+#endif
+
+struct empty_params {
+    empty_params() {}
+
+#ifdef BOOST_VERSION
+    empty_params(const boost::property_tree::ptree &p) {
+        for(const auto &v : p) {
+            AMGCL_PARAM_UNKNOWN(v.first);
+        }
+    }
+    void get(boost::property_tree::ptree&, const std::string&) const {}
+#endif
+};
+
+} // namespace detail
+
 
 // N-dimensional dense matrix
 template <class T, int N>
@@ -259,22 +292,8 @@ class circular_buffer {
         std::vector<T> buf;
 };
 
+
 namespace detail {
-
-inline const boost::property_tree::ptree& empty_ptree() {
-    static const boost::property_tree::ptree p;
-    return p;
-}
-
-struct empty_params {
-    empty_params() {}
-    empty_params(const boost::property_tree::ptree &p) {
-        for(const auto &v : p) {
-            AMGCL_PARAM_UNKNOWN(v.first);
-        }
-    }
-    void get(boost::property_tree::ptree&, const std::string&) const {}
-};
 
 template <class T>
 T eps(size_t n) {

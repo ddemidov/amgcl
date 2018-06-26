@@ -31,6 +31,8 @@ THE SOFTWARE.
  * \brief  Runtime wrapper for distributed direct solvers.
  */
 
+#include <boost/property_tree/ptree.hpp>
+
 #include <amgcl/util.hpp>
 #include <amgcl/mpi/direct_solver/skyline_lu.hpp>
 #ifdef AMGCL_HAVE_EIGEN

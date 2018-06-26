@@ -74,6 +74,7 @@ class pastix : public solver_base< value_type, pastix<value_type, Distrib> > {
                 : max_rows_per_process(50000)
             {}
 
+#ifdef BOOST_VERSION
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_VALUE(p, max_rows_per_process)
             {
@@ -83,6 +84,7 @@ class pastix : public solver_base< value_type, pastix<value_type, Distrib> > {
             void get(boost::property_tree::ptree &p, const std::string &path) const {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, max_rows_per_process);
             }
+#endif
         };
 
         /// Constructor.

@@ -90,6 +90,7 @@ class gmres {
                   abstol(std::numeric_limits<scalar_type>::min())
             { }
 
+#ifdef BOOST_VERSION
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_VALUE(p, M),
                   AMGCL_PARAMS_IMPORT_VALUE(p, pside),
@@ -107,6 +108,7 @@ class gmres {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, tol);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, abstol);
             }
+#endif
         };
 
         /// Preallocates necessary data structures for the system of size \p n.

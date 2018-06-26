@@ -73,6 +73,7 @@ struct nullspace_params {
 
     nullspace_params() : cols(0) {}
 
+#ifdef BOOST_VERSION
     nullspace_params(const boost::property_tree::ptree &p)
         : cols(p.get("cols", nullspace_params().cols))
     {
@@ -105,6 +106,7 @@ struct nullspace_params {
     }
 
     void get(boost::property_tree::ptree&, const std::string&) const {}
+#endif
 };
 
 /// Tentative prolongation operator

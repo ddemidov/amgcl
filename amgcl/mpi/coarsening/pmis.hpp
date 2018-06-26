@@ -63,6 +63,7 @@ struct pmis {
 
         params() : eps_strong(0.08), block_size(1) { }
 
+#ifdef BOOST_VERSION
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, eps_strong),
               AMGCL_PARAMS_IMPORT_VALUE(p, block_size)
@@ -74,6 +75,7 @@ struct pmis {
             AMGCL_PARAMS_EXPORT_VALUE(p, path, eps_strong);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, block_size);
         }
+#endif
     };
 
     std::shared_ptr< distributed_matrix<bool_backend> > conn;

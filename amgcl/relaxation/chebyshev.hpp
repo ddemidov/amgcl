@@ -68,6 +68,7 @@ class chebyshev {
 
             params() : degree(5), lower(1.0f / 30), power_iters(0) {}
 
+#ifdef BOOST_VERSION
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_VALUE(p, degree),
                   AMGCL_PARAMS_IMPORT_VALUE(p, lower),
@@ -81,6 +82,7 @@ class chebyshev {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, lower);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, power_iters);
             }
+#endif
         } prm;
 
         /// \copydoc amgcl::relaxation::damped_jacobi::damped_jacobi
