@@ -4,11 +4,18 @@ if (NOT (METIS_INCLUDE_DIRS AND METIS_LIBRARIES))
     find_path(METIS_INCLUDE_DIRS
         NAMES metis.h parmetis.h
         PATHS $ENV{METIS_ROOT}
-        PATH_SUFFIXES metis
+        PATH_SUFFIXES metis include
         )
 
-    find_library(METIS_LIBRARY    metis    PATHS $ENV{METIS_ROOT})
-    find_library(PARMETIS_LIBRARY parmetis PATHS $ENV{METIS_ROOT})
+    find_library(METIS_LIBRARY metis
+        PATHS $ENV{METIS_ROOT}
+        PATH_SUFFIXES lib
+        )
+
+    find_library(PARMETIS_LIBRARY parmetis
+        PATHS $ENV{METIS_ROOT}
+        PATH_SUFFIXES lib
+        )
 
     set(METIS_LIBRARIES "${PARMETIS_LIBRARY};${METIS_LIBRARY}")
 endif()
