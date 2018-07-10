@@ -10,7 +10,7 @@ if (NOT (METIS_INCLUDE_DIRS AND METIS_LIBRARIES))
     find_library(METIS_LIBRARY    metis    PATHS $ENV{METIS_ROOT})
     find_library(PARMETIS_LIBRARY parmetis PATHS $ENV{METIS_ROOT})
 
-    set(METIS_LIBRARIES "${METIS_LIBRARY};${PARMETIS_LIBRARY}")
+    set(METIS_LIBRARIES "${PARMETIS_LIBRARY};${METIS_LIBRARY}")
 endif()
 
 include(FindPackageHandleStandardArgs)
