@@ -48,7 +48,7 @@ if args.A:
         f = mmread(args.f).flatten() if args.f else np.ones(A.shape[0])
 else:
     with timeit('Generate problem'):
-        A,f = make_poisson(args.n)
+        A,f = make_poisson_3d(args.n)
 
 # Parse parameters
 p_prm = {p[0]: p[1] for p in map(lambda s: s.split('='), args.p)}
