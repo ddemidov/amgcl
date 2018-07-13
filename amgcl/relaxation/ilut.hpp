@@ -207,6 +207,10 @@ struct ilut {
         ilu->solve(x);
     }
 
+    size_t bytes() const {
+        return ilu->bytes();
+    }
+
     private:
         typedef typename backend::builtin<value_type>::matrix build_matrix;
         std::shared_ptr<ilu_solve> ilu;
@@ -375,6 +379,17 @@ struct ilut {
 };
 
 } // namespace relaxation
+
+namespace backend {
+
+template <class Backend>
+struct bytes_impl< relaxation::ilut<Backend> > {
+    static size_t get(const relaxation::ilut<Backend> &R) {
+        return R.bytes();
+    }
+};
+
+} // namespace backend
 } // namespace amgcl
 
 #endif

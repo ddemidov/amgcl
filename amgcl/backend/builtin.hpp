@@ -925,6 +925,25 @@ struct cols_impl< crs<V, C, P> > {
 };
 
 template < typename V, typename C, typename P >
+struct bytes_impl< crs<V, C, P> > {
+    static size_t get(const crs<V, C, P> &A) {
+        return sizeof(P) * (A.nrows + 1) + sizeof(C) * A.nnz + sizeof(V) * A.nnz;
+    }
+};
+
+template < class Vec >
+struct bytes_impl<
+    Vec,
+    typename std::enable_if< is_builtin_vector<Vec>::value >::type
+    >
+{
+    static size_t get(const Vec &x) {
+        typedef typename backend::value_type<Vec>::type V;
+        return x.size() * sizeof(V);
+    }
+};
+
+template < typename V, typename C, typename P >
 struct ptr_data_impl< crs<V, C, P> > {
     typedef const P* type;
     static type get(const crs<V, C, P> &A) {

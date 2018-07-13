@@ -203,8 +203,14 @@ class make_solver {
             return n;
         }
 
+        size_t bytes() const {
+            return backend::bytes(S) + backend::bytes(P);
+        }
+
         friend std::ostream& operator<<(std::ostream &os, const make_solver &p) {
-            return os << p.S << std::endl << p.P;
+            return os
+                << "Solver\n======\n" << p.S << std::endl
+                << "Preconditioner\n==============\n" << p.P;
         }
     private:
         size_t           n;
@@ -377,7 +383,16 @@ class make_scaling_solver {
         std::shared_ptr<vector> t;
 };
 
+namespace backend {
 
+template <class P, class S>
+struct bytes_impl< make_solver<P, S> > {
+    static size_t get(const make_solver<P, S> &s) {
+        return s.bytes();
+    }
+};
+
+} // namespace backend
 } // namespace amgcl
 
 #endif

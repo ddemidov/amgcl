@@ -98,7 +98,7 @@ std::tuple<size_t, double> block_solve(
         Solver solve(perm(A), prm);
         prof.toc("setup");
 
-        std::cout << solve.precond() << std::endl;
+        std::cout << solve << std::endl;
 
         rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&rhs[0]);
         rhs_type       * xptr = reinterpret_cast<rhs_type       *>(&x[0]);
@@ -116,7 +116,7 @@ std::tuple<size_t, double> block_solve(
         Solver solve(A, prm);
         prof.toc("setup");
 
-        std::cout << solve.precond() << std::endl;
+        std::cout << solve << std::endl;
 
         rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&rhs[0]);
         rhs_type       * xptr = reinterpret_cast<rhs_type       *>(&x[0]);
@@ -181,7 +181,7 @@ std::tuple<size_t, double> block_solve(
         Solver solve(perm(A), prm, bprm);
         prof.toc("setup");
 
-        std::cout << solve.precond() << std::endl;
+        std::cout << solve << std::endl;
 
         rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&rhs[0]);
         rhs_type       * xptr = reinterpret_cast<rhs_type       *>(&x[0]);
@@ -205,7 +205,7 @@ std::tuple<size_t, double> block_solve(
         Solver solve(A, prm, bprm);
         prof.toc("setup");
 
-        std::cout << solve.precond() << std::endl;
+        std::cout << solve << std::endl;
 
         rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&rhs[0]);
         rhs_type       * xptr = reinterpret_cast<rhs_type       *>(&x[0]);
@@ -275,7 +275,7 @@ std::tuple<size_t, double> scalar_solve(
         Solver solve(perm(std::tie(rows, ptr, col, val)), prm, bprm);
         prof.toc("setup");
 
-        std::cout << solve.precond() << std::endl;
+        std::cout << solve << std::endl;
 
         std::vector<double> tmp(rows);
 
@@ -305,7 +305,7 @@ std::tuple<size_t, double> scalar_solve(
         Solver solve(std::tie(rows, ptr, col, val), prm, bprm);
         prof.toc("setup");
 
-        std::cout << solve.precond() << std::endl;
+        std::cout << solve << std::endl;
 
         auto f_b = Backend::copy_vector(rhs, bprm);
         auto x_b = Backend::copy_vector(x,   bprm);

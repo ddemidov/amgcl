@@ -253,6 +253,16 @@ struct ilu0< backend::cuda<real> > {
         solve(x);
     }
 
+    size_t bytes() const {
+        // This is incomplete, as cusparse structs are opaque.
+        return 
+            backend::bytes(ptr) +
+            backend::bytes(col) +
+            backend::bytes(val) +
+            backend::bytes(y) +
+            backend::bytes(buf);
+    }
+
     private:
         static const cusparseSolvePolicy_t policy_M = CUSPARSE_SOLVE_POLICY_NO_LEVEL;
         static const cusparseSolvePolicy_t policy_L = CUSPARSE_SOLVE_POLICY_USE_LEVEL;

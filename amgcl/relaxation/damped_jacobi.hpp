@@ -134,6 +134,17 @@ struct damped_jacobi {
 };
 
 } // namespace relaxation
+
+namespace backend {
+
+template <class Backend>
+struct bytes_impl< relaxation::damped_jacobi<Backend> > {
+    static size_t get(const relaxation::damped_jacobi<Backend> &R) {
+        return backend::bytes(*R.dia);
+    }
+};
+
+} // namespace backend
 } // namespace amgcl
 
 #endif

@@ -309,6 +309,19 @@ T eps(size_t n) {
 
 template <class T> struct is_complex : std::false_type {};
 template <class T> struct is_complex< std::complex<T> > : std::true_type {};
+
+std::string human_readable_memory(size_t bytes) {
+    static const char *suffix[] = {"B", "K", "M", "G", "T"};
+
+    int i = 0;
+    double m = bytes;
+    for(; i < 4 && m >= 1024; ++i, m /= 1024);
+
+    std::ostringstream s;
+    s << std::fixed << std::setprecision(2) << m << " " << suffix[i];
+    return s.str();
+}
+
 } // namespace amgcl
 
 namespace std {

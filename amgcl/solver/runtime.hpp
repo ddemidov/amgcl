@@ -232,6 +232,28 @@ struct wrapper {
                 throw std::invalid_argument("Unsupported solver type");
         }
     }
+
+    size_t bytes() const {
+        switch(s) {
+
+#define AMGCL_RUNTIME_SOLVER(type) \
+            case type: \
+                return backend::bytes(*static_cast<amgcl::solver::type<Backend, InnerProduct>*>(handle))
+
+            AMGCL_RUNTIME_SOLVER(cg);
+            AMGCL_RUNTIME_SOLVER(bicgstab);
+            AMGCL_RUNTIME_SOLVER(bicgstabl);
+            AMGCL_RUNTIME_SOLVER(gmres);
+            AMGCL_RUNTIME_SOLVER(lgmres);
+            AMGCL_RUNTIME_SOLVER(fgmres);
+            AMGCL_RUNTIME_SOLVER(idrs);
+
+#undef AMGCL_RUNTIME_SOLVER
+
+            default:
+                throw std::invalid_argument("Unsupported solver type");
+        }
+    }
 };
 
 } // namespace solver
