@@ -110,6 +110,7 @@ struct vexcl {
 
         params() : fast_matrix_setup(true) {}
 
+#ifdef AMGCL_USE_PROPERTY_TREE
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, fast_matrix_setup)
         {
@@ -123,6 +124,7 @@ struct vexcl {
             p.put(path + "q", &q);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, fast_matrix_setup);
         }
+#endif
 
         const std::vector<vex::backend::command_queue>& context() const {
             if (q.empty())

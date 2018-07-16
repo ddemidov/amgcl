@@ -54,7 +54,7 @@ struct ilu0< backend::cuda<real> > {
 
         params() : damping(1) {}
 
-#ifdef BOOST_VERSION
+#ifdef AMGCL_USE_PROPERTY_TREE
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, damping)
         {

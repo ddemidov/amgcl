@@ -65,7 +65,7 @@ struct smoothed_aggr_emin {
 
         params() {}
 
-#ifdef BOOST_VERSION
+#ifdef AMGCL_USE_PROPERTY_TREE
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_CHILD(p, aggr),
               AMGCL_PARAMS_IMPORT_CHILD(p, nullspace)

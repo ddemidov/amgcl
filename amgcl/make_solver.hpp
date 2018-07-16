@@ -69,7 +69,7 @@ class make_solver {
 
             params() {}
 
-#ifdef BOOST_VERSION
+#ifdef AMGCL_USE_PROPERTY_TREE
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, precond),
                   AMGCL_PARAMS_IMPORT_CHILD(p, solver)
@@ -191,7 +191,7 @@ class make_solver {
             return P.system_matrix();
         }
 
-#ifdef BOOST_VERSION
+#ifdef AMGCL_USE_PROPERTY_TREE
         /// Stores the parameters used during construction into the property tree \p p.
         void get_params(boost::property_tree::ptree &p) const {
             prm.get(p);

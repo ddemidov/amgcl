@@ -32,7 +32,14 @@ THE SOFTWARE.
  */
 
 #include <memory>
-#include <boost/property_tree/ptree.hpp>
+
+#include <amgcl/util.hpp>
+#ifndef AMGCL_USE_PROPERTY_TREE
+#  error \
+    Runtime interface relies on Boost.PropertyTree! \
+    Either define AMGCL_USE_PROPERTY_TREE, or \
+    include <boost/property_tree/ptree.hpp> before any of the amgcl headers.
+#endif
 
 #include <amgcl/mpi/partition/merge.hpp>
 

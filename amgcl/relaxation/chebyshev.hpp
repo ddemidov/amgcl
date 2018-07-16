@@ -68,7 +68,7 @@ class chebyshev {
 
             params() : degree(5), lower(1.0f / 30), power_iters(0) {}
 
-#ifdef BOOST_VERSION
+#ifdef AMGCL_USE_PROPERTY_TREE
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_VALUE(p, degree),
                   AMGCL_PARAMS_IMPORT_VALUE(p, lower),
