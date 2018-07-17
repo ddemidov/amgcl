@@ -10,6 +10,7 @@
 #endif
 
 #include "domain_partition.hpp"
+
 #include "mba.hpp"
 
 #include <boost/scope_exit.hpp>
@@ -195,6 +196,7 @@ struct bilinear_deflation {
     }
 };
 
+#ifndef SOLVER_BACKEND_CUDA
 struct mba_deflation {
     size_t chunk, nv;
     std::vector<double> v;
@@ -274,6 +276,7 @@ struct mba_deflation {
         return 0;
     }
 };
+#endif
 
 struct harmonic_deflation {
     size_t nv, chunk;
@@ -590,10 +593,12 @@ int main(int argc, char *argv[]) {
         bilinear_deflation bld(n, chunk, lo, hi);
         ndv = bld.dim();
         dv  = bld;
+#ifndef SOLVER_BACKEND_CUDA
     } else if (deflation_type == "mba") {
         mba_deflation mba(n, chunk, lo, hi);
         ndv = mba.dim();
         dv  = mba;
+#endif
     } else if (deflation_type == "harmonic") {
         harmonic_deflation hd(n, chunk, lo, hi);
         ndv = hd.dim();
