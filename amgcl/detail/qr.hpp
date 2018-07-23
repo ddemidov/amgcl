@@ -320,9 +320,7 @@ class QR {
         }
 
         size_t bytes() {
-            return backend::bytes(tau) +
-                   backend::bytes(f) +
-                   backend::bytes(q);
+            return sizeof(value_type) * (tau.size() + f.size() + q.size());
         }
 
     private:
@@ -568,7 +566,7 @@ class QR<value_type, typename std::enable_if<math::is_static_matrix<value_type>:
         }
 
         size_t bytes() const {
-            return base.bytes() + backend::bytes(buf);
+            return base.bytes() + sizeof(scalar_type) * buf.size();
         }
 
     private:
