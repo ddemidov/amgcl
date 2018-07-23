@@ -319,6 +319,12 @@ class QR {
             solve(rows, cols, row_stride, col_stride, A, b, x, computed);
         }
 
+        size_t bytes() {
+            return backend::bytes(tau) +
+                   backend::bytes(f) +
+                   backend::bytes(q);
+        }
+
     private:
         typedef typename math::scalar_of<value_type>::type scalar_type;
 
@@ -559,6 +565,10 @@ class QR<value_type, typename std::enable_if<math::is_static_matrix<value_type>:
             int row_stride = (order == row_major ? cols : 1);
             int col_stride = (order == row_major ? 1 : rows);
             solve(rows, cols, row_stride, col_stride, A, f, x, computed);
+        }
+
+        size_t bytes() const {
+            return base.bytes() + backend::bytes(buf);
         }
 
     private:

@@ -415,9 +415,34 @@ done:
             return (*this)(P.system_matrix(), P, rhs, x);
         }
 
+        size_t bytes() const {
+            size_t b = 0;
+
+            b += backend::bytes(*Rt);
+            b += backend::bytes(*X);
+            b += backend::bytes(*B);
+            b += backend::bytes(*T);
+
+            for(const auto &v : R) b += backend::bytes(*v);
+            for(const auto &v : U) b += backend::bytes(*v);
+
+            b += MZa.size() * sizeof(coef_type);
+            b += MZb.size() * sizeof(coef_type);
+
+            b += backend::bytes(Y0);
+            b += backend::bytes(YL);
+
+            b += qr.bytes();
+
+            return b;
+        }
 
         friend std::ostream& operator<<(std::ostream &os, const bicgstabl &s) {
-            return os << "bicgstab(" << s.prm.L << "): " << s.n << " unknowns";
+            return os
+                << "Type:             BiCGStab(" << s.prm.L << ")"
+                << "\nUnknowns:         " << s.n
+                << "\nMemory footprint: " << human_readable_memory(s.bytes())
+                << std::endl;
         }
     public:
         params prm;

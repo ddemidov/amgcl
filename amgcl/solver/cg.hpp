@@ -194,8 +194,20 @@ class cg {
             return (*this)(P.system_matrix(), P, rhs, x);
         }
 
+        size_t bytes() const {
+            return
+                backend::bytes(*r) +
+                backend::bytes(*s) +
+                backend::bytes(*p) +
+                backend::bytes(*q);
+        }
+
         friend std::ostream& operator<<(std::ostream &os, const cg &s) {
-            return os << "cg: " << s.n << " unknowns";
+            return os
+                << "Type:             CG"
+                << "\nUnknowns:         " << s.n
+                << "\nMemory footprint: " << human_readable_memory(s.bytes())
+                << std::endl;
         }
     public:
         params prm;
