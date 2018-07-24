@@ -42,11 +42,22 @@ if on_rtd:
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['breathe', 'sphinx.ext.mathjax',
+extensions = ['breathe', 'exhale', 'sphinx.ext.mathjax',
         'matplotlib.sphinxext.plot_directive']
 
 breathe_projects = {'AMGCL' : 'xml'}
 breathe_default_project = 'AMGCL'
+
+# Setup the exhale extension
+exhale_args = {
+    # These arguments are required
+    "containmentFolder":     "./api",
+    "rootFileName":          "library_root.rst",
+    "rootFileTitle":         "Library API",
+    "doxygenStripFromPath":  "..",
+    # Suggested optional arguments
+    "createTreeView":        True,
+}
 
 # Add any paths that contain templates here, relative to this directory.
 #templates_path = ['_templates']

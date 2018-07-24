@@ -33,3 +33,5 @@ Contents:
     mpi
     benchmarks
     bibliography
+
+    api/library_root
