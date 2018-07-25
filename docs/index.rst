@@ -27,4 +27,5 @@ Contents:
     :maxdepth: 2
 
     amg_overview
+    design
     bibliography
