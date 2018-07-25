@@ -66,3 +66,30 @@ with OpenMP), and double precision scalars as value type.
 .. _OpenCL: https://www.khronos.org/opencl/
 .. _CUDA: https://developer.nvidia.com/cuda-toolkit
 .. _CRS: http://netlib.org/linalg/html_templates/node91.html
+
+Parameters
+----------
+
+Each component in AMGCL defines its own parameters by declaring a ``param``
+subtype. When a class wraps several subclasses, it includes parameters of its
+children into its own ``param``. For example, parameters for the
+:cpp:class:`amgcl::make_solver\<Precond, Solver>` are declared as
+
+.. code-block:: cpp
+
+    struct params {
+        typename Precond::params precond;
+        typename Solver::params solver;
+    };
+
+Knowing that, you can easily lookup parameter definitions and set parameters
+for individual components. For example, we can set the desired tolerance and
+maximum number of iterations for the iterative solver in the above example like
+this:
+
+.. code-block:: cpp
+
+    Solver::params prm;
+    prm.solver.tol = 1e-3;
+    prm.solver.maxiter = 10;
+    Solver solve( std::tie(n, ptr, col, val), prm );
