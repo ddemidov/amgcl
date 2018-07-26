@@ -5,6 +5,9 @@ AMGCL uses the compile-time `policy-based design`_ approach, which allows users
 of the library to compose their own version of the AMG method from the provided
 components. This also allows for easily extending the library when required.
 
+Components
+----------
+
 AMGCL provides the following components:
 
 * **Backends** -- classes that define matrix and vector types and operations
@@ -38,8 +41,9 @@ AMGCL provides the following components:
 To illustrate this, here is an example of defining a solver type that
 combines a BiCGStab iterative method [Barr94]_ preconditioned with smoothed
 aggregation AMG that uses SPAI(0) (sparse approximate inverse smoother)
-[BrGr02]_ as relaxation. The solver uses the ``builtin`` backend (accelerated
-with OpenMP), and double precision scalars as value type.
+[BrGr02]_ as relaxation. The solver uses the
+:cpp:class:`amgcl::backend::builtin` backend (accelerated with OpenMP), and
+double precision scalars as value type.
 
 .. code-block:: cpp
 
