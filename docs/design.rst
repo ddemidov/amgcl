@@ -64,7 +64,7 @@ double precision scalars as value type.
             >,
         amgcl::solver::bicgstab<Backend>
         > Solver;
-        
+
 .. _`policy-based design`: https://en.wikipedia.org/wiki/Policy-based_design
 .. _OpenMP: https://www.openmp.org/
 .. _OpenCL: https://www.khronos.org/opencl/
@@ -97,3 +97,6 @@ this:
     prm.solver.tol = 1e-3;
     prm.solver.maxiter = 10;
     Solver solve( std::tie(n, ptr, col, val), prm );
+
+Runtime interface
+-----------------

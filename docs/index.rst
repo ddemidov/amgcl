@@ -28,4 +28,8 @@ Contents:
 
     amg_overview
     design
+    components
+    examples
+    mpi
+    benchmarks
     bibliography
