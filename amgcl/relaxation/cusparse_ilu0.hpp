@@ -255,7 +255,7 @@ struct ilu0< backend::cuda<real> > {
 
     size_t bytes() const {
         // This is incomplete, as cusparse structs are opaque.
-        return 
+        return
             backend::bytes(ptr) +
             backend::bytes(col) +
             backend::bytes(val) +

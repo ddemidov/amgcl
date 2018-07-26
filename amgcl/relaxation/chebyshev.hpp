@@ -171,7 +171,7 @@ class chebyshev {
         }
 
         size_t bytes() const {
-            return 
+            return
                 backend::bytes(C) +
                 backend::bytes(*p) +
                 backend::bytes(*q);

@@ -36,7 +36,7 @@ The code is ported from PETSC BCGSL [1] and is based on [2].
 [2] Fokkema, Diederik R. Enhanced implementation of BiCGstab (l) for solving
     linear systems of equations. Universiteit Utrecht. Mathematisch Instituut,
     1996.
- 
+
 The original code came with the following license:
 
 \verbatim

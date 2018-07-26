@@ -103,7 +103,7 @@ class idrs {
              * Determines the residual replacement strategy.
              *    If |r| > 1E3 |b| TOL/EPS) (EPS is the machine precision)
              *    the recursively computed residual is replaced by the true residual
-             *    once |r| < |b| (to reduce the effect of large intermediate residuals 
+             *    once |r| < |b| (to reduce the effect of large intermediate residuals
              *    on the final accuracy).
              * Default: No residual replacement.
              */

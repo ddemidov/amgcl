@@ -230,12 +230,12 @@ class bicgstab {
 
         size_t bytes() const {
             return
-                backend::bytes(*r) + 
-                backend::bytes(*p) + 
-                backend::bytes(*v) + 
-                backend::bytes(*s) + 
-                backend::bytes(*t) + 
-                backend::bytes(*rh) + 
+                backend::bytes(*r) +
+                backend::bytes(*p) +
+                backend::bytes(*v) +
+                backend::bytes(*s) +
+                backend::bytes(*t) +
+                backend::bytes(*rh) +
                 backend::bytes(*T);
         }
 

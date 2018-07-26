@@ -702,7 +702,7 @@ spectral_radius(const Matrix &A, int power_iters = 0) {
                     if (scale && c == i) dia = v;
                 }
 
-                if (scale) s *= math::norm(math::inverse(dia)); 
+                if (scale) s *= math::norm(math::inverse(dia));
 
                 emax = std::max(emax, s);
             }
@@ -1049,7 +1049,7 @@ struct inner_product_impl<
         return_type sum[1];
 #endif
 
-        
+
 #pragma omp parallel
         {
 #ifdef _OPENMP

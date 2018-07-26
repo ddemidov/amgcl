@@ -243,7 +243,7 @@ class fgmres {
             b += backend::bytes(cs);
             b += backend::bytes(sn);
             b += backend::bytes(*r);
-            
+
             for(const auto &x : v) b += backend::bytes(*x);
             for(const auto &x : z) b += backend::bytes(*x);
 

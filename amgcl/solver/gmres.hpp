@@ -273,7 +273,7 @@ class gmres {
             b += backend::bytes(cs);
             b += backend::bytes(sn);
             b += backend::bytes(*r);
-            
+
             for(const auto &x : v) b += backend::bytes(*x);
 
             return b;
