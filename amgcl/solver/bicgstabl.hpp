@@ -131,7 +131,7 @@ class bicgstabl {
             {
             }
 
-#ifdef AMGCL_USE_PROPERTY_TREE
+#ifndef AMGCL_NO_BOOST
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_VALUE(p, L),
                   AMGCL_PARAMS_IMPORT_VALUE(p, delta),

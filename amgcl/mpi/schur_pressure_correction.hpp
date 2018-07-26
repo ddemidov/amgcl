@@ -81,7 +81,7 @@ class schur_pressure_correction {
 
             params() : approx_schur(true) {}
 
-#ifdef AMGCL_USE_PROPERTY_TREE
+#ifndef AMGCL_NO_BOOST
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, usolver),
                   AMGCL_PARAMS_IMPORT_CHILD(p, psolver),

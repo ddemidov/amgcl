@@ -42,10 +42,7 @@ THE SOFTWARE.
 
 // If asked explicitly, or if boost is available, enable
 // using boost::propert_tree::ptree as amgcl parameters:
-#if defined(AMGCL_USE_PROPERTY_TREE)
-#  include <boost/property_tree/ptree.hpp>
-#elif defined(BOOST_VERSION)
-#  define AMGCL_USE_PROPERTY_TREE
+#ifndef AMGCL_NO_BOOST
 #  include <boost/property_tree/ptree.hpp>
 #endif
 
@@ -94,7 +91,7 @@ void precondition(const Condition &condition, const Message &message) {
 #endif
 }
 
-#ifdef AMGCL_USE_PROPERTY_TREE
+#ifndef AMGCL_NO_BOOST
 
 #define AMGCL_PARAMS_IMPORT_VALUE(p, name)                                     \
     name( p.get(#name, params().name) )
@@ -171,7 +168,7 @@ inline void put(boost::property_tree::ptree &p, const std::string &param) {
 
 namespace detail {
 
-#ifdef AMGCL_USE_PROPERTY_TREE
+#ifndef AMGCL_NO_BOOST
 inline const boost::property_tree::ptree& empty_ptree() {
     static const boost::property_tree::ptree p;
     return p;
@@ -181,7 +178,7 @@ inline const boost::property_tree::ptree& empty_ptree() {
 struct empty_params {
     empty_params() {}
 
-#ifdef AMGCL_USE_PROPERTY_TREE
+#ifndef AMGCL_NO_BOOST
     empty_params(const boost::property_tree::ptree &p) {
         for(const auto &v : p) {
             AMGCL_PARAM_UNKNOWN(v.first);

@@ -59,7 +59,7 @@ class ilu_solve {
 
             params() : iters(2), damping(0.72) {}
 
-#ifdef AMGCL_USE_PROPERTY_TREE
+#ifndef AMGCL_NO_BOOST
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_VALUE(p, iters)
                 , AMGCL_PARAMS_IMPORT_VALUE(p, damping)
@@ -142,7 +142,7 @@ class ilu_solve< backend::builtin<value_type> > {
 
             params() : serial(num_threads() < 4) {}
 
-#ifdef AMGCL_USE_PROPERTY_TREE
+#ifndef AMGCL_NO_BOOST
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_VALUE(p, serial)
             {

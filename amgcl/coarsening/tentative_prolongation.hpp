@@ -73,7 +73,7 @@ struct nullspace_params {
 
     nullspace_params() : cols(0) {}
 
-#ifdef AMGCL_USE_PROPERTY_TREE
+#ifndef AMGCL_NO_BOOST
     nullspace_params(const boost::property_tree::ptree &p)
         : cols(p.get("cols", nullspace_params().cols))
     {

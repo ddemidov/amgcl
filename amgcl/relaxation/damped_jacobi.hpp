@@ -62,7 +62,7 @@ struct damped_jacobi {
 
         params(scalar_type damping = 0.72) : damping(damping) {}
 
-#ifdef AMGCL_USE_PROPERTY_TREE
+#ifndef AMGCL_NO_BOOST
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, damping)
         {

@@ -33,14 +33,13 @@ THE SOFTWARE.
 
 #include <type_traits>
 
-#include <amgcl/util.hpp>
-#ifndef AMGCL_USE_PROPERTY_TREE
-#  error \
-    Runtime interface relies on Boost.PropertyTree! \
-    Either define AMGCL_USE_PROPERTY_TREE, or \
-    include <boost/property_tree/ptree.hpp> before any of the amgcl headers.
+#ifdef AMGCL_NO_BOOST
+#  error Runtime interface relies on Boost.PropertyTree!
 #endif
 
+#include <boost/property_tree/ptree.hpp>
+
+#include <amgcl/util.hpp>
 #include <amgcl/relaxation/gauss_seidel.hpp>
 #include <amgcl/relaxation/ilu0.hpp>
 #include <amgcl/relaxation/iluk.hpp>
