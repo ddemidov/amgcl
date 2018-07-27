@@ -1072,8 +1072,8 @@ NSSA parameters were employed in the tests.
     tight_layout()
 
     figlegend(handles,
-        ['AMGCL/AMG, omp={}'.format(n) for n in omp_amg] +
-        ['AMGCL/SDD, omp={}'.format(n) for n in omp_sdd] +
+        ['AMG, omp={}'.format(n) for n in omp_amg] +
+        ['SDD, omp={}'.format(n) for n in omp_sdd] +
         ['Trilinos'],
         ncol=3, loc='lower center')
     gcf().suptitle('Strong scaling of the Navier-Stokes problem on the SuperMUC cluster')
