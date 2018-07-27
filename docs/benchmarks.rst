@@ -48,7 +48,7 @@ system of equations with a block structure of the type
 where each of the matrix subblocks is a large sparse matrix, and the blocks
 :math:`\mathbf G` and :math:`\mathbf D` are non-square.  The overall system
 matrix for the problem was assembled in the Kratos_ multi-physics package
-developed in CIMNE, Barcelona. 
+developed in CIMNE, Barcelona.
 
 .. _Kratos: http://www.cimne.com/kratos/
 
@@ -181,7 +181,8 @@ of moving the constructed hierarchy into the GPU memory.
 
 The system matrix resulting from the problem discretization has block structure
 with blocks of 4-by-4 elements, and contains 713456 unknowns and 41277920
-nonzeros. 
+nonzeros. The assemblem problem is available to download
+at https://doi.org/10.5281/zenodo.1231818.
 
 There are at least two ways to solve the system. First, one can treat the
 system as a monolythic one, and provide some minimal help to the preconditioner
@@ -315,6 +316,155 @@ Smoothed aggregation AMG is used as the local preconditioner. The Trilinos
 implementation uses a CG solver preconditioned with smoothed aggregation AMG
 with default 'SA' settings, or domain decomposition method with default 'DD-ML'
 settings.
+
+.. plot::
+
+    import os
+    from pylab import *
+    rc('font', size=12)
+
+    amgcl = loadtxt('dmem_data/lrz/amgcl_weak.txt', dtype={
+            'names'   : ('size', 'omp', 'mpi', 'setup', 'solve', 'iters'),
+            'formats' : ('i8', 'i4', 'i4', 'f8', 'f8', 'i4')
+            })
+    trilinos = loadtxt('dmem_data/lrz/trilinos_weak.txt', dtype={
+                'names'   : ('mpi', 'size', 'iters', 'setup', 'solve'),
+                'formats' : ('i4', 'i8', 'i4', 'f8', 'f8')
+                })
+
+    omp = unique(list(amgcl['omp']))
+
+    def set_ticks():
+        gca().set_xscale('log')
+        gca().set_xticks([1, 7, 14, 28, 28 * 4, 28 * 16, 28 * 64])
+        gca().get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+        gca().get_xaxis().set_tick_params(which='minor', size=0)
+        gca().get_xaxis().set_tick_params(which='minor', width=0)
+
+    figure(figsize=(8,7))
+    gs = GridSpec(2,2)
+    handles = []
+
+    subplot(gs[0,0])
+    for n in omp:
+        I = (amgcl['omp'] == n)
+        h = loglog(n * amgcl[I]['mpi'], amgcl[I]['setup'] + amgcl[I]['solve'], 'o-')
+        handles.append(h[0])
+    h = loglog(trilinos['mpi'], trilinos['setup'] + trilinos['solve'], 's-')
+    handles.append(h[0])
+    set_ticks()
+    ylim([1e0, 1e2])
+    ylabel('Total time')
+
+    subplot(gs[0,1])
+    for n in omp:
+        I = (amgcl['omp'] == n)
+        loglog(n * amgcl[I]['mpi'], amgcl[I]['setup'], 'o-')
+    loglog(trilinos['mpi'], trilinos['setup'], 's-')
+    set_ticks()
+    ylim([1e0, 1e2])
+    ylabel('Setup time')
+
+    subplot(gs[1,0])
+    for n in omp:
+        I = (amgcl['omp'] == n)
+        loglog(n * amgcl[I]['mpi'], amgcl[I]['solve'], 'o-')
+    loglog(trilinos['mpi'], trilinos['solve'], 's-')
+    set_ticks()
+    ylim([1e0, 1e2])
+    ylabel('Solve time')
+
+    subplot(gs[1,1])
+    for n in omp:
+        I = (amgcl['omp'] == n)
+        semilogx(n * amgcl[I]['mpi'], amgcl[I]['iters'], 'o-')
+    semilogx(trilinos['mpi'], trilinos['iters'], 's-')
+    ylim([0, 50])
+    set_ticks()
+    ylabel('Iterations')
+
+    tight_layout()
+
+    figlegend(handles,
+        ['AMGCL, omp={}'.format(n) for n in omp] + ['Trilinos'],
+        ncol=2, loc='lower center')
+    gcf().suptitle('Weak scaling of the Poisson problem on the SuperMUC cluster')
+    gcf().subplots_adjust(top=0.93, bottom=0.15)
+
+    show()
+
+.. plot::
+
+    import os
+    from pylab import *
+    rc('font', size=12)
+
+    amgcl = loadtxt('dmem_data/lrz/amgcl_strong.txt', dtype={
+            'names'   : ('size', 'omp', 'mpi', 'setup', 'solve', 'iters'),
+            'formats' : ('i8', 'i4', 'i4', 'f8', 'f8', 'i4')
+            })
+    trilinos = loadtxt('dmem_data/lrz/trilinos_strong.txt', dtype={
+                'names'   : ('mpi', 'size', 'iters', 'setup', 'solve'),
+                'formats' : ('i4', 'i8', 'i4', 'f8', 'f8')
+                })
+
+    omp = unique(list(amgcl['omp']))
+
+    def set_ticks():
+        gca().set_xscale('log')
+        gca().set_xticks([1, 7, 14, 28, 28 * 4, 28 * 16, 28 * 64])
+        gca().get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+        gca().get_xaxis().set_tick_params(which='minor', size=0)
+        gca().get_xaxis().set_tick_params(which='minor', width=0)
+
+    figure(figsize=(8,7))
+    gs = GridSpec(2,2)
+    handles = []
+
+    subplot(gs[0,0])
+    for n in omp:
+        I = (amgcl['omp'] == n)
+        h = loglog(n * amgcl[I]['mpi'], amgcl[I]['setup'] + amgcl[I]['solve'], 'o-')
+        handles.append(h[0])
+    h = loglog(trilinos['mpi'], trilinos['setup'] + trilinos['solve'], 's-')
+    handles.append(h[0])
+    set_ticks()
+    ylabel('Total time')
+
+    subplot(gs[0,1])
+    for n in omp:
+        I = (amgcl['omp'] == n)
+        loglog(n * amgcl[I]['mpi'], amgcl[I]['setup'], 'o-')
+    loglog(trilinos['mpi'], trilinos['setup'], 's-')
+    set_ticks()
+    ylabel('Setup time')
+
+    subplot(gs[1,0])
+    for n in omp:
+        I = (amgcl['omp'] == n)
+        loglog(n * amgcl[I]['mpi'], amgcl[I]['solve'], 'o-')
+    loglog(trilinos['mpi'], trilinos['solve'], 's-')
+    set_ticks()
+    ylabel('Solve time')
+
+    subplot(gs[1,1])
+    for n in omp:
+        I = (amgcl['omp'] == n)
+        semilogx(n * amgcl[I]['mpi'], amgcl[I]['iters'], 'o-')
+    semilogx(trilinos['mpi'], trilinos['iters'], 's-')
+    ylim([0, 30])
+    set_ticks()
+    ylabel('Iterations')
+
+    tight_layout()
+
+    figlegend(handles,
+        ['AMGCL, omp={}'.format(n) for n in omp] + ['Trilinos'],
+        ncol=2, loc='lower center')
+    gcf().suptitle('Strong scaling of the Poisson problem on the SuperMUC cluster')
+    gcf().subplots_adjust(top=0.93, bottom=0.15)
+
+    show()
 
 The figure below shows weak scaling of the solution on the MareNostrum 4
 cluster. Here the problem size is chosen to be proportional to the number of
@@ -823,11 +973,113 @@ observable in the weak scaling case for 'OMP=1'.
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 The system matrix in these tests contains 4773588 unknowns and 281089456
-nonzeros. AMGCL library uses field-split approach with the
-``mpi::schur_pressure_correction`` preconditioner. Trilinos ML does not provide
-field-split type preconditioners, and uses the nonsymmetric smoothed
-aggregation variant (NSSA) applied to the monolithic problem.  Default NSSA
-parameters were employed in the tests.
+nonzeros.  The assembled system is available to download at
+https://doi.org/10.5281/zenodo.1231961. AMGCL library uses field-split approach
+with the ``mpi::schur_pressure_correction`` preconditioner. Trilinos ML does
+not provide field-split type preconditioners, and uses the nonsymmetric
+smoothed aggregation variant (NSSA) applied to the monolithic problem.  Default
+NSSA parameters were employed in the tests.
+
+.. plot::
+
+    import os
+    from pylab import *
+    rc('font', size=12)
+
+    amgcl_amg = loadtxt('dmem_data/lrz/ns_amgcl_amg.txt', dtype={
+            'names'   : ('size', 'omp', 'mpi', 'setup', 'solve', 'iters'),
+            'formats' : ('i8', 'i4', 'i4', 'f8', 'f8', 'i4')
+            })
+    amgcl_sdd = loadtxt('dmem_data/lrz/ns_amgcl_sdd.txt', dtype={
+            'names'   : ('size', 'omp', 'mpi', 'setup', 'solve', 'iters'),
+            'formats' : ('i8', 'i4', 'i4', 'f8', 'f8', 'i4')
+            })
+    trilinos = loadtxt('dmem_data/lrz/ns_trilinos.txt', dtype={
+                'names'   : ('mpi', 'size', 'iters', 'setup', 'solve'),
+                'formats' : ('i4', 'i8', 'i4', 'f8', 'f8')
+                })
+
+    omp_amg = unique(list(amgcl_amg['omp']))
+    omp_sdd = unique(list(amgcl_sdd['omp']))
+
+    def set_ticks():
+        gca().set_xscale('log')
+        gca().set_xticks([28, 28 * 4, 28 * 16, 28 * 64])
+        gca().get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+        gca().get_xaxis().set_tick_params(which='minor', size=0)
+        gca().get_xaxis().set_tick_params(which='minor', width=0)
+
+    figure(figsize=(8,7))
+    gs = GridSpec(2,2)
+    handles = []
+
+    subplot(gs[0,0])
+    for n in omp_amg:
+        I = (amgcl_amg['omp'] == n)
+        h = loglog(n * amgcl_amg[I]['mpi'], amgcl_amg[I]['setup'] + amgcl_amg[I]['solve'], 'o-')
+        handles.append(h[0])
+    for n in omp_sdd:
+        I = (amgcl_sdd['omp'] == n)
+        h = loglog(n * amgcl_sdd[I]['mpi'], amgcl_sdd[I]['setup'] + amgcl_sdd[I]['solve'], 'v-')
+        handles.append(h[0])
+    h = loglog(trilinos['mpi'], trilinos['setup'] + trilinos['solve'], 's-')
+    handles.append(h[0])
+    set_ticks()
+    ylabel('Total time')
+
+    subplot(gs[0,1])
+    for n in omp_amg:
+        I = (amgcl_amg['omp'] == n)
+        h = loglog(n * amgcl_amg[I]['mpi'], amgcl_amg[I]['setup'], 'o-')
+        handles.append(h[0])
+    for n in omp_sdd:
+        I = (amgcl_sdd['omp'] == n)
+        h = loglog(n * amgcl_sdd[I]['mpi'], amgcl_sdd[I]['setup'], 'v-')
+        handles.append(h[0])
+    h = loglog(trilinos['mpi'], trilinos['setup'], 's-')
+    handles.append(h[0])
+    set_ticks()
+    ylabel('Setup time')
+
+    subplot(gs[1,0])
+    for n in omp_amg:
+        I = (amgcl_amg['omp'] == n)
+        h = loglog(n * amgcl_amg[I]['mpi'], amgcl_amg[I]['solve'], 'o-')
+        handles.append(h[0])
+    for n in omp_sdd:
+        I = (amgcl_sdd['omp'] == n)
+        h = loglog(n * amgcl_sdd[I]['mpi'], amgcl_sdd[I]['solve'], 'v-')
+        handles.append(h[0])
+    h = loglog(trilinos['mpi'], trilinos['solve'], 's-')
+    handles.append(h[0])
+    set_ticks()
+    ylabel('Solve time')
+
+    subplot(gs[1,1])
+    for n in omp_amg:
+        I = (amgcl_amg['omp'] == n)
+        h = semilogx(n * amgcl_amg[I]['mpi'], amgcl_amg[I]['iters'], 'o-')
+        handles.append(h[0])
+    for n in omp_sdd:
+        I = (amgcl_sdd['omp'] == n)
+        h = semilogx(n * amgcl_sdd[I]['mpi'], amgcl_sdd[I]['iters'], 'v-')
+        handles.append(h[0])
+    h = semilogx(trilinos['mpi'], trilinos['iters'], 's-')
+    handles.append(h[0])
+    set_ticks()
+    ylabel('Iterations')
+
+    tight_layout()
+
+    figlegend(handles,
+        ['AMGCL/AMG, omp={}'.format(n) for n in omp_amg] +
+        ['AMGCL/SDD, omp={}'.format(n) for n in omp_sdd] +
+        ['Trilinos'],
+        ncol=3, loc='lower center')
+    gcf().suptitle('Strong scaling of the Navier-Stokes problem on the SuperMUC cluster')
+    gcf().subplots_adjust(top=0.93, bottom=0.2)
+
+    show()
 
 The next figure shows scalability results for the Navier-Stokes problem on the
 MareNostrum 4 cluster. Since we are solving a fixed-size problem, this is
