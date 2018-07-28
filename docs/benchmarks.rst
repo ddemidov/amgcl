@@ -1020,7 +1020,7 @@ NSSA parameters were employed in the tests.
         handles.append(h[0])
     for n in omp_sdd:
         I = (amgcl_sdd['omp'] == n)
-        h = loglog(n * amgcl_sdd[I]['mpi'], amgcl_sdd[I]['setup'] + amgcl_sdd[I]['solve'], 'v-')
+        h = loglog(n * amgcl_sdd[I]['mpi'], amgcl_sdd[I]['setup'] + amgcl_sdd[I]['solve'], 'v:')
         handles.append(h[0])
     h = loglog(trilinos['mpi'], trilinos['setup'] + trilinos['solve'], 's-')
     handles.append(h[0])
@@ -1034,7 +1034,7 @@ NSSA parameters were employed in the tests.
         handles.append(h[0])
     for n in omp_sdd:
         I = (amgcl_sdd['omp'] == n)
-        h = loglog(n * amgcl_sdd[I]['mpi'], amgcl_sdd[I]['setup'], 'v-')
+        h = loglog(n * amgcl_sdd[I]['mpi'], amgcl_sdd[I]['setup'], 'v:')
         handles.append(h[0])
     h = loglog(trilinos['mpi'], trilinos['setup'], 's-')
     handles.append(h[0])
@@ -1048,7 +1048,7 @@ NSSA parameters were employed in the tests.
         handles.append(h[0])
     for n in omp_sdd:
         I = (amgcl_sdd['omp'] == n)
-        h = loglog(n * amgcl_sdd[I]['mpi'], amgcl_sdd[I]['solve'], 'v-')
+        h = loglog(n * amgcl_sdd[I]['mpi'], amgcl_sdd[I]['solve'], 'v:')
         handles.append(h[0])
     h = loglog(trilinos['mpi'], trilinos['solve'], 's-')
     handles.append(h[0])
@@ -1062,7 +1062,7 @@ NSSA parameters were employed in the tests.
         handles.append(h[0])
     for n in omp_sdd:
         I = (amgcl_sdd['omp'] == n)
-        h = semilogx(n * amgcl_sdd[I]['mpi'], amgcl_sdd[I]['iters'], 'v-')
+        h = semilogx(n * amgcl_sdd[I]['mpi'], amgcl_sdd[I]['iters'], 'v:')
         handles.append(h[0])
     h = semilogx(trilinos['mpi'], trilinos['iters'], 's-')
     handles.append(h[0])
