@@ -62,7 +62,7 @@ system with two Intel Xeon E5-2640 v3 CPUs. The system also had an NVIDIA Tesla
 K80 GPU installed, which was used for testing the GPU based versions.
 
 3D Poisson problem
-^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~
 
 The Poisson problem is dicretized with the finite difference method on a
 uniform mesh, and the resulting linear system contained 3375000 unknowns and
@@ -177,7 +177,7 @@ performed on the CPU and in case of the CUDA backend has an additional overhead
 of moving the constructed hierarchy into the GPU memory.
 
 3D Navier-Stokes problem
-^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 The system matrix resulting from the problem discretization has block structure
 with blocks of 4-by-4 elements, and contains 713456 unknowns and 41277920
@@ -308,14 +308,19 @@ allowed us to use 512 compute nodes, each equipped with two 14 core Intel
 Haswell Xeon E5-2697 v3 CPUs, and 64 GB of RAM.
 
 3D Poisson problem
-^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~
 
-The AMGCL implementation uses a BiCGStab(2) iterative solver preconditioned
-with subdomain deflation, as it showed the best behaviour in our tests.
-Smoothed aggregation AMG is used as the local preconditioner. The Trilinos
-implementation uses a CG solver preconditioned with smoothed aggregation AMG
-with default 'SA' settings, or domain decomposition method with default 'DD-ML'
-settings.
+The figure below shows weak scaling of the solution on the SuperMUC cluster.
+Here the problem size is chosen to be proportional to the number of CPU cores
+with about :math:`100^3` unknowns per core. Both AMGCL and Trilinos
+implementations use a CG iterative solver preconditioned with smoothed
+aggregation AMG. AMGCL uses SPAI(0) for the smoother, and Trilinos uses ILU(0),
+which are the corresponding defaults for the libraries. The plots in the figure
+show total computation time, time spent on constructing the preconditioner,
+solution time, and the number of iterations.  The AMGCL library results are
+labelled 'OMP=n', where n=1,14,28 corresponds to the number of OpenMP threads
+controlled by each MPI process. The Trilinos library uses single-threaded MPI
+processes. 
 
 .. plot::
 
@@ -393,6 +398,12 @@ settings.
 
     show()
 
+Next figure shows strong scaling results for smoothed aggregation AMG
+preconditioned on the SuperMUC cluster.  The problem size is fixed to
+:math:`256^3` unknowns and ideally the compute time should decrease as we
+increase the number of CPU cores. The case of ideal scaling is depicted for
+reference on the plots with thin gray dotted lines.
+
 .. plot::
 
     import os
@@ -428,6 +439,10 @@ settings.
         handles.append(h[0])
     h = loglog(trilinos['mpi'], trilinos['setup'] + trilinos['solve'], 's-')
     handles.append(h[0])
+    c = trilinos['mpi']
+    t = trilinos['setup'][1] + trilinos['solve'][1]
+    h = loglog(c, t * c[1] / c, 'k:')
+    handles.append(h[0])
     set_ticks()
     ylabel('Total time')
 
@@ -436,6 +451,9 @@ settings.
         I = (amgcl['omp'] == n)
         loglog(n * amgcl[I]['mpi'], amgcl[I]['setup'], 'o-')
     loglog(trilinos['mpi'], trilinos['setup'], 's-')
+    t = trilinos['setup'][1]
+    h = loglog(c, t * c[1] / c, 'k:')
+    handles.append(h[0])
     set_ticks()
     ylabel('Setup time')
 
@@ -444,6 +462,9 @@ settings.
         I = (amgcl['omp'] == n)
         loglog(n * amgcl[I]['mpi'], amgcl[I]['solve'], 'o-')
     loglog(trilinos['mpi'], trilinos['solve'], 's-')
+    t = trilinos['solve'][1]
+    h = loglog(c, t * c[1] / c, 'k:')
+    handles.append(h[0])
     set_ticks()
     ylabel('Solve time')
 
@@ -459,12 +480,19 @@ settings.
     tight_layout()
 
     figlegend(handles,
-        ['AMGCL, omp={}'.format(n) for n in omp] + ['Trilinos'],
-        ncol=2, loc='lower center')
+        ['AMGCL, omp={}'.format(n) for n in omp] + ['Trilinos', 'Ideal'],
+        ncol=3, loc='lower center')
     gcf().suptitle('Strong scaling of the Poisson problem on the SuperMUC cluster')
     gcf().subplots_adjust(top=0.93, bottom=0.15)
 
     show()
+
+The AMGCL implementation uses a BiCGStab(2) iterative solver preconditioned
+with subdomain deflation, as it showed the best behaviour in our tests.
+Smoothed aggregation AMG is used as the local preconditioner. The Trilinos
+implementation uses a CG solver preconditioned with smoothed aggregation AMG
+with default 'SA' settings, or domain decomposition method with default 'DD-ML'
+settings.
 
 The figure below shows weak scaling of the solution on the MareNostrum 4
 cluster. Here the problem size is chosen to be proportional to the number of
@@ -970,7 +998,7 @@ scalability results, where the problem size remains fixed, but is also
 observable in the weak scaling case for 'OMP=1'.
 
 3D Navier-Stokes problem
-^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 The system matrix in these tests contains 4773588 unknowns and 281089456
 nonzeros.  The assembled system is available to download at
@@ -979,6 +1007,11 @@ with the ``mpi::schur_pressure_correction`` preconditioner. Trilinos ML does
 not provide field-split type preconditioners, and uses the nonsymmetric
 smoothed aggregation variant (NSSA) applied to the monolithic problem.  Default
 NSSA parameters were employed in the tests.
+
+The figure below shows scalability results for the Navier-Stokes problem on the
+SuperMUC cluster. In case of AMGCL, the pressure part of the system is
+preconditioned with a smoothed aggregation AMG. Since we are solving a
+fixed-size problem, this is essentially a strong scalability test.
 
 .. plot::
 
