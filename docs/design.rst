@@ -100,3 +100,47 @@ this:
 
 Runtime interface
 -----------------
+
+The compile-time configuration of AMGCL solvers is not always convenient,
+especially if the solvers are used inside a software package or another
+library. The runtime interface allows to shift some of the configuraton
+decisions to runtime. The classes inside :cpp:any:`amgcl::runtime` namespace
+correspond to their compile-time alternatives, but the only template parameter
+you need to specify is the backend.
+
+Since there is no way to know the parameter structure at compile time, the
+runtime classes accept parameters only in form of
+``boost::property_tree::ptree``. The actual components of the method are set
+through the parameter tree as well. For example, the solver above could be
+constructed at runtime in the following way:
+
+.. code-block:: cpp
+
+    #include <amgcl/backend/builtin.hpp>
+    #include <amgcl/make_solver.hpp>
+    #include <amgcl/amg.hpp>
+    #include <amgcl/coarsening/runtime.hpp>
+    #include <amgcl/relaxation/runtime.hpp>
+    #include <amgcl/solver/runtime.hpp>
+
+    typedef amgcl::backend::builtin<double> Backend;
+
+    typedef amgcl::make_solver<
+        amgcl::amg<
+            Backend,
+            amgcl::runtime::coarsening::wrapper,
+            amgcl::runtime::relaxation::wrapper
+            >,
+        amgcl::runtime::solver::wrapper<Backend>
+        > Solver;
+
+    boost::property_tree::ptree prm;
+
+    prm.put("solver.type", "bicgstab");
+    prm.put("solver.tol", 1e-3);
+    prm.put("solver.maxiter", 10);
+    prm.put("precond.coarsening.type", "smoothed_aggregation");
+    prm.put("precond.relaxation.type", "spai0");
+
+    Solver solve( std::tie(n, ptr, col, val), prm );
+
