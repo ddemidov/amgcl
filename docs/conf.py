@@ -60,7 +60,7 @@ exhale_args = {
     # TIP: if using the sphinx-bootstrap-theme, you need
     # "treeViewIsBootstrap": True,
     "exhaleExecutesDoxygen": True,
-    "exhaleDoxygenStdin":    "INPUT = ../amgcl"
+    "exhaleDoxygenStdin":    "INPUT = ../amgcl\nEXCLUDE_SYMBOLS = detail"
 }
 
 # Add any paths that contain templates here, relative to this directory.
