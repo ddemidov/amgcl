@@ -1,1 +1,2 @@
 matplotlib
+git+git://github.com/svenevs/exhale.git#egg=exhale
