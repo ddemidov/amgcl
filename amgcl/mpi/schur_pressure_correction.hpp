@@ -176,8 +176,11 @@ class schur_pressure_correction {
             using std::shared_ptr;
             using std::make_shared;
 
-            build_matrix &K_loc = *K->local();
-            build_matrix &K_rem = *K->remote();
+            auto _K_loc = K->local();
+            auto _K_rem = K->remote();
+
+            build_matrix &K_loc = *_K_loc;
+            build_matrix &K_rem = *_K_rem;
 
             ptrdiff_t n = K->loc_rows();
 
