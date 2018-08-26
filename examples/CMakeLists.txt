@@ -75,6 +75,10 @@ if (VexCL_FOUND)
     vexcl_add_executables(cpr_drs_vexcl cpr_drs.cpp)
     target_link_libraries(cpr_drs_vexcl INTERFACE amgcl_example)
     target_compile_definitions(cpr_drs_vexcl INTERFACE SOLVER_BACKEND_VEXCL)
+
+    vexcl_add_executables(mixed_precision_vexcl mixed_precision.cpp)
+    target_link_libraries(mixed_precision_vexcl INTERFACE amgcl_example)
+    target_compile_definitions(mixed_precision_vexcl INTERFACE SOLVER_BACKEND_VEXCL)
 endif()
 
 if (TARGET viennacl_target)
