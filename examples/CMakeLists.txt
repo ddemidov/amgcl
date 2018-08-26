@@ -31,6 +31,7 @@ add_amgcl_example(schur_pressure_correction schur_pressure_correction.cpp)
 add_amgcl_example(cpr cpr.cpp)
 add_amgcl_example(cpr_drs cpr_drs.cpp)
 add_amgcl_example(custom_adapter custom_adapter.cpp)
+add_amgcl_example(mixed_precision mixed_precision.cpp)
 
 add_amgcl_example(ublas ublas.cpp)
 target_link_libraries(ublas ${Boost_SERIALIZATION_LIBRARY})
