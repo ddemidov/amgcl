@@ -23,3 +23,8 @@ their own backends which enables tight integration between AMGCL and the user
 code.
 
 See AMGCL documentation at http://amgcl.readthedocs.io/
+
+## Support
+
+* GitHub issues page: https://github.com/ddemidov/amgcl/issues
+* Mailing list: https://groups.google.com/forum/#!forum/amgcl
