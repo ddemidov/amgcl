@@ -36,6 +36,7 @@ if (TARGET mpi_target)
     add_mpi_example(test_spmm           test_spmm.cpp)
     add_mpi_example(spmm_scaling        spmm_scaling.cpp)
     add_mpi_example(mpi_amg             mpi_amg.cpp)
+    add_mpi_example(cpr_mpi             cpr_mpi.cpp)
 
     if (TARGET Metis::metis)
         add_executable(partition partition.cpp)
