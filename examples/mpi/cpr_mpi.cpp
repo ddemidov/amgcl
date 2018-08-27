@@ -272,13 +272,13 @@ int main(int argc, char *argv[]) {
             >
         Solver;
 
-    Solver solve(comm, std::tie(n, ptr, col, val), prm);
+    Solver solve(comm, A, prm);
     prof.toc("setup");
 
     if (comm.rank == 0)
         std::cout << solve << std::endl;
 
-    std::vector<double> x(n, 0.0);
+    std::vector<double> x(rhs.size(), 0.0);
 
     prof.tic("solve");
     size_t iters;
