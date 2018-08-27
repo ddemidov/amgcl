@@ -15,7 +15,6 @@
 #include <amgcl/mpi/relaxation/runtime.hpp>
 #include <amgcl/mpi/relaxation/as_preconditioner.hpp>
 #include <amgcl/mpi/direct_solver/runtime.hpp>
-#include <amgcl/mpi/direct_solver/runtime.hpp>
 #include <amgcl/mpi/partition/runtime.hpp>
 #include <amgcl/solver/runtime.hpp>
 #include <amgcl/profiler.hpp>
