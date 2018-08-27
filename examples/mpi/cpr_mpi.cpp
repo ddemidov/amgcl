@@ -13,6 +13,7 @@
 #include <amgcl/mpi/amg.hpp>
 #include <amgcl/mpi/coarsening/runtime.hpp>
 #include <amgcl/mpi/relaxation/runtime.hpp>
+#include <amgcl/mpi/relaxation/as_preconditioner.hpp>
 #include <amgcl/mpi/direct_solver/runtime.hpp>
 #include <amgcl/mpi/direct_solver/runtime.hpp>
 #include <amgcl/mpi/partition/runtime.hpp>
@@ -102,8 +103,6 @@ partition(amgcl::mpi::communicator comm, const Matrix &Astrip,
         std::vector<double> &rhs, const typename Backend::params &bprm,
         amgcl::runtime::mpi::partition::type ptype, int block_size = 1)
 {
-    typedef typename Backend::value_type val_type;
-    typedef typename amgcl::math::rhs_of<val_type>::type rhs_type;
     typedef amgcl::mpi::distributed_matrix<Backend> DMatrix;
 
     using amgcl::prof;
@@ -266,12 +265,8 @@ int main(int argc, char *argv[]) {
                     amgcl::runtime::mpi::direct::solver<double>,
                     amgcl::runtime::mpi::partition::wrapper<Backend>
                     >,
-                amgcl::mpi::amg<
-                    Backend,
-                    amgcl::runtime::mpi::coarsening::wrapper<Backend>,
-                    amgcl::runtime::mpi::relaxation::wrapper<Backend>,
-                    amgcl::runtime::mpi::direct::solver<double>,
-                    amgcl::runtime::mpi::partition::wrapper<Backend>
+                amgcl::mpi::relaxation::as_preconditioner<
+                    amgcl::runtime::mpi::relaxation::wrapper<Backend>
                     >
                 >,
             amgcl::runtime::solver::wrapper
