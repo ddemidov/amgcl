@@ -389,12 +389,12 @@ struct inner_product_impl<
     }
 };
 
-template < typename A, typename B, typename V >
+template < typename A, typename B, typename V1, typename V2 >
 struct axpby_impl<
-    A, vex::vector<V>,
-    B, vex::vector<V>
+    A, vex::vector<V1>,
+    B, vex::vector<V2>
     > {
-    static void apply(A a, const vex::vector<V> &x, B b, vex::vector<V> &y)
+    static void apply(A a, const vex::vector<V1> &x, B b, vex::vector<V2> &y)
     {
         if (b)
             y = a * x + b * y;
@@ -403,17 +403,17 @@ struct axpby_impl<
     }
 };
 
-template < typename A, typename B, typename C, typename V >
+template < typename A, typename B, typename C, typename V1, typename V2, typename V3 >
 struct axpbypcz_impl<
-    A, vex::vector<V>,
-    B, vex::vector<V>,
-    C, vex::vector<V>
+    A, vex::vector<V1>,
+    B, vex::vector<V2>,
+    C, vex::vector<V3>
     >
 {
     static void apply(
-            A a, const vex::vector<V> &x,
-            B b, const vex::vector<V> &y,
-            C c,       vex::vector<V> &z
+            A a, const vex::vector<V1> &x,
+            B b, const vex::vector<V2> &y,
+            C c,       vex::vector<V3> &z
             )
     {
         if (c)
