@@ -140,7 +140,7 @@ constructed at runtime in the following way:
     prm.put("solver.tol", 1e-3);
     prm.put("solver.maxiter", 10);
     prm.put("precond.coarsening.type", "smoothed_aggregation");
-    prm.put("precond.relaxation.type", "spai0");
+    prm.put("precond.relax.type", "spai0");
 
     Solver solve( std::tie(n, ptr, col, val), prm );
 
