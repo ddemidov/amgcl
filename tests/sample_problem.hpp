@@ -5,10 +5,73 @@
 #include <type_traits>
 #include <cstddef>
 #include <amgcl/value_type/interface.hpp>
+#include <amgcl/util.hpp>
 
-// Generates matrix for poisson problem in a unit cube.
+// Generates matrix for a Poisson problem in a unit square.
 template <typename ValueType, typename IndexType, typename RhsType>
-int sample_problem(
+int sample_problem_2d(
+        ptrdiff_t               n,
+        std::vector<ValueType>  &val,
+        std::vector<IndexType>  &col,
+        std::vector<IndexType>  &ptr,
+        std::vector<RhsType>    &rhs,
+        double anisotropy = 1.0
+        )
+{
+    ptrdiff_t n2  = n * n;
+
+    ptr.clear();
+    col.clear();
+    val.clear();
+    rhs.clear();
+
+    ptr.reserve(n2 + 1);
+    col.reserve(n2 * 5);
+    val.reserve(n2 * 5);
+    rhs.reserve(n2);
+
+    ValueType one = amgcl::math::identity<ValueType>();
+
+    double hx = 1;
+    double hy = hx * anisotropy;
+
+    ptr.push_back(0);
+    for(ptrdiff_t j = 0, idx = 0; j < n; ++j) {
+        for (ptrdiff_t i = 0; i < n; ++i, ++idx) {
+            if (j > 0) {
+                col.push_back(idx - n);
+                val.push_back(-1.0/(hy * hy) * one);
+            }
+
+            if (i > 0) {
+                col.push_back(idx - 1);
+                val.push_back(-1.0/(hx * hx) * one);
+            }
+
+            col.push_back(idx);
+            val.push_back((2 / (hx * hx) + 2 / (hy * hy)) * one);
+
+            if (i + 1 < n) {
+                col.push_back(idx + 1);
+                val.push_back(-1.0/(hx * hx) * one);
+            }
+
+            if (j + 1 < n) {
+                col.push_back(idx + n);
+                val.push_back(-1.0/(hy * hy) * one);
+            }
+
+            rhs.push_back( amgcl::math::constant<RhsType>(1.0) );
+            ptr.push_back( static_cast<IndexType>(col.size()) );
+        }
+    }
+
+    return n2;
+}
+
+// Generates matrix for a Poisson problem in a unit cube.
+template <typename ValueType, typename IndexType, typename RhsType>
+int sample_problem_3d(
         ptrdiff_t               n,
         std::vector<ValueType>  &val,
         std::vector<IndexType>  &col,
@@ -81,4 +144,25 @@ int sample_problem(
     return n3;
 }
 
+// Generates matrix for a Poisson problem
+template <typename ValueType, typename IndexType, typename RhsType>
+int sample_problem(
+        ptrdiff_t               n,
+        std::vector<ValueType>  &val,
+        std::vector<IndexType>  &col,
+        std::vector<IndexType>  &ptr,
+        std::vector<RhsType>    &rhs,
+        double anisotropy = 1.0,
+        int dim = 3
+        )
+{
+    if (dim == 3)
+        return sample_problem_3d(n, val, col, ptr, rhs, anisotropy);
+
+    if (dim == 2)
+        return sample_problem_2d(n, val, col, ptr, rhs, anisotropy);
+
+    amgcl::precondition(false, "Unsupported problem dimensionality");
+    return 0;
+}
 #endif

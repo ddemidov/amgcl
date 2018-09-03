@@ -425,6 +425,11 @@ int main(int argc, char *argv[]) {
          "The resulting system will have n*n*n unknowns. "
         )
         (
+         "dim,d",
+         po::value<int>()->default_value(3),
+         "The dimansionlity of the Poisson problem (3 or 2). "
+        )
+        (
          "anisotropy,a",
          po::value<double>()->default_value(1.0),
          "The anisotropy value for the generated Poisson value. "
@@ -528,7 +533,8 @@ int main(int argc, char *argv[]) {
         }
     } else {
         auto t = prof.scoped_tic("assembling");
-        rows = sample_problem(vm["size"].as<int>(), val, col, ptr, rhs, vm["anisotropy"].as<double>());
+        rows = sample_problem(vm["size"].as<int>(), val, col, ptr, rhs,
+                vm["anisotropy"].as<double>(), vm["dim"].as<int>());
     }
 
     x.resize(rows, vm["initial"].as<double>());

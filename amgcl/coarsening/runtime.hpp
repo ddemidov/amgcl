@@ -44,6 +44,7 @@ THE SOFTWARE.
 #include <amgcl/util.hpp>
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/coarsening/ruge_stuben.hpp>
+#include <amgcl/coarsening/eamg.hpp>
 #include <amgcl/coarsening/aggregation.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
 #include <amgcl/coarsening/smoothed_aggr_emin.hpp>
@@ -56,6 +57,7 @@ namespace coarsening {
 
 enum type {
     ruge_stuben,            ///< Ruge-Stueben coarsening
+    eamg,                   ///< EAMG
     aggregation,            ///< Aggregation
     smoothed_aggregation,   ///< Smoothed aggregation
     smoothed_aggr_emin      ///< Smoothed aggregation with energy minimization
@@ -65,6 +67,8 @@ inline std::ostream& operator<<(std::ostream &os, type c) {
     switch (c) {
         case ruge_stuben:
             return os << "ruge_stuben";
+        case eamg:
+            return os << "eamg";
         case aggregation:
             return os << "aggregation";
         case smoothed_aggregation:
@@ -83,6 +87,8 @@ inline std::istream& operator>>(std::istream &in, type &c)
 
     if (val == "ruge_stuben")
         c = ruge_stuben;
+    else if (val == "eamg")
+        c = eamg;
     else if (val == "aggregation")
         c = aggregation;
     else if (val == "smoothed_aggregation")
@@ -116,6 +122,7 @@ struct wrapper {
                 break
 
             AMGCL_RUNTIME_COARSENING(ruge_stuben);
+            AMGCL_RUNTIME_COARSENING(eamg);
             AMGCL_RUNTIME_COARSENING(aggregation);
             AMGCL_RUNTIME_COARSENING(smoothed_aggregation);
             AMGCL_RUNTIME_COARSENING(smoothed_aggr_emin);
@@ -136,6 +143,7 @@ struct wrapper {
                 break
 
             AMGCL_RUNTIME_COARSENING(ruge_stuben);
+            AMGCL_RUNTIME_COARSENING(eamg);
             AMGCL_RUNTIME_COARSENING(aggregation);
             AMGCL_RUNTIME_COARSENING(smoothed_aggregation);
             AMGCL_RUNTIME_COARSENING(smoothed_aggr_emin);
@@ -157,6 +165,7 @@ struct wrapper {
                 return make_operators<amgcl::coarsening::type>(A)
 
             AMGCL_RUNTIME_COARSENING(ruge_stuben);
+            AMGCL_RUNTIME_COARSENING(eamg);
             AMGCL_RUNTIME_COARSENING(aggregation);
             AMGCL_RUNTIME_COARSENING(smoothed_aggregation);
             AMGCL_RUNTIME_COARSENING(smoothed_aggr_emin);
@@ -178,6 +187,7 @@ struct wrapper {
                 return make_coarse<amgcl::coarsening::type>(A, P, R)
 
             AMGCL_RUNTIME_COARSENING(ruge_stuben);
+            AMGCL_RUNTIME_COARSENING(eamg);
             AMGCL_RUNTIME_COARSENING(aggregation);
             AMGCL_RUNTIME_COARSENING(smoothed_aggregation);
             AMGCL_RUNTIME_COARSENING(smoothed_aggr_emin);
