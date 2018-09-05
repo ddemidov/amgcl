@@ -421,7 +421,7 @@ class schur_pressure_correction {
                     (*m)[i] = v;
                 }
 
-                M = Backend::copy_vector(m, bprm);
+                M = backend_type::copy_vector(m, bprm);
                 AMGCL_TOC("approx_schur");
             }
             AMGCL_TOC("other");
