@@ -62,7 +62,7 @@ using amgcl::precondition;
 
 #ifdef SOLVER_BACKEND_BUILTIN
 //---------------------------------------------------------------------------
-template <int B, template <class> class Precond>
+template <int B>
 std::tuple<size_t, double> block_solve(
         const boost::property_tree::ptree &prm,
         size_t rows,
@@ -79,7 +79,7 @@ std::tuple<size_t, double> block_solve(
     typedef amgcl::backend::builtin<value_type> BBackend;
 
     typedef amgcl::make_solver<
-        Precond<BBackend>,
+        amgcl::runtime::preconditioner<BBackend>,
         amgcl::runtime::solver::wrapper<BBackend>
         > Solver;
 
@@ -137,7 +137,7 @@ std::tuple<size_t, double> block_solve(
 
 #ifdef SOLVER_BACKEND_VEXCL
 //---------------------------------------------------------------------------
-template <int B, template <class> class Precond>
+template <int B>
 std::tuple<size_t, double> block_solve(
         const boost::property_tree::ptree &prm,
         size_t rows,
@@ -154,7 +154,7 @@ std::tuple<size_t, double> block_solve(
     typedef amgcl::backend::vexcl<value_type> BBackend;
 
     typedef amgcl::make_solver<
-        Precond<BBackend>,
+        amgcl::runtime::preconditioner<BBackend>,
         amgcl::runtime::solver::wrapper<BBackend>
         > Solver;
 
@@ -225,7 +225,6 @@ std::tuple<size_t, double> block_solve(
 #endif
 
 //---------------------------------------------------------------------------
-template <template <class> class Precond>
 std::tuple<size_t, double> scalar_solve(
         const boost::property_tree::ptree &prm,
         size_t rows,
@@ -260,7 +259,7 @@ std::tuple<size_t, double> scalar_solve(
 #endif
 
     typedef amgcl::make_solver<
-        Precond<Backend>,
+        amgcl::runtime::preconditioner<Backend>,
         amgcl::runtime::solver::wrapper<Backend>
         > Solver;
 
@@ -330,10 +329,9 @@ std::tuple<size_t, double> scalar_solve(
 
 #define AMGCL_CALL_BLOCK_SOLVER(z, data, B)                                    \
   case B:                                                                      \
-    return block_solve<B, Precond>(prm, rows, ptr, col, val, rhs, x, reorder);
+    return block_solve<B>(prm, rows, ptr, col, val, rhs, x, reorder);
 
 //---------------------------------------------------------------------------
-template <template <class> class Precond>
 std::tuple<size_t, double> solve(
         const boost::property_tree::ptree &prm,
         size_t rows,
@@ -348,7 +346,7 @@ std::tuple<size_t, double> solve(
 {
     switch (block_size) {
         case 1:
-            return scalar_solve<Precond>(prm, rows, ptr, col, val, rhs, x, reorder);
+            return scalar_solve(prm, rows, ptr, col, val, rhs, x, reorder);
 #if defined(SOLVER_BACKEND_BUILTIN) || defined(SOLVER_BACKEND_VEXCL)
         BOOST_PP_SEQ_FOR_EACH(AMGCL_CALL_BLOCK_SOLVER, ~, AMGCL_BLOCK_SIZES)
 #endif
@@ -541,7 +539,7 @@ int main(int argc, char *argv[]) {
     if (vm["single-level"].as<bool>())
         prm.put("precond.class", "relaxation");
 
-    std::tie(iters, error) = solve<amgcl::runtime::preconditioner>(
+    std::tie(iters, error) = solve(
             prm, rows, ptr, col, val, rhs, x,
             block_size, vm["reorder"].as<bool>());
 
