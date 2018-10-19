@@ -125,9 +125,6 @@ class lgmres {
              */
             bool always_reset;
 
-            /// Whether LGMRES should store also A*v in addition to vectors `v`.
-            bool store_Av;
-
             /// Preconditioning kind (left/right).
             preconditioner::side::type pside;
 
@@ -141,7 +138,7 @@ class lgmres {
             scalar_type abstol;
 
             params()
-                : M(30), K(3), always_reset(true), store_Av(true),
+                : M(30), K(3), always_reset(true),
                   pside(preconditioner::side::right), maxiter(100), tol(1e-8),
                   abstol(std::numeric_limits<scalar_type>::min())
             { }
@@ -151,20 +148,18 @@ class lgmres {
                 : AMGCL_PARAMS_IMPORT_VALUE(p, M),
                   AMGCL_PARAMS_IMPORT_VALUE(p, K),
                   AMGCL_PARAMS_IMPORT_VALUE(p, always_reset),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, store_Av),
                   AMGCL_PARAMS_IMPORT_VALUE(p, pside),
                   AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
                   AMGCL_PARAMS_IMPORT_VALUE(p, tol),
                   AMGCL_PARAMS_IMPORT_VALUE(p, abstol)
             {
-                check_params(p, {"pside", "M", "K", "always_reset", "store_Av", "maxiter", "tol", "abstol"});
+                check_params(p, {"pside", "M", "K", "always_reset", "maxiter", "tol", "abstol"});
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, M);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, K);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, always_reset);
-                AMGCL_PARAMS_EXPORT_VALUE(p, path, store_Av);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, pside);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, maxiter);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, tol);
@@ -185,19 +180,12 @@ class lgmres {
               H0(prm.M + 1, prm.M),
               s(prm.M + 1), cs(prm.M + 1), sn(prm.M + 1),
               r( Backend::create_vector(n, bprm) ),
-              ws(prm.M + prm.K), outer_v(prm.K), outer_Av(prm.K),
+              ws(prm.M + prm.K), outer_v(prm.K),
               inner_product(inner_product)
         {
             outer_v_data.reserve(prm.K);
             for(unsigned i = 0; i < prm.K; ++i)
                 outer_v_data.push_back(Backend::create_vector(n, bprm));
-
-            if (prm.store_Av) {
-                y.resize(prm.M + prm.K + 1);
-                outer_Av_data.reserve(prm.K);
-                for(unsigned i = 0; i < prm.K; ++i)
-                    outer_Av_data.push_back(Backend::create_vector(n, bprm));
-            }
 
             vs.reserve(prm.M + prm.K + 1);
             for(unsigned i = 0; i <= prm.M + prm.K; ++i)
@@ -231,7 +219,6 @@ class lgmres {
 
             if (prm.always_reset) {
                 outer_v.clear();
-                outer_Av.clear();
             }
 
             scalar_type norm_rhs = norm(rhs);
@@ -307,11 +294,7 @@ class lgmres {
 
                     ws[j] = z;
 
-                    if (j < outer_Av.size()) {
-                        backend::copy(*outer_Av[j], v_new);
-                    } else {
-                        preconditioner::spmv(prm.pside, P, A, *z, v_new, *r);
-                    }
+                    preconditioner::spmv(prm.pside, P, A, *z, v_new, *r);
 
                     for(unsigned k = 0; k <= j; ++k) {
                         H0(k, j) = H(k, j) = inner_product(v_new, *vs[k]);
@@ -365,19 +348,6 @@ class lgmres {
                     norm_dx = math::inverse(norm_dx);
                     backend::axpby(norm_dx, dx, zero, *outer_v_data[outer_slot]);
                     outer_v.push_back(outer_v_data[outer_slot]);
-
-                    if (prm.store_Av) {
-                        // y = H0 * s, AW = Vy
-                        for(unsigned k = 0; k <= j; ++k) {
-                            coef_type sum = math::zero<coef_type>();
-                            for(unsigned i = k ? k-1 : 0; i < j; ++i)
-                                sum += H0(k, i) * s[i];
-                            y[k] = sum * norm_dx;
-                        }
-
-                        backend::lin_comb(j+1, y, vs, zero, *outer_Av_data[outer_slot]);
-                        outer_Av.push_back(outer_Av_data[outer_slot]);
-                    }
                 }
             }
 
@@ -410,14 +380,12 @@ class lgmres {
             b += backend::bytes(s);
             b += backend::bytes(cs);
             b += backend::bytes(sn);
-            b += backend::bytes(y);
 
             b += backend::bytes(*r);
 
             for(const auto &v : vs) b += backend::bytes(*v);
 
             for(const auto &v : outer_v_data)  b += backend::bytes(*v);
-            for(const auto &v : outer_Av_data) b += backend::bytes(*v);
 
             return b;
         }
@@ -433,12 +401,11 @@ class lgmres {
         size_t n;
 
         mutable multi_array<coef_type, 2> H, H0;
-        mutable std::vector<coef_type> s, cs, sn, y;
+        mutable std::vector<coef_type> s, cs, sn;
         std::shared_ptr<vector> r;
         mutable std::vector< std::shared_ptr<vector> > vs, ws;
-        mutable std::vector< std::shared_ptr<vector> > outer_v_data, outer_Av_data;
+        mutable std::vector< std::shared_ptr<vector> > outer_v_data;
         mutable circular_buffer< std::shared_ptr<vector> > outer_v;
-        mutable circular_buffer< std::shared_ptr<vector> > outer_Av;
 
 
         InnerProduct inner_product;
