@@ -284,10 +284,8 @@ class lgmres {
                     vector &v_new = *vs[j+1];
 
                     std::shared_ptr<vector> z;
-                    if (j < outer_v.size()) {
-                        z = outer_v[j];
-                    } else if (j == outer_v.size()) {
-                        z = vs[0];
+                    if (j >= M - outer_v.size()) {
+                        z = outer_v[j - (M - outer_v.size())];
                     } else {
                         z = vs[j];
                     }
