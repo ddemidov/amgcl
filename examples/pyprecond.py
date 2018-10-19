@@ -1,11 +1,33 @@
 #!/usr/bin/env python
 import sys, argparse
-
 import numpy   as np
 import pyamgcl as amg
+from time import time
 from scipy.io import mmread, mmwrite
 from scipy.sparse.linalg import lgmres
 from make_poisson import *
+
+class timeit:
+    profile = {}
+    def __init__(self, desc):
+        self.desc = desc
+        self.tic  = time()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        toc = time()
+        timeit.profile[self.desc] = timeit.profile.get(self.desc, 0.0) + (toc - self.tic)
+
+    @staticmethod
+    def report():
+        print('\n---------------------------------')
+        total = sum(timeit.profile.values())
+        for k,v in sorted(timeit.profile.items()):
+            print('{0:>22}: {1:>8.3f}s ({2:>5.2f}%)'.format(k, v, 100 * v / total))
+        print('---------------------------------')
+        print('{0:>22}: {1:>8.3f}s'.format('Total', total))
 
 #----------------------------------------------------------------------------
 parser = argparse.ArgumentParser(sys.argv[0])
@@ -20,16 +42,19 @@ args = parser.parse_args(sys.argv[1:])
 
 #----------------------------------------------------------------------------
 if args.A:
-    A = mmread(args.A)
-    f = mmread(args.f).flatten() if args.f else np.ones(A.shape[0])
+    with timeit('Read problem'):
+        A = mmread(args.A)
+        f = mmread(args.f).flatten() if args.f else np.ones(A.shape[0])
 else:
-    A,f = make_poisson_3d(args.n)
+    with timeit('Generate problem'):
+        A,f = make_poisson_3d(args.n)
 
 # Parse parameters
 prm = {p[0]: p[1] for p in map(lambda s: s.split('='), args.p)}
 
 # Create preconditioner
-P = amg.amgcl(A, prm)
+with timeit('Setup solver'):
+    P = amg.amgcl(A, prm)
 print(P)
 
 iters = [0]
@@ -37,9 +62,14 @@ def count_iters(x):
     iters[0] += 1
 
 # Solve the system for the RHS
-x,info = lgmres(A, f, M=P, maxiter=100, tol=1e-8, callback=count_iters)
+with timeit('Solve the problem'):
+    x,info = lgmres(A, f, M=P, maxiter=100, tol=1e-8, atol=1e-8, callback=count_iters)
 
 print('{0}: {1:.6e}'.format(iters[0], np.linalg.norm(f - A * x) / np.linalg.norm(f)))
 
 # Save the solution
-if args.x: mmwrite(args.x, x.reshape((-1,1)))
+if args.x:
+    with timeit('Save the result'):
+        mmwrite(args.x, x.reshape((-1,1)))
+
+timeit.report()
