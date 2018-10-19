@@ -175,20 +175,20 @@ class lgmres {
                 const backend_params &bprm = backend_params(),
                 const InnerProduct &inner_product = InnerProduct()
              )
-            : prm(prm), n(n),
-              H(prm.M + 1, prm.M),
-              H0(prm.M + 1, prm.M),
-              s(prm.M + 1), cs(prm.M + 1), sn(prm.M + 1),
+            : prm(prm), n(n), M(prm.M + prm.K),
+              H(M + 1, M),
+              H0(M + 1, M),
+              s(M + 1), cs(M + 1), sn(M + 1),
               r( Backend::create_vector(n, bprm) ),
-              ws(prm.M + prm.K), outer_v(prm.K),
+              ws(M), outer_v(prm.K),
               inner_product(inner_product)
         {
             outer_v_data.reserve(prm.K);
             for(unsigned i = 0; i < prm.K; ++i)
                 outer_v_data.push_back(Backend::create_vector(n, bprm));
 
-            vs.reserve(prm.M + prm.K + 1);
-            for(unsigned i = 0; i <= prm.M + prm.K; ++i)
+            vs.reserve(M + 1);
+            for(unsigned i = 0; i <= M; ++i)
                 vs.push_back(Backend::create_vector(n, bprm));
         }
 
@@ -315,7 +315,7 @@ class lgmres {
 
                     // Check for termination
                     ++j, ++iter;
-                    if (iter >= prm.maxiter || j >= prm.M || inner_res <= eps)
+                    if (iter >= prm.maxiter || j >= M || inner_res <= eps)
                         break;
                 }
 
@@ -398,7 +398,7 @@ class lgmres {
                 << std::endl;
         }
     private:
-        size_t n;
+        size_t n, M;
 
         mutable multi_array<coef_type, 2> H, H0;
         mutable std::vector<coef_type> s, cs, sn;
