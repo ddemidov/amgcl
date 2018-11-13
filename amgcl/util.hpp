@@ -312,7 +312,7 @@ inline std::string human_readable_memory(size_t bytes) {
 
     int i = 0;
     double m = bytes;
-    for(; i < 4 && m >= 1024; ++i, m /= 1024);
+    for(; i < 4 && m >= 1024.0; ++i, m /= 1024.0);
 
     std::ostringstream s;
     s << std::fixed << std::setprecision(2) << m << " " << suffix[i];
