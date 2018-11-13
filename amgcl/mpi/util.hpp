@@ -97,14 +97,17 @@ struct datatype_impl<unsigned long long> {
 };
 
 template <>
-struct datatype_impl<ptrdiff_t>
-    : std::conditional<
+struct datatype_impl<ptrdiff_t,
+    typename std::enable_if<!std::is_same<ptrdiff_t, long long>::value && !std::is_same<ptrdiff_t, int>::value>::type
+    > : std::conditional<
         sizeof(ptrdiff_t) == sizeof(int), datatype_impl<int>, datatype_impl<long long>
         >::type
 {};
 
 template <>
-struct datatype_impl<size_t>
+struct datatype_impl<size_t,
+    typename std::enable_if<!std::is_same<size_t, unsigned long long>::value && !std::is_same<ptrdiff_t, unsigned int>::value>::type
+    >
     : std::conditional<
         sizeof(size_t) == sizeof(unsigned), datatype_impl<unsigned>, datatype_impl<unsigned long long>
         >::type
