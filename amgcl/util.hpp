@@ -311,7 +311,7 @@ inline std::string human_readable_memory(size_t bytes) {
     static const char *suffix[] = {"B", "K", "M", "G", "T"};
 
     int i = 0;
-    double m = bytes;
+    double m = static_cast<double>(bytes);
     for(; i < 4 && m >= 1024.0; ++i, m /= 1024.0);
 
     std::ostringstream s;
