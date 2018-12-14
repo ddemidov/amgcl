@@ -32,8 +32,6 @@ THE SOFTWARE.
  */
 
 #include <iostream>
-
-#include <boost/property_tree/ptree.hpp>
 #include <memory>
 
 #include <mpi.h>
@@ -66,15 +64,15 @@ class make_solver {
 
             params() {}
 
-#ifndef AMGCL_NO_BOOST
-            params(const boost::property_tree::ptree &p)
+#ifndef AMGCL_NO_RUNTIME
+            params(const runtime_params &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, precond),
                   AMGCL_PARAMS_IMPORT_CHILD(p, solver)
             {
                 check_params(p, {"precond", "solver"});
             }
 
-            void get(boost::property_tree::ptree &p, const std::string &path = "") const
+            void get(runtime_params &p, const std::string &path = "") const
             {
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, precond);
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, solver);
@@ -148,8 +146,8 @@ class make_solver {
             return P.system_matrix();
         }
 
-#ifndef AMGCL_NO_BOOST
-        void get_params(boost::property_tree::ptree &p) const {
+#ifndef AMGCL_NO_RUNTIME
+        void get_params(runtime_params &p) const {
             prm.get(p);
         }
 #endif

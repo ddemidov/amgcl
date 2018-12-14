@@ -2,8 +2,6 @@
 #include <string>
 
 #include <boost/program_options.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
 
 #include <amgcl/make_solver.hpp>
 #include <amgcl/amg.hpp>
@@ -23,7 +21,7 @@ using amgcl::precondition;
 
 //---------------------------------------------------------------------------
 template <class Matrix>
-void solve_cpr(const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
+void solve_cpr(const Matrix &K, const std::vector<double> &rhs, amgcl::runtime_params &prm)
 {
     auto t1 = prof.scoped_tic("CPR");
 
@@ -116,7 +114,7 @@ int main(int argc, char *argv[]) {
 
     po::notify(vm);
 
-    boost::property_tree::ptree prm;
+    amgcl::runtime_params prm;
     if (vm.count("params")) read_json(vm["params"].as<string>(), prm);
 
     if (vm.count("prm")) {

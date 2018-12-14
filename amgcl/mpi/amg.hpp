@@ -113,8 +113,8 @@ class amg {
                 npre(1), npost(1), ncycle(1), pre_cycles(1)
             {}
 
-#ifndef AMGCL_NO_BOOST
-            params(const boost::property_tree::ptree &p)
+#ifndef AMGCL_NO_RUNTIME
+            params(const runtime_params &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, coarsening),
                   AMGCL_PARAMS_IMPORT_CHILD(p, relax),
                   AMGCL_PARAMS_IMPORT_CHILD(p, direct),
@@ -133,7 +133,7 @@ class amg {
             }
 
             void get(
-                    boost::property_tree::ptree &p,
+                    runtime_params &p,
                     const std::string &path = ""
                     ) const
             {

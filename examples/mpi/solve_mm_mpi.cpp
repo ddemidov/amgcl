@@ -13,8 +13,6 @@
 #include <boost/scope_exit.hpp>
 
 #include <boost/program_options.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
 
 #include <amgcl/amg.hpp>
 #include <amgcl/solver/runtime.hpp>
@@ -281,7 +279,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    boost::property_tree::ptree prm;
+    amgcl::runtime_params prm;
     if (vm.count("params")) read_json(parameter_file, prm);
 
     prm.put("local.coarsening.type", coarsening);

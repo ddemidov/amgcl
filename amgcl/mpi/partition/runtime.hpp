@@ -33,11 +33,9 @@ THE SOFTWARE.
 
 #include <memory>
 
-#ifdef AMGCL_NO_BOOST
-#  error Runtime interface relies on Boost.PropertyTree!
+#ifdef AMGCL_NO_RUNTIME
+#  error Runtime interface is disabled with AMGCL_NO_RUNTIME macro!
 #endif
-
-#include <boost/property_tree/ptree.hpp>
 
 #include <amgcl/util.hpp>
 #include <amgcl/mpi/partition/merge.hpp>
@@ -113,7 +111,7 @@ std::istream& operator>>(std::istream &in, type &s)
 template <class Backend>
 struct wrapper {
     typedef amgcl::mpi::distributed_matrix<Backend> matrix;
-    typedef boost::property_tree::ptree params;
+    typedef runtime_params params;
 
     type t;
     void *handle;

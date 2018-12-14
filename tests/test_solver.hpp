@@ -30,7 +30,7 @@ void test_solver(
         amgcl::runtime::coarsening::type coarsening
         )
 {
-    boost::property_tree::ptree prm;
+    amgcl::runtime_params prm;
     prm.put("precond.coarse_enough",   500);
     prm.put("precond.coarsening.type", coarsening);
     prm.put("precond.relax.type",      relaxation);
@@ -67,7 +67,7 @@ void test_rap(
         amgcl::runtime::relaxation::type relaxation
         )
 {
-    boost::property_tree::ptree prm;
+    amgcl::runtime_params prm;
     prm.put("precond.type", relaxation);
     prm.put("solver.type",  solver);
 

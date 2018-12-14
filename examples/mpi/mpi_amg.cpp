@@ -4,8 +4,6 @@
 
 #include <boost/scope_exit.hpp>
 #include <boost/program_options.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
 #include <boost/preprocessor/seq/for_each.hpp>
 
 #include <amgcl/backend/builtin.hpp>
@@ -208,7 +206,7 @@ partition(amgcl::mpi::communicator comm, const Matrix &Astrip,
         return A;
 
     prof.tic("partition");
-    boost::property_tree::ptree prm;
+    amgcl::runtime_params prm;
     prm.put("type", ptype);
     prm.put("shrink_ratio", 1);
     amgcl::runtime::mpi::partition::wrapper<Backend> part(prm);
@@ -243,7 +241,7 @@ void solve_block(
         const std::vector<ptrdiff_t>      &ptr,
         const std::vector<ptrdiff_t>      &col,
         const std::vector<double>         &val,
-        const boost::property_tree::ptree &prm,
+        const amgcl::runtime_params &prm,
         const std::vector<double>         &f,
         amgcl::runtime::mpi::partition::type ptype
         )
@@ -333,7 +331,7 @@ void solve_scalar(
         const std::vector<ptrdiff_t> &ptr,
         const std::vector<ptrdiff_t> &col,
         const std::vector<double> &val,
-        const boost::property_tree::ptree &prm,
+        const amgcl::runtime_params &prm,
         const std::vector<double> &f,
         amgcl::runtime::mpi::partition::type ptype
         )
@@ -501,7 +499,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    boost::property_tree::ptree prm;
+    amgcl::runtime_params prm;
     if (vm.count("prm-file")) {
         read_json(vm["prm-file"].as<std::string>(), prm);
     }

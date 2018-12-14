@@ -117,8 +117,8 @@ struct vexcl {
 
         params() : fast_matrix_setup(true) {}
 
-#ifndef AMGCL_NO_BOOST
-        params(const boost::property_tree::ptree &p)
+#ifndef AMGCL_NO_RUNTIME
+        params(const runtime_params &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, fast_matrix_setup)
         {
             std::vector<vex::backend::command_queue> *ptr = 0;
@@ -127,7 +127,7 @@ struct vexcl {
             check_params(p, {"q", "fast_matrix_setup"});
         }
 
-        void get(boost::property_tree::ptree &p, const std::string &path) const {
+        void get(runtime_params &p, const std::string &path) const {
             p.put(path + "q", &q);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, fast_matrix_setup);
         }

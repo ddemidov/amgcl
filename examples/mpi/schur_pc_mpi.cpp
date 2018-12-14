@@ -10,8 +10,6 @@
 #endif
 
 #include <boost/program_options.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
 #include <boost/range/iterator_range.hpp>
 #include <boost/scope_exit.hpp>
 
@@ -225,7 +223,7 @@ int main(int argc, char *argv[]) {
 
     po::notify(vm);
 
-    boost::property_tree::ptree prm;
+    amgcl::runtime_params prm;
     if (vm.count("params")) read_json(vm["params"].as<string>(), prm);
 
     if (vm.count("prm")) {

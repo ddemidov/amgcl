@@ -79,8 +79,8 @@ struct ilut {
 
         params() : p(2), tau(1e-2f), damping(1) {}
 
-#ifndef AMGCL_NO_BOOST
-        params(const boost::property_tree::ptree &p)
+#ifndef AMGCL_NO_RUNTIME
+        params(const runtime_params &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, p)
             , AMGCL_PARAMS_IMPORT_VALUE(p, tau)
             , AMGCL_PARAMS_IMPORT_VALUE(p, damping)
@@ -89,7 +89,7 @@ struct ilut {
             check_params(p, {"p", "tau", "damping", "solve"});
         }
 
-        void get(boost::property_tree::ptree &p, const std::string &path) const {
+        void get(runtime_params &p, const std::string &path) const {
             AMGCL_PARAMS_EXPORT_VALUE(p, path, p);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, tau);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, damping);

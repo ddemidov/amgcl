@@ -42,9 +42,14 @@ THE SOFTWARE.
 
 // If asked explicitly, or if boost is available, enable
 // using boost::propert_tree::ptree as amgcl parameters:
-#ifndef AMGCL_NO_BOOST
+#ifndef AMGCL_NO_RUNTIME
 #  include <boost/property_tree/ptree.hpp>
+#  include <boost/property_tree/json_parser.hpp>
 #endif
+
+namespace amgcl {
+    typedef boost::property_tree::ptree runtime_params;
+}
 
 /* Performance measurement macros
  *
@@ -91,7 +96,7 @@ void precondition(const Condition &condition, const Message &message) {
 #endif
 }
 
-#ifndef AMGCL_NO_BOOST
+#ifndef AMGCL_NO_RUNTIME
 
 #define AMGCL_PARAMS_IMPORT_VALUE(p, name)                                     \
     name( p.get(#name, params().name) )
@@ -117,7 +122,7 @@ void precondition(const Condition &condition, const Message &message) {
 #endif
 
 inline void check_params(
-        const boost::property_tree::ptree &p,
+        const runtime_params &p,
         const std::set<std::string> &names
         )
 {
@@ -134,7 +139,7 @@ inline void check_params(
 }
 
 inline void check_params(
-        const boost::property_tree::ptree &p,
+        const runtime_params &p,
         const std::set<std::string> &names,
         const std::set<std::string> &opt_names
         )
@@ -156,8 +161,8 @@ inline void check_params(
     }
 }
 
-// Put parameter in form "key=value" into a boost::property_tree::ptree
-inline void put(boost::property_tree::ptree &p, const std::string &param) {
+// Put parameter in form "key=value" into a runtime_params
+inline void put(runtime_params &p, const std::string &param) {
     size_t eq_pos = param.find('=');
     if (eq_pos == std::string::npos)
         throw std::invalid_argument("param in amgcl::put() should have \"key=value\" format!");
@@ -168,9 +173,9 @@ inline void put(boost::property_tree::ptree &p, const std::string &param) {
 
 namespace detail {
 
-#ifndef AMGCL_NO_BOOST
-inline const boost::property_tree::ptree& empty_ptree() {
-    static const boost::property_tree::ptree p;
+#ifndef AMGCL_NO_RUNTIME
+inline const runtime_params& empty_ptree() {
+    static const runtime_params p;
     return p;
 }
 #endif
@@ -178,13 +183,13 @@ inline const boost::property_tree::ptree& empty_ptree() {
 struct empty_params {
     empty_params() {}
 
-#ifndef AMGCL_NO_BOOST
-    empty_params(const boost::property_tree::ptree &p) {
+#ifndef AMGCL_NO_RUNTIME
+    empty_params(const runtime_params &p) {
         for(const auto &v : p) {
             AMGCL_PARAM_UNKNOWN(v.first);
         }
     }
-    void get(boost::property_tree::ptree&, const std::string&) const {}
+    void get(runtime_params&, const std::string&) const {}
 #endif
 };
 
@@ -324,7 +329,7 @@ inline std::string human_readable_memory(size_t bytes) {
 namespace std {
 
 // Read pointers from input streams.
-// This allows to exchange pointers through boost::property_tree::ptree.
+// This allows to exchange pointers through runtime_params.
 template <class T>
 inline istream& operator>>(istream &is, T* &ptr) {
     std::ios_base::fmtflags ff(is.flags());

@@ -33,11 +33,9 @@ THE SOFTWARE.
 
 #include <memory>
 
-#ifdef AMGCL_NO_BOOST
-#  error Runtime interface relies on Boost.PropertyTree!
+#ifdef AMGCL_NO_RUNTIME
+#  error Runtime interface is disabled with AMGCL_NO_RUNTIME macro!
 #endif
-
-#include <boost/property_tree/ptree.hpp>
 
 #include <amgcl/util.hpp>
 #include <amgcl/backend/interface.hpp>
@@ -56,7 +54,7 @@ template <class Backend>
 struct wrapper {
     typedef Backend                     backend_type;
     typedef typename Backend::params    backend_params;
-    typedef boost::property_tree::ptree params;
+    typedef runtime_params params;
 
     runtime::relaxation::type r;
     void *handle;

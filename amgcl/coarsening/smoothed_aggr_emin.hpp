@@ -65,15 +65,15 @@ struct smoothed_aggr_emin {
 
         params() {}
 
-#ifndef AMGCL_NO_BOOST
-        params(const boost::property_tree::ptree &p)
+#ifndef AMGCL_NO_RUNTIME
+        params(const runtime_params &p)
             : AMGCL_PARAMS_IMPORT_CHILD(p, aggr),
               AMGCL_PARAMS_IMPORT_CHILD(p, nullspace)
         {
             check_params(p, {"aggr", "nullspace"});
         }
 
-        void get(boost::property_tree::ptree &p, const std::string &path) const {
+        void get(runtime_params &p, const std::string &path) const {
             AMGCL_PARAMS_EXPORT_CHILD(p, path, aggr);
             AMGCL_PARAMS_EXPORT_CHILD(p, path, nullspace);
         }

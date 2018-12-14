@@ -73,8 +73,8 @@ struct nullspace_params {
 
     nullspace_params() : cols(0) {}
 
-#ifndef AMGCL_NO_BOOST
-    nullspace_params(const boost::property_tree::ptree &p)
+#ifndef AMGCL_NO_RUNTIME
+    nullspace_params(const runtime_params &p)
         : cols(p.get("cols", nullspace_params().cols))
     {
         double *b = 0;
@@ -105,7 +105,7 @@ struct nullspace_params {
         check_params(p, {"cols", "rows", "B"});
     }
 
-    void get(boost::property_tree::ptree&, const std::string&) const {}
+    void get(runtime_params&, const std::string&) const {}
 #endif
 };
 

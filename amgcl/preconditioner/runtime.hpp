@@ -31,11 +31,9 @@ THE SOFTWARE.
  * \brief  Runtime-configurable wrappers around amgcl classes.
  */
 
-#ifdef AMGCL_NO_BOOST
-#  error Runtime interface relies on Boost.PropertyTree!
+#ifdef AMGCL_NO_RUNTIME
+#  error Runtime interface is disabled with AMGCL_NO_RUNTIME macro!
 #endif
-
-#include <boost/property_tree/ptree.hpp>
 
 #include <amgcl/util.hpp>
 #include <amgcl/solver/runtime.hpp>
@@ -104,7 +102,7 @@ class preconditioner {
         typedef typename Backend::vector     vector;
         typedef typename Backend::params     backend_params;
 
-        typedef boost::property_tree::ptree params;
+        typedef runtime_params params;
 
         template <class Matrix>
         preconditioner(

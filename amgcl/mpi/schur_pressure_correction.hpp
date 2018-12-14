@@ -81,8 +81,8 @@ class schur_pressure_correction {
 
             params() : approx_schur(true) {}
 
-#ifndef AMGCL_NO_BOOST
-            params(const boost::property_tree::ptree &p)
+#ifndef AMGCL_NO_RUNTIME
+            params(const runtime_params &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, usolver),
                   AMGCL_PARAMS_IMPORT_CHILD(p, psolver),
                   AMGCL_PARAMS_IMPORT_VALUE(p, approx_schur)
@@ -137,7 +137,7 @@ class schur_pressure_correction {
                         {"pmask", "pmask_pattern"});
             }
 
-            void get(boost::property_tree::ptree &p, const std::string &path = "") const
+            void get(runtime_params &p, const std::string &path = "") const
             {
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, usolver);
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, psolver);

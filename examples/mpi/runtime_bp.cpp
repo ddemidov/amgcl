@@ -5,8 +5,6 @@
 #include <numeric>
 
 #include <boost/program_options.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
 #include <boost/range/iterator_range.hpp>
 #include <boost/scope_exit.hpp>
 
@@ -46,7 +44,7 @@ struct renumbering {
 template <template <class> class Precond, class Matrix>
 std::tuple<size_t, double> solve(
         const amgcl::mpi::communicator &comm,
-        const boost::property_tree::ptree &prm,
+        const amgcl::runtime_params &prm,
         const Matrix &A
         )
 {
@@ -124,7 +122,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    boost::property_tree::ptree prm;
+    amgcl::runtime_params prm;
     if (vm.count("prm-file")) {
         read_json(vm["prm-file"].as<string>(), prm);
     }

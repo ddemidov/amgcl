@@ -31,11 +31,9 @@ THE SOFTWARE.
  * \brief  Runtime wrapper for distributed direct solvers.
  */
 
-#ifdef AMGCL_NO_BOOST
-#  error Runtime interface relies on Boost.PropertyTree!
+#ifdef AMGCL_NO_RUNTIME
+#  error Runtime interface is disabled with AMGCL_NO_RUNTIME macro!
 #endif
-
-#include <boost/property_tree/ptree.hpp>
 
 #include <amgcl/util.hpp>
 #include <amgcl/mpi/direct_solver/skyline_lu.hpp>
@@ -117,7 +115,7 @@ std::istream& operator>>(std::istream &in, type &s)
 template <class value_type>
 class solver {
     public:
-        typedef boost::property_tree::ptree params;
+        typedef runtime_params params;
 
         template <class Matrix>
         solver(amgcl::mpi::communicator comm, const Matrix &A, params prm = params())

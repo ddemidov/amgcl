@@ -2,8 +2,6 @@
 #include <string>
 
 #include <boost/program_options.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
 #include <boost/range/iterator_range.hpp>
 
 #include <amgcl/backend/builtin.hpp>
@@ -29,7 +27,7 @@ using amgcl::precondition;
 //---------------------------------------------------------------------------
 template <template <class> class Precond>
 std::tuple<size_t, double> solve(
-        const boost::property_tree::ptree &prm,
+        const amgcl::runtime_params &prm,
         size_t rows,
         std::vector<ptrdiff_t> const &ptr,
         std::vector<ptrdiff_t> const &col,
@@ -138,7 +136,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    boost::property_tree::ptree prm;
+    amgcl::runtime_params prm;
     if (vm.count("prm-file")) {
         read_json(vm["prm-file"].as<string>(), prm);
     }

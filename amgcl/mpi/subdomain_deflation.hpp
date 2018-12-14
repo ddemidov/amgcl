@@ -129,8 +129,8 @@ class subdomain_deflation {
 
             params() {}
 
-#ifndef AMGCL_NO_BOOST
-            params(const boost::property_tree::ptree &p)
+#ifndef AMGCL_NO_RUNTIME
+            params(const runtime_params &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, local),
                   AMGCL_PARAMS_IMPORT_CHILD(p, isolver),
                   AMGCL_PARAMS_IMPORT_CHILD(p, dsolver),
@@ -148,7 +148,7 @@ class subdomain_deflation {
                 check_params(p, {"local", "isolver", "dsolver", "num_def_vec", "def_vec"});
             }
 
-            void get(boost::property_tree::ptree &p, const std::string &path) const {
+            void get(runtime_params &p, const std::string &path) const {
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, local);
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, isolver);
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, dsolver);

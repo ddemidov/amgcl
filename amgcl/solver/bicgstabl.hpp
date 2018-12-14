@@ -131,8 +131,8 @@ class bicgstabl {
             {
             }
 
-#ifndef AMGCL_NO_BOOST
-            params(const boost::property_tree::ptree &p)
+#ifndef AMGCL_NO_RUNTIME
+            params(const runtime_params &p)
                 : AMGCL_PARAMS_IMPORT_VALUE(p, L),
                   AMGCL_PARAMS_IMPORT_VALUE(p, delta),
                   AMGCL_PARAMS_IMPORT_VALUE(p, convex),
@@ -144,7 +144,7 @@ class bicgstabl {
                 check_params(p, {"L", "delta", "convex", "pside", "maxiter", "tol", "abstol"});
             }
 
-            void get(boost::property_tree::ptree &p, const std::string &path) const {
+            void get(runtime_params &p, const std::string &path) const {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, L);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, delta);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, convex);

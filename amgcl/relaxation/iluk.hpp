@@ -69,8 +69,8 @@ struct iluk {
 
         params() : k(1), damping(1) {}
 
-#ifndef AMGCL_NO_BOOST
-        params(const boost::property_tree::ptree &p)
+#ifndef AMGCL_NO_RUNTIME
+        params(const runtime_params &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, k)
             , AMGCL_PARAMS_IMPORT_VALUE(p, damping)
             , AMGCL_PARAMS_IMPORT_CHILD(p, solve)
@@ -78,7 +78,7 @@ struct iluk {
             check_params(p, {"k", "damping", "solve"});
         }
 
-        void get(boost::property_tree::ptree &p, const std::string &path) const {
+        void get(runtime_params &p, const std::string &path) const {
             AMGCL_PARAMS_EXPORT_VALUE(p, path, k);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, damping);
             AMGCL_PARAMS_EXPORT_CHILD(p, path, solve);

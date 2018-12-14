@@ -68,8 +68,8 @@ class chebyshev {
 
             params() : degree(5), lower(1.0f / 30), power_iters(0) {}
 
-#ifndef AMGCL_NO_BOOST
-            params(const boost::property_tree::ptree &p)
+#ifndef AMGCL_NO_RUNTIME
+            params(const runtime_params &p)
                 : AMGCL_PARAMS_IMPORT_VALUE(p, degree),
                   AMGCL_PARAMS_IMPORT_VALUE(p, lower),
                   AMGCL_PARAMS_IMPORT_VALUE(p, power_iters)
@@ -77,7 +77,7 @@ class chebyshev {
                 check_params(p, {"degree", "lower", "power_iters"});
             }
 
-            void get(boost::property_tree::ptree &p, const std::string &path) const {
+            void get(runtime_params &p, const std::string &path) const {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, degree);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, lower);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, power_iters);

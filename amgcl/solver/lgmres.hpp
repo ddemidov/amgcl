@@ -143,8 +143,8 @@ class lgmres {
                   abstol(std::numeric_limits<scalar_type>::min())
             { }
 
-#ifndef AMGCL_NO_BOOST
-            params(const boost::property_tree::ptree &p)
+#ifndef AMGCL_NO_RUNTIME
+            params(const runtime_params &p)
                 : AMGCL_PARAMS_IMPORT_VALUE(p, M),
                   AMGCL_PARAMS_IMPORT_VALUE(p, K),
                   AMGCL_PARAMS_IMPORT_VALUE(p, always_reset),
@@ -156,7 +156,7 @@ class lgmres {
                 check_params(p, {"pside", "M", "K", "always_reset", "maxiter", "tol", "abstol"});
             }
 
-            void get(boost::property_tree::ptree &p, const std::string &path) const {
+            void get(runtime_params &p, const std::string &path) const {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, M);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, K);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, always_reset);

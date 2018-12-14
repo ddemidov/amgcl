@@ -35,11 +35,9 @@ THE SOFTWARE.
 #include <stdexcept>
 #include <type_traits>
 
-#ifdef AMGCL_NO_BOOST
-#  error Runtime interface relies on Boost.PropertyTree!
+#ifdef AMGCL_NO_RUNTIME
+#  error Runtime interface is disabled with AMGCL_NO_RUNTIME macro!
 #endif
-
-#include <boost/property_tree/ptree.hpp>
 
 #include <amgcl/util.hpp>
 #include <amgcl/solver/cg.hpp>
@@ -118,7 +116,7 @@ template <
     class InnerProduct = amgcl::solver::detail::default_inner_product
     >
 struct wrapper {
-    typedef boost::property_tree::ptree                params;
+    typedef runtime_params                             params;
     typedef typename Backend::params                   backend_params;
     typedef typename Backend::value_type               value_type;
     typedef typename math::scalar_of<value_type>::type scalar_type;

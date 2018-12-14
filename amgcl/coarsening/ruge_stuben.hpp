@@ -81,8 +81,8 @@ struct ruge_stuben {
 
         params() : eps_strong(0.25f), do_trunc(true), eps_trunc(0.2f) {}
 
-#ifndef AMGCL_NO_BOOST
-        params(const boost::property_tree::ptree &p)
+#ifndef AMGCL_NO_RUNTIME
+        params(const runtime_params &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, eps_strong),
               AMGCL_PARAMS_IMPORT_VALUE(p, do_trunc),
               AMGCL_PARAMS_IMPORT_VALUE(p, eps_trunc)
@@ -90,7 +90,7 @@ struct ruge_stuben {
             check_params(p, {"eps_strong", "do_trunc", "eps_trunc"});
         }
 
-        void get(boost::property_tree::ptree &p, const std::string &path) const {
+        void get(runtime_params &p, const std::string &path) const {
             AMGCL_PARAMS_EXPORT_VALUE(p, path, eps_strong);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, do_trunc);
             AMGCL_PARAMS_EXPORT_VALUE(p, path, eps_trunc);

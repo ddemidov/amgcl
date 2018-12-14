@@ -69,15 +69,15 @@ class make_solver {
 
             params() {}
 
-#ifndef AMGCL_NO_BOOST
-            params(const boost::property_tree::ptree &p)
+#ifndef AMGCL_NO_RUNTIME
+            params(const runtime_params &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, precond),
                   AMGCL_PARAMS_IMPORT_CHILD(p, solver)
             {
                 check_params(p, {"precond", "solver"});
             }
 
-            void get( boost::property_tree::ptree &p,
+            void get( runtime_params &p,
                     const std::string &path = ""
                     ) const
             {
@@ -191,9 +191,9 @@ class make_solver {
             return P.system_matrix();
         }
 
-#ifndef AMGCL_NO_BOOST
+#ifndef AMGCL_NO_RUNTIME
         /// Stores the parameters used during construction into the property tree \p p.
-        void get_params(boost::property_tree::ptree &p) const {
+        void get_params(runtime_params &p) const {
             prm.get(p);
         }
 #endif

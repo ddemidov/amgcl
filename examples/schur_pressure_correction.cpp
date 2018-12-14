@@ -2,8 +2,6 @@
 #include <string>
 
 #include <boost/program_options.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
 #include <boost/preprocessor/seq/for_each.hpp>
 
 #if defined(SOLVER_BACKEND_VEXCL)
@@ -60,7 +58,7 @@ typename std::enable_if<
     ),
     void
     >::type
-solve_schur(const Matrix&, const std::vector<double>&, boost::property_tree::ptree&)
+solve_schur(const Matrix&, const std::vector<double>&, amgcl::runtime_params&)
 {}
 
 //---------------------------------------------------------------------------
@@ -75,7 +73,7 @@ typename std::enable_if<
         >::value == 1
     ),
     void>::type
-solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
+solve_schur(const Matrix &K, const std::vector<double> &rhs, amgcl::runtime_params &prm)
 {
     Backend::params bprm;
 
@@ -138,7 +136,7 @@ solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tre
 
 //---------------------------------------------------------------------------
 template <class USolver, class Matrix>
-void solve_schur(int pb, const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
+void solve_schur(int pb, const Matrix &K, const std::vector<double> &rhs, amgcl::runtime_params &prm)
 {
     switch (pb) {
         case 1:
@@ -173,7 +171,7 @@ void solve_schur(int pb, const Matrix &K, const std::vector<double> &rhs, boost:
 
 //---------------------------------------------------------------------------
 template <class Matrix>
-void solve_schur(int ub, int pb, const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
+void solve_schur(int ub, int pb, const Matrix &K, const std::vector<double> &rhs, amgcl::runtime_params &prm)
 {
     precondition(ub == 1 || pb == 1,
             "At least one of the flow/pressure subproblems has to be scalar");
@@ -267,7 +265,7 @@ int main(int argc, char *argv[]) {
 
     po::notify(vm);
 
-    boost::property_tree::ptree prm;
+    amgcl::runtime_params prm;
     if (vm.count("params")) read_json(vm["params"].as<string>(), prm);
 
     if (vm.count("prm")) {

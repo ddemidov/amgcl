@@ -35,11 +35,9 @@ THE SOFTWARE.
 #include <stdexcept>
 #include <type_traits>
 
-#ifdef AMGCL_NO_BOOST
-#  error Runtime interface relies on Boost.PropertyTree!
+#ifdef AMGCL_NO_RUNTIME
+#  error Runtime interface is disabled with AMGCL_NO_RUNTIME macro!
 #endif
-
-#include <boost/property_tree/ptree.hpp>
 
 #include <amgcl/util.hpp>
 #include <amgcl/backend/interface.hpp>
@@ -98,7 +96,7 @@ inline std::istream& operator>>(std::istream &in, type &c)
 
 template <class Backend>
 struct wrapper {
-    typedef boost::property_tree::ptree params;
+    typedef runtime_params params;
     type c;
     void *handle;
 

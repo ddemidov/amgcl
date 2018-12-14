@@ -8,8 +8,6 @@
 
 #include <boost/scope_exit.hpp>
 #include <boost/program_options.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
 
 #include <amgcl/mpi/direct_solver/runtime.hpp>
 #include <amgcl/profiler.hpp>
@@ -63,7 +61,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    boost::property_tree::ptree prm;
+    amgcl::runtime_params prm;
     if (vm.count("prm-file")) {
         read_json(vm["prm-file"].as<std::string>(), prm);
     }

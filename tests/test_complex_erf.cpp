@@ -50,7 +50,7 @@ BOOST_AUTO_TEST_CASE(complex_matrix_adapter)
 
     typedef amgcl::backend::builtin<double> Backend;
 
-    boost::property_tree::ptree prm;
+    amgcl::runtime_params prm;
     prm.put("precond.coarsening.aggr.block_size", 2);
 
     amgcl::make_solver<
