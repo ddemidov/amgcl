@@ -43,13 +43,59 @@ THE SOFTWARE.
 // If asked explicitly, or if boost is available, enable
 // using boost::propert_tree::ptree as amgcl parameters:
 #ifndef AMGCL_NO_RUNTIME
-#  include <boost/property_tree/ptree.hpp>
-#  include <boost/property_tree/json_parser.hpp>
-#endif
+#  ifdef AMGCL_HAVE_NLOHMANN_JSON
+#    include <fstream>
+#    include <nlohmann/json.hpp>
+
+namespace amgcl {
+    typedef nlohmann::json runtime_params;
+
+    inline void read_json(const std::string &fname, runtime_params &prm) {
+        std::ifstream f(fname);
+        f >> prm;
+    }
+
+    template <class T>
+    inline void prm_put(runtime_params &prm, std::string key, const T &val) {
+        std::replace(key.begin(), key.end(), '.', '/');
+        prm[nlohmann::json::json_pointer("/" + key)] = val; 
+    }
+
+    template <class T=std::string>
+    inline T prm_get(const runtime_params &prm, std::string key, const T &def_val = T()) {
+        std::replace(key.begin(), key.end(), '.', '/');
+        return prm.value(nlohmann::json::json_pointer("/" + key), def_val);
+    }
+
+    inline const runtime_params prm_get_child(const runtime_params &prm, const std::string &key) {
+        std::replace(key.begin(), key.end(), '.', '/');
+        return prm.value(nlohmann::json::json_pointer("/" + key), runtime_params());
+    }
+}
+#  else
+#    include <boost/property_tree/ptree.hpp>
+#    include <boost/property_tree/json_parser.hpp>
 
 namespace amgcl {
     typedef boost::property_tree::ptree runtime_params;
+
+    template <class T>
+    inline void prm_put(runtime_params &prm, std::string key, const T &val) {
+        prm.put(key, val);
+    }
+
+    template <class T=std::string>
+    inline T prm_get(const runtime_params &prm, std::string key, const T &def_val = T()) {
+        return prm.get(key, def_val);
+    }
+
+    inline const runtime_params prm_get_child(const runtime_params &prm, const std::string &key) {
+        return prm.get_child(key, runtime_params());
+    }
 }
+#  endif
+#endif
+
 
 /* Performance measurement macros
  *
@@ -99,13 +145,13 @@ void precondition(const Condition &condition, const Message &message) {
 #ifndef AMGCL_NO_RUNTIME
 
 #define AMGCL_PARAMS_IMPORT_VALUE(p, name)                                     \
-    name( p.get(#name, params().name) )
+    name( amgcl::prm_get(p, #name, params().name) )
 
 #define AMGCL_PARAMS_IMPORT_CHILD(p, name)                                     \
-    name( p.get_child(#name, amgcl::detail::empty_ptree()) )
+    name( amgcl::prm_get_child(p, #name) )
 
 #define AMGCL_PARAMS_EXPORT_VALUE(p, path, name)                               \
-    p.put(std::string(path) + #name, name)
+    amgcl::prm_put(p, std::string(path) + #name, name)
 
 #define AMGCL_PARAMS_EXPORT_CHILD(p, path, name)                               \
     name.get(p, std::string(path) + #name + ".")

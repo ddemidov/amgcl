@@ -100,6 +100,15 @@ if (AMGCL_ASYNC_SETUP)
 endif()
 
 #----------------------------------------------------------------------------
+# Find nlohmann/json
+#----------------------------------------------------------------------------
+find_package(nlohmann_json QUIET)
+if (nlohmann_json_FOUND)
+    target_compile_definitions(amgcl INTERFACE AMGCL_HAVE_NLOHMANN_JSON)
+    target_link_libraries(amgcl INTERFACE nlohmann_json::nlohmann_json)
+endif()
+
+#----------------------------------------------------------------------------
 # Eigen backend
 #----------------------------------------------------------------------------
 find_path(EIGEN_INCLUDE Eigen/SparseCore PATH_SUFFIXES eigen3)
