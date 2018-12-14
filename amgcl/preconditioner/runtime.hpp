@@ -109,10 +109,10 @@ class preconditioner {
                 const Matrix &A,
                 params prm = params(),
                 const backend_params &bprm = backend_params())
-            : _class(prm.get("class", runtime::precond_class::amg)),
+            : _class(prm_get(prm, "class", runtime::precond_class::amg)),
               handle(0)
         {
-            if (!prm.erase("class")) AMGCL_PARAM_MISSING("class");
+            if (!prm_erase(prm, "class")) AMGCL_PARAM_MISSING("class");
 
             switch(_class) {
                 case precond_class::amg:

@@ -31,10 +31,10 @@ void test_solver(
         )
 {
     amgcl::runtime_params prm;
-    prm.put("precond.coarse_enough",   500);
-    prm.put("precond.coarsening.type", coarsening);
-    prm.put("precond.relax.type",      relaxation);
-    prm.put("solver.type",             solver);
+    amgcl::prm_put(prm, "precond.coarse_enough",   500);
+    amgcl::prm_put(prm, "precond.coarsening.type", coarsening);
+    amgcl::prm_put(prm, "precond.relax.type",      relaxation);
+    amgcl::prm_put(prm, "solver.type",             solver);
 
     amgcl::make_solver<
         amgcl::amg<Backend, amgcl::runtime::coarsening::wrapper, amgcl::runtime::relaxation::wrapper>,
@@ -68,8 +68,8 @@ void test_rap(
         )
 {
     amgcl::runtime_params prm;
-    prm.put("precond.type", relaxation);
-    prm.put("solver.type",  solver);
+    amgcl::prm_put(prm, "precond.type", relaxation);
+    amgcl::prm_put(prm, "solver.type",  solver);
 
     amgcl::make_solver<
         amgcl::relaxation::as_preconditioner<Backend, amgcl::runtime::relaxation::wrapper>,

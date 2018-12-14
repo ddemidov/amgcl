@@ -40,12 +40,47 @@ THE SOFTWARE.
 #include <stdexcept>
 #include <cstddef>
 
+namespace std {
+
+// Read pointers from input streams.
+// This allows to exchange pointers through runtime_params.
+template <class T>
+inline istream& operator>>(istream &is, T* &ptr) {
+    std::ios_base::fmtflags ff(is.flags());
+
+    size_t val;
+    is >> std::hex >> val;
+
+    ptr = reinterpret_cast<T*>(val);
+
+    is.flags(ff);
+    return is;
+}
+
+} // namespace std
+
+
 // If asked explicitly, or if boost is available, enable
 // using boost::propert_tree::ptree as amgcl parameters:
 #ifndef AMGCL_NO_RUNTIME
 #  ifdef AMGCL_HAVE_NLOHMANN_JSON
 #    include <fstream>
 #    include <nlohmann/json.hpp>
+
+namespace nlohmann {
+    template <typename T>
+    struct adl_serializer<const T*> {
+        static void to_json(json& j, const T* p) {
+            std::ostringstream s;
+            s << p;
+            j = s.str();
+        }
+        static void from_json(const json& j, const T* &p) {
+            std::istringstream s(static_cast<std::string>(j));
+            s >> p;
+        }
+    };
+}
 
 namespace amgcl {
     typedef nlohmann::json runtime_params;
@@ -67,10 +102,21 @@ namespace amgcl {
         return prm.value(nlohmann::json::json_pointer("/" + key), def_val);
     }
 
-    inline const runtime_params prm_get_child(const runtime_params &prm, const std::string &key) {
+    inline const runtime_params prm_get_child(const runtime_params &prm, std::string key) {
         std::replace(key.begin(), key.end(), '.', '/');
         return prm.value(nlohmann::json::json_pointer("/" + key), runtime_params());
     }
+
+    inline bool prm_erase(runtime_params &prm, std::string key) {
+        std::replace(key.begin(), key.end(), '.', '/');
+        auto i = prm.find(nlohmann::json::json_pointer("/" + key));
+        if (i == prm.end())
+            return false;
+
+        prm.erase(i);
+        return true;
+    }
+
 }
 #  else
 #    include <boost/property_tree/ptree.hpp>
@@ -91,6 +137,10 @@ namespace amgcl {
 
     inline const runtime_params prm_get_child(const runtime_params &prm, const std::string &key) {
         return prm.get_child(key, runtime_params());
+    }
+
+    inline bool prm_erase(runtime_params &prm, const std::string &key) {
+        return prm.erase(key);
     }
 }
 #  endif
@@ -172,6 +222,8 @@ inline void check_params(
         const std::set<std::string> &names
         )
 {
+#if 0
+    // TODO
     for(const auto &n : names) {
         if (!p.count(n)) {
             AMGCL_PARAM_MISSING(n);
@@ -182,6 +234,7 @@ inline void check_params(
             AMGCL_PARAM_UNKNOWN(v.first);
         }
     }
+#endif
 }
 
 inline void check_params(
@@ -190,6 +243,8 @@ inline void check_params(
         const std::set<std::string> &opt_names
         )
 {
+#if 0
+    // TODO
     for(const auto &n : names) {
         if (!p.count(n)) {
             AMGCL_PARAM_MISSING(n);
@@ -205,6 +260,7 @@ inline void check_params(
             AMGCL_PARAM_UNKNOWN(v.first);
         }
     }
+#endif
 }
 
 // Put parameter in form "key=value" into a runtime_params
@@ -212,7 +268,7 @@ inline void put(runtime_params &p, const std::string &param) {
     size_t eq_pos = param.find('=');
     if (eq_pos == std::string::npos)
         throw std::invalid_argument("param in amgcl::put() should have \"key=value\" format!");
-    p.put(param.substr(0, eq_pos), param.substr(eq_pos + 1));
+    prm_put(p, param.substr(0, eq_pos), param.substr(eq_pos + 1));
 }
 
 #endif
@@ -231,9 +287,12 @@ struct empty_params {
 
 #ifndef AMGCL_NO_RUNTIME
     empty_params(const runtime_params &p) {
+#if 0
+        // TODO
         for(const auto &v : p) {
             AMGCL_PARAM_UNKNOWN(v.first);
         }
+#endif
     }
     void get(runtime_params&, const std::string&) const {}
 #endif
@@ -371,25 +430,5 @@ inline std::string human_readable_memory(size_t bytes) {
 }
 
 } // namespace amgcl
-
-namespace std {
-
-// Read pointers from input streams.
-// This allows to exchange pointers through runtime_params.
-template <class T>
-inline istream& operator>>(istream &is, T* &ptr) {
-    std::ios_base::fmtflags ff(is.flags());
-
-    size_t val;
-    is >> std::hex >> val;
-
-    ptr = reinterpret_cast<T*>(val);
-
-    is.flags(ff);
-    return is;
-}
-
-} // namespace std
-
 
 #endif

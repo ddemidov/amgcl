@@ -126,9 +126,9 @@ struct wrapper {
     wrapper(const Matrix &A, params prm = params(),
             const backend_params &bprm = backend_params()
             )
-      : r(prm.get("type", runtime::relaxation::spai0)), handle(0)
+      : r(prm_get(prm, "type", runtime::relaxation::spai0)), handle(0)
     {
-        if (!prm.erase("type")) AMGCL_PARAM_MISSING("type");
+        if (!prm_erase(prm, "type")) AMGCL_PARAM_MISSING("type");
 
         switch(r) {
 

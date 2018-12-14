@@ -101,7 +101,7 @@ struct wrapper {
     void *handle;
 
     wrapper(params prm = params())
-        : c(prm.get("type", runtime::coarsening::smoothed_aggregation)),
+        : c(prm_get(prm, "type", runtime::coarsening::smoothed_aggregation)),
           handle(0)
     {
         if (!prm.erase("type")) AMGCL_PARAM_MISSING("type");

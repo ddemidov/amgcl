@@ -129,7 +129,7 @@ struct wrapper {
             const backend_params &bprm = backend_params(),
             const InnerProduct &inner_product = InnerProduct()
             )
-        : s(prm.get("type", runtime::solver::bicgstab)), handle(0)
+        : s(prm_get(prm, "type", runtime::solver::bicgstab)), handle(0)
     {
         if (!prm.erase("type")) AMGCL_PARAM_MISSING("type");
 

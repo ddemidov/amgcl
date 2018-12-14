@@ -462,7 +462,7 @@ int main(int argc, char *argv[]) {
 
     amgcl::runtime_params prm;
     if (vm.count("prm-file")) {
-        read_json(vm["prm-file"].as<string>(), prm);
+        amgcl::read_json(vm["prm-file"].as<string>(), prm);
     }
 
     if (vm.count("prm")) {
@@ -518,9 +518,11 @@ int main(int argc, char *argv[]) {
 
             precondition(m == rows, "Near null-space vectors have wrong size");
 
-            prm.put("precond.coarsening.nullspace.cols", nv);
-            prm.put("precond.coarsening.nullspace.rows", rows);
-            prm.put("precond.coarsening.nullspace.B",    &null[0]);
+            /* TODO
+            amgcl::prm_put(prm, "precond.coarsening.nullspace.cols", nv);
+            amgcl::prm_put(prm, "precond.coarsening.nullspace.rows", rows);
+            amgcl::prm_put(prm, "precond.coarsening.nullspace.B",    &null[0]);
+            */
         }
     } else {
         auto t = prof.scoped_tic("assembling");
@@ -535,7 +537,7 @@ int main(int argc, char *argv[]) {
     int block_size = vm["block-size"].as<int>();
 
     if (vm["single-level"].as<bool>())
-        prm.put("precond.class", "relaxation");
+        amgcl::prm_put(prm, "precond.class", "relaxation");
 
     std::tie(iters, error) = solve(
             prm, rows, ptr, col, val, rhs, x,

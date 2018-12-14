@@ -75,14 +75,15 @@ struct nullspace_params {
 
 #ifndef AMGCL_NO_RUNTIME
     nullspace_params(const runtime_params &p)
-        : cols(p.get("cols", nullspace_params().cols))
+        : cols(prm_get(p, "cols", nullspace_params().cols))
     {
         double *b = 0;
-        b = p.get("B", b);
+        //TODO
+        //b = prm_get(p, "B", b);
 
         if (b) {
             size_t rows = 0;
-            rows = p.get("rows", rows);
+            rows = prm_get(p, "rows", rows);
 
             precondition(cols > 0,
                     "Error in nullspace parameters: "
