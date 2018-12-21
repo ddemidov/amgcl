@@ -9,7 +9,6 @@ matrix:
   include:
   - compiler: gcc
     env:
-    - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5"
     - BUILD_EXAMPLES=ON
     - TEST_COVERAGE=ON
     - TEST_PYTHON=ON
@@ -18,8 +17,6 @@ matrix:
         sources:
         - ubuntu-toolchain-r-test
         packages:
-        - gcc-5
-        - g++-5
         - lcov
         - openmpi-bin
         - libopenmpi-dev
