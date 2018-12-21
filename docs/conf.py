@@ -17,7 +17,6 @@ import sys
 import os
 import shlex
 import subprocess
-import pip
 
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 
@@ -25,8 +24,7 @@ sys.path.append('..')
 from git_version import git_version
 
 if on_rtd:
-    pip.main(['install', 'breathe'])
-
+    subprocess.call([sys.executable, '-m', 'pip', 'install', 'breathe'])
     subprocess.call('doxygen', shell=True)
 
 # If extensions (or modules to document with autodoc) are in another directory,
