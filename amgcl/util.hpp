@@ -319,6 +319,19 @@ inline std::string human_readable_memory(size_t bytes) {
     return s.str();
 }
 
+namespace detail {
+
+class non_copyable {
+    protected:
+        non_copyable() = default;
+        ~non_copyable() = default;
+
+        non_copyable(non_copyable const &) = delete;
+        void operator=(non_copyable const &x) = delete;
+};
+
+} // namespace detail
+
 } // namespace amgcl
 
 namespace std {

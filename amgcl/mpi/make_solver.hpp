@@ -48,7 +48,7 @@ template <
     class Precond,
     template <class, class> class IterativeSolver
     >
-class make_solver {
+class make_solver : public amgcl::detail::non_copyable {
     public:
         typedef typename Precond::backend_type backend_type;
         typedef typename Precond::matrix matrix;

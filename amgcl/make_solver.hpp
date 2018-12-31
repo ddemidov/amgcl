@@ -42,7 +42,7 @@ template <
     class Precond,
     class IterativeSolver
     >
-class make_solver {
+class make_solver : public amgcl::detail::non_copyable {
     static_assert(
             backend::backends_compatible<
                 typename IterativeSolver::backend_type,
@@ -320,7 +320,7 @@ template <
     class Precond,
     class IterativeSolver
     >
-class make_scaling_solver {
+class make_scaling_solver : public amgcl::detail::non_copyable {
     public:
         typedef typename Precond::backend_type             backend_type;
         typedef typename backend_type::value_type          value_type;
