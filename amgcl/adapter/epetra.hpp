@@ -38,6 +38,7 @@ THE SOFTWARE.
 #include <Epetra_CrsMatrix.h>
 #include <Epetra_IntVector.h>
 #include <Epetra_Import.h>
+#include <Epetra_Comm.h>
 
 #include <amgcl/backend/interface.hpp>
 
