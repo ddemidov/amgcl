@@ -340,13 +340,13 @@ namespace detail {
 template <typename Val>
 typename std::enable_if<is_complex<Val>::value, std::ostream&>::type
 write_value(std::ostream &s, Val v) {
-    return s << std::real(v) << " " << std::imag(v);
+    return s << std::scientific << std::setprecision(20) << std::real(v) << " " << std::imag(v);
 }
 
 template <typename Val>
 typename std::enable_if<!is_complex<Val>::value, std::ostream&>::type
 write_value(std::ostream &s, Val v) {
-    return s << v;
+    return s << std::scientific << std::setprecision(20) << v;
 }
 
 } // namespace detail
