@@ -28,11 +28,7 @@
 
 #include <amgcl/mpi/util.hpp>
 #include <amgcl/mpi/make_solver.hpp>
-#include <amgcl/mpi/amg.hpp>
-#include <amgcl/mpi/coarsening/runtime.hpp>
-#include <amgcl/mpi/relaxation/runtime.hpp>
-#include <amgcl/mpi/direct_solver/runtime.hpp>
-#include <amgcl/mpi/partition/runtime.hpp>
+#include <amgcl/mpi/preconditioner.hpp>
 
 #include <amgcl/io/mm.hpp>
 #include <amgcl/io/binary.hpp>
@@ -259,13 +255,7 @@ void solve_block(
 
     typedef
         amgcl::mpi::make_solver<
-            amgcl::mpi::amg<
-                Backend,
-                amgcl::runtime::mpi::coarsening::wrapper<Backend>,
-                amgcl::runtime::mpi::relaxation::wrapper<Backend>,
-                amgcl::runtime::mpi::direct::solver<val_type>,
-                amgcl::runtime::mpi::partition::wrapper<Backend>
-                >,
+            amgcl::runtime::mpi::preconditioner<Backend>,
             amgcl::runtime::solver::wrapper
             >
         Solver;
@@ -356,13 +346,7 @@ void solve_scalar(
 
     typedef
         amgcl::mpi::make_solver<
-            amgcl::mpi::amg<
-                Backend,
-                amgcl::runtime::mpi::coarsening::wrapper<Backend>,
-                amgcl::runtime::mpi::relaxation::wrapper<Backend>,
-                amgcl::runtime::mpi::direct::solver<double>,
-                amgcl::runtime::mpi::partition::wrapper<Backend>
-                >,
+            amgcl::runtime::mpi::preconditioner<Backend>,
             amgcl::runtime::solver::wrapper
             >
         Solver;
