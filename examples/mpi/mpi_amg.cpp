@@ -291,22 +291,30 @@ void solve_block(
     vex::vector<rhs_type> rhs(ctx, chunk / B, reinterpret_cast<const rhs_type*>(&f[0]));
 #endif
 
-    auto A = partition<Backend>(comm,
-            amgcl::adapter::block_matrix<val_type>(std::tie(chunk, ptr, col, val)),
-            rhs, bprm, ptype, prm.get("precond.coarsening.aggr.block_size", 1));
-
     prof.tic("setup");
-    Solver solve(comm, A, prm, bprm);
+    std::shared_ptr<Solver> solve;
+    if (ptype) {
+        auto A = partition<Backend>(comm,
+                amgcl::adapter::block_matrix<val_type>(std::tie(chunk, ptr, col, val)),
+                rhs, bprm, ptype, prm.get("precond.coarsening.aggr.block_size", 1));
+
+        solve = std::make_shared<Solver>(comm, A, prm, bprm);
+        chunk = A->loc_rows();
+    } else {
+        solve = std::make_shared<Solver>(comm,
+                amgcl::adapter::block_matrix<val_type>(std::tie(chunk, ptr, col, val)),
+                prm, bprm);
+    }
     prof.toc("setup");
 
     if (comm.rank == 0) {
-        std::cout << solve << std::endl;
+        std::cout << *solve << std::endl;
     }
 
 #if defined(SOLVER_BACKEND_BUILTIN)
-    amgcl::backend::numa_vector<rhs_type> x(A->loc_rows());
+    amgcl::backend::numa_vector<rhs_type> x(chunk);
 #elif defined(SOLVER_BACKEND_VEXCL)
-    vex::vector<rhs_type> x(ctx, A->loc_rows());
+    vex::vector<rhs_type> x(ctx, chunk);
     x = math::zero<rhs_type>();
 #endif
 
@@ -314,7 +322,7 @@ void solve_block(
     double error;
 
     prof.tic("solve");
-    std::tie(iters, error) = solve(rhs, x);
+    std::tie(iters, error) = (*solve)(rhs, x);
     prof.toc("solve");
 
     if (comm.rank == 0) {
@@ -377,32 +385,38 @@ void solve_scalar(
     thrust::device_vector<double> rhs(f);
 #endif
 
-    auto A = partition<Backend>(comm,
-            std::tie(chunk, ptr, col, val), rhs, bprm, ptype,
-            prm.get("precond.coarsening.aggr.block_size", 1));
-
     prof.tic("setup");
-    Solver solve(comm, A, prm, bprm);
+    std::shared_ptr<Solver> solve;
+    if (ptype) {
+        auto A = partition<Backend>(comm,
+                std::tie(chunk, ptr, col, val), rhs, bprm, ptype,
+                prm.get("precond.coarsening.aggr.block_size", 1));
+
+        solve = std::make_shared<Solver>(comm, A, prm, bprm);
+        chunk = A->loc_rows();
+    } else {
+        solve = std::make_shared<Solver>(comm, std::tie(chunk, ptr, col, val), prm, bprm);
+    }
     prof.toc("setup");
 
     if (comm.rank == 0) {
-        std::cout << solve << std::endl;
+        std::cout << *solve << std::endl;
     }
 
 #if defined(SOLVER_BACKEND_BUILTIN)
-    amgcl::backend::numa_vector<double> x(A->loc_rows());
+    amgcl::backend::numa_vector<double> x(chunk);
 #elif defined(SOLVER_BACKEND_VEXCL)
-    vex::vector<double> x(ctx, A->loc_rows());
+    vex::vector<double> x(ctx, chunk);
     x = 0.0;
 #elif defined(SOLVER_BACKEND_CUDA)
-    thrust::device_vector<double> x(A->loc_rows(), 0.0);
+    thrust::device_vector<double> x(chunk, 0.0);
 #endif
 
     int    iters;
     double error;
 
     prof.tic("solve");
-    std::tie(iters, error) = solve(rhs, x);
+    std::tie(iters, error) = (*solve)(rhs, x);
     prof.toc("solve");
 
     if (comm.rank == 0) {
@@ -445,6 +459,16 @@ int main(int argc, char *argv[]) {
          "The RHS vector in the MatrixMarket format. "
          "When omitted, a vector of ones is used by default. "
          "Should only be provided together with a system matrix. "
+        )
+        (
+         "Ap",
+         po::value< std::vector<std::string> >()->multitoken(),
+         "Pre-partitioned matrix (single file per MPI process)"
+        )
+        (
+         "fp",
+         po::value< std::vector<std::string> >()->multitoken(),
+         "Pre-partitioned RHS (single file per MPI process)"
         )
         (
          "binary,B",
@@ -521,9 +545,12 @@ int main(int argc, char *argv[]) {
     int block_size = vm["block-size"].as<int>();
     int aggr_block = prm.get("precond.coarsening.aggr.block_size", 1);
 
+    bool binary = vm["binary"].as<bool>();
+    amgcl::runtime::mpi::partition::type ptype = vm["partitioner"].as<amgcl::runtime::mpi::partition::type>();
+
     if (vm.count("matrix")) {
         prof.tic("read");
-        if (vm["binary"].as<bool>()) {
+        if (binary) {
             n = read_binary(comm,
                     vm["matrix"].as<std::string>(),
                     vm["rhs"].as<std::string>(),
@@ -535,6 +562,40 @@ int main(int argc, char *argv[]) {
                     block_size * aggr_block, ptr, col, val, rhs);
         }
         prof.toc("read");
+    } else if (vm.count("Ap")) {
+        prof.tic("read");
+        ptype = static_cast<amgcl::runtime::mpi::partition::type>(0);
+
+        std::vector<std::string> Aparts = vm["Ap"].as<std::vector<std::string>>();
+        comm.check(Aparts.size() == static_cast<size_t>(comm.size),
+                "--Ap should have single entry per MPI process");
+
+        if (binary) {
+            amgcl::io::read_crs(Aparts[comm.rank], n, ptr, col, val);
+        } else {
+            ptrdiff_t m;
+            std::tie(n, m) = amgcl::io::mm_reader(Aparts[comm.rank])(ptr, col, val);
+        }
+
+        if (vm.count("fp")) {
+            std::vector<std::string> fparts = vm["fp"].as<std::vector<std::string>>();
+            comm.check(fparts.size() == static_cast<size_t>(comm.size),
+                    "--fp should have single entry per MPI process");
+
+            ptrdiff_t rows;
+            ptrdiff_t cols;
+
+            if (binary) {
+                amgcl::io::read_dense(fparts[comm.rank], rows, cols, rhs);
+            } else {
+                std::tie(rows, cols) = amgcl::io::mm_reader(fparts[comm.rank])(rhs);
+            }
+
+            comm.check(rhs.size() == static_cast<size_t>(n), "Wrong RHS size");
+        } else {
+            rhs.resize(n, 1);
+        }
+        prof.toc("read");
     } else {
         prof.tic("assemble");
         n = assemble_poisson3d(comm,
@@ -542,8 +603,6 @@ int main(int argc, char *argv[]) {
                 block_size * aggr_block, ptr, col, val, rhs);
         prof.toc("assemble");
     }
-
-    amgcl::runtime::mpi::partition::type ptype = vm["partitioner"].as<amgcl::runtime::mpi::partition::type>();
 
     switch(block_size) {
 
