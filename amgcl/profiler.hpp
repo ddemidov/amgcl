@@ -181,8 +181,8 @@ class profiler {
             std::map<std::string, profile_unit> children;
         };
 
-        Counter counter;
         std::string name;
+        Counter counter;
         profile_unit root;
         std::vector<profile_unit*> stack;
 
