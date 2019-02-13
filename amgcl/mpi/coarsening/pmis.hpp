@@ -685,6 +685,13 @@ struct pmis {
                     loc_state[c] = id;
                 }
             }
+
+            for(size_t i = 0; i < Sp.recv.nbr.size(); ++i) {
+                int npts = send_pts[i].size();
+                MPI_Wait(&send_cnt_req[i], MPI_STATUS_IGNORE);
+                if (!npts) continue;
+                MPI_Wait(&send_pts_req[i], MPI_STATUS_IGNORE);
+            }
         }
 
         AMGCL_TOC("drop empty aggregates");
