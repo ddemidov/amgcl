@@ -36,6 +36,7 @@ THE SOFTWARE.
 #include <fstream>
 
 #include <amgcl/util.hpp>
+#include <amgcl/detail/sort_row.hpp>
 
 namespace amgcl {
 namespace io {
