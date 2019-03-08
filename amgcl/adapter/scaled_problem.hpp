@@ -155,7 +155,7 @@ scale_diagonal(
     for(ptrdiff_t i = 0; i < n; ++i) {
         for(auto a = backend::row_begin(A, i); a; ++a) {
             if (a.col() == i) {
-                (*s)[i] = sqrt(math::norm(a.value()));
+                (*s)[i] = math::inverse(sqrt(math::norm(a.value())));
                 break;
             }
         }
