@@ -181,7 +181,7 @@ of moving the constructed hierarchy into the GPU memory.
 
 The system matrix resulting from the problem discretization has block structure
 with blocks of 4-by-4 elements, and contains 713456 unknowns and 41277920
-nonzeros. The assemblem problem is available to download
+nonzeros. The assembled problem is available to download
 at https://doi.org/10.5281/zenodo.1231818.
 
 There are at least two ways to solve the system. First, one can treat the
