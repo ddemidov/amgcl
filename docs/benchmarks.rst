@@ -185,11 +185,11 @@ nonzeros. The assemblem problem is available to download
 at https://doi.org/10.5281/zenodo.1231818.
 
 There are at least two ways to solve the system. First, one can treat the
-system as a monolythic one, and provide some minimal help to the preconditioner
+system as a monolithic one, and provide some minimal help to the preconditioner
 in form of near null space vectors. Second option is to employ the knowledge
 about the problem structure, and to combine separate preconditioners for
 individual fields (in this particular case, for pressure and velocity). In case
-of AMGCL both options were tested, where the monolythic system was solved with
+of AMGCL both options were tested, where the monolithic system was solved with
 static 4x4 matrices as value type, and the field-split approach was implemented
 using the ``schur_pressure_correction`` preconditioner.  Trilinos ML only
 provides the first option; PETSC implement both options, but we only show
@@ -199,7 +199,7 @@ vectors, so it was not tested for this problem.
 
 The figure below shows multicore scalability results for the Navier-Stokes
 problem.  Lines labelled with 'block' correspond to the cases when the problem
-is treated as a monolythic system, and 'split' results correspond to the
+is treated as a monolithic system, and 'split' results correspond to the
 field-split approach.
 
 .. plot::
