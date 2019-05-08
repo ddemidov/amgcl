@@ -14,7 +14,7 @@ solution of the problem
     -\Delta u = 1,
 
 in the unit cube :math:`\Omega = [0,1]^3` with homogeneous Dirichlet boundary
-conditions. The problem is dicretized with the finite difference method on a
+conditions. The problem is discretized with the finite difference method on a
 uniform mesh.
 
 The second test problem is an incompressible 3D Navier-Stokes problem
@@ -64,7 +64,7 @@ K80 GPU installed, which was used for testing the GPU based versions.
 3D Poisson problem
 ~~~~~~~~~~~~~~~~~~
 
-The Poisson problem is dicretized with the finite difference method on a
+The Poisson problem is discretized with the finite difference method on a
 uniform mesh, and the resulting linear system contained 3375000 unknowns and
 23490000 nonzeros.
 
