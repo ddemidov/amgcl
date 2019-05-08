@@ -31,7 +31,7 @@ as follows:
 
 Note that in order to construct the next level in the AMG hierarchy, we only
 need to define transfer operators :math:`P` and :math:`R`. Also, the
-restriction operator if often chosen to be a transpose of the prolongation
+restriction operator is often chosen to be a transpose of the prolongation
 operator: :math:`R=P^T`.
 
 Having constructed the AMG hierarchy, we can use it to solve the system as
