@@ -56,7 +56,7 @@ s_prm = {p[0]: p[1] for p in map(lambda s: s.split('='), args.s)}
 
 # Create solver/preconditioner pair
 with timeit('Setup solver'):
-    S = amg.solver(amg.amgcl(A, p_prm), s_prm)
+    S = amg.solver(amg.amg(A, p_prm), s_prm)
 print(S)
 
 # Solve the system for the RHS
