@@ -20,6 +20,33 @@ which enables tight integration between AMGCL and the user code.
 The source code is available under liberal MIT license at
 https://github.com/ddemidov/amgcl.
 
+Referencing
+-----------
+
+D. Demidov. AMGCL: An efficient, flexible, and extensible algebraic multigrid
+implementation. Lobachevskii Journal of Mathematics, 40(5):535–546, May 2019.
+doi_ pdf_
+
+.. _doi: https://doi.org/10.1134/S1995080219050056
+.. _pdf: https://rdcu.be/bHFsY
+
+.. code:: bibtex
+
+    @Article{Demidov2019,
+        author="Demidov, D.",
+        title="AMGCL: An Efficient, Flexible, and Extensible Algebraic Multigrid Implementation",
+        journal="Lobachevskii Journal of Mathematics",
+        year="2019",
+        month="May",
+        day="01",
+        volume="40",
+        number="5",
+        pages="535--546",
+        issn="1818-9962",
+        doi="10.1134/S1995080219050056",
+        url="https://doi.org/10.1134/S1995080219050056"
+    }
+
 Contents:
 ---------
 

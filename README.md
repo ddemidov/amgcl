@@ -24,6 +24,29 @@ code.
 
 See AMGCL documentation at http://amgcl.readthedocs.io/
 
+## Referencing
+
+D. Demidov. AMGCL: An efficient, flexible, and extensible algebraic multigrid
+implementation. Lobachevskii Journal of Mathematics, 40(5):535–546, May 2019.
+[doi](https://doi.org/10.1134/S1995080219050056) [pdf](https://rdcu.be/bHFsY)
+
+```bib
+@Article{Demidov2019,
+    author="Demidov, D.",
+    title="AMGCL: An Efficient, Flexible, and Extensible Algebraic Multigrid Implementation",
+    journal="Lobachevskii Journal of Mathematics",
+    year="2019",
+    month="May",
+    day="01",
+    volume="40",
+    number="5",
+    pages="535--546",
+    issn="1818-9962",
+    doi="10.1134/S1995080219050056",
+    url="https://doi.org/10.1134/S1995080219050056"
+}
+```
+
 ## Support
 
 * GitHub issues page: https://github.com/ddemidov/amgcl/issues
