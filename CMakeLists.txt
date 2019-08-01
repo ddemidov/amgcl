@@ -106,6 +106,7 @@ if (EIGEN_INCLUDE)
     target_compile_options(eigen_target INTERFACE
         $<$<CXX_COMPILER_ID:GNU>:-Wno-int-in-bool-context>
         $<$<CXX_COMPILER_ID:GNU>:-Wno-maybe-uninitialized>
+        $<$<CXX_COMPILER_ID:GNU>:-Wno-deprecated-copy>
         $<$<CXX_COMPILER_ID:Clang>:-Wno-c++11-long-long>
         )
     target_compile_definitions(eigen_target INTERFACE AMGCL_HAVE_EIGEN)
