@@ -5,6 +5,7 @@
 #include <amgcl/adapter/block_matrix.hpp>
 #include <amgcl/value_type/static_matrix.hpp>
 #include <amgcl/make_solver.hpp>
+#include <amgcl/util.hpp>
 
 namespace amgcl {
 
@@ -36,8 +37,8 @@ struct spmv_impl<
         rhs_type const * xptr = reinterpret_cast<rhs_type const *>(&x[0]);
         rhs_type       * yptr = reinterpret_cast<rhs_type       *>(&y[0]);
 
-        boost::iterator_range<rhs_type const *> xrng(xptr, xptr + m);
-        boost::iterator_range<rhs_type       *> yrng(yptr, yptr + n);
+        iterator_range<rhs_type const *> xrng(xptr, xptr + m);
+        iterator_range<rhs_type       *> yrng(yptr, yptr + n);
 
         spmv(alpha, A, xrng, beta, yrng);
     }
@@ -79,8 +80,8 @@ class make_block_solver {
             rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&rhs[0]);
             rhs_type       * xptr = reinterpret_cast<rhs_type       *>(&x[0]);
 
-            boost::iterator_range<rhs_type const *> frng(fptr, fptr + n);
-            boost::iterator_range<rhs_type       *> xrng(xptr, xptr + n);
+            iterator_range<rhs_type const *> frng(fptr, fptr + n);
+            iterator_range<rhs_type       *> xrng(xptr, xptr + n);
 
             return (*S)(A, frng, xrng);
         }
@@ -93,8 +94,8 @@ class make_block_solver {
             rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&rhs[0]);
             rhs_type       * xptr = reinterpret_cast<rhs_type       *>(&x[0]);
 
-            boost::iterator_range<rhs_type const *> frng(fptr, fptr + n);
-            boost::iterator_range<rhs_type       *> xrng(xptr, xptr + n);
+            iterator_range<rhs_type const *> frng(fptr, fptr + n);
+            iterator_range<rhs_type       *> xrng(xptr, xptr + n);
 
             return (*S)(frng, xrng);
         }

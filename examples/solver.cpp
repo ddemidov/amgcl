@@ -103,8 +103,8 @@ std::tuple<size_t, double> block_solve(
         rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&rhs[0]);
         rhs_type       * xptr = reinterpret_cast<rhs_type       *>(&x[0]);
 
-        amgcl::backend::numa_vector<rhs_type> F(perm(boost::make_iterator_range(fptr, fptr + rows/B)));
-        amgcl::backend::numa_vector<rhs_type> X(perm(boost::make_iterator_range(xptr, xptr + rows/B)));
+        amgcl::backend::numa_vector<rhs_type> F(perm(amgcl::make_iterator_range(fptr, fptr + rows/B)));
+        amgcl::backend::numa_vector<rhs_type> X(perm(amgcl::make_iterator_range(xptr, xptr + rows/B)));
 
         prof.tic("solve");
         info = solve(F, X);
@@ -188,10 +188,10 @@ std::tuple<size_t, double> block_solve(
 
         std::vector<rhs_type> tmp(rows / B);
 
-        perm.forward(boost::make_iterator_range(fptr, fptr + rows/B), tmp);
+        perm.forward(amgcl::make_iterator_range(fptr, fptr + rows/B), tmp);
         vex::vector<rhs_type> f_b(ctx, tmp);
 
-        perm.forward(boost::make_iterator_range(xptr, xptr + rows/B), tmp);
+        perm.forward(amgcl::make_iterator_range(xptr, xptr + rows/B), tmp);
         vex::vector<rhs_type> x_b(ctx, tmp);
 
         prof.tic("solve");
