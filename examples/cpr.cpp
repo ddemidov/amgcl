@@ -4,7 +4,10 @@
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
+#include <boost/preprocessor/seq/for_each.hpp>
 
+#include <amgcl/backend/builtin.hpp>
+#include <amgcl/value_type/static_matrix.hpp>
 #include <amgcl/make_solver.hpp>
 #include <amgcl/amg.hpp>
 #include <amgcl/solver/runtime.hpp>
@@ -13,6 +16,7 @@
 #include <amgcl/relaxation/as_preconditioner.hpp>
 #include <amgcl/preconditioner/cpr.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
+#include <amgcl/adapter/block_matrix.hpp>
 #include <amgcl/io/mm.hpp>
 #include <amgcl/io/binary.hpp>
 #include <amgcl/profiler.hpp>
@@ -57,6 +61,53 @@ void solve_cpr(const Matrix &K, const std::vector<double> &rhs, boost::property_
 }
 
 //---------------------------------------------------------------------------
+template <int B, class Matrix>
+void solve_block_cpr(const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
+{
+    auto t1 = prof.scoped_tic("CPR");
+
+    typedef amgcl::static_matrix<double, B, B> val_type;
+    typedef amgcl::static_matrix<double, B, 1> rhs_type;
+    typedef amgcl::backend::builtin<val_type>  SBackend;
+    typedef amgcl::backend::builtin<double>    PBackend;
+
+    typedef
+        amgcl::amg<
+            PBackend,
+            amgcl::runtime::coarsening::wrapper,
+            amgcl::runtime::relaxation::wrapper>
+        PPrecond;
+
+    typedef
+        amgcl::relaxation::as_preconditioner<
+            SBackend,
+            amgcl::runtime::relaxation::wrapper
+            >
+        SPrecond;
+
+    amgcl::make_solver<
+        amgcl::preconditioner::cpr<PPrecond, SPrecond>,
+        amgcl::runtime::solver::wrapper<SBackend>
+        > solve(amgcl::adapter::block_matrix<val_type>(K), prm);
+
+    std::cout << solve.precond() << std::endl;
+
+    auto t2 = prof.scoped_tic("solve");
+    std::vector<rhs_type> x(rhs.size(), amgcl::math::zero<rhs_type>());
+
+    auto rhs_ptr = reinterpret_cast<const rhs_type*>(rhs.data());
+    size_t n = amgcl::backend::rows(K) / B;
+
+    size_t iters;
+    double error;
+
+    std::tie(iters, error) = solve(amgcl::make_iterator_range(rhs_ptr, rhs_ptr + n), x);
+
+    std::cout << "Iterations: " << iters << std::endl
+              << "Error:      " << error << std::endl;
+}
+
+//---------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
     using std::string;
     using std::vector;
@@ -87,9 +138,14 @@ int main(int argc, char *argv[]) {
          "The right-hand side in MatrixMarket format"
         )
         (
-         "block-size,b",
+         "runtime-block-size,b",
          po::value<int>(),
-         "The block size of the system matrix"
+         "The block size of the system matrix set at runtime"
+        )
+        (
+         "static-block-size,c",
+         po::value<int>()->default_value(1),
+         "The block size of the system matrix set at compiletime"
         )
         (
          "params,P",
@@ -125,8 +181,12 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (vm.count("block-size"))
-        prm.put("precond.block_size", vm["block-size"].as<int>());
+    int cb = vm["static-block-size"].as<int>();
+
+    if (vm.count("runtime-block-size"))
+        prm.put("precond.block_size", vm["runtime-block-size"].as<int>());
+    else
+        prm.put("precond.block_size", cb);
 
     size_t rows;
     vector<ptrdiff_t> ptr, col;
@@ -164,7 +224,22 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    solve_cpr(std::tie(rows, ptr, col, val), rhs, prm);
+#define CALL_BLOCK_SOLVER(z, data, B)                                          \
+    case B:                                                                    \
+        solve_block_cpr<B>(std::tie(rows, ptr, col, val), rhs, prm);           \
+        break;
+
+    switch(cb) {
+        case 1:
+            solve_cpr(std::tie(rows, ptr, col, val), rhs, prm);
+            break;
+
+        BOOST_PP_SEQ_FOR_EACH(CALL_BLOCK_SOLVER, ~, AMGCL_BLOCK_SIZES)
+
+        default:
+            precondition(false, "Unsupported block size");
+            break;
+    }
 
     std::cout << prof << std::endl;
 }

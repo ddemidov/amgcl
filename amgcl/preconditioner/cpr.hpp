@@ -43,21 +43,33 @@ namespace preconditioner {
 template <class PPrecond, class SPrecond>
 class cpr {
     static_assert(
-            std::is_same<
+            math::static_rows<typename PPrecond::backend_type::value_type>::value == 1,
+            "Pressure backend should have scalar value type!"
+            );
+
+    static_assert(
+            backend::backends_compatible<
                 typename PPrecond::backend_type,
                 typename SPrecond::backend_type
                 >::value,
-            "Backends for pressure and flow preconditioners should coinside!"
+            "Backends for pressure and flow preconditioners should coincide!"
             );
+
     public:
-        typedef typename PPrecond::backend_type backend_type;
+        typedef typename SPrecond::backend_type backend_type;
+        typedef typename PPrecond::backend_type backend_type_p;
 
-        typedef typename backend_type::value_type value_type;
-        typedef typename backend_type::matrix     matrix;
-        typedef typename backend_type::vector     vector;
-        typedef typename backend_type::params     backend_params;
+        typedef typename backend_type::value_type   value_type;
+        typedef typename backend_type::matrix       matrix;
+        typedef typename backend_type::vector       vector;
+        typedef typename backend_type_p::value_type value_type_p;
+        typedef typename backend_type_p::matrix     matrix_p;
+        typedef typename backend_type_p::vector     vector_p;
 
-        typedef typename backend::builtin<value_type>::matrix build_matrix;
+        typedef typename backend_type::params       backend_params;
+
+        typedef typename backend::builtin<value_type>::matrix   build_matrix;
+        typedef typename backend::builtin<value_type_p>::matrix build_matrix_p;
 
         struct params {
             typedef typename PPrecond::params pprecond_params;
@@ -69,7 +81,9 @@ class cpr {
             int    block_size;
             size_t active_rows;
 
-            params() : block_size(2), active_rows(0) {}
+            params()
+                : block_size(math::static_rows<value_type>::value == 1 ? 2 : math::static_rows<value_type>::value),
+                  active_rows(0) {}
 
 #ifndef AMGCL_NO_BOOST
             params(const boost::property_tree::ptree &p)
@@ -98,16 +112,18 @@ class cpr {
                 const backend_params &bprm = backend_params()
            ) : prm(prm), n(backend::rows(K))
         {
-            init(std::make_shared<build_matrix>(K), bprm);
+            init(std::make_shared<build_matrix>(K), bprm,
+                    std::integral_constant<bool, math::static_rows<value_type>::value == 1>());
         }
 
         cpr(
                 std::shared_ptr<build_matrix> K,
                 const params &prm = params(),
-                const backend_params bprm = backend_params()
+                const backend_params &bprm = backend_params()
            ) : prm(prm), n(backend::rows(*K))
         {
-            init(K, bprm);
+            init(K, bprm,
+                    std::integral_constant<bool, math::static_rows<value_type>::value == 1>());
         }
 
         template <class Vec1, class Vec2>
@@ -132,7 +148,7 @@ class cpr {
         template <class Matrix>
         void update_sprecond(
                 const Matrix &K,
-                const backend_params bprm = backend_params())
+                const backend_params &bprm = backend_params())
         {
             S = std::make_shared<SPrecond>(K, prm.sprecond, bprm);
         }
@@ -143,10 +159,12 @@ class cpr {
         std::shared_ptr<PPrecond> P;
         std::shared_ptr<SPrecond> S;
 
-        std::shared_ptr<matrix> Fpp, Scatter;
-        std::shared_ptr<vector> rp, xp, rs;
+        std::shared_ptr<matrix_p> Fpp, Scatter;
+        std::shared_ptr<vector>   rs;
+        std::shared_ptr<vector_p> rp, xp;
 
-        void init(std::shared_ptr<build_matrix> K, const backend_params bprm)
+        // The system matrix has scalar values
+        void init(std::shared_ptr<build_matrix> K, const backend_params bprm, std::true_type)
         {
             typedef typename backend::row_iterator<build_matrix>::type row_iterator;
             const int       B = prm.block_size;
@@ -155,8 +173,8 @@ class cpr {
             np = N / B;
 
             auto fpp = std::make_shared<build_matrix>();
-            fpp->set_size(np, n);
-            fpp->set_nonzeros(n);
+            fpp->set_size(np, N);
+            fpp->set_nonzeros(N);
             fpp->ptr[0] = 0;
 
             auto App = std::make_shared<build_matrix>();
@@ -209,7 +227,7 @@ class cpr {
                                 for(; k[i] && k[i].col() < end; ++k[i])
                                     v(k[i].col() % B, i) = k[i].value();
 
-                            invert(v, &fpp->val[ik]);
+                            invert(v.data(), &fpp->val[ik]);
                         } else {
                             // This is off-diagonal block.
                             // Just skip it.
@@ -325,37 +343,117 @@ class cpr {
             rs = backend_type::create_vector(n, bprm);
         }
 
+        // The system matrix has block values
+        void init(std::shared_ptr<build_matrix> K, const backend_params bprm, std::false_type)
+        {
+            const int       B = math::static_rows<value_type>::value;
+            const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
+
+            np = N;
+
+            auto fpp = std::make_shared<build_matrix_p>();
+            fpp->set_size(np, np * B);
+            fpp->set_nonzeros(np * B);
+            fpp->ptr[0] = 0;
+
+            auto scatter = std::make_shared<build_matrix_p>();
+            scatter->set_size(np * B, np);
+            scatter->set_nonzeros(np);
+            scatter->ptr[0] = 0;
+
+#pragma omp parallel for
+            for (ptrdiff_t ip = 0; ip < static_cast<ptrdiff_t>(np); ++ip) {
+                ptrdiff_t ik = ip * B;
+                for(int k = 0; k < B; ++k) {
+                    fpp->col[ik + k] = ik + k;
+                    scatter->ptr[ik + k + 1] = ip + 1;
+                }
+
+                fpp->ptr[ip + 1] = B * (ip + 1);
+
+                scatter->col[ip] = ip;
+                scatter->val[ip] = math::identity<value_type_p>();
+            }
+
+            auto App = std::make_shared<build_matrix_p>();
+            App->set_size(np, np, true);
+            App->set_nonzeros(K->nnz);
+            App->ptr[0] = 0;
+
+            // Get the pressure matrix nonzero pattern,
+            // extract and invert block diagonals.
+#pragma omp parallel for
+            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(np); ++i) {
+                ptrdiff_t row_beg = K->ptr[i];
+                ptrdiff_t row_end = K->ptr[i + 1];
+                App->ptr[i+1] = row_end;
+
+                value_type_p *d = &fpp->val[i * B];
+
+                for(ptrdiff_t j = row_beg; j < row_end; ++j) {
+                    if (K->col[j] == i) {
+                        // This is the diagonal block.
+                        // Capture its (transposed) value,
+                        // invert it and put the relevant row into fpp.
+                        value_type v = math::adjoint(K->val[j]);
+                        invert(v.data(), d);
+                        break;
+                    }
+                }
+
+                for(ptrdiff_t j = row_beg; j < row_end; ++j) {
+                    App->col[j] = K->col[j];
+
+                    value_type_p app = 0;
+                    for(int k = 0; k < B; ++k)
+                        app += d[k] * K->val[j](k,0);
+
+                    App->val[j] = app;
+                }
+            }
+
+            P = std::make_shared<PPrecond>(App, prm.pprecond, bprm);
+            S = std::make_shared<SPrecond>(K,   prm.sprecond, bprm);
+
+            Fpp     = backend_type_p::copy_matrix(fpp, bprm);
+            Scatter = backend_type_p::copy_matrix(scatter, bprm);
+
+            rp = backend_type_p::create_vector(np, bprm);
+            xp = backend_type_p::create_vector(np, bprm);
+            rs = backend_type::create_vector(n, bprm);
+        }
+
         // Inverts dense matrix A;
         // Returns the first column of the inverted matrix.
-        void invert(multi_array<value_type, 2> &A, value_type *y)
+        void invert(value_type_p *A, value_type_p *y)
         {
-            const int B = prm.block_size;
+            const int B = math::static_rows<value_type>::value == 1 ? prm.block_size : math::static_rows<value_type>::value;
 
             // Perform LU-factorization of A in-place
             for(int k = 0; k < B; ++k) {
-                value_type d = A(k,k);
+                value_type_p d = A[k*B+k];
                 assert(!math::is_zero(d));
                 for(int i = k+1; i < B; ++i) {
-                    A(i,k) /= d;
+                    A[i*B+k] /= d;
                     for(int j = k+1; j < B; ++j)
-                        A(i,j) -= A(i,k) * A(k,j);
+                        A[i*B+j] -= A[i*B+k] * A[k*B+j];
                 }
             }
 
             // Invert unit vector in-place.
             // Lower triangular solve:
             for(int i = 0; i < B; ++i) {
-                value_type b = static_cast<value_type>(i == 0);
+                value_type_p b = static_cast<value_type_p>(i == 0);
                 for(int j = 0; j < i; ++j)
-                    b -= A(i,j) * y[j];
+                    b -= A[i*B+j] * y[j];
                 y[i] = b;
             }
 
             // Upper triangular solve:
             for(int i = B; i --> 0; ) {
                 for(int j = i+1; j < B; ++j)
-                    y[i] -= A(i,j) * y[j];
-                y[i] /= A(i,i);
+                    y[i] -= A[i*B+j] * y[j];
+                y[i] /= A[i*B+i];
             }
         }
 

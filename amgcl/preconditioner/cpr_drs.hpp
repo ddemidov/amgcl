@@ -45,21 +45,32 @@ namespace preconditioner {
 template <class PPrecond, class SPrecond>
 class cpr_drs {
     static_assert(
-            std::is_same<
+            math::static_rows<typename PPrecond::backend_type::value_type>::value == 1,
+            "Pressure backend should have scalar value type!"
+            );
+
+    static_assert(
+            backend::backends_compatible<
                 typename PPrecond::backend_type,
                 typename SPrecond::backend_type
                 >::value,
-            "Backends for pressure and flow preconditioners should coinside!"
+            "Backends for pressure and flow preconditioners should coincide!"
             );
     public:
-        typedef typename PPrecond::backend_type backend_type;
+        typedef typename SPrecond::backend_type backend_type;
+        typedef typename PPrecond::backend_type backend_type_p;
 
-        typedef typename backend_type::value_type value_type;
-        typedef typename backend_type::matrix     matrix;
-        typedef typename backend_type::vector     vector;
-        typedef typename backend_type::params     backend_params;
+        typedef typename backend_type::value_type   value_type;
+        typedef typename backend_type::matrix       matrix;
+        typedef typename backend_type::vector       vector;
+        typedef typename backend_type_p::value_type value_type_p;
+        typedef typename backend_type_p::matrix     matrix_p;
+        typedef typename backend_type_p::vector     vector_p;
 
-        typedef typename backend::builtin<value_type>::matrix build_matrix;
+        typedef typename backend_type::params       backend_params;
+
+        typedef typename backend::builtin<value_type>::matrix   build_matrix;
+        typedef typename backend::builtin<value_type_p>::matrix build_matrix_p;
 
         struct params {
             typedef typename PPrecond::params pprecond_params;
@@ -75,7 +86,9 @@ class cpr_drs {
 
             std::vector<double> weights;
 
-            params() : block_size(2), active_rows(0), eps_dd(0.2), eps_ps(0.02) {}
+            params()
+                : block_size(math::static_rows<value_type>::value == 1 ? 2 : math::static_rows<value_type>::value),
+                  active_rows(0), eps_dd(0.2), eps_ps(0.02) {}
 
 #ifndef AMGCL_NO_BOOST
             params(const boost::property_tree::ptree &p)
@@ -125,16 +138,18 @@ class cpr_drs {
                 const backend_params &bprm = backend_params()
                ) : prm(prm), n(backend::rows(K))
         {
-            init(std::make_shared<build_matrix>(K), bprm);
+            init(std::make_shared<build_matrix>(K), bprm,
+                    std::integral_constant<bool, math::static_rows<value_type>::value == 1>());
         }
 
         cpr_drs(
                 std::shared_ptr<build_matrix> K,
                 const params &prm = params(),
-                const backend_params bprm = backend_params()
+                const backend_params &bprm = backend_params()
                ) : prm(prm), n(backend::rows(*K))
         {
-            init(K, bprm);
+            init(K, bprm,
+                    std::integral_constant<bool, math::static_rows<value_type>::value == 1>());
         }
 
         template <class Vec1, class Vec2>
@@ -159,7 +174,7 @@ class cpr_drs {
         template <class Matrix>
         void update_sprecond(
                 const Matrix &K,
-                const backend_params bprm = backend_params())
+                const backend_params &bprm = backend_params())
         {
             S = std::make_shared<SPrecond>(K, prm.sprecond, bprm);
         }
@@ -170,10 +185,11 @@ class cpr_drs {
         std::shared_ptr<PPrecond> P;
         std::shared_ptr<SPrecond> S;
 
-        std::shared_ptr<matrix> Fpp, Scatter;
-        std::shared_ptr<vector> rp, xp, rs;
+        std::shared_ptr<matrix_p> Fpp, Scatter;
+        std::shared_ptr<vector>   rs;
+        std::shared_ptr<vector_p> rp, xp;
 
-        void init(std::shared_ptr<build_matrix> K, const backend_params bprm)
+        void init(std::shared_ptr<build_matrix> K, const backend_params bprm, std::true_type)
         {
             typedef typename backend::row_iterator<build_matrix>::type row_iterator;
             const int       B = prm.block_size;
@@ -372,6 +388,107 @@ class cpr_drs {
 
             rp = backend_type::create_vector(np, bprm);
             xp = backend_type::create_vector(np, bprm);
+            rs = backend_type::create_vector(n, bprm);
+        }
+
+        void init(std::shared_ptr<build_matrix> K, const backend_params bprm, std::false_type)
+        {
+            const int       B = math::static_rows<value_type>::value;
+            const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
+
+            precondition(
+                    prm.weights.empty() || prm.weights.size() == static_cast<size_t>(N * B),
+                    "CPR: weights size is not equal to number of active rows.");
+
+            np = N;
+
+            auto fpp = std::make_shared<build_matrix_p>();
+            fpp->set_size(np, np * B);
+            fpp->set_nonzeros(np * B);
+            fpp->ptr[0] = 0;
+
+            auto scatter = std::make_shared<build_matrix_p>();
+            scatter->set_size(np * B, np);
+            scatter->set_nonzeros(np);
+            scatter->ptr[0] = 0;
+
+#pragma omp parallel for
+            for (ptrdiff_t ip = 0; ip < static_cast<ptrdiff_t>(np); ++ip) {
+                ptrdiff_t ik = ip * B;
+                for(int k = 0; k < B; ++k) {
+                    fpp->col[ik + k] = ik + k;
+                    scatter->ptr[ik + k + 1] = ip + 1;
+                }
+
+                fpp->ptr[ip + 1] = B * (ip + 1);
+
+                scatter->col[ip] = ip;
+                scatter->val[ip] = math::identity<value_type_p>();
+            }
+
+            auto App = std::make_shared<build_matrix_p>();
+            App->set_size(np, np, true);
+            App->set_nonzeros(K->nnz);
+            App->ptr[0] = 0;
+
+#pragma omp parallel for
+            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(np); ++i) {
+                ptrdiff_t row_beg = K->ptr[i];
+                ptrdiff_t row_end = K->ptr[i + 1];
+                App->ptr[i+1] = row_end;
+
+                value_type_p *d = &fpp->val[i * B];
+                const double *w = prm.weights.empty() ? nullptr : &prm.weights[i * B];
+
+                std::array<value_type_p, B> a_dia{};
+                std::array<value_type_p, B> a_off{};
+                std::array<value_type_p, B> a_top{};
+
+                for(ptrdiff_t j = row_beg; j < row_end; ++j) {
+                    ptrdiff_t  c = K->col[j];
+                    value_type v = K->val[j];
+
+                    for(int k = 0; k < B; ++k) {
+                        a_top[k] += std::abs(v(0,k));
+                        if (c == i) {
+                            a_dia[k] = v(k,0);
+                        } else {
+                            a_off[k] += std::abs(v(k,0));
+                        }
+                    }
+                }
+
+                for(int k = 0; k < B; ++k) {
+                    if (k > 0 &&
+                            (a_dia[k] < prm.eps_dd * a_off[k] ||
+                             a_top[k] < prm.eps_ps * std::abs(a_dia[0])
+                            ))
+                    {
+                        d[k] = 0;
+                    } else {
+                        d[k] = w ? w[k] : 1.0;
+                    }
+                }
+
+                for(ptrdiff_t j = row_beg; j < row_end; ++j) {
+                    App->col[j] = K->col[j];
+
+                    value_type_p app = 0;
+                    for(int k = 0; k < B; ++k)
+                        app += d[k] * K->val[j](k,0);
+
+                    App->val[j] = app;
+                }
+            }
+
+            P = std::make_shared<PPrecond>(App, prm.pprecond, bprm);
+            S = std::make_shared<SPrecond>(K,   prm.sprecond, bprm);
+
+            Fpp     = backend_type_p::copy_matrix(fpp, bprm);
+            Scatter = backend_type_p::copy_matrix(scatter, bprm);
+
+            rp = backend_type_p::create_vector(np, bprm);
+            xp = backend_type_p::create_vector(np, bprm);
             rs = backend_type::create_vector(n, bprm);
         }
 
