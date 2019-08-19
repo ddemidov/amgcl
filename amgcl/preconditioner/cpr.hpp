@@ -129,6 +129,14 @@ class cpr {
             return S->system_matrix();
         }
 
+        template <class Matrix>
+        void update_sprecond(
+                const Matrix &K,
+                const backend_params bprm = backend_params())
+        {
+            S = std::make_shared<SPrecond>(K, prm.sprecond, bprm);
+        }
+
     private:
         size_t n, np;
 
