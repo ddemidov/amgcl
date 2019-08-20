@@ -412,27 +412,22 @@ class cpr_drs {
             scatter->set_nonzeros(np);
             scatter->ptr[0] = 0;
 
-#pragma omp parallel for
-            for (ptrdiff_t ip = 0; ip < static_cast<ptrdiff_t>(np); ++ip) {
-                ptrdiff_t ik = ip * B;
-                for(int k = 0; k < B; ++k) {
-                    fpp->col[ik + k] = ik + k;
-                    scatter->ptr[ik + k + 1] = ip + 1;
-                }
-
-                fpp->ptr[ip + 1] = B * (ip + 1);
-
-                scatter->col[ip] = ip;
-                scatter->val[ip] = math::identity<value_type_p>();
-            }
-
             auto App = std::make_shared<build_matrix_p>();
             App->set_size(np, np, true);
             App->set_nonzeros(K->nnz);
             App->ptr[0] = 0;
 
 #pragma omp parallel for
-            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(np); ++i) {
+            for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(np); ++i) {
+                ptrdiff_t ik = i * B;
+                for(int k = 0; k < B; ++k, ++ik) {
+                    fpp->col[ik] = ik;
+                    scatter->ptr[ik + 1] = i + 1;
+                }
+                fpp->ptr[i + 1] = ik;
+                scatter->col[i] = i;
+                scatter->val[i] = math::identity<value_type_p>();
+
                 ptrdiff_t row_beg = K->ptr[i];
                 ptrdiff_t row_end = K->ptr[i + 1];
                 App->ptr[i+1] = row_end;
