@@ -286,7 +286,12 @@ struct bytes_impl< vex::vector<V> > {
 template < typename Alpha, typename Beta, typename Va, typename Vx, typename Vy, typename C, typename P >
 struct spmv_impl<
     Alpha, vex::sparse::distributed<vex::sparse::matrix<Va,C,P>>, vex::vector<Vx>,
-    Beta,  vex::vector<Vy>
+    Beta,  vex::vector<Vy>,
+    typename std::enable_if<
+        math::static_rows<Va>::value == 1 &&
+        math::static_rows<Vx>::value == 1 &&
+        math::static_rows<Vy>::value == 1
+        >::type
     >
 {
     typedef vex::sparse::distributed<vex::sparse::matrix<Va,C,P>> matrix;

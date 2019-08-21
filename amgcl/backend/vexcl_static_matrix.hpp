@@ -750,6 +750,53 @@ struct spmv_impl<Alpha,
     }
 };
 
+template <typename Alpha, typename Beta, typename TA, typename TX, typename TY>
+struct spmv_impl<Alpha,
+    vex::sparse::distributed<vex::sparse::matrix<TA, ptrdiff_t, ptrdiff_t>>,
+    vex::vector<TX>, Beta, vex::vector<TY>,
+    typename std::enable_if<
+        (math::static_rows<TA>::value == 1) && (
+                math::static_rows<TA>::value != math::static_rows<TX>::value ||
+                math::static_rows<TA>::value != math::static_rows<TY>::value
+                )
+        >::type>
+{
+    typedef vex::sparse::distributed<vex::sparse::matrix<TA, ptrdiff_t, ptrdiff_t>> matrix;
+    typedef vex::vector<TX> vectorx;
+    typedef vex::vector<TY> vectory;
+
+    static void apply(Alpha alpha, const matrix &A, const vectorx &x, Beta beta, vectory &y)
+    {
+        auto _x = x.template reinterpret<typename math::scalar_of<TX>::type>();
+        auto _y = y.template reinterpret<typename math::scalar_of<TY>::type>();
+        spmv(alpha, A, _x, beta, _y);
+    }
+};
+
+template <typename Alpha, typename Beta, typename TA, typename TX, typename TY>
+struct spmv_impl<Alpha,
+    vex::sparse::distributed<vex::sparse::matrix<TA, ptrdiff_t, ptrdiff_t>>,
+    vex::vector<TX>, Beta, vex::vector<TY>,
+    typename std::enable_if<
+        (math::static_rows<TA>::value > 1) && (
+                math::static_rows<TA>::value != math::static_rows<TX>::value ||
+                math::static_rows<TA>::value != math::static_rows<TY>::value
+                )
+        >::type>
+{
+    typedef vex::sparse::distributed<vex::sparse::matrix<TA, ptrdiff_t, ptrdiff_t>> matrix;
+    typedef vex::vector<TX> vectorx;
+    typedef vex::vector<TY> vectory;
+
+    static void apply(Alpha alpha, const matrix &A, const vectorx &x, Beta beta, vectory &y)
+    {
+        const int B = math::static_rows<TA>::value;
+        auto _x = x.template reinterpret<static_matrix<typename math::scalar_of<TX>::type, B, 1>>();
+        auto _y = y.template reinterpret<static_matrix<typename math::scalar_of<TY>::type, B, 1>>();
+        spmv(alpha, A, _x, beta, _y);
+    }
+};
+
 template <typename T, int B>
 struct residual_impl<
     vex::sparse::distributed<vex::sparse::matrix<static_matrix<T,B,B>, ptrdiff_t, ptrdiff_t>>,

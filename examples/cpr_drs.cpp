@@ -147,6 +147,9 @@ void solve_block_cpr(const Matrix &K, const std::vector<double> &rhs, boost::pro
     vex::Context ctx(vex::Filter::Env);
     std::cout << ctx << std::endl;
     bprm.q = ctx;
+
+    vex::scoped_program_header header(ctx,
+            amgcl::backend::vexcl_static_matrix_declaration<double, B>());
 #endif
 
     prof.tic("setup");
@@ -164,7 +167,7 @@ void solve_block_cpr(const Matrix &K, const std::vector<double> &rhs, boost::pro
 #if defined(SOLVER_BACKEND_BUILTIN)
     auto f = amgcl::make_iterator_range(rhs_ptr, rhs_ptr + n);
 #elif defined(SOLVER_BACKEND_VEXCL)
-    vex::vector<rhs_type> f(ctx, rhs_ptr, n);
+    vex::vector<rhs_type> f(ctx, n, rhs_ptr);
 #endif
 
     auto x = SBackend::create_vector(n, bprm);
