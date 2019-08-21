@@ -201,12 +201,12 @@ class cpr_drs {
 
             np = N / B;
 
-            auto fpp = std::make_shared<build_matrix>();
+            auto fpp = std::make_shared<build_matrix_p>();
             fpp->set_size(np, n);
             fpp->set_nonzeros(n);
             fpp->ptr[0] = 0;
 
-            auto App = std::make_shared<build_matrix>();
+            auto App = std::make_shared<build_matrix_p>();
             App->set_size(np, np, true);
 
 #pragma omp parallel
@@ -302,7 +302,7 @@ class cpr_drs {
 
             App->set_nonzeros(App->scan_row_sizes());
 
-            auto scatter = std::make_shared<build_matrix>();
+            auto scatter = std::make_shared<build_matrix_p>();
             scatter->set_size(n, np);
             scatter->set_nonzeros(np);
             scatter->ptr[0] = 0;
@@ -318,7 +318,7 @@ class cpr_drs {
                     bool      done = true;
                     ptrdiff_t cur_col = 0;
 
-                    value_type *d = &fpp->val[ik];
+                    value_type_p *d = &fpp->val[ik];
 
                     k.clear();
                     for(int i = 0; i < B; ++i) {
@@ -337,7 +337,7 @@ class cpr_drs {
 
                     while (!done) {
                         ptrdiff_t  end = (cur_col + 1) * B;
-                        value_type app = 0;
+                        value_type_p app = 0;
 
                         for(int i = 0; i < B; ++i) {
                             for(; k[i] && k[i].col() < end; ++k[i]) {
@@ -383,11 +383,11 @@ class cpr_drs {
             P = std::make_shared<PPrecond>(App, prm.pprecond, bprm);
             S = std::make_shared<SPrecond>(K,   prm.sprecond, bprm);
 
-            Fpp     = backend_type::copy_matrix(fpp, bprm);
-            Scatter = backend_type::copy_matrix(scatter, bprm);
+            Fpp     = backend_type_p::copy_matrix(fpp, bprm);
+            Scatter = backend_type_p::copy_matrix(scatter, bprm);
 
-            rp = backend_type::create_vector(np, bprm);
-            xp = backend_type::create_vector(np, bprm);
+            rp = backend_type_p::create_vector(np, bprm);
+            xp = backend_type_p::create_vector(np, bprm);
             rs = backend_type::create_vector(n, bprm);
         }
 
