@@ -8,6 +8,7 @@
 
 #if defined(SOLVER_BACKEND_VEXCL)
 #  include <amgcl/backend/vexcl.hpp>
+#  include <amgcl/backend/vexcl_static_matrix.hpp>
    typedef amgcl::backend::vexcl<double> Backend;
 #elif defined(SOLVER_BACKEND_VIENNACL)
 #  include <amgcl/backend/viennacl.hpp>
@@ -21,9 +22,12 @@
 #    define SOLVER_BACKEND_BUILTIN
 #  endif
 #  include <amgcl/backend/builtin.hpp>
+   typedef amgcl::backend::builtin<double> Backend;
+#endif
+
+#if defined(SOLVER_BACKEND_BUILTIN) || defined(SOLVER_BACKEND_VEXCL)
 #  include <amgcl/value_type/static_matrix.hpp>
 #  include <amgcl/adapter/block_matrix.hpp>
-   typedef amgcl::backend::builtin<double> Backend;
 #endif
 
 #include <amgcl/make_solver.hpp>
@@ -79,10 +83,12 @@ void solve_cpr(const Matrix &K, const std::vector<double> &rhs, boost::property_
         amgcl::relaxation::as_preconditioner<Backend, amgcl::runtime::relaxation::wrapper>
         SPrecond;
 
+    prof.tic("setup");
     amgcl::make_solver<
         amgcl::preconditioner::cpr_drs<PPrecond, SPrecond>,
         amgcl::runtime::solver::wrapper<Backend>
         > solve(K, prm, bprm);
+    prof.toc("setup");
 
     std::cout << solve.precond() << std::endl;
 
@@ -90,17 +96,18 @@ void solve_cpr(const Matrix &K, const std::vector<double> &rhs, boost::property_
     auto x = Backend::create_vector(rhs.size(), bprm);
     amgcl::backend::clear(*x);
 
-    auto t2 = prof.scoped_tic("solve");
     size_t iters;
     double error;
 
+    prof.tic("solve");
     std::tie(iters, error) = solve(*f, *x);
+    prof.toc("solve");
 
     std::cout << "Iterations: " << iters << std::endl
               << "Error:      " << error << std::endl;
 }
 
-#if defined(SOLVER_BACKEND_BUILTIN)
+#if defined(SOLVER_BACKEND_BUILTIN) || defined(SOLVER_BACKEND_VEXCL)
 //---------------------------------------------------------------------------
 template <int B, class Matrix>
 void solve_block_cpr(const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
@@ -111,8 +118,14 @@ void solve_block_cpr(const Matrix &K, const std::vector<double> &rhs, boost::pro
 
     typedef amgcl::static_matrix<double, B, B> val_type;
     typedef amgcl::static_matrix<double, B, 1> rhs_type;
+
+#if defined(SOLVER_BACKEND_BUILTIN)
     typedef amgcl::backend::builtin<val_type>  SBackend;
     typedef amgcl::backend::builtin<double>    PBackend;
+#elif defined(SOLVER_BACKEND_VEXCL)
+    typedef amgcl::backend::vexcl<val_type>  SBackend;
+    typedef amgcl::backend::vexcl<double>    PBackend;
+#endif
 
     typedef
         amgcl::amg<
@@ -128,23 +141,41 @@ void solve_block_cpr(const Matrix &K, const std::vector<double> &rhs, boost::pro
             >
         SPrecond;
 
+    typename SBackend::params bprm;
+
+#if defined(SOLVER_BACKEND_VEXCL)
+    vex::Context ctx(vex::Filter::Env);
+    std::cout << ctx << std::endl;
+    bprm.q = ctx;
+#endif
+
+    prof.tic("setup");
     amgcl::make_solver<
         amgcl::preconditioner::cpr_drs<PPrecond, SPrecond>,
         amgcl::runtime::solver::wrapper<SBackend>
-        > solve(amgcl::adapter::block_matrix<val_type>(K), prm);
+        > solve(amgcl::adapter::block_matrix<val_type>(K), prm, bprm);
+    prof.toc("setup");
 
     std::cout << solve.precond() << std::endl;
 
-    auto t2 = prof.scoped_tic("solve");
-    std::vector<rhs_type> x(rhs.size(), amgcl::math::zero<rhs_type>());
-
-    auto rhs_ptr = reinterpret_cast<const rhs_type*>(rhs.data());
     size_t n = amgcl::backend::rows(K) / B;
+    auto rhs_ptr = reinterpret_cast<const rhs_type*>(rhs.data());
+
+#if defined(SOLVER_BACKEND_BUILTIN)
+    auto f = amgcl::make_iterator_range(rhs_ptr, rhs_ptr + n);
+#elif defined(SOLVER_BACKEND_VEXCL)
+    vex::vector<rhs_type> f(ctx, rhs_ptr, n);
+#endif
+
+    auto x = SBackend::create_vector(n, bprm);
+    amgcl::backend::clear(*x);
 
     size_t iters;
     double error;
 
-    std::tie(iters, error) = solve(amgcl::make_iterator_range(rhs_ptr, rhs_ptr + n), x);
+    prof.tic("solve");
+    std::tie(iters, error) = solve(f, *x);
+    prof.toc("solve");
 
     std::cout << "Iterations: " << iters << std::endl
               << "Error:      " << error << std::endl;
@@ -298,7 +329,7 @@ int main(int argc, char *argv[]) {
             solve_cpr(std::tie(rows, ptr, col, val), rhs, prm);
             break;
 
-#if defined(SOLVER_BACKEND_BUILTIN)
+#if defined(SOLVER_BACKEND_BUILTIN) || defined(SOLVER_BACKEND_VEXCL)
         BOOST_PP_SEQ_FOR_EACH(CALL_BLOCK_SOLVER, ~, AMGCL_BLOCK_SIZES)
 #endif
 
