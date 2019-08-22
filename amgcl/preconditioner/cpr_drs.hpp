@@ -138,8 +138,7 @@ class cpr_drs {
                 const backend_params &bprm = backend_params()
                ) : prm(prm), n(backend::rows(K))
         {
-            init(std::make_shared<build_matrix>(K), bprm,
-                    std::integral_constant<bool, math::static_rows<value_type>::value == 1>());
+            init(std::make_shared<build_matrix>(K), bprm);
         }
 
         cpr_drs(
@@ -148,8 +147,7 @@ class cpr_drs {
                 const backend_params &bprm = backend_params()
                ) : prm(prm), n(backend::rows(*K))
         {
-            init(K, bprm,
-                    std::integral_constant<bool, math::static_rows<value_type>::value == 1>());
+            init(K, bprm);
         }
 
         template <class Vec1, class Vec2>
@@ -179,17 +177,39 @@ class cpr_drs {
             S = std::make_shared<SPrecond>(K, prm.sprecond, bprm);
         }
 
+        template <class Matrix>
+        void update_pressure_system(
+                const Matrix &K,
+                const backend_params &bprm = backend_params())
+        {
+          init_pressure_system(std::make_shared<build_matrix>(K), bprm,
+            std::integral_constant<bool, math::static_rows<value_type>::value == 1>());
+        }
+
     private:
         size_t n, np;
 
         std::shared_ptr<PPrecond> P;
         std::shared_ptr<SPrecond> S;
 
-        std::shared_ptr<matrix_p> Fpp, Scatter;
+        std::shared_ptr<matrix_p> App, Fpp, Scatter;
         std::shared_ptr<vector>   rs;
         std::shared_ptr<vector_p> rp, xp;
 
-        void init(std::shared_ptr<build_matrix> K, const backend_params bprm, std::true_type)
+        void init(std::shared_ptr<build_matrix> K, const backend_params bprm)
+        {
+            init_pressure_system(K, bprm,
+              std::integral_constant<bool, math::static_rows<value_type>::value == 1>());
+
+            rp = backend_type_p::create_vector(np, bprm);
+            xp = backend_type_p::create_vector(np, bprm);
+            rs = backend_type::create_vector(n, bprm);
+
+            P = std::make_shared<PPrecond>(App, prm.pprecond, bprm);
+            S = std::make_shared<SPrecond>(K,   prm.sprecond, bprm);
+        }
+
+        void init_pressure_system(std::shared_ptr<build_matrix> K, const backend_params bprm, std::true_type)
         {
             typedef typename backend::row_iterator<build_matrix>::type row_iterator;
             const int       B = prm.block_size;
@@ -206,7 +226,7 @@ class cpr_drs {
             fpp->set_nonzeros(n);
             fpp->ptr[0] = 0;
 
-            auto App = std::make_shared<build_matrix_p>();
+            App = std::make_shared<build_matrix_p>();
             App->set_size(np, np, true);
 
 #pragma omp parallel
@@ -380,18 +400,11 @@ class cpr_drs {
             for(size_t i = N; i < n; ++i)
                 scatter->ptr[i+1] = scatter->ptr[i];
 
-            P = std::make_shared<PPrecond>(App, prm.pprecond, bprm);
-            S = std::make_shared<SPrecond>(K,   prm.sprecond, bprm);
-
             Fpp     = backend_type_p::copy_matrix(fpp, bprm);
             Scatter = backend_type_p::copy_matrix(scatter, bprm);
-
-            rp = backend_type_p::create_vector(np, bprm);
-            xp = backend_type_p::create_vector(np, bprm);
-            rs = backend_type::create_vector(n, bprm);
         }
 
-        void init(std::shared_ptr<build_matrix> K, const backend_params bprm, std::false_type)
+        void init_pressure_system(std::shared_ptr<build_matrix> K, const backend_params bprm, std::false_type)
         {
             const int       B = math::static_rows<value_type>::value;
             const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
@@ -412,7 +425,7 @@ class cpr_drs {
             scatter->set_nonzeros(np);
             scatter->ptr[0] = 0;
 
-            auto App = std::make_shared<build_matrix_p>();
+            App = std::make_shared<build_matrix_p>();
             App->set_size(np, np, true);
             App->set_nonzeros(K->nnz);
             App->ptr[0] = 0;
@@ -476,15 +489,8 @@ class cpr_drs {
                 }
             }
 
-            P = std::make_shared<PPrecond>(App, prm.pprecond, bprm);
-            S = std::make_shared<SPrecond>(K,   prm.sprecond, bprm);
-
             Fpp     = backend_type_p::copy_matrix(fpp, bprm);
             Scatter = backend_type_p::copy_matrix(scatter, bprm);
-
-            rp = backend_type_p::create_vector(np, bprm);
-            xp = backend_type_p::create_vector(np, bprm);
-            rs = backend_type::create_vector(n, bprm);
         }
 
         friend std::ostream& operator<<(std::ostream &os, const cpr_drs &p) {
