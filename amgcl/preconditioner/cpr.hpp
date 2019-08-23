@@ -166,14 +166,14 @@ class cpr {
         std::shared_ptr<PPrecond> P;
         std::shared_ptr<SPrecond> S;
 
-        std::shared_ptr<matrix_p> App, Fpp, Scatter;
+        std::shared_ptr<matrix_p> Fpp, Scatter;
         std::shared_ptr<vector>   rs;
         std::shared_ptr<vector_p> rp, xp;
 
 
         void init(std::shared_ptr<build_matrix> K, const backend_params bprm)
         {
-            init_pressure_system(K, bprm,
+            auto App = init_pressure_system(K, bprm,
               std::integral_constant<bool, math::static_rows<value_type>::value == 1>());
 
             rp = backend_type_p::create_vector(np, bprm);
@@ -185,7 +185,10 @@ class cpr {
         }
 
         // The system matrix has scalar values
-        void init_pressure_system(std::shared_ptr<build_matrix> K, const backend_params bprm, std::true_type){
+        std::shared_ptr<build_matrix_p> init_pressure_system(
+                                          std::shared_ptr<build_matrix> K,
+                                          const backend_params bprm, std::true_type
+                                        ){
           typedef typename backend::row_iterator<build_matrix>::type row_iterator;
           const int       B = prm.block_size;
           const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
@@ -197,7 +200,7 @@ class cpr {
           fpp->set_nonzeros(N);
           fpp->ptr[0] = 0;
 
-          App = std::make_shared<build_matrix>();
+          auto App = std::make_shared<build_matrix>();
           App->set_size(np, np, true);
 
           // Get the pressure matrix nonzero pattern,
@@ -354,10 +357,15 @@ class cpr {
 
           Fpp     = backend_type::copy_matrix(fpp, bprm);
           Scatter = backend_type::copy_matrix(scatter, bprm);
+          return App;
         }
 
         // The system matrix has block values
-        void init_pressure_system(std::shared_ptr<build_matrix> K, const backend_params bprm, std::false_type){
+        std::shared_ptr<build_matrix_p> init_pressure_system(
+                                          std::shared_ptr<build_matrix> K,
+                                          const backend_params bprm,
+                                          std::false_type)
+        {
           const int       B = math::static_rows<value_type>::value;
           const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
 
@@ -373,7 +381,7 @@ class cpr {
           scatter->set_nonzeros(np);
           scatter->ptr[0] = 0;
 
-          App = std::make_shared<build_matrix_p>();
+          auto App = std::make_shared<build_matrix_p>();
           App->set_size(np, np, true);
           App->set_nonzeros(K->nnz);
           App->ptr[0] = 0;
@@ -415,6 +423,7 @@ class cpr {
           }
           Fpp     = backend_type_p::copy_matrix(fpp, bprm);
           Scatter = backend_type_p::copy_matrix(scatter, bprm);
+          return App;
         }
 
         // Inverts dense matrix A;
