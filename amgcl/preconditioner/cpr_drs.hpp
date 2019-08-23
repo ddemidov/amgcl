@@ -154,11 +154,15 @@ class cpr_drs {
 
         template <class Vec1, class Vec2>
         void apply(const Vec1 &rhs, Vec2 &&x) const {
+            AMGCL_TIC("sprecond");
             S->apply(rhs, x);
+            AMGCL_TOC("sprecond");
             backend::residual(rhs, S->system_matrix(), x, *rs);
 
             backend::spmv(1, *Fpp, *rs, 0, *rp);
+            AMGCL_TIC("pprecond");
             P->apply(*rp, *xp);
+            AMGCL_TOC("pprecond");
 
             backend::spmv(1, *Scatter, *xp, 1, x);
         }
@@ -380,8 +384,12 @@ class cpr_drs {
             for(size_t i = N; i < n; ++i)
                 scatter->ptr[i+1] = scatter->ptr[i];
 
+            AMGCL_TIC("pprecond");
             P = std::make_shared<PPrecond>(App, prm.pprecond, bprm);
+            AMGCL_TOC("pprecond");
+            AMGCL_TIC("sprecond");
             S = std::make_shared<SPrecond>(K,   prm.sprecond, bprm);
+            AMGCL_TOC("sprecond");
 
             Fpp     = backend_type_p::copy_matrix(fpp, bprm);
             Scatter = backend_type_p::copy_matrix(scatter, bprm);
@@ -476,8 +484,12 @@ class cpr_drs {
                 }
             }
 
+            AMGCL_TIC("pprecond");
             P = std::make_shared<PPrecond>(App, prm.pprecond, bprm);
+            AMGCL_TOC("pprecond");
+            AMGCL_TIC("sprecond");
             S = std::make_shared<SPrecond>(K,   prm.sprecond, bprm);
+            AMGCL_TOC("sprecond");
 
             Fpp     = backend_type_p::copy_matrix(fpp, bprm);
             Scatter = backend_type_p::copy_matrix(scatter, bprm);
