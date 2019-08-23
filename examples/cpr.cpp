@@ -41,20 +41,23 @@ void solve_cpr(const Matrix &K, const std::vector<double> &rhs, boost::property_
         amgcl::relaxation::as_preconditioner<Backend, amgcl::runtime::relaxation::wrapper>
         SPrecond;
 
+    prof.tic("setup");
     amgcl::make_solver<
         amgcl::preconditioner::cpr<PPrecond, SPrecond>,
         amgcl::runtime::solver::wrapper<Backend>
         > solve(K, prm);
+    prof.toc("setup");
 
     std::cout << solve.precond() << std::endl;
 
-    auto t2 = prof.scoped_tic("solve");
     std::vector<double> x(rhs.size(), 0.0);
 
     size_t iters;
     double error;
 
+    prof.tic("setup");
     std::tie(iters, error) = solve(rhs, x);
+    prof.toc("setup");
 
     std::cout << "Iterations: " << iters << std::endl
               << "Error:      " << error << std::endl;
@@ -85,14 +88,15 @@ void solve_block_cpr(const Matrix &K, const std::vector<double> &rhs, boost::pro
             >
         SPrecond;
 
+    prof.tic("setup");
     amgcl::make_solver<
         amgcl::preconditioner::cpr<PPrecond, SPrecond>,
         amgcl::runtime::solver::wrapper<SBackend>
         > solve(amgcl::adapter::block_matrix<val_type>(K), prm);
+    prof.toc("setup");
 
     std::cout << solve.precond() << std::endl;
 
-    auto t2 = prof.scoped_tic("solve");
     std::vector<rhs_type> x(rhs.size(), amgcl::math::zero<rhs_type>());
 
     auto rhs_ptr = reinterpret_cast<const rhs_type*>(rhs.data());
@@ -101,7 +105,9 @@ void solve_block_cpr(const Matrix &K, const std::vector<double> &rhs, boost::pro
     size_t iters;
     double error;
 
+    prof.tic("solve");
     std::tie(iters, error) = solve(amgcl::make_iterator_range(rhs_ptr, rhs_ptr + n), x);
+    prof.toc("solve");
 
     std::cout << "Iterations: " << iters << std::endl
               << "Error:      " << error << std::endl;
