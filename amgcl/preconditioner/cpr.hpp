@@ -157,6 +157,25 @@ class cpr {
             S = std::make_shared<SPrecond>(K, prm.sprecond, bprm);
         }
 
+        template <class Matrix>
+        void partial_update(
+                const Matrix &K,
+                bool update_transfer_ops = true,
+                const backend_params &bprm = backend_params()
+              )
+        {
+            // Update global preconditioner
+            S = std::make_shared<SPrecond>(K, prm.sprecond, bprm);
+            if(update_transfer_ops){
+              // Update transfer operator Fpp
+              update_transfer(
+                  std::make_shared<build_matrix>(K),
+                  bprm,
+                  std::integral_constant<bool, math::static_rows<value_type>::value == 1>()
+                );
+            }
+        }
+
     private:
         size_t n, np;
 
@@ -351,6 +370,91 @@ class cpr {
             rs = backend_type::create_vector(n, bprm);
         }
 
+        void update_transfer(std::shared_ptr<build_matrix> K, const backend_params bprm, std::true_type)
+        {
+            typedef typename backend::row_iterator<build_matrix>::type row_iterator;
+            const int       B = prm.block_size;
+            const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
+
+            np = N / B;
+
+            auto fpp = std::make_shared<build_matrix>();
+            fpp->set_size(np, N);
+            fpp->set_nonzeros(N);
+            fpp->ptr[0] = 0;
+
+            // Get the pressure matrix nonzero pattern,
+            // extract and invert block diagonals.
+#pragma omp parallel
+            {
+                std::vector<row_iterator> k; k.reserve(B);
+                multi_array<value_type, 2> v(B, B);
+
+#pragma omp for
+                for(ptrdiff_t ip = 0; ip < static_cast<ptrdiff_t>(np); ++ip) {
+                    ptrdiff_t ik = ip * B;
+                    bool      done = true;
+                    ptrdiff_t cur_col = 0;
+
+                    k.clear();
+                    for(int i = 0; i < B; ++i) {
+                        k.push_back(backend::row_begin(*K, ik + i));
+
+                        if (k.back() && k.back().col() < N) {
+                            ptrdiff_t col = k.back().col() / B;
+                            if (done) {
+                                cur_col = col;
+                                done = false;
+                            } else {
+                                cur_col = std::min(cur_col, col);
+                            }
+                        }
+                        fpp->col[ik + i] = ik + i;
+                    }
+                    fpp->ptr[ip+1] = ik + B;
+
+                    while (!done) {
+                        ptrdiff_t end = (cur_col + 1) * B;
+
+                        if (cur_col == ip) {
+                            // This is diagonal block.
+                            // Capture its (transposed) value,
+                            // invert it and put the relevant row into fpp.
+                            for(int i = 0; i < B; ++i)
+                                for(int j = 0; j < B; ++j) v(i,j) = 0;
+
+                            for(int i = 0; i < B; ++i)
+                                for(; k[i] && k[i].col() < end; ++k[i])
+                                    v(k[i].col() % B, i) = k[i].value();
+
+                            invert(v.data(), &fpp->val[ik]);
+                        } else {
+                            // This is off-diagonal block.
+                            // Just skip it.
+                            for(int i = 0; i < B; ++i)
+                                while(k[i] && k[i].col() < end) ++k[i];
+                        }
+
+                        // Get next column number.
+                        done = true;
+                        for(int i = 0; i < B; ++i) {
+                            if (k[i] && k[i].col() < N) {
+                                ptrdiff_t col = k[i].col() / B;
+                                if (done) {
+                                    cur_col = col;
+                                    done = false;
+                                } else {
+                                    cur_col = std::min(cur_col, col);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Fpp = backend_type::copy_matrix(fpp, bprm);
+        }
+
         // The system matrix has block values
         void init(std::shared_ptr<build_matrix> K, const backend_params bprm, std::false_type)
         {
@@ -424,6 +528,43 @@ class cpr {
             rp = backend_type_p::create_vector(np, bprm);
             xp = backend_type_p::create_vector(np, bprm);
             rs = backend_type::create_vector(n, bprm);
+        }
+
+        void update_transfer(std::shared_ptr<build_matrix> K, const backend_params bprm, std::false_type)
+        {
+            const int       B = math::static_rows<value_type>::value;
+            const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
+
+            np = N;
+
+            auto fpp = std::make_shared<build_matrix_p>();
+            fpp->set_size(np, np * B);
+            fpp->set_nonzeros(np * B);
+            fpp->ptr[0] = 0;
+
+#pragma omp parallel for
+            for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(np); ++i) {
+                ptrdiff_t ik = i * B;
+                for(int k = 0; k < B; ++k, ++ik) {
+                    fpp->col[ik] = ik;
+                }
+
+                fpp->ptr[i + 1] = ik;
+
+                ptrdiff_t row_beg = K->ptr[i];
+                ptrdiff_t row_end = K->ptr[i + 1];
+
+                // Extract and invert block diagonals
+                value_type_p *d = &fpp->val[i * B];
+                for(ptrdiff_t j = row_beg; j < row_end; ++j) {
+                    if (K->col[j] == i) {
+                        value_type v = math::adjoint(K->val[j]);
+                        invert(v.data(), d);
+                        break;
+                    }
+                }
+            }
+            Fpp = backend_type_p::copy_matrix(fpp, bprm);
         }
 
         // Inverts dense matrix A;
