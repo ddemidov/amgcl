@@ -150,14 +150,6 @@ class cpr {
         }
 
         template <class Matrix>
-        void update_sprecond(
-                const Matrix &K,
-                const backend_params &bprm = backend_params())
-        {
-            S = std::make_shared<SPrecond>(K, prm.sprecond, bprm);
-        }
-
-        template <class Matrix>
         void partial_update(
                 const Matrix &K,
                 bool update_transfer_ops = true,

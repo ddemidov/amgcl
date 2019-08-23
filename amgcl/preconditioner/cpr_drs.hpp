@@ -175,14 +175,6 @@ class cpr_drs {
             return S->system_matrix();
         }
 
-        template <class Matrix>
-        void update_sprecond(
-                const Matrix &K,
-                const backend_params &bprm = backend_params())
-        {
-            S = std::make_shared<SPrecond>(K, prm.sprecond, bprm);
-        }
-
         /* Perform a partial update of the CPR preconditioner. This function
          * leaves the AMG hierarchy intact, but updates the global preconditioner
          * SPrecond and optionally also the transfer operator Fpp.
