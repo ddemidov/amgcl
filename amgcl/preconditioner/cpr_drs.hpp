@@ -183,6 +183,29 @@ class cpr_drs {
             S = std::make_shared<SPrecond>(K, prm.sprecond, bprm);
         }
 
+        /* Perform a partial update of the CPR preconditioner. This function
+         * leaves the AMG hierarchy intact, but updates the global preconditioner
+         * SPrecond and optionally also the transfer operator Fpp.
+         */
+        template <class Matrix>
+        void partial_update(
+                const Matrix &K,
+                bool update_transfer_ops = true,
+                const backend_params &bprm = backend_params()
+              )
+        {
+            // Update global preconditioner
+            S = std::make_shared<SPrecond>(K, prm.sprecond, bprm);
+            if(update_transfer_ops){
+              // Update transfer operator Fpp
+              update_transfer(
+                  std::make_shared<build_matrix>(K),
+                  bprm,
+                  std::integral_constant<bool, math::static_rows<value_type>::value == 1>()
+                );
+            }
+        }
+
     private:
         size_t n, np;
 
@@ -399,6 +422,112 @@ class cpr_drs {
             rs = backend_type::create_vector(n, bprm);
         }
 
+        void update_transfer(std::shared_ptr<build_matrix> K, const backend_params bprm, std::true_type)
+        {
+            typedef typename backend::row_iterator<build_matrix>::type row_iterator;
+            const int       B = prm.block_size;
+            const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
+
+            precondition(
+                    prm.weights.empty() || prm.weights.size() == static_cast<size_t>(N),
+                    "CPR: weights size is not equal to number of active rows.");
+
+            np = N / B;
+
+            auto fpp = std::make_shared<build_matrix_p>();
+            fpp->set_size(np, n);
+            fpp->set_nonzeros(n);
+            fpp->ptr[0] = 0;
+
+#pragma omp parallel
+            {
+                std::vector<value_type> a_dia(B), a_off(B), a_top(B);
+                std::vector<row_iterator> k; k.reserve(B);
+
+#pragma omp for
+                for(ptrdiff_t ip = 0; ip < static_cast<ptrdiff_t>(np); ++ip) {
+                    ptrdiff_t ik = ip * B;
+                    bool      done = true;
+                    ptrdiff_t cur_col = 0;
+
+                    std::fill(a_dia.begin(), a_dia.end(), 0);
+                    std::fill(a_off.begin(), a_off.end(), 0);
+                    std::fill(a_top.begin(), a_top.end(), 0);
+
+                    k.clear();
+                    for(int i = 0; i < B; ++i) {
+                        k.push_back(backend::row_begin(*K, ik + i));
+
+                        if (k.back() && k.back().col() < N) {
+                            ptrdiff_t col = k.back().col() / B;
+                            if (done) {
+                                cur_col = col;
+                                done = false;
+                            } else {
+                                cur_col = std::min(cur_col, col);
+                            }
+                        }
+                    }
+
+                    while (!done) {
+                        ptrdiff_t end = (cur_col + 1) * B;
+
+                        for(int i = 0; i < B; ++i) {
+                            for(; k[i] && k[i].col() < end; ++k[i]) {
+                                ptrdiff_t  c = k[i].col() % B;
+                                value_type v = k[i].value();
+
+                                if (i == 0) {
+                                    a_top[c] += std::abs(v);
+                                }
+
+                                if (c == 0) {
+                                    if (cur_col == ip) {
+                                        a_dia[i] = v;
+                                    } else {
+                                        a_off[i] += std::abs(v);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Get next column number.
+                        done = true;
+                        for(int i = 0; i < B; ++i) {
+                            if (k[i] && k[i].col() < N) {
+                                ptrdiff_t col = k[i].col() / B;
+                                if (done) {
+                                    cur_col = col;
+                                    done = false;
+                                } else {
+                                    cur_col = std::min(cur_col, col);
+                                }
+                            }
+                        }
+                    }
+
+                    for(int i = 0; i < B; ++i) {
+                        fpp->col[ik+i] = ik+i;
+                        double delta = 1;
+
+                        if (!prm.weights.empty())
+                            delta *= prm.weights[ik+i];
+
+                        if (i > 0) {
+                            if (a_dia[i] < prm.eps_dd * a_off[i])
+                                delta = 0;
+
+                            if (a_top[i] < prm.eps_ps * std::abs(a_dia[0]))
+                                delta = 0;
+                        }
+                        fpp->val[ik+i] = delta;
+                    }
+                    fpp->ptr[ip+1] = ik + B;
+                }
+            }
+            Fpp     = backend_type_p::copy_matrix(fpp, bprm);
+        }
+
         void init(std::shared_ptr<build_matrix> K, const backend_params bprm, std::false_type)
         {
             const int       B = math::static_rows<value_type>::value;
@@ -498,6 +627,70 @@ class cpr_drs {
             xp = backend_type_p::create_vector(np, bprm);
             rs = backend_type::create_vector(n, bprm);
         }
+
+        void update_transfer(std::shared_ptr<build_matrix> K, const backend_params bprm, std::false_type)
+        {
+            const int       B = math::static_rows<value_type>::value;
+            const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
+
+            precondition(
+                    prm.weights.empty() || prm.weights.size() == static_cast<size_t>(N * B),
+                    "CPR: weights size is not equal to number of active rows.");
+
+            np = N;
+
+            auto fpp = std::make_shared<build_matrix_p>();
+            fpp->set_size(np, np * B);
+            fpp->set_nonzeros(np * B);
+            fpp->ptr[0] = 0;
+
+#pragma omp parallel for
+            for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(np); ++i) {
+                ptrdiff_t ik = i * B;
+                for(int k = 0; k < B; ++k, ++ik) {
+                    fpp->col[ik] = ik;
+                }
+                fpp->ptr[i + 1] = ik;
+
+                ptrdiff_t row_beg = K->ptr[i];
+                ptrdiff_t row_end = K->ptr[i + 1];
+
+                value_type_p *d = &fpp->val[i * B];
+                const double *w = prm.weights.empty() ? nullptr : &prm.weights[i * B];
+
+                std::array<value_type_p, B> a_dia{};
+                std::array<value_type_p, B> a_off{};
+                std::array<value_type_p, B> a_top{};
+
+                for(ptrdiff_t j = row_beg; j < row_end; ++j) {
+                    ptrdiff_t  c = K->col[j];
+                    value_type v = K->val[j];
+
+                    for(int k = 0; k < B; ++k) {
+                        a_top[k] += std::abs(v(0,k));
+                        if (c == i) {
+                            a_dia[k] = v(k,0);
+                        } else {
+                            a_off[k] += std::abs(v(k,0));
+                        }
+                    }
+                }
+
+                for(int k = 0; k < B; ++k) {
+                    if (k > 0 &&
+                            (a_dia[k] < prm.eps_dd * a_off[k] ||
+                             a_top[k] < prm.eps_ps * std::abs(a_dia[0])
+                            ))
+                    {
+                        d[k] = 0;
+                    } else {
+                        d[k] = w ? w[k] : 1.0;
+                    }
+                }
+            }
+            Fpp     = backend_type_p::copy_matrix(fpp, bprm);
+        }
+
 
         friend std::ostream& operator<<(std::ostream &os, const cpr_drs &p) {
             os << "CPR_DRS (two-stage preconditioner)\n"
