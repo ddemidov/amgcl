@@ -71,6 +71,8 @@ class cpr {
         typedef typename backend::builtin<value_type>::matrix   build_matrix;
         typedef typename backend::builtin<value_type_p>::matrix build_matrix_p;
 
+        typedef typename math::scalar_of<value_type>::type scalar_type;
+
         struct params {
             typedef typename PPrecond::params pprecond_params;
             typedef typename SPrecond::params sprecond_params;
@@ -179,29 +181,34 @@ class cpr {
         std::shared_ptr<vector>   rs;
         std::shared_ptr<vector_p> rp, xp;
 
-        // The system matrix has scalar values
-        void init(std::shared_ptr<build_matrix> K, const backend_params bprm, std::true_type)
-        {
+        // Returns pressure transfer operator fpp and (optionally)
+        // partially constructed pressure system matrix App.
+        std::tuple<std::shared_ptr<build_matrix_p>, std::shared_ptr<build_matrix_p>>
+        first_scalar_pass(std::shared_ptr<build_matrix> K, bool get_app = true) {
             typedef typename backend::row_iterator<build_matrix>::type row_iterator;
             const int       B = prm.block_size;
             const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
 
             np = N / B;
 
-            auto fpp = std::make_shared<build_matrix>();
+            auto fpp = std::make_shared<build_matrix_p>();
             fpp->set_size(np, N);
             fpp->set_nonzeros(N);
             fpp->ptr[0] = 0;
 
-            auto App = std::make_shared<build_matrix>();
-            App->set_size(np, np, true);
+            std::shared_ptr<build_matrix_p> App;
+
+            if (get_app) {
+                App = std::make_shared<build_matrix>();
+                App->set_size(np, np, true);
+            }
 
             // Get the pressure matrix nonzero pattern,
             // extract and invert block diagonals.
 #pragma omp parallel
             {
                 std::vector<row_iterator> k; k.reserve(B);
-                multi_array<value_type, 2> v(B, B);
+                multi_array<scalar_type, 2> v(B, B);
 
 #pragma omp for
                 for(ptrdiff_t ip = 0; ip < static_cast<ptrdiff_t>(np); ++ip) {
@@ -228,7 +235,7 @@ class cpr {
                     fpp->ptr[ip+1] = ik + B;
 
                     while (!done) {
-                        ++App->ptr[ip+1];
+                        if (get_app) ++App->ptr[ip+1];
 
                         ptrdiff_t end = (cur_col + 1) * B;
 
@@ -244,6 +251,8 @@ class cpr {
                                     v(k[i].col() % B, i) = k[i].value();
 
                             invert(v.data(), &fpp->val[ik]);
+
+                            if (!get_app) break;
                         } else {
                             // This is off-diagonal block.
                             // Just skip it.
@@ -268,9 +277,25 @@ class cpr {
                 }
             }
 
-            App->set_nonzeros(App->scan_row_sizes());
+            if (get_app)
+                App->set_nonzeros(App->scan_row_sizes());
 
-            auto scatter = std::make_shared<build_matrix>();
+            return std::make_tuple(fpp, App);
+        }
+
+        // The system matrix has scalar values
+        void init(std::shared_ptr<build_matrix> K, const backend_params bprm, std::true_type)
+        {
+            typedef typename backend::row_iterator<build_matrix>::type row_iterator;
+            const int       B = prm.block_size;
+            const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
+
+            np = N / B;
+
+            std::shared_ptr<build_matrix_p> fpp, App;
+            std::tie(fpp, App) = first_scalar_pass(K);
+
+            auto scatter = std::make_shared<build_matrix_p>();
             scatter->set_size(n, np);
             scatter->set_nonzeros(np);
             scatter->ptr[0] = 0;
@@ -286,7 +311,7 @@ class cpr {
                     bool      done = true;
                     ptrdiff_t cur_col;
 
-                    value_type *d = &fpp->val[ik];
+                    value_type_p *d = &fpp->val[ik];
 
                     k.clear();
                     for(int i = 0; i < B; ++i) {
@@ -304,8 +329,8 @@ class cpr {
                     }
 
                     while (!done) {
-                        ptrdiff_t  end = (cur_col + 1) * B;
-                        value_type app = 0;
+                        ptrdiff_t    end = (cur_col + 1) * B;
+                        value_type_p app = 0;
 
                         for(int i = 0; i < B; ++i) {
                             for(; k[i] && k[i].col() < end; ++k[i]) {
@@ -335,7 +360,7 @@ class cpr {
                     }
 
                     scatter->col[ip] = ip;
-                    scatter->val[ip] = math::identity<value_type>();
+                    scatter->val[ip] = math::identity<value_type_p>();
 
                     ptrdiff_t nnz = ip;
                     for(int i = 0; i < B; ++i) {
@@ -355,99 +380,18 @@ class cpr {
             S = std::make_shared<SPrecond>(K,   prm.sprecond, bprm);
             AMGCL_TOC("sprecond");
 
-            Fpp     = backend_type::copy_matrix(fpp, bprm);
-            Scatter = backend_type::copy_matrix(scatter, bprm);
+            Fpp     = backend_type_p::copy_matrix(fpp, bprm);
+            Scatter = backend_type_p::copy_matrix(scatter, bprm);
 
-            rp = backend_type::create_vector(np, bprm);
-            xp = backend_type::create_vector(np, bprm);
+            rp = backend_type_p::create_vector(np, bprm);
+            xp = backend_type_p::create_vector(np, bprm);
             rs = backend_type::create_vector(n, bprm);
         }
 
         void update_transfer(std::shared_ptr<build_matrix> K, const backend_params bprm, std::true_type)
         {
-            typedef typename backend::row_iterator<build_matrix>::type row_iterator;
-            const int       B = prm.block_size;
-            const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
-
-            np = N / B;
-
-            auto fpp = std::make_shared<build_matrix>();
-            fpp->set_size(np, N);
-            fpp->set_nonzeros(N);
-            fpp->ptr[0] = 0;
-
-            // Get the pressure matrix nonzero pattern,
-            // extract and invert block diagonals.
-#pragma omp parallel
-            {
-                std::vector<row_iterator> k; k.reserve(B);
-                multi_array<value_type, 2> v(B, B);
-
-#pragma omp for
-                for(ptrdiff_t ip = 0; ip < static_cast<ptrdiff_t>(np); ++ip) {
-                    ptrdiff_t ik = ip * B;
-                    bool      done = true;
-                    ptrdiff_t cur_col = 0;
-
-                    k.clear();
-                    for(int i = 0; i < B; ++i) {
-                        k.push_back(backend::row_begin(*K, ik + i));
-
-                        if (k.back() && k.back().col() < N) {
-                            ptrdiff_t col = k.back().col() / B;
-                            if (done) {
-                                cur_col = col;
-                                done = false;
-                            } else {
-                                cur_col = std::min(cur_col, col);
-                            }
-                        }
-                        fpp->col[ik + i] = ik + i;
-                    }
-                    fpp->ptr[ip+1] = ik + B;
-
-                    while (!done) {
-                        ptrdiff_t end = (cur_col + 1) * B;
-
-                        if (cur_col == ip) {
-                            // This is diagonal block.
-                            // Capture its (transposed) value,
-                            // invert it and put the relevant row into fpp.
-                            for(int i = 0; i < B; ++i)
-                                for(int j = 0; j < B; ++j) v(i,j) = 0;
-
-                            for(int i = 0; i < B; ++i)
-                                for(; k[i] && k[i].col() < end; ++k[i])
-                                    v(k[i].col() % B, i) = k[i].value();
-
-                            invert(v.data(), &fpp->val[ik]);
-                            // Diagonal block complete
-                            break;
-                        } else {
-                            // This is off-diagonal block.
-                            // Just skip it.
-                            for(int i = 0; i < B; ++i)
-                                while(k[i] && k[i].col() < end) ++k[i];
-                        }
-
-                        // Get next column number.
-                        done = true;
-                        for(int i = 0; i < B; ++i) {
-                            if (k[i] && k[i].col() < N) {
-                                ptrdiff_t col = k[i].col() / B;
-                                if (done) {
-                                    cur_col = col;
-                                    done = false;
-                                } else {
-                                    cur_col = std::min(cur_col, col);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            Fpp = backend_type::copy_matrix(fpp, bprm);
+            auto fpp = std::get<0>(first_scalar_pass(K, /*get_app*/false));
+            Fpp = backend_type_p::copy_matrix(fpp, bprm);
         }
 
         // The system matrix has block values
@@ -564,13 +508,13 @@ class cpr {
 
         // Inverts dense matrix A;
         // Returns the first column of the inverted matrix.
-        void invert(value_type_p *A, value_type_p *y)
+        void invert(scalar_type *A, value_type_p *y)
         {
             const int B = math::static_rows<value_type>::value == 1 ? prm.block_size : math::static_rows<value_type>::value;
 
             // Perform LU-factorization of A in-place
             for(int k = 0; k < B; ++k) {
-                value_type_p d = A[k*B+k];
+                scalar_type d = A[k*B+k];
                 assert(!math::is_zero(d));
                 for(int i = k+1; i < B; ++i) {
                     A[i*B+k] /= d;

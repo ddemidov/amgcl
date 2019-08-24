@@ -209,15 +209,13 @@ class cpr_drs {
         std::shared_ptr<vector>   rs;
         std::shared_ptr<vector_p> rp, xp;
 
-        void init(std::shared_ptr<build_matrix> K, const backend_params bprm, std::true_type)
-        {
+        // Returns pressure transfer operator fpp and (optionally)
+        // partially constructed pressure system matrix App.
+        std::tuple<std::shared_ptr<build_matrix_p>, std::shared_ptr<build_matrix_p>>
+        first_scalar_pass(std::shared_ptr<build_matrix> K, bool get_app = true) {
             typedef typename backend::row_iterator<build_matrix>::type row_iterator;
             const int       B = prm.block_size;
             const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
-
-            precondition(
-                    prm.weights.empty() || prm.weights.size() == static_cast<size_t>(N),
-                    "CPR: weights size is not equal to number of active rows.");
 
             np = N / B;
 
@@ -226,8 +224,11 @@ class cpr_drs {
             fpp->set_nonzeros(n);
             fpp->ptr[0] = 0;
 
-            auto App = std::make_shared<build_matrix_p>();
-            App->set_size(np, np, true);
+            std::shared_ptr<build_matrix_p> App;
+            if (get_app) {
+                App = std::make_shared<build_matrix_p>();
+                App->set_size(np, np, true);
+            }
 
 #pragma omp parallel
             {
@@ -260,7 +261,7 @@ class cpr_drs {
                     }
 
                     while (!done) {
-                        ++App->ptr[ip+1];
+                        if (get_app) ++App->ptr[ip+1];
 
                         ptrdiff_t end = (cur_col + 1) * B;
 
@@ -321,6 +322,24 @@ class cpr_drs {
             }
 
             App->set_nonzeros(App->scan_row_sizes());
+
+            return std::make_tuple(fpp, App);
+        }
+
+        void init(std::shared_ptr<build_matrix> K, const backend_params bprm, std::true_type)
+        {
+            typedef typename backend::row_iterator<build_matrix>::type row_iterator;
+            const int       B = prm.block_size;
+            const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
+
+            precondition(
+                    prm.weights.empty() || prm.weights.size() == static_cast<size_t>(N),
+                    "CPR: weights size is not equal to number of active rows.");
+
+            np = N / B;
+
+            std::shared_ptr<build_matrix_p> fpp, App;
+            std::tie(fpp, App) = first_scalar_pass(K);
 
             auto scatter = std::make_shared<build_matrix_p>();
             scatter->set_size(n, np);
@@ -417,108 +436,8 @@ class cpr_drs {
 
         void update_transfer(std::shared_ptr<build_matrix> K, const backend_params bprm, std::true_type)
         {
-            typedef typename backend::row_iterator<build_matrix>::type row_iterator;
-            const int       B = prm.block_size;
-            const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
-
-            precondition(
-                    prm.weights.empty() || prm.weights.size() == static_cast<size_t>(N),
-                    "CPR: weights size is not equal to number of active rows.");
-
-            np = N / B;
-
-            auto fpp = std::make_shared<build_matrix_p>();
-            fpp->set_size(np, n);
-            fpp->set_nonzeros(n);
-            fpp->ptr[0] = 0;
-
-#pragma omp parallel
-            {
-                std::vector<value_type> a_dia(B), a_off(B), a_top(B);
-                std::vector<row_iterator> k; k.reserve(B);
-
-#pragma omp for
-                for(ptrdiff_t ip = 0; ip < static_cast<ptrdiff_t>(np); ++ip) {
-                    ptrdiff_t ik = ip * B;
-                    bool      done = true;
-                    ptrdiff_t cur_col = 0;
-
-                    std::fill(a_dia.begin(), a_dia.end(), 0);
-                    std::fill(a_off.begin(), a_off.end(), 0);
-                    std::fill(a_top.begin(), a_top.end(), 0);
-
-                    k.clear();
-                    for(int i = 0; i < B; ++i) {
-                        k.push_back(backend::row_begin(*K, ik + i));
-
-                        if (k.back() && k.back().col() < N) {
-                            ptrdiff_t col = k.back().col() / B;
-                            if (done) {
-                                cur_col = col;
-                                done = false;
-                            } else {
-                                cur_col = std::min(cur_col, col);
-                            }
-                        }
-                    }
-
-                    while (!done) {
-                        ptrdiff_t end = (cur_col + 1) * B;
-
-                        for(int i = 0; i < B; ++i) {
-                            for(; k[i] && k[i].col() < end; ++k[i]) {
-                                ptrdiff_t  c = k[i].col() % B;
-                                value_type v = k[i].value();
-
-                                if (i == 0) {
-                                    a_top[c] += std::abs(v);
-                                }
-
-                                if (c == 0) {
-                                    if (cur_col == ip) {
-                                        a_dia[i] = v;
-                                    } else {
-                                        a_off[i] += std::abs(v);
-                                    }
-                                }
-                            }
-                        }
-
-                        // Get next column number.
-                        done = true;
-                        for(int i = 0; i < B; ++i) {
-                            if (k[i] && k[i].col() < N) {
-                                ptrdiff_t col = k[i].col() / B;
-                                if (done) {
-                                    cur_col = col;
-                                    done = false;
-                                } else {
-                                    cur_col = std::min(cur_col, col);
-                                }
-                            }
-                        }
-                    }
-
-                    for(int i = 0; i < B; ++i) {
-                        fpp->col[ik+i] = ik+i;
-                        double delta = 1;
-
-                        if (!prm.weights.empty())
-                            delta *= prm.weights[ik+i];
-
-                        if (i > 0) {
-                            if (a_dia[i] < prm.eps_dd * a_off[i])
-                                delta = 0;
-
-                            if (a_top[i] < prm.eps_ps * std::abs(a_dia[0]))
-                                delta = 0;
-                        }
-                        fpp->val[ik+i] = delta;
-                    }
-                    fpp->ptr[ip+1] = ik + B;
-                }
-            }
-            Fpp     = backend_type_p::copy_matrix(fpp, bprm);
+            auto fpp = std::get<0>(first_scalar_pass(K, /*get_app*/false));
+            Fpp = backend_type_p::copy_matrix(fpp, bprm);
         }
 
         void init(std::shared_ptr<build_matrix> K, const backend_params bprm, std::false_type)
