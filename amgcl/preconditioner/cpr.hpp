@@ -156,12 +156,13 @@ class cpr {
                 const backend_params &bprm = backend_params()
               )
         {
+            auto K_ptr = std::make_shared<build_matrix>(K);
             // Update global preconditioner
-            S = std::make_shared<SPrecond>(K, prm.sprecond, bprm);
+            S = std::make_shared<SPrecond>(K_ptr, prm.sprecond, bprm);
             if(update_transfer_ops){
               // Update transfer operator Fpp
               update_transfer(
-                  std::make_shared<build_matrix>(K),
+                  K_ptr,
                   bprm,
                   std::integral_constant<bool, math::static_rows<value_type>::value == 1>()
                 );
