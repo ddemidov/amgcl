@@ -421,6 +421,8 @@ class cpr {
                                     v(k[i].col() % B, i) = k[i].value();
 
                             invert(v.data(), &fpp->val[ik]);
+                            // Diagonal block complete
+                            break;
                         } else {
                             // This is off-diagonal block.
                             // Just skip it.
