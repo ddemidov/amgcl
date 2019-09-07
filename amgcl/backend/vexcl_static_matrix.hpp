@@ -421,23 +421,25 @@ class ell<amgcl::static_matrix<T, N, N>, Col, Ptr> {
         {
             backend::device_vector<T> val(q, nnz * N * N);
 
-            if (fast) {
-                backend::device_vector<T> tmp(q, nnz * N * N, reinterpret_cast<const T*>(host_data));
+            if (nnz) {
+                if (fast) {
+                    backend::device_vector<T> tmp(q, nnz * N * N, reinterpret_cast<const T*>(host_data));
 
-                VEX_FUNCTION(T, transpose, (int,k)(int,m)(int,nnz)(T*, v),
-                        int i = k / nnz;
-                        int j = k % nnz;
-                        return v[j * m + i];
-                        );
+                    VEX_FUNCTION(T, transpose, (int,k)(int,m)(int,nnz)(T*, v),
+                            int i = k / nnz;
+                            int j = k % nnz;
+                            return v[j * m + i];
+                            );
 
-                vex::vector<T>(q,val) = transpose(vex::element_index(), N*N, nnz, raw_pointer(vex::vector<T>(q, tmp)));
-            } else {
-                auto v = val.map(q);
+                    vex::vector<T>(q,val) = transpose(vex::element_index(), N*N, nnz, raw_pointer(vex::vector<T>(q, tmp)));
+                } else {
+                    auto v = val.map(q);
 
-                for(int k = 0, i = 0; i < N; ++i)
-                    for(int j = 0; j < N; ++j, ++k)
-                        for(size_t m = 0; m < nnz; ++m)
-                            v[k * nnz + m] = host_data[m](i,j);
+                    for(int k = 0, i = 0; i < N; ++i)
+                        for(int j = 0; j < N; ++j, ++k)
+                            for(size_t m = 0; m < nnz; ++m)
+                                v[k * nnz + m] = host_data[m](i,j);
+                }
             }
 
             return val;
