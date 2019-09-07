@@ -506,8 +506,8 @@ class ell<amgcl::static_matrix<T, N, N>, Col, Ptr> {
             size_t nnz = host_ptr[n];
 
             backend::device_vector<Ptr> Aptr(q, n + 1, &host_ptr[0]);
-            backend::device_vector<Col> Acol(q, nnz, &host_col[0]);
-            backend::device_vector<T>   Aval = create_device_vector(q, nnz, &host_val[0]);
+            backend::device_vector<Col> Acol(q, nnz, nnz ? &host_col[0] : nullptr);
+            backend::device_vector<T>   Aval = create_device_vector(q, nnz, nnz ? &host_val[0] : nullptr);
 
             /* 1. Get optimal ELL widths for local and remote parts. */
             // Speed of ELL relative to CSR:
