@@ -462,6 +462,12 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
+    for (int i = 0; i < argc; ++i) {
+        if (i) std::cout << " ";
+        std::cout << argv[i];
+    }
+    std::cout << std::endl;
+
     boost::property_tree::ptree prm;
     if (vm.count("prm-file")) {
         read_json(vm["prm-file"].as<string>(), prm);
