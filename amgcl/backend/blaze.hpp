@@ -193,6 +193,24 @@ struct row_begin_impl< ::blaze::CompressedMatrix<V, O> > {
     }
 };
 
+template < class A, class B, typename V, bool O >
+struct spmv_impl<
+    A, ::blaze::CompressedMatrix<V, O>, ::blaze::DynamicVector<V>,
+    B, ::blaze::DynamicVector<V>
+    >
+{
+    typedef ::blaze::CompressedMatrix<V, O> matrix;
+    typedef ::blaze::DynamicVector<V>    vector;
+
+    static void apply(A alpha, const matrix &K, const vector &x, B beta, vector &y)
+    {
+        if (!math::is_zero(beta))
+            y = alpha * (K * x) + beta * y;
+        else
+            y = alpha * (K * x);
+    }
+};
+
 template < typename V, bool O >
 struct residual_impl<
     ::blaze::CompressedMatrix<V, O>,
