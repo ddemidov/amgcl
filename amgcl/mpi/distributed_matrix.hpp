@@ -1072,6 +1072,13 @@ struct residual_impl<mpi::distributed_matrix<Backend>, Vec1, Vec2, Vec3>
     }
 };
 
+// Diagonal of the matrix
+template <class Backend>
+std::shared_ptr< numa_vector<typename Backend::value_type> >
+diagonal(const mpi::distributed_matrix<Backend> &A, bool invert = false) {
+    return diagonal(*A.local(), invert);
+}
+
 // Estimate spectral radius of the matrix.
 template <bool scale, class Backend>
 typename math::scalar_of<typename Backend::value_type>::type
