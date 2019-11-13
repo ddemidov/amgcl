@@ -115,13 +115,13 @@ class chebyshev {
                 const Matrix &A, const params &prm,
                 const typename Backend::params &backend_prm
             ) : prm(prm),
-                M( Backend::copy_vector( diagonal(A, /*invert*/true), backend_prm ) ),
                 p( Backend::create_vector(rows(A), backend_prm) ),
                 r( Backend::create_vector(rows(A), backend_prm) )
         {
             scalar_type hi, lo;
 
             if (prm.scale) {
+                M  = Backend::copy_vector( diagonal(A, /*invert*/true), backend_prm );
                 hi = backend::spectral_radius<true>(A, prm.power_iters);
             } else {
                 hi = backend::spectral_radius<false>(A, prm.power_iters);
@@ -161,7 +161,9 @@ class chebyshev {
         }
 
         size_t bytes() const {
-            return backend::bytes(*M) + backend::bytes(*p) + backend::bytes(*r);
+            size_t b = backend::bytes(*p) + backend::bytes(*r);
+            if (prm.scale) b += backend::bytes(*M);
+            return b;
         }
 
     private:
