@@ -80,8 +80,12 @@ class chebyshev {
             // spectral radius.
             int power_iters;
 
+            // Scale the system matrix
+            bool scale;
+
             params()
-                : degree(5), higher(1.0f), lower(1.0f / 30), power_iters(0)
+                : degree(5), higher(1.0f), lower(1.0f / 30), power_iters(0),
+                  scale(false)
             {}
 
 #ifndef AMGCL_NO_BOOST
@@ -89,9 +93,10 @@ class chebyshev {
                 : AMGCL_PARAMS_IMPORT_VALUE(p, degree),
                   AMGCL_PARAMS_IMPORT_VALUE(p, higher),
                   AMGCL_PARAMS_IMPORT_VALUE(p, lower),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, power_iters)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, power_iters),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, scale)
             {
-                check_params(p, {"degree", "higher", "lower", "power_iters"});
+                check_params(p, {"degree", "higher", "lower", "power_iters", "scale"});
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
@@ -99,6 +104,7 @@ class chebyshev {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, higher);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, lower);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, power_iters);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, scale);
             }
 #endif
         } prm;
@@ -113,9 +119,15 @@ class chebyshev {
                 p( Backend::create_vector(rows(A), backend_prm) ),
                 r( Backend::create_vector(rows(A), backend_prm) )
         {
-            scalar_type hi = backend::spectral_radius</*scale=*/true>(A, prm.power_iters);
-            scalar_type lo = hi * prm.lower;
+            scalar_type hi, lo;
 
+            if (prm.scale) {
+                hi = backend::spectral_radius<true>(A, prm.power_iters);
+            } else {
+                hi = backend::spectral_radius<false>(A, prm.power_iters);
+            }
+
+            lo = hi * prm.lower;
             hi *= prm.higher;
 
             // Centre of ellipse containing the eigenvalues of A:
@@ -168,7 +180,8 @@ class chebyshev {
 
             for (unsigned k = 0; k < prm.degree; ++k) {
                 backend::residual(b, A, x, *r);
-                backend::vmul(one, *M, *r, zero, *r);
+
+                if (prm.scale) backend::vmul(one, *M, *r, zero, *r);
 
                 if (k == 0) {
                     alpha = math::inverse(d);
