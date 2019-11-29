@@ -452,7 +452,7 @@ class distributed_matrix {
                 A_loc = Backend::copy_matrix(a_loc, bprm);
             }
 
-            if (!A_rem) {
+            if (!A_rem && a_rem && a_rem->nnz > 0) {
                 C->renumber(a_rem->nnz, a_rem->col);
                 A_rem = Backend::copy_matrix(a_rem, bprm);
             }
