@@ -27,7 +27,8 @@ void test_solver(
         std::shared_ptr<typename Backend::vector>       &x,
         amgcl::runtime::solver::type     solver,
         amgcl::runtime::relaxation::type relaxation,
-        amgcl::runtime::coarsening::type coarsening
+        amgcl::runtime::coarsening::type coarsening,
+        bool test_null_space = false
         )
 {
     boost::property_tree::ptree prm;
@@ -35,6 +36,18 @@ void test_solver(
     prm.put("precond.coarsening.type", coarsening);
     prm.put("precond.relax.type",      relaxation);
     prm.put("solver.type",             solver);
+
+    typedef typename Backend::value_type value_type;
+    std::vector<value_type> null;
+
+    if (test_null_space) {
+        size_t n = amgcl::backend::rows(*A);
+        null.resize(n, amgcl::math::constant<value_type>(1));
+
+        prm.put("precond.coarsening.nullspace.cols", 1);
+        prm.put("precond.coarsening.nullspace.rows", n);
+        prm.put("precond.coarsening.nullspace.B",    &null[0]);
+    }
 
     amgcl::make_solver<
         amgcl::amg<Backend, amgcl::runtime::coarsening::wrapper, amgcl::runtime::relaxation::wrapper>,
@@ -176,8 +189,21 @@ void test_problem(
                     amgcl::adapter::zero_copy(n, ptr.data(), col.data(), val.data()),
                     y, x, solver[0], relaxation[0], c);
         } catch(const std::logic_error&) {}
+
+        switch (c) {
+            case amgcl::runtime::coarsening::aggregation:
+            case amgcl::runtime::coarsening::smoothed_aggregation:
+            case amgcl::runtime::coarsening::smoothed_aggr_emin:
+                test_solver<Backend>(
+                        amgcl::adapter::zero_copy(n, ptr.data(), col.data(), val.data()),
+                        y, x, solver[0], relaxation[0], c, /*test_null_space*/true);
+                break;
+            default:
+                break;
+        }
     }
 }
+
 template <class Backend>
 void test_backend() {
     typedef typename Backend::value_type value_type;
