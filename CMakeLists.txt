@@ -89,14 +89,6 @@ target_compile_definitions(amgcl INTERFACE
     )
 
 #----------------------------------------------------------------------------
-# Enable asynchronous setup?
-#----------------------------------------------------------------------------
-option(AMGCL_ASYNC_SETUP "Enable asynchronous AMG setup" ON)
-if (AMGCL_ASYNC_SETUP)
-    target_compile_definitions(amgcl INTERFACE AMGCL_ASYNC_SETUP)
-endif()
-
-#----------------------------------------------------------------------------
 # Eigen backend
 #----------------------------------------------------------------------------
 find_path(EIGEN_INCLUDE Eigen/SparseCore PATH_SUFFIXES eigen3)
