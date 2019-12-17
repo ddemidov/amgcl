@@ -37,17 +37,11 @@ namespace amgcl {
 namespace coarsening {
 namespace detail {
 
-template <class Matrix>
-std::shared_ptr<Matrix> scaled_galerkin(
-        const Matrix &A,
-        const Matrix &P,
-        const Matrix &R,
-        float s
-        )
+template <class MatrixA, class MatrixP, class MatrixR, class Matrix>
+void scaled_galerkin(const MatrixA &A, const MatrixP &P, const MatrixR &R, float s, Matrix &RAP)
 {
-        auto a = galerkin(A, P, R);
-        scale(*a, s);
-        return a;
+    galerkin(A, P, R, RAP);
+    scale(RAP, s);
 }
 
 } // namespace detail

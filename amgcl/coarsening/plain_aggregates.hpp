@@ -121,17 +121,18 @@ struct plain_aggregates {
 
         scalar_type eps_squared = prm.eps_strong * prm.eps_strong;
 
-        const size_t n = rows(A);
+        const size_t n = backend::rows(A);
 
         /* 1. Get strong connections */
-        auto dia = diagonal(A);
+        auto dia = backend::diagonal(A);
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
             value_type eps_dia_i = eps_squared * (*dia)[i];
 
-            for(ptrdiff_t j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
-                ptrdiff_t c = A.col[j];
-                value_type v = A.val[j];
+            size_t j = backend::row_offset(A, i);
+            for(auto a = backend::row_begin(A, i); a; ++a, ++j) {
+                ptrdiff_t  c = a.col();
+                value_type v = a.value();
 
                 strong_connection[j] = (c != i) && (eps_dia_i * (*dia)[c] < v * v);
             }
@@ -142,11 +143,11 @@ struct plain_aggregates {
         // Remove lonely nodes.
         size_t max_neib = 0;
         for(size_t i = 0; i < n; ++i) {
-            ptrdiff_t j = A.ptr[i], e = A.ptr[i+1];
-            max_neib    = std::max<size_t>(max_neib, e - j);
+            ptrdiff_t nnz = backend::row_nonzeros(A, i);
+            max_neib = std::max<size_t>(max_neib, nnz);
 
             ptrdiff_t state = removed;
-            for(; j < e; ++j)
+            for(ptrdiff_t j = backend::row_offset(A, i), e = j + nnz; j < e; ++j)
                 if (strong_connection[j]) {
                     state = undefined;
                     break;
@@ -169,8 +170,9 @@ struct plain_aggregates {
 
             // (*) Include its neighbors as well.
             neib.clear();
-            for(ptrdiff_t j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
-                ptrdiff_t c = A.col[j];
+            ptrdiff_t j = backend::row_offset(A, i);
+            for(auto a = backend::row_begin(A, i); a; ++a, ++j) {
+                ptrdiff_t c = a.col();
                 if (strong_connection[j] && id[c] != removed) {
                     id[c] = cur_id;
                     neib.push_back(c);
@@ -181,8 +183,9 @@ struct plain_aggregates {
             // as members of the aggregate.
             // If nobody claims them later, they will stay here.
             for(ptrdiff_t c : neib) {
-                for(ptrdiff_t j = A.ptr[c], e = A.ptr[c+1]; j < e; ++j) {
-                    ptrdiff_t cc = A.col[j];
+                ptrdiff_t j = backend::row_offset(A, c);
+                for(auto a = backend::row_begin(A, c); a; ++a, ++j) {
+                    ptrdiff_t cc = a.col();
                     if (strong_connection[j] && id[cc] == undefined)
                         id[cc] = cur_id;
                 }

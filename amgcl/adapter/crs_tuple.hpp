@@ -174,32 +174,41 @@ struct row_nonzeros_impl< std::tuple<N, PRng, CRng, VRng> > {
 };
 
 template < typename N, typename PRng, typename CRng, typename VRng >
+struct provides_row_offset< std::tuple<N, PRng, CRng, VRng> > : std::true_type {};
+
+template < typename N, typename PRng, typename CRng, typename VRng >
+struct row_offset_impl< std::tuple<N, PRng, CRng, VRng> > {
+    typedef std::tuple<N, PRng, CRng, VRng> Matrix;
+
+    static size_t get(const Matrix &A, size_t row) {
+        return std::get<1>(A)[row];
+    }
+};
+
+template < typename N, typename PRng, typename CRng, typename VRng >
 struct ptr_data_impl< std::tuple<N, PRng, CRng, VRng> > {
     typedef std::tuple<N, PRng, CRng, VRng> Matrix;
-    typedef typename std::decay<decltype(std::declval<PRng>()[0])>::type ptr_type;
-    typedef const ptr_type* type;
+    typedef decltype(std::begin(std::declval<PRng>())) type;
     static type get(const Matrix &A) {
-        return &std::get<1>(A)[0];
+        return std::begin(std::get<1>(A));
     }
 };
 
 template < typename N, typename PRng, typename CRng, typename VRng >
 struct col_data_impl< std::tuple<N, PRng, CRng, VRng> > {
     typedef std::tuple<N, PRng, CRng, VRng> Matrix;
-    typedef typename std::decay<decltype(std::declval<CRng>()[0])>::type col_type;
-    typedef const col_type* type;
+    typedef decltype(std::begin(std::declval<CRng>())) type;
     static type get(const Matrix &A) {
-        return &std::get<2>(A)[0];
+        return std::begin(std::get<2>(A));
     }
 };
 
 template < typename N, typename PRng, typename CRng, typename VRng >
 struct val_data_impl< std::tuple<N, PRng, CRng, VRng> > {
     typedef std::tuple<N, PRng, CRng, VRng> Matrix;
-    typedef typename std::decay<decltype(std::declval<VRng>()[0])>::type val_type;
-    typedef const val_type* type;
+    typedef decltype(std::begin(std::declval<VRng>())) type;
     static type get(const Matrix &A) {
-        return &std::get<3>(A)[0];
+        return std::begin(std::get<3>(A));
     }
 };
 

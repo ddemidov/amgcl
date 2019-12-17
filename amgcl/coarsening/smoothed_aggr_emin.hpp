@@ -83,12 +83,8 @@ struct smoothed_aggr_emin {
     smoothed_aggr_emin(const params &prm = params()) : prm(prm) {}
 
     /// \copydoc amgcl::coarsening::aggregation::transfer_operators
-    template <class Matrix>
-    std::tuple<
-        std::shared_ptr<Matrix>,
-        std::shared_ptr<Matrix>
-        >
-    transfer_operators(const Matrix &A) {
+    template <class MatrixA, class Matrix>
+    void transfer_operators(const MatrixA &A, Matrix &P, Matrix &R) {
         typedef typename backend::value_type<Matrix>::type Val;
         typedef ptrdiff_t Idx;
 
@@ -98,50 +94,49 @@ struct smoothed_aggr_emin {
         AMGCL_TOC("aggregates");
 
         AMGCL_TIC("interpolation");
-        auto P_tent = tentative_prolongation<Matrix>(
-                rows(A), aggr.count, aggr.id, prm.nullspace, prm.aggr.block_size
-                );
+        Matrix P_tent;
+        tentative_prolongation<Matrix>(
+                backend::rows(A), aggr.count, aggr.id, prm.nullspace, prm.aggr.block_size,
+                P_tent);
 
         // Filter the system matrix
         backend::crs<Val> Af;
-        Af.set_size(rows(A), cols(A));
+        Af.set_size(backend::rows(A), backend::cols(A));
         Af.ptr[0] = 0;
 
         std::vector<Val> dia(Af.nrows);
 
 #pragma omp parallel for
         for(Idx i = 0; i < static_cast<Idx>(Af.nrows); ++i) {
-            Idx row_begin = A.ptr[i];
-            Idx row_end   = A.ptr[i+1];
-            Idx row_width = row_end - row_begin;
+            Idx w = backend::row_nonzeros(A, i);
+            Idx j = backend::row_offset(A, i);
 
             Val D = math::zero<Val>();
-            for(Idx j = row_begin; j < row_end; ++j) {
-                Idx c = A.col[j];
-                Val v = A.val[j];
+            for(auto a = backend::row_begin(A, i); a; ++a, ++j) {
+                Idx c = a.col();
+                Val v = a.value();
 
                 if (c == i)
                     D += v;
                 else if (!aggr.strong_connection[j]) {
                     D += v;
-                    --row_width;
+                    --w;
                 }
             }
 
             dia[i] = D;
-            Af.ptr[i+1] = row_width;
+            Af.ptr[i+1] = w;
         }
 
         Af.set_nonzeros(Af.scan_row_sizes());
 
 #pragma omp parallel for
         for(Idx i = 0; i < static_cast<Idx>(Af.nrows); ++i) {
-            Idx row_begin = A.ptr[i];
-            Idx row_end   = A.ptr[i+1];
-            Idx row_head  = Af.ptr[i];
+            Idx j = backend::row_offset(A, i);
+            Idx row_head = Af.ptr[i];
 
-            for(Idx j = row_begin; j < row_end; ++j) {
-                Idx c = A.col[j];
+            for(auto a = backend::row_begin(A, i); a; ++a, ++j) {
+                Idx c = a.col();
 
                 if (c == i) {
                     Af.col[row_head] = i;
@@ -149,7 +144,7 @@ struct smoothed_aggr_emin {
                     ++row_head;
                 } else if (aggr.strong_connection[j]) {
                     Af.col[row_head] = c;
-                    Af.val[row_head] = A.val[j];
+                    Af.val[row_head] = a.value();
                     ++row_head;
                 }
             }
@@ -157,35 +152,33 @@ struct smoothed_aggr_emin {
 
         std::vector<Val> omega;
 
-        auto P = interpolation(Af, dia, *P_tent, omega);
-        auto R = restriction  (Af, dia, *P_tent, omega);
+        interpolation(Af, dia, P_tent, omega, P);
+        restriction  (Af, dia, P_tent, omega, R);
         AMGCL_TOC("interpolation");
 
         if (prm.nullspace.cols > 0)
             prm.aggr.block_size = prm.nullspace.cols;
-
-        return std::make_tuple(P, R);
     }
 
-    template <class Matrix>
-    std::shared_ptr<Matrix>
-    coarse_operator(const Matrix &A, const Matrix &P, const Matrix &R) const {
-        return detail::galerkin(A, P, R);
+    template <class MatrixA, class MatrixP, class MatrixR, class Matrix>
+    void coarse_operator(const MatrixA &A, const MatrixP &P, const MatrixR &R, Matrix &RAP) const {
+        detail::galerkin(A, P, R, RAP);
     }
 
     private:
-        template <class AMatrix, typename Val, typename Col, typename Ptr>
-        static std::shared_ptr< backend::crs<Val, Col, Ptr> >
-        interpolation(
-                const AMatrix &A, const std::vector<Val> &Adia,
+        template <class MatrixA, typename Val, typename Col, typename Ptr>
+        void interpolation(
+                const MatrixA &A, const std::vector<Val> &Adia,
                 const backend::crs<Val, Col, Ptr> &P_tent,
-                std::vector<Val> &omega
+                std::vector<Val> &omega,
+                backend::crs<Val, Col, Ptr> &P
                 )
         {
             const size_t n  = rows(P_tent);
             const size_t nc = cols(P_tent);
 
-            auto AP = product(A, P_tent, /*sort rows: */true);
+            // Put AP into P
+            product(A, P_tent, P, /*sort rows: */true);
 
             omega.resize(nc, math::zero<Val>());
             std::vector<Val> denum(nc, math::zero<Val>());
@@ -210,7 +203,7 @@ struct smoothed_aggr_emin {
                         Col ca  = a.col();
                         Val va  = math::inverse(Adia[ca]) * a.value();
 
-                        for(auto p = AP->row_begin(ca); p; ++p) {
+                        for(auto p = P.row_begin(ca); p; ++p) {
                             Col c = p.col();
                             Val v = va * p.value();
 
@@ -231,12 +224,12 @@ struct smoothed_aggr_emin {
                     // Update columnwise scalar products (AP,ADAP) and (ADAP,ADAP).
                     // 1. (AP, ADAP)
                     for(
-                            Ptr ja = AP->ptr[ia], ea = AP->ptr[ia + 1],
+                            Ptr ja = P.ptr[ia], ea = P.ptr[ia + 1],
                             jb = 0, eb = adap_col.size();
                             ja < ea && jb < eb;
                        )
                     {
-                        Col ca = AP->col[ja];
+                        Col ca = P.col[ja];
                         Col cb = adap_col[jb];
 
                         if (ca < cb)
@@ -244,7 +237,7 @@ struct smoothed_aggr_emin {
                         else if (cb < ca)
                             ++jb;
                         else /*ca == cb*/ {
-                            Val v = AP->val[ja] * adap_val[jb];
+                            Val v = P.val[ja] * adap_val[jb];
 #pragma omp critical
                             omega[ca] += v;
                             ++ja;
@@ -277,13 +270,13 @@ struct smoothed_aggr_emin {
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
                 Val dia = math::inverse(Adia[i]);
 
-                for(Ptr ja = AP->ptr[i],    ea = AP->ptr[i+1],
+                for(Ptr ja = P.ptr[i],    ea = P.ptr[i+1],
                         jp = P_tent.ptr[i], ep = P_tent.ptr[i+1];
                         ja < ea; ++ja
                    )
                 {
-                    Col ca = AP->col[ja];
-                    Val va = -dia * AP->val[ja] * omega[ca];
+                    Col ca = P.col[ja];
+                    Val va = -dia * P.val[ja] * omega[ca];
 
                     for(; jp < ep; ++jp) {
                         Col cp = P_tent.col[jp];
@@ -296,27 +289,26 @@ struct smoothed_aggr_emin {
                         }
                     }
 
-                    AP->val[ja] = va;
+                    P.val[ja] = va;
                 }
             }
-
-            return AP;
         }
 
-        template <typename AMatrix, typename Val, typename Col, typename Ptr>
-        static std::shared_ptr< backend::crs<Val, Col, Ptr> >
-        restriction(
-                const AMatrix &A, const std::vector<Val> &Adia,
+        template <typename MatrixA, typename Val, typename Col, typename Ptr>
+        void restriction(
+                const MatrixA &A, const std::vector<Val> &Adia,
                 const backend::crs<Val, Col, Ptr> &P_tent,
-                const std::vector<Val> &omega
+                const std::vector<Val> &omega,
+                backend::crs<Val, Col, Ptr> &R
                 )
         {
             const size_t nc = cols(P_tent);
 
-            auto R_tent = transpose(P_tent);
-            sort_rows(*R_tent);
+            backend::crs<Val, Col, Ptr> R_tent;
+            transpose(P_tent, R_tent);
+            sort_rows(R_tent);
 
-            auto RA = product(*R_tent, A, /*sort rows: */true);
+            product(R_tent, A, R, /*sort rows: */true);
 
             // Compute R = R_tent - Omega R_tent A D^-1.
             /*
@@ -329,30 +321,28 @@ struct smoothed_aggr_emin {
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(nc); ++i) {
                 Val w = omega[i];
 
-                for(Ptr ja = RA->ptr[i],     ea = RA->ptr[i+1],
-                        jr = R_tent->ptr[i], er = R_tent->ptr[i+1];
+                for(Ptr ja = R.ptr[i],     ea = R.ptr[i+1],
+                        jr = R_tent.ptr[i], er = R_tent.ptr[i+1];
                         ja < ea; ++ja
                    )
                 {
-                    Col ca = RA->col[ja];
-                    Val va = -w * math::inverse(Adia[ca]) * RA->val[ja];
+                    Col ca = R.col[ja];
+                    Val va = -w * math::inverse(Adia[ca]) * R.val[ja];
 
                     for(; jr < er; ++jr) {
-                        Col cr = R_tent->col[jr];
+                        Col cr = R_tent.col[jr];
                         if (cr > ca)
                             break;
 
                         if (cr == ca) {
-                            va += R_tent->val[jr];
+                            va += R_tent.val[jr];
                             break;
                         }
                     }
 
-                    RA->val[ja] = va;
+                    R.val[ja] = va;
                 }
             }
-
-            return RA;
         }
 };
 

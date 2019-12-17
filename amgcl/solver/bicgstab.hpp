@@ -157,7 +157,7 @@ class bicgstab {
 
             if (prm.pside == side::left) {
                 backend::residual(rhs, A, x, *rh);
-                P.apply(*rh, *r);
+                P.apply(A, *rh, *r);
             } else {
                 backend::residual(rhs, A, x, *r);
             }

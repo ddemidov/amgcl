@@ -127,25 +127,24 @@ struct smoothed_aggregation {
     smoothed_aggregation(const params &prm = params()) : prm(prm) {}
 
     /// \copydoc amgcl::coarsening::aggregation::transfer_operators
-    template <class Matrix>
-    std::tuple< std::shared_ptr<Matrix>, std::shared_ptr<Matrix> >
-    transfer_operators(const Matrix &A) {
+    template <class MatrixA, class Matrix>
+    void transfer_operators(const MatrixA &A, Matrix &P, Matrix &R) {
         typedef typename backend::value_type<Matrix>::type value_type;
         typedef typename math::scalar_of<value_type>::type scalar_type;
 
-        const size_t n = rows(A);
+        const ptrdiff_t n = backend::rows(A);
 
         AMGCL_TIC("aggregates");
         Aggregates aggr(A, prm.aggr, prm.nullspace.cols);
         prm.aggr.eps_strong *= 0.5;
         AMGCL_TOC("aggregates");
 
-        auto P_tent = tentative_prolongation<Matrix>(
-                n, aggr.count, aggr.id, prm.nullspace, prm.aggr.block_size
-                );
+        Matrix P_tent;
+        tentative_prolongation<Matrix>(
+                n, aggr.count, aggr.id, prm.nullspace, prm.aggr.block_size,
+                P_tent);
 
-        auto P = std::make_shared<Matrix>();
-        P->set_size(rows(*P_tent), cols(*P_tent), true);
+        P.set_size(rows(P_tent), cols(P_tent), true);
 
         scalar_type omega = prm.relax;
         if (prm.estimate_spectral_radius) {
@@ -157,73 +156,76 @@ struct smoothed_aggregation {
         AMGCL_TIC("smoothing");
 #pragma omp parallel
         {
-            std::vector<ptrdiff_t> marker(P->ncols, -1);
+            std::vector<ptrdiff_t> marker(P.ncols, -1);
 
             // Count number of entries in P.
 #pragma omp for
-            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-                for(ptrdiff_t ja = A.ptr[i], ea = A.ptr[i+1]; ja < ea; ++ja) {
-                    ptrdiff_t ca = A.col[ja];
+            for(ptrdiff_t i = 0; i < n; ++i) {
+                ptrdiff_t ja = backend::row_offset(A, i);
+                for(auto a = backend::row_begin(A, i); a; ++a, ++ja) {
+                    ptrdiff_t ca = a.col();
 
                     // Skip weak off-diagonal connections.
                     if (ca != i && !aggr.strong_connection[ja])
                         continue;
 
-                    for(ptrdiff_t jp = P_tent->ptr[ca], ep = P_tent->ptr[ca+1]; jp < ep; ++jp) {
-                        ptrdiff_t cp = P_tent->col[jp];
+                    for(ptrdiff_t jp = P_tent.ptr[ca], ep = P_tent.ptr[ca+1]; jp < ep; ++jp) {
+                        ptrdiff_t cp = P_tent.col[jp];
 
                         if (marker[cp] != i) {
                             marker[cp] = i;
-                            ++( P->ptr[i + 1] );
+                            ++( P.ptr[i + 1] );
                         }
                     }
                 }
             }
         }
 
-        P->scan_row_sizes();
-        P->set_nonzeros();
+        P.scan_row_sizes();
+        P.set_nonzeros();
 
 #pragma omp parallel
         {
-            std::vector<ptrdiff_t> marker(P->ncols, -1);
+            std::vector<ptrdiff_t> marker(P.ncols, -1);
 
             // Fill the interpolation matrix.
 #pragma omp for
-            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
+            for(ptrdiff_t i = 0; i < n; ++i) {
 
                 // Diagonal of the filtered matrix is the original matrix
                 // diagonal minus its weak connections.
                 value_type dia = math::zero<value_type>();
-                for(ptrdiff_t j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
-                    if (A.col[j] == i || !aggr.strong_connection[j])
-                        dia += A.val[j];
+                ptrdiff_t j = backend::row_offset(A, i);
+                for(auto a = backend::row_begin(A, i); a; ++a, ++j) {
+                    if (a.col() == i || !aggr.strong_connection[j])
+                        dia += a.value();
                 }
                 dia = -omega * math::inverse(dia);
 
-                ptrdiff_t row_beg = P->ptr[i];
+                ptrdiff_t row_beg = P.ptr[i];
                 ptrdiff_t row_end = row_beg;
-                for(ptrdiff_t ja = A.ptr[i], ea = A.ptr[i + 1]; ja < ea; ++ja) {
-                    ptrdiff_t ca = A.col[ja];
+                ptrdiff_t ja = backend::row_offset(A, i);
+                for(auto a = backend::row_begin(A, i); a; ++a, ++ja) {
+                    ptrdiff_t ca = a.col();
 
                     // Skip weak off-diagonal connections.
                     if (ca != i && !aggr.strong_connection[ja]) continue;
 
                     value_type va = (ca == i)
                         ? static_cast<value_type>(static_cast<scalar_type>(1 - omega) * math::identity<value_type>())
-                        : dia * A.val[ja];
+                        : dia * a.value();
 
-                    for(ptrdiff_t jp = P_tent->ptr[ca], ep = P_tent->ptr[ca+1]; jp < ep; ++jp) {
-                        ptrdiff_t cp = P_tent->col[jp];
-                        value_type vp = P_tent->val[jp];
+                    for(ptrdiff_t jp = P_tent.ptr[ca], ep = P_tent.ptr[ca+1]; jp < ep; ++jp) {
+                        ptrdiff_t cp = P_tent.col[jp];
+                        value_type vp = P_tent.val[jp];
 
                         if (marker[cp] < row_beg) {
                             marker[cp] = row_end;
-                            P->col[row_end] = cp;
-                            P->val[row_end] = va * vp;
+                            P.col[row_end] = cp;
+                            P.val[row_end] = va * vp;
                             ++row_end;
                         } else {
-                            P->val[ marker[cp] ] += va * vp;
+                            P.val[ marker[cp] ] += va * vp;
                         }
                     }
                 }
@@ -234,14 +236,13 @@ struct smoothed_aggregation {
         if (prm.nullspace.cols > 0)
             prm.aggr.block_size = prm.nullspace.cols;
 
-        return std::make_tuple(P, transpose(*P));
+        transpose(P, R);
     }
 
     /// \copydoc amgcl::coarsening::aggregation::coarse_operator
-    template <class Matrix>
-    std::shared_ptr<Matrix>
-    coarse_operator(const Matrix &A, const Matrix &P, const Matrix &R) const {
-        return detail::galerkin(A, P, R);
+    template <class MatrixA, class MatrixP, class MatrixR, class Matrix>
+    void coarse_operator(const MatrixA &A, const MatrixP &P, const MatrixR &R, Matrix &RAP) const {
+        detail::galerkin(A, P, R, RAP);
     }
 };
 

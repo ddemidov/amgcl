@@ -207,8 +207,8 @@ class preconditioner {
             }
         }
 
-        template <class Vec1, class Vec2>
-        void apply(const Vec1 &rhs, Vec2 &x) const {
+        template <class Matrix, class Vec1, class Vec2>
+        void apply(const Matrix &A, const Vec1 &rhs, Vec2 &x) const {
             switch(_class) {
                 case precond_class::amg:
                     {
@@ -216,7 +216,7 @@ class preconditioner {
                             amgcl::amg<Backend, runtime::coarsening::wrapper, runtime::relaxation::wrapper>
                             Precond;
 
-                        static_cast<Precond*>(handle)->apply(rhs, x);
+                        static_cast<Precond*>(handle)->apply(A, rhs, x);
                     }
                     break;
                 case precond_class::relaxation:
@@ -225,7 +225,7 @@ class preconditioner {
                             amgcl::relaxation::as_preconditioner<Backend, runtime::relaxation::wrapper>
                             Precond;
 
-                        static_cast<Precond*>(handle)->apply(rhs, x);
+                        static_cast<Precond*>(handle)->apply(A, rhs, x);
                     }
                     break;
                 case precond_class::dummy:
@@ -234,7 +234,7 @@ class preconditioner {
                             amgcl::preconditioner::dummy<Backend>
                             Precond;
 
-                        static_cast<Precond*>(handle)->apply(rhs, x);
+                        static_cast<Precond*>(handle)->apply(A, rhs, x);
                     }
                     break;
                 case precond_class::nested:
@@ -246,62 +246,12 @@ class preconditioner {
                                 >
                             Precond;
 
-                        static_cast<Precond*>(handle)->apply(rhs, x);
+                        static_cast<Precond*>(handle)->apply(A, rhs, x);
                     }
                     break;
                 default:
                     throw std::invalid_argument("Unsupported preconditioner class");
             }
-        }
-
-        std::shared_ptr<matrix> system_matrix_ptr() const {
-            switch(_class) {
-                case precond_class::amg:
-                    {
-                        typedef
-                            amgcl::amg<Backend, runtime::coarsening::wrapper, runtime::relaxation::wrapper>
-                            Precond;
-
-                        return static_cast<Precond*>(handle)->system_matrix_ptr();
-                    }
-                case precond_class::relaxation:
-                    {
-                        typedef
-                            amgcl::relaxation::as_preconditioner<Backend, runtime::relaxation::wrapper>
-                            Precond;
-
-                        return static_cast<Precond*>(handle)->system_matrix_ptr();
-                    }
-                case precond_class::dummy:
-                    {
-                        typedef
-                            amgcl::preconditioner::dummy<Backend>
-                            Precond;
-
-                        return static_cast<Precond*>(handle)->system_matrix_ptr();
-                    }
-                case precond_class::nested:
-                    {
-                        typedef
-                            make_solver<
-                                preconditioner,
-                                runtime::solver::wrapper<Backend>
-                                >
-                            Precond;
-
-                        return static_cast<Precond*>(handle)->system_matrix_ptr();
-                    }
-                default:
-                    throw std::invalid_argument("Unsupported preconditioner class");
-            }
-        }
-
-        const matrix& system_matrix() const {
-            return *system_matrix_ptr();
-        }
-
-        size_t size() const {
-            return backend::rows( system_matrix() );
         }
 
         size_t bytes() const {

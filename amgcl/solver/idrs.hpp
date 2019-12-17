@@ -308,7 +308,7 @@ class idrs {
                         backend::axpby(-c[i], *G[i], one, *v);
                     }
 
-                    Prec.apply(*v, *t);
+                    Prec.apply(A, *v, *t);
 
                     // Compute new U[k]
                     backend::axpby(om, *t, c[k], *U[k]);
@@ -363,7 +363,7 @@ class idrs {
                 // Now we have sufficient vectors in G_j to compute residual in G_j+1
                 // Note: r is already perpendicular to P so v = r
 
-                Prec.apply(*r, *v);
+                Prec.apply(A, *r, *v);
                 backend::spmv(one, A, *v, zero, *t);
 
                 // Computation of a new omega

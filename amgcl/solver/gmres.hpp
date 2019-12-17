@@ -167,7 +167,7 @@ class gmres {
             while(true) {
                 if (prm.pside == side::left) {
                     backend::residual(rhs, A, x, *v[0]);
-                    P.apply(*v[0], *r);
+                    P.apply(A, *v[0], *r);
                 } else {
                     backend::residual(rhs, A, x, *r);
                 }
@@ -230,7 +230,7 @@ class gmres {
                     backend::axpby(one, dx, one, x);
                 } else {
                     vector &tmp = *v[0];
-                    P.apply(dx, tmp);
+                    P.apply(A, dx, tmp);
                     backend::axpby(one, tmp, one, x);
                 }
             }

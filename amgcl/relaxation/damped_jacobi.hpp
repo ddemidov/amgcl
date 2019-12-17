@@ -89,7 +89,7 @@ struct damped_jacobi {
             const params &prm,
             const typename Backend::params &backend_prm
             )
-        : prm(prm), dia( Backend::copy_vector( diagonal(A, true), backend_prm ) )
+        : prm(prm), dia( Backend::copy_vector( backend::diagonal(A, true), backend_prm ) )
     { }
 
     /// Apply pre-relaxation

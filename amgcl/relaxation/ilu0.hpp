@@ -93,11 +93,8 @@ struct ilu0 {
         size_t Lnz = 0, Unz = 0;
 
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-            ptrdiff_t row_beg = A.ptr[i];
-            ptrdiff_t row_end = A.ptr[i + 1];
-
-            for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                ptrdiff_t c = A.col[j];
+            for(auto a = backend::row_begin(A, i); a; ++a) {
+                ptrdiff_t c = a.col();
                 if (c < i)
                     ++Lnz;
                 else if (c > i)
@@ -119,12 +116,9 @@ struct ilu0 {
         std::vector<value_type*> work(n, NULL);
 
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-            ptrdiff_t row_beg = A.ptr[i];
-            ptrdiff_t row_end = A.ptr[i + 1];
-
-            for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                ptrdiff_t  c = A.col[j];
-                value_type v = A.val[j];
+            for(auto a = backend::row_begin(A, i); a; ++a) {
+                ptrdiff_t  c = a.col();
+                value_type v = a.value();
 
                 if (c < i) {
                     L->col[Lhead] = c;
@@ -145,8 +139,8 @@ struct ilu0 {
             L->ptr[i+1] = Lhead;
             U->ptr[i+1] = Uhead;
 
-            for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                ptrdiff_t c = A.col[j];
+            for(auto a = backend::row_begin(A, i); a; ++a) {
+                ptrdiff_t c = a.col();
 
                 // Exit if diagonal is reached
                 if (c >= i) {
@@ -169,8 +163,8 @@ struct ilu0 {
             }
 
             // Refresh work
-            for(ptrdiff_t j = row_beg; j < row_end; ++j)
-                work[A.col[j]] = NULL;
+            for(auto a = backend::row_begin(A, i); a; ++a)
+                work[a.col()] = NULL;
         }
 
         ilu = std::make_shared<ilu_solve>(L, U, D, prm.solve, bprm);

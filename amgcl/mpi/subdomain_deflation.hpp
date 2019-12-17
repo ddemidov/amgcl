@@ -280,7 +280,6 @@ class subdomain_deflation {
             P = std::make_shared<LocalPrecond>( *a_loc, prm.local, bprm );
             AMGCL_TOC("local preconditioner");
 
-            A->set_local(P->system_matrix_ptr());
             A->move_to_backend(bprm);
 
             AMGCL_TIC("remote(A*Z)");

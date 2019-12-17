@@ -65,10 +65,10 @@ struct spai1 {
     {
         typedef typename backend::value_type<Matrix>::type value_type;
 
-        const size_t n = backend::rows(A);
-        const size_t m = backend::cols(A);
+        const ptrdiff_t n = backend::rows(A);
+        const ptrdiff_t m = backend::cols(A);
 
-        auto Ainv = std::make_shared<Matrix>(A);
+        auto Ainv = std::make_shared<backend::crs<value_type>>(A);
 
 #pragma omp parallel
         {
@@ -78,18 +78,15 @@ struct spai1 {
             amgcl::detail::QR<value_type> qr;
 
 #pragma omp for
-            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-                ptrdiff_t row_beg = A.ptr[i];
-                ptrdiff_t row_end = A.ptr[i + 1];
-
-                I.assign(A.col + row_beg, A.col + row_end);
-
+            for(ptrdiff_t i = 0; i < n; ++i) {
+                I.clear();
                 J.clear();
-                for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                    ptrdiff_t c = A.col[j];
+                for(auto a = backend::row_begin(A, i); a; ++a) {
+                    ptrdiff_t c = a.col();
+                    I.push_back(c);
 
-                    for(ptrdiff_t jj = A.ptr[c], ee = A.ptr[c + 1]; jj < ee; ++jj) {
-                        ptrdiff_t cc = A.col[jj];
+                    for(auto aa = backend::row_begin(A, c); aa; ++aa) {
+                        ptrdiff_t cc = aa.col();
                         if (marker[cc] < 0) {
                             marker[cc] = 1;
                             J.push_back(cc);
@@ -104,14 +101,15 @@ struct spai1 {
                     if (J[j] == static_cast<ptrdiff_t>(i)) ek[j] = math::identity<value_type>();
                 }
 
-                for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                    ptrdiff_t c = A.col[j];
+                ptrdiff_t w = 0;
+                for(auto a = backend::row_begin(A, i); a; ++a, ++w) {
+                    ptrdiff_t c = a.col();
 
-                    for(auto a = row_begin(A, c); a; ++a)
-                        B[marker[a.col()] + J.size() * (j - row_beg)] = a.value();
+                    for(auto aa = backend::row_begin(A, c); aa; ++aa)
+                        B[marker[aa.col()] + J.size() * w] = aa.value();
                 }
 
-                qr.solve(J.size(), I.size(), &B[0], &ek[0], &Ainv->val[row_beg],
+                qr.solve(J.size(), I.size(), &B[0], &ek[0], &Ainv->val[Ainv->ptr[i]],
                         amgcl::detail::col_major);
 
                 for(size_t j = 0; j < J.size(); ++j)

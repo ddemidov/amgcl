@@ -157,7 +157,7 @@ class cg {
 
             size_t iter = 0;
             for(; iter < prm.maxiter && math::norm(res_norm) > eps; ++iter) {
-                P.apply(*r, *s);
+                P.apply(A, *r, *s);
 
                 rho2 = rho1;
                 rho1 = inner_product(*r, *s);

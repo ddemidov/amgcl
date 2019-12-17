@@ -157,7 +157,8 @@ int main(int argc, char *argv[]) {
             typedef amgcl::backend::crs<double> matrix;
             matrix A(std::tie(chunk, ptr, col, val));
             prof.tic("openmp product");
-            auto B = amgcl::backend::product(A, A);
+            matrix B;
+            amgcl::backend::product(A, A, B);
             prof.toc("openmp product");
         }
 

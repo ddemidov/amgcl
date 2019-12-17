@@ -101,7 +101,9 @@ void test() {
         assemble(n, 0, n, ptr, col, val);
 
         amgcl::backend::crs<Val> A( std::tie(n, ptr, col, val) );
-        amgcl::backend::spmv(1, *amgcl::backend::product(A, A), X, 0, Y);
+        amgcl::backend::crs<Val> A2;
+        amgcl::backend::product(A, A, A2);
+        amgcl::backend::spmv(1, A2, X, 0, Y);
 
         double s = 0;
         for(int i = 0; i < n; ++i) {

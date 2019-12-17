@@ -101,13 +101,12 @@ struct ruge_stuben {
     ruge_stuben(const params &prm = params()) : prm(prm) {}
 
     /// \copydoc amgcl::coarsening::aggregation::transfer_operators
-    template <class Matrix>
-    std::tuple< std::shared_ptr<Matrix>, std::shared_ptr<Matrix> >
-    transfer_operators(const Matrix &A) const {
+    template <class MatrixA, class Matrix>
+    void transfer_operators(const MatrixA &A, Matrix &P, Matrix &R) const {
         typedef typename backend::value_type<Matrix>::type Val;
         typedef typename math::scalar_of<Val>::type        Scalar;
 
-        const size_t n = rows(A);
+        const ptrdiff_t n = backend::rows(A);
 
         static const Scalar eps = amgcl::detail::eps<Scalar>(1);
 
@@ -122,15 +121,14 @@ struct ruge_stuben {
         AMGCL_TOC("C/F split");
 
         AMGCL_TIC("interpolation");
-        size_t nc = 0;
+        ptrdiff_t nc = 0;
         std::vector<ptrdiff_t> cidx(n);
-        for(size_t i = 0; i < n; ++i)
-            if (cf[i] == 'C') cidx[i] = static_cast<ptrdiff_t>(nc++);
+        for(ptrdiff_t i = 0; i < n; ++i)
+            if (cf[i] == 'C') cidx[i] = nc++;
 
         if (!nc) throw error::empty_level();
 
-        auto P = std::make_shared<Matrix>();
-        P->set_size(n, nc, true);
+        P.set_size(n, nc, true);
 
         std::vector<Val> Amin, Amax;
 
@@ -140,47 +138,51 @@ struct ruge_stuben {
         }
 
 #pragma omp parallel for
-        for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
+        for(ptrdiff_t i = 0; i < n; ++i) {
             if (cf[i] == 'C') {
-                ++P->ptr[i + 1];
+                ++P.ptr[i + 1];
                 continue;
             }
 
             if (prm.do_trunc) {
                 Val amin = zero, amax = zero;
 
-                for(ptrdiff_t j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
-                    if (!S.val[j] || cf[ A.col[j] ] != 'C') continue;
+                ptrdiff_t j = backend::row_offset(A, i);
+                for(auto a = backend::row_begin(A, i); a; ++a, ++j) {
+                    if (!S.val[j] || cf[ a.col() ] != 'C') continue;
 
-                    amin = std::min(amin, A.val[j]);
-                    amax = std::max(amax, A.val[j]);
+                    Val v = a.value();
+                    amin = std::min(amin, v);
+                    amax = std::max(amax, v);
                 }
 
                 Amin[i] = (amin *= prm.eps_trunc);
                 Amax[i] = (amax *= prm.eps_trunc);
 
-                for(ptrdiff_t j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
-                    if (!S.val[j] || cf[A.col[j]] != 'C') continue;
+                j = backend::row_offset(A, i);
+                for(auto a = backend::row_begin(A, i); a; ++a, ++j) {
+                    if (!S.val[j] || cf[a.col()] != 'C') continue;
 
-                    if (A.val[j] < amin || amax < A.val[j])
-                        ++P->ptr[i + 1];
+                    Val v = a.value();
+                    if (v < amin || amax < v) ++P.ptr[i + 1];
                 }
             } else {
-                for(ptrdiff_t j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j)
-                    if (S.val[j] && cf[A.col[j]] == 'C')
-                        ++P->ptr[i + 1];
+                ptrdiff_t j = backend::row_offset(A, i);
+                for(auto a = backend::row_begin(A, i); a; ++a, ++j)
+                    if (S.val[j] && cf[a.col()] == 'C')
+                        ++P.ptr[i + 1];
             }
         }
 
-        P->set_nonzeros(P->scan_row_sizes());
+        P.set_nonzeros(P.scan_row_sizes());
 
 #pragma omp parallel for
-        for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-            ptrdiff_t row_head = P->ptr[i];
+        for(ptrdiff_t i = 0; i < n; ++i) {
+            ptrdiff_t row_head = P.ptr[i];
 
             if (cf[i] == 'C') {
-                P->col[row_head] = cidx[i];
-                P->val[row_head] = math::identity<Val>();
+                P.col[row_head] = cidx[i];
+                P.val[row_head] = math::identity<Val>();
                 continue;
             }
 
@@ -189,9 +191,10 @@ struct ruge_stuben {
             Val b_num = zero, b_den = zero;
             Val d_neg = zero, d_pos = zero;
 
-            for(ptrdiff_t j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
-                ptrdiff_t c = A.col[j];
-                Val  v = A.val[j];
+            ptrdiff_t j = backend::row_offset(A, i);
+            for(auto a = backend::row_begin(A, i); a; ++a, ++j) {
+                ptrdiff_t c = a.col();
+                Val v = a.value();
 
                 if (c == i) {
                     dia = v;
@@ -229,28 +232,28 @@ struct ruge_stuben {
             Scalar alpha = math::norm(a_den) > eps ? -cf_neg * math::norm(a_num) / (math::norm(dia) * math::norm(a_den)) : 0;
             Scalar beta  = math::norm(b_den) > eps ? -cf_pos * math::norm(b_num) / (math::norm(dia) * math::norm(b_den)) : 0;
 
-            for(ptrdiff_t j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
-                ptrdiff_t c = A.col[j];
-                Val  v = A.val[j];
+            j = backend::row_offset(A, i);
+            for(auto a = backend::row_begin(A, i); a; ++a, ++j) {
+                ptrdiff_t c = a.col();
+                Val v = a.value();
 
                 if (!S.val[j] || cf[c] != 'C') continue;
                 if (prm.do_trunc && Amin[i] <= v && v <= Amax[i]) continue;
 
-                P->col[row_head] = cidx[c];
-                P->val[row_head] = (v < zero ? alpha : beta) * v;
+                P.col[row_head] = cidx[c];
+                P.val[row_head] = (v < zero ? alpha : beta) * v;
                 ++row_head;
             }
         }
         AMGCL_TOC("interpolation");
 
-        return std::make_tuple(P, transpose(*P));
+        transpose(P, R);
     }
 
     /// \copydoc amgcl::coarsening::aggregation::coarse_operator
-    template <class Matrix>
-    std::shared_ptr<Matrix>
-    coarse_operator(const Matrix &A, const Matrix &P, const Matrix &R) const {
-        return detail::galerkin(A, P, R);
+    template <class MatrixA, class MatrixP, class MatrixR, class Matrix>
+    void coarse_operator(const MatrixA &A, const MatrixP &P, const MatrixR &R, Matrix &RAP) const {
+        detail::galerkin(A, P, R, RAP);
     }
 
     private:
@@ -261,31 +264,32 @@ struct ruge_stuben {
         //
         // Variables that have no positive connections are marked as F(ine).
         //-------------------------------------------------------------------
-        template <typename Val, typename Col, typename Ptr>
+        template <typename Matrix>
         static void connect(
-                backend::crs<Val,  Col, Ptr> const &A, float eps_strong,
-                backend::crs<char, Col, Ptr>       &S,
-                std::vector<char>                  &cf
+                const Matrix &A, float eps_strong,
+                backend::crs<char> &S,
+                std::vector<char>  &cf
                 )
         {
+            typedef typename backend::value_type<Matrix>::type Val;
             typedef typename math::scalar_of<Val>::type Scalar;
 
-            const size_t n   = rows(A);
-            const size_t nnz = nonzeros(A);
+            const ptrdiff_t n   = backend::rows(A);
+            const ptrdiff_t nnz = backend::nonzeros(A);
             const Scalar eps = amgcl::detail::eps<Scalar>(1);
 
             S.nrows = S.ncols = n;
-            S.ptr = new Ptr[n+1];
+            S.ptr = new ptrdiff_t[n+1];
             S.val = new char[nnz];
             S.ptr[0] = 0;
 
 #pragma omp parallel for
-            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
+            for(ptrdiff_t i = 0; i < n; ++i) {
                 S.ptr[i+1] = 0;
 
                 Val a_min = math::zero<Val>();
 
-                for(auto a = row_begin(A, i); a; ++a)
+                for(auto a = backend::row_begin(A, i); a; ++a)
                     if (a.col() != i) a_min = std::min(a_min, a.value());
 
                 if (math::norm(a_min) < eps) {
@@ -295,41 +299,47 @@ struct ruge_stuben {
 
                 a_min *= eps_strong;
 
-                for(Ptr j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j)
-                    S.val[j] = (A.col[j] != i && A.val[j] < a_min);
+                ptrdiff_t j = backend::row_offset(A, i);
+                for(auto a = backend::row_begin(A, i); a; ++a, ++j)
+                    S.val[j] = (a.col() != i && a.value() < a_min);
             }
 
             // Transposition of S:
-            for(size_t i = 0; i < nnz; ++i)
-                if (S.val[i]) ++( S.ptr[ A.col[i] + 1] );
+            for(ptrdiff_t i = 0; i < n; ++i) {
+                ptrdiff_t j = backend::row_offset(A, i);
+                for(auto a = backend::row_begin(A, i); a; ++a, ++j)
+                    if (S.val[j]) ++( S.ptr[ a.col() + 1] );
+            }
 
             S.scan_row_sizes();
-            S.col = new Col[S.ptr[n]];
+            S.col = new ptrdiff_t[S.ptr[n]];
 
-            for(size_t i = 0; i < n; ++i)
-                for(Ptr j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j)
-                    if (S.val[j]) S.col[ S.ptr[ A.col[j] ]++ ] = i;
+            for(ptrdiff_t i = 0; i < n; ++i) {
+                ptrdiff_t j = backend::row_offset(A, i);
+                for(auto a = backend::row_begin(A, i); a; ++a, ++j)
+                    if (S.val[j]) S.col[ S.ptr[ a.col() ]++ ] = i;
+            }
 
             std::rotate(S.ptr, S.ptr + n, S.ptr + n + 1);
             S.ptr[0] = 0;
         }
 
         // Split variables into C(oarse) and F(ine) sets.
-        template <typename Val, typename Col, typename Ptr>
+        template <class Matrix>
         static void cfsplit(
-                backend::crs<Val,  Col, Ptr> const &A,
-                backend::crs<char, Col, Ptr> const &S,
-                std::vector<char>                  &cf
+                const Matrix &A,
+                backend::crs<char> const &S,
+                std::vector<char>  &cf
                 )
         {
-            const size_t n = rows(A);
+            const ptrdiff_t n = backend::rows(A);
 
-            std::vector<Col> lambda(n);
+            std::vector<ptrdiff_t> lambda(n);
 
             // Initialize lambdas:
-            for(size_t i = 0; i < n; ++i) {
-                Col temp = 0;
-                for(Ptr j = S.ptr[i], e = S.ptr[i+1]; j < e; ++j)
+            for(ptrdiff_t i = 0; i < n; ++i) {
+                ptrdiff_t temp = 0;
+                for(ptrdiff_t j = S.ptr[i], e = S.ptr[i+1]; j < e; ++j)
                     temp += ( cf[ S.col[j] ] == 'U' ? 1 : 2 );
                 lambda[i] = temp;
             }
@@ -339,18 +349,18 @@ struct ruge_stuben {
             // cnt - size of a group;
             // i2n - variable number;
             // n2i - vaiable position in a group.
-            std::vector<Ptr> ptr(n+1, 0);
-            std::vector<Ptr> cnt(n, 0);
-            std::vector<Ptr> i2n(n);
-            std::vector<Ptr> n2i(n);
+            std::vector<ptrdiff_t> ptr(n+1, 0);
+            std::vector<ptrdiff_t> cnt(n, 0);
+            std::vector<ptrdiff_t> i2n(n);
+            std::vector<ptrdiff_t> n2i(n);
 
-            for(size_t i = 0; i < n; ++i) ++ptr[lambda[i] + 1];
+            for(ptrdiff_t i = 0; i < n; ++i) ++ptr[lambda[i] + 1];
 
             std::partial_sum(ptr.begin(), ptr.end(), ptr.begin());
 
-            for(size_t i = 0; i < n; ++i) {
-                Col lam = lambda[i];
-                Ptr idx = ptr[lam] + cnt[lam]++;
+            for(ptrdiff_t i = 0; i < n; ++i) {
+                ptrdiff_t lam = lambda[i];
+                ptrdiff_t idx = ptr[lam] + cnt[lam]++;
                 i2n[idx] = i;
                 n2i[i] = idx;
             }
@@ -359,9 +369,9 @@ struct ruge_stuben {
             // 1. The vaiable with maximum value of lambda becomes next C-variable.
             // 2. Its neighbours from S' become F-variables.
             // 3. Keep lambda values in sync.
-            for(size_t top = n; top-- > 0; ) {
-                Ptr i   = i2n[top];
-                Col lam = lambda[i];
+            for(ptrdiff_t top = n; top-- > 0; ) {
+                ptrdiff_t i   = i2n[top];
+                ptrdiff_t lam = lambda[i];
 
                 if (lam == 0) {
                     std::replace(cf.begin(), cf.end(), 'U', 'C');
@@ -377,25 +387,26 @@ struct ruge_stuben {
                 cf[i] = 'C';
 
                 // Its neighbours from S' become F-variables.
-                for(Ptr j = S.ptr[i], e = S.ptr[i + 1]; j < e; ++j) {
-                    Col c = S.col[j];
+                for(ptrdiff_t j = S.ptr[i], e = S.ptr[i + 1]; j < e; ++j) {
+                    ptrdiff_t c = S.col[j];
 
                     if (cf[c] != 'U') continue;
 
                     cf[c] = 'F';
 
                     // Increase lambdas of the newly created F's neighbours.
-                    for(Ptr aj = A.ptr[c], ae = A.ptr[c + 1]; aj < ae; ++aj) {
+                    ptrdiff_t aj = backend::row_offset(A, c);
+                    for(auto a = backend::row_begin(A, c); a; ++a, ++aj) {
                         if (!S.val[aj]) continue;
 
-                        Col ac    = A.col[aj];
-                        Col lam_a = lambda[ac];
+                        ptrdiff_t ac    = a.col();
+                        ptrdiff_t lam_a = lambda[ac];
 
-                        if (cf[ac] != 'U' || static_cast<size_t>(lam_a) + 1 >= n)
+                        if (cf[ac] != 'U' || lam_a + 1 >= n)
                             continue;
 
-                        Ptr old_pos = n2i[ac];
-                        Ptr new_pos = ptr[lam_a] + cnt[lam_a] - 1;
+                        ptrdiff_t old_pos = n2i[ac];
+                        ptrdiff_t new_pos = ptr[lam_a] + cnt[lam_a] - 1;
 
                         n2i[i2n[old_pos]] = new_pos;
                         n2i[i2n[new_pos]] = old_pos;
@@ -411,16 +422,17 @@ struct ruge_stuben {
                 }
 
                 // Decrease lambdas of the newly create C's neighbours.
-                for(Ptr j = A.ptr[i], e = A.ptr[i + 1]; j < e; j++) {
+                ptrdiff_t j = backend::row_offset(A, i);
+                for(auto a = backend::row_begin(A, i); a; ++a, ++j) {
                     if (!S.val[j]) continue;
 
-                    Col c   = A.col[j];
-                    Col lam = lambda[c];
+                    ptrdiff_t c   = a.col();
+                    ptrdiff_t lam = lambda[c];
 
                     if (cf[c] != 'U' || lam == 0) continue;
 
-                    Ptr old_pos = n2i[c];
-                    Ptr new_pos = ptr[lam];
+                    ptrdiff_t old_pos = n2i[c];
+                    ptrdiff_t new_pos = ptr[lam];
 
                     n2i[i2n[old_pos]] = new_pos;
                     n2i[i2n[new_pos]] = old_pos;

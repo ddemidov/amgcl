@@ -95,10 +95,7 @@ struct gauss_seidel {
             const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP&
             ) const
     {
-        if (is_serial)
-            serial_sweep(A, rhs, x, true);
-        else
-            forward->sweep(rhs, x);
+        sweep(A, rhs, x, true);
     }
 
     /// \copydoc amgcl::relaxation::damped_jacobi::apply_post
@@ -107,23 +104,15 @@ struct gauss_seidel {
             const Matrix &A, const VectorRHS &rhs, VectorX &x, VectorTMP&
             ) const
     {
-        if (is_serial)
-            serial_sweep(A, rhs, x, false);
-        else
-            backward->sweep(rhs, x);
+        sweep(A, rhs, x, false);
     }
 
     template <class Matrix, class VectorRHS, class VectorX>
     void apply(const Matrix &A, const VectorRHS &rhs, VectorX &x) const
     {
         backend::clear(x);
-        if (is_serial) {
-            serial_sweep(A, rhs, x, true);
-            serial_sweep(A, rhs, x, false);
-        } else {
-            forward->sweep(rhs, x);
-            backward->sweep(rhs, x);
-        }
+        sweep(A, rhs, x, true);
+        sweep(A, rhs, x, false);
     }
 
     size_t bytes() const {
@@ -148,6 +137,36 @@ struct gauss_seidel {
 #else
             return 0;
 #endif
+        }
+
+        template <class Matrix, class VectorRHS, class VectorX>
+        typename std::enable_if<
+            backend::has_row_iterator<Matrix>::value,
+            void
+        >::type
+        sweep(const Matrix &A, const VectorRHS &rhs, VectorX &x, bool fwd) const {
+            if (is_serial) {
+                serial_sweep(A, rhs, x, fwd);
+            } else if (fwd) {
+                forward->sweep(rhs, x);
+            } else {
+                backward->sweep(rhs, x);
+            }
+        }
+
+        template <class Matrix, class VectorRHS, class VectorX>
+        typename std::enable_if<
+            !backend::has_row_iterator<Matrix>::value,
+            void
+        >::type
+        sweep(const Matrix &A, const VectorRHS &rhs, VectorX &x, bool fwd) const {
+            amgcl::precondition(!is_serial, "Serial sweep is not supported with this matrix!");
+
+            if (fwd) {
+                forward->sweep(rhs, x);
+            } else {
+                backward->sweep(rhs, x);
+            }
         }
 
         template <class Matrix, class VectorRHS, class VectorX>
@@ -220,7 +239,7 @@ struct gauss_seidel {
                 for(ptrdiff_t i = beg; i != end; i += inc) {
                     ptrdiff_t l = level[i];
 
-                    for(auto a = row_begin(A, i); a; ++a) {
+                    for(auto a = backend::row_begin(A, i); a; ++a) {
                         ptrdiff_t c = a.col();
 
                         if (forward) {
@@ -279,7 +298,7 @@ struct gauss_seidel {
                         thread_rows[tid] += end - beg;
                         for(ptrdiff_t i = beg; i < end; ++i) {
                             ptrdiff_t j = order[i];
-                            thread_cols[tid] += row_nonzeros(A, j);
+                            thread_cols[tid] += backend::row_nonzeros(A, j);
                         }
                     }
                 }
@@ -304,7 +323,7 @@ struct gauss_seidel {
 
                             ord[tid].push_back(i);
 
-                            for(auto a = row_begin(A, i); a; ++a) {
+                            for(auto a = backend::row_begin(A, i); a; ++a) {
                                 col[tid].push_back(a.col());
                                 val[tid].push_back(a.value());
                             }

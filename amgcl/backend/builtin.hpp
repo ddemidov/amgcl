@@ -278,6 +278,8 @@ struct crs {
 
     class row_iterator {
         public:
+            row_iterator() {}
+
             row_iterator(
                     const col_type * col,
                     const col_type * end,
@@ -341,42 +343,36 @@ void sort_rows(crs<V, C, P> &A) {
 
 /// Transpose of a sparse matrix.
 template < typename V, typename C, typename P >
-std::shared_ptr< crs<V,C,P> > transpose(const crs<V, C, P> &A)
+void transpose(const crs<V, C, P> &A, crs<V, C, P> &T)
 {
     const size_t n   = rows(A);
     const size_t m   = cols(A);
     const size_t nnz = nonzeros(A);
 
-    auto T = std::make_shared< crs<V,C,P> >();
-    T->set_size(m, n, true);
+    T.set_size(m, n, true);
 
     for(size_t j = 0; j < nnz; ++j)
-        ++( T->ptr[A.col[j] + 1] );
+        ++( T.ptr[A.col[j] + 1] );
 
-    T->scan_row_sizes();
-    T->set_nonzeros();
+    T.scan_row_sizes();
+    T.set_nonzeros();
 
     for(size_t i = 0; i < n; i++) {
         for(P j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j) {
-            P head = T->ptr[A.col[j]]++;
+            P head = T.ptr[A.col[j]]++;
 
-            T->col[head] = static_cast<C>(i);
-            T->val[head] = A.val[j];
+            T.col[head] = static_cast<C>(i);
+            T.val[head] = A.val[j];
         }
     }
 
-    std::rotate(T->ptr, T->ptr + m, T->ptr + m + 1);
-    T->ptr[0] = 0;
-
-    return T;
+    std::rotate(T.ptr, T.ptr + m, T.ptr + m + 1);
+    T.ptr[0] = 0;
 }
 
 /// Matrix-matrix product.
-template <class Val, class Col, class Ptr>
-std::shared_ptr< crs<Val, Col, Ptr> >
-product(const crs<Val,Col,Ptr> &A, const crs<Val,Col,Ptr> &B, bool sort = false) {
-    auto C = std::make_shared< crs<Val,Col,Ptr> >();
-
+template <class MatrixA, class MatrixB, class Val, class Col, class Ptr>
+void product(const MatrixA &A, const MatrixB &B, crs<Val,Col,Ptr> &C, bool sort = false) {
 #ifdef _OPENMP
     int nt = omp_get_max_threads();
 #else
@@ -384,12 +380,10 @@ product(const crs<Val,Col,Ptr> &A, const crs<Val,Col,Ptr> &B, bool sort = false)
 #endif
 
     if (nt > 16) {
-        spgemm_rmerge(A, B, *C);
+        spgemm_rmerge(A, B, C);
     } else {
-        spgemm_saad(A, B, *C, sort);
+        spgemm_saad(A, B, C, sort);
     }
-
-    return C;
 }
 
 
@@ -406,15 +400,16 @@ void scale(crs<Val, Col, Ptr> &A, T s) {
 }
 
 // Reduce matrix to a pointwise one
-template <class value_type>
-std::shared_ptr< crs<typename math::scalar_of<value_type>::type> >
-pointwise_matrix(const crs<value_type> &A, unsigned block_size) {
-    typedef value_type V;
+template <class Matrix>
+std::shared_ptr< crs<typename math::scalar_of<typename backend::value_type<Matrix>::type>::type> >
+pointwise_matrix(const Matrix &A, unsigned block_size) {
+    typedef typename backend::row_iterator<Matrix>::type row_iterator;
+    typedef typename backend::value_type<Matrix>::type V;
     typedef typename math::scalar_of<V>::type S;
 
     AMGCL_TIC("pointwise_matrix");
-    const ptrdiff_t n  = A.nrows;
-    const ptrdiff_t m  = A.ncols;
+    const ptrdiff_t n  = backend::rows(A);
+    const ptrdiff_t m  = backend::cols(A);
     const ptrdiff_t np = n / block_size;
     const ptrdiff_t mp = m / block_size;
 
@@ -428,8 +423,8 @@ pointwise_matrix(const crs<value_type> &A, unsigned block_size) {
 
 #pragma omp parallel
     {
-        std::vector<ptrdiff_t> j(block_size);
-        std::vector<ptrdiff_t> e(block_size);
+        std::vector<row_iterator> a;
+        a.reserve(block_size);
 
         // Count number of nonzeros in block matrix.
 #pragma omp for
@@ -438,13 +433,12 @@ pointwise_matrix(const crs<value_type> &A, unsigned block_size) {
             ptrdiff_t cur_col = 0;
             bool done = true;
 
+            a.clear();
             for(unsigned k = 0; k < block_size; ++k) {
-                ptrdiff_t beg = j[k] = A.ptr[ia + k];
-                ptrdiff_t end = e[k] = A.ptr[ia + k + 1];
+                a.emplace_back( backend::row_begin(A, ia + k) );
+                if (!a[k]) continue;
 
-                if (beg == end) continue;
-
-                ptrdiff_t c = A.col[beg];
+                ptrdiff_t c = a[k].col();
 
                 if (done) {
                     done = false;
@@ -461,11 +455,9 @@ pointwise_matrix(const crs<value_type> &A, unsigned block_size) {
                 done = true;
                 ptrdiff_t col_end = (cur_col + 1) * block_size;
                 for(unsigned k = 0; k < block_size; ++k) {
-                    ptrdiff_t beg = j[k];
-                    ptrdiff_t end = e[k];
-
-                    while(beg < end) {
-                        ptrdiff_t c = A.col[beg++];
+                    while(a[k]) {
+                        ptrdiff_t c = a[k].col();
+                        ++a[k];
 
                         if (c >= col_end) {
                             if (done) {
@@ -478,8 +470,6 @@ pointwise_matrix(const crs<value_type> &A, unsigned block_size) {
                             break;
                         }
                     }
-
-                    j[k] = beg;
                 }
             }
         }
@@ -489,8 +479,8 @@ pointwise_matrix(const crs<value_type> &A, unsigned block_size) {
 
 #pragma omp parallel
     {
-        std::vector<ptrdiff_t> j(block_size);
-        std::vector<ptrdiff_t> e(block_size);
+        std::vector<row_iterator> a;
+        a.reserve(block_size);
 
 #pragma omp for
         for(ptrdiff_t ip = 0; ip < np; ++ip) {
@@ -499,13 +489,12 @@ pointwise_matrix(const crs<value_type> &A, unsigned block_size) {
             ptrdiff_t head = Ap.ptr[ip];
             bool done = true;
 
+            a.clear();
             for(unsigned k = 0; k < block_size; ++k) {
-                ptrdiff_t beg = j[k] = A.ptr[ia + k];
-                ptrdiff_t end = e[k] = A.ptr[ia + k + 1];
+                a.emplace_back(backend::row_begin(A, ia + k));
+                if (!a[k]) continue;
 
-                if (beg == end) continue;
-
-                ptrdiff_t c = A.col[beg];
+                ptrdiff_t c = a[k].col();
 
                 if (done) {
                     done = false;
@@ -526,13 +515,10 @@ pointwise_matrix(const crs<value_type> &A, unsigned block_size) {
 
                 ptrdiff_t col_end = (cur_col + 1) * block_size;
                 for(unsigned k = 0; k < block_size; ++k) {
-                    ptrdiff_t beg = j[k];
-                    ptrdiff_t end = e[k];
-
-                    while(beg < end) {
-                        ptrdiff_t c = A.col[beg];
-                        S v = math::norm(A.val[beg]);
-                        ++beg;
+                    while(a[k]) {
+                        ptrdiff_t c = a[k].col();
+                        S v = math::norm(a[k].value());
+                        ++a[k];
 
                         if (c >= col_end) {
                             if (done) {
@@ -553,8 +539,6 @@ pointwise_matrix(const crs<value_type> &A, unsigned block_size) {
                             cur_val = std::max(cur_val, v);
                         }
                     }
-
-                    j[k] = beg;
                 }
 
                 Ap.val[head++] = cur_val;
@@ -655,15 +639,17 @@ class numa_vector {
 };
 
 /// Diagonal of a matrix
-template < typename V, typename C, typename P >
-std::shared_ptr< numa_vector<V> > diagonal(const crs<V, C, P> &A, bool invert = false)
+template <class Matrix>
+std::shared_ptr< numa_vector<typename backend::value_type<Matrix>::type> >
+diagonal(const Matrix &A, bool invert = false)
 {
-    const size_t n = rows(A);
+    typedef typename backend::value_type<Matrix>::type V;
+    const ptrdiff_t n = backend::rows(A);
     auto dia = std::make_shared< numa_vector<V> >(n, false);
 
 #pragma omp parallel for
-    for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-        for(auto a = A.row_begin(i); a; ++a) {
+    for(ptrdiff_t i = 0; i < n; ++i) {
+        for(auto a = backend::row_begin(A, i); a; ++a) {
             if (a.col() == i) {
                 V d = a.value();
                 if (invert) {
@@ -706,9 +692,9 @@ spectral_radius(const Matrix &A, int power_iters = 0) {
             for(ptrdiff_t i = 0; i < n; ++i) {
                 scalar_type s = 0;
 
-                for(ptrdiff_t j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
-                    ptrdiff_t  c = A.col[j];
-                    value_type v = A.val[j];
+                for(auto a = backend::row_begin(A, i); a; ++a) {
+                    ptrdiff_t  c = a.col();
+                    value_type v = a.value();
 
                     s += math::norm(v);
 
@@ -777,9 +763,9 @@ spectral_radius(const Matrix &A, int power_iters = 0) {
                 for(ptrdiff_t i = 0; i < n; ++i) {
                     rhs_type s = math::zero<rhs_type>();
 
-                    for(ptrdiff_t j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
-                        ptrdiff_t  c = A.col[j];
-                        value_type v = A.val[j];
+                    for(auto a = backend::row_begin(A, i); a; ++a) {
+                        ptrdiff_t  c = a.col();
+                        value_type v = a.value();
                         if (scale && c == i) dia = v;
                         s += v * b0[c];
                     }
@@ -897,9 +883,10 @@ struct builtin {
     };
 
     // Create direct solver for coarse level
+    template <class Matrix>
     static std::shared_ptr<direct_solver>
-    create_solver(std::shared_ptr<matrix> A, const params&) {
-        return std::make_shared<direct_solver>(*A);
+    create_solver(const Matrix &A, const params&) {
+        return std::make_shared<direct_solver>(A);
     }
 };
 
@@ -981,6 +968,16 @@ struct row_nonzeros_impl< crs<V, C, P> > {
         return A.ptr[row + 1] - A.ptr[row];
     }
 };
+
+template < typename V, typename C, typename P >
+struct row_offset_impl< crs<V, C, P> > {
+    static size_t get(const crs<V, C, P> &A, size_t row) {
+        return A.ptr[row];
+    }
+};
+
+template < typename V, typename C, typename P >
+struct provides_row_offset< crs<V, C, P> > : std::true_type {};
 
 template < class Vec >
 struct clear_impl<

@@ -144,17 +144,13 @@ struct wrapper {
         }
     }
 
-    template <class Matrix>
-    std::tuple<
-        std::shared_ptr<Matrix>,
-        std::shared_ptr<Matrix>
-        >
-    transfer_operators(const Matrix &A) {
+    template <class MatrixA, class Matrix>
+    void transfer_operators(const MatrixA &A, Matrix &P, Matrix &R) {
         switch(c) {
 
 #define AMGCL_RUNTIME_COARSENING(type) \
             case type: \
-                return make_operators<amgcl::coarsening::type>(A)
+                make_operators<amgcl::coarsening::type>(A, P, R); break
 
             AMGCL_RUNTIME_COARSENING(ruge_stuben);
             AMGCL_RUNTIME_COARSENING(aggregation);
@@ -168,14 +164,13 @@ struct wrapper {
         }
     }
 
-    template <class Matrix>
-    std::shared_ptr<Matrix>
-    coarse_operator(const Matrix &A, const Matrix &P, const Matrix &R) const {
+    template <class MatrixA, class MatrixP, class MatrixR, class Matrix>
+    void coarse_operator(const MatrixA &A, const MatrixP &P, const MatrixR &R, Matrix &RAP) const {
         switch(c) {
 
 #define AMGCL_RUNTIME_COARSENING(type) \
             case type: \
-                return make_coarse<amgcl::coarsening::type>(A, P, R)
+                make_coarse<amgcl::coarsening::type>(A, P, R, RAP); break
 
             AMGCL_RUNTIME_COARSENING(ruge_stuben);
             AMGCL_RUNTIME_COARSENING(aggregation);
@@ -224,45 +219,39 @@ struct wrapper {
     call_destructor() {
     }
 
-    template <template <class> class Coarsening, class Matrix>
+    template <template <class> class Coarsening, class MatrixA, class Matrix>
     typename std::enable_if<
         backend::coarsening_is_supported<Backend, Coarsening>::value,
-        std::tuple<
-            std::shared_ptr<Matrix>,
-            std::shared_ptr<Matrix>
-            >
+        void
     >::type
-    make_operators(const Matrix &A) const {
-        return static_cast<Coarsening<Backend>*>(handle)->transfer_operators(A);
+    make_operators(const MatrixA &A, Matrix &P, Matrix &R) const {
+        static_cast<Coarsening<Backend>*>(handle)->transfer_operators(A, P, R);
     }
 
-    template <template <class> class Coarsening, class Matrix>
+    template <template <class> class Coarsening, class MatrixA, class Matrix>
     typename std::enable_if<
         !backend::coarsening_is_supported<Backend, Coarsening>::value,
-        std::tuple<
-            std::shared_ptr<Matrix>,
-            std::shared_ptr<Matrix>
-            >
+        void
     >::type
-    make_operators(const Matrix&) {
+    make_operators(const MatrixA&, Matrix&, Matrix&) {
         throw std::logic_error("The coarsening is not supported by the backend");
     }
 
-    template <template <class> class Coarsening, class Matrix>
+    template <template <class> class Coarsening, class MatrixA, class MatrixP, class MatrixR, class Matrix>
     typename std::enable_if<
         backend::coarsening_is_supported<Backend, Coarsening>::value,
-        std::shared_ptr<Matrix>
+        void
     >::type
-    make_coarse(const Matrix &A, const Matrix &P, const Matrix &R) const {
-        return static_cast<Coarsening<Backend>*>(handle)->coarse_operator(A, P, R);
+    make_coarse(const MatrixA &A, const MatrixP &P, const MatrixR &R, Matrix &RAP) const {
+        static_cast<Coarsening<Backend>*>(handle)->coarse_operator(A, P, R, RAP);
     }
 
-    template <template <class> class Coarsening, class Matrix>
+    template <template <class> class Coarsening, class MatrixA, class MatrixP, class MatrixR, class Matrix>
     typename std::enable_if<
         !backend::coarsening_is_supported<Backend, Coarsening>::value,
-        std::shared_ptr<Matrix>
+        void
     >::type
-    make_coarse(const Matrix&, const Matrix&, const Matrix&) const {
+    make_coarse(const MatrixA&, const MatrixP&, const MatrixR&, Matrix&) const {
         throw std::logic_error("The coarsening is not supported by the backend");
     }
 };

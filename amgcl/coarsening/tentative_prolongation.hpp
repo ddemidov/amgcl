@@ -117,17 +117,16 @@ struct nullspace_params {
  * \see \cite Vanek2001
  */
 template <class Matrix>
-std::shared_ptr<Matrix> tentative_prolongation(
+void tentative_prolongation(
         size_t n,
         size_t naggr,
         const std::vector<ptrdiff_t> aggr,
         nullspace_params &nullspace,
-        int block_size
+        int block_size,
+        Matrix &P
         )
 {
     typedef typename backend::value_type<Matrix>::type value_type;
-
-    auto P = std::make_shared<Matrix>();
 
     AMGCL_TIC("tentative");
     if (nullspace.cols > 0) {
@@ -140,15 +139,15 @@ std::shared_ptr<Matrix> tentative_prolongation(
         // Precompute the shape of the prolongation operator.
         // Each row contains exactly nullspace.cols non-zero entries.
         // Rows that do not belong to any aggregate are empty.
-        P->set_size(n, nullspace.cols * naggr / block_size);
-        P->ptr[0] = 0;
+        P.set_size(n, nullspace.cols * naggr / block_size);
+        P.ptr[0] = 0;
 
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i)
-            P->ptr[i+1] = aggr[i] < 0 ? 0 : nullspace.cols;
+            P.ptr[i+1] = aggr[i] < 0 ? 0 : nullspace.cols;
 
-        P->scan_row_sizes();
-        P->set_nonzeros();
+        P.scan_row_sizes();
+        P.set_nonzeros();
 
         // Compute the tentative prolongation operator and null-space vectors
         // for the coarser level.
@@ -177,8 +176,8 @@ std::shared_ptr<Matrix> tentative_prolongation(
                     Bnew.push_back( qr.R(ii,jj) );
 
             for(size_t ii = 0; ii < d; ++ii, ++offset) {
-                ptrdiff_t  *c = &P->col[P->ptr[order[offset]]];
-                value_type *v = &P->val[P->ptr[order[offset]]];
+                ptrdiff_t  *c = &P.col[P.ptr[order[offset]]];
+                value_type *v = &P.val[P.ptr[order[offset]]];
 
                 for(int jj = 0; jj < nullspace.cols; ++jj) {
                     c[jj] = i * nullspace.cols + jj;
@@ -191,25 +190,23 @@ std::shared_ptr<Matrix> tentative_prolongation(
 
         std::swap(nullspace.B, Bnew);
     } else {
-        P->set_size(n, naggr);
-        P->ptr[0] = 0;
+        P.set_size(n, naggr);
+        P.ptr[0] = 0;
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i)
-            P->ptr[i+1] = (aggr[i] >= 0);
+            P.ptr[i+1] = (aggr[i] >= 0);
 
-        P->set_nonzeros(P->scan_row_sizes());
+        P.set_nonzeros(P.scan_row_sizes());
 
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
             if (aggr[i] >= 0) {
-                P->col[P->ptr[i]] = aggr[i];
-                P->val[P->ptr[i]] = math::identity<value_type>();
+                P.col[P.ptr[i]] = aggr[i];
+                P.val[P.ptr[i]] = math::identity<value_type>();
             }
         }
     }
     AMGCL_TOC("tentative");
-
-    return P;
 }
 
 } // namespace coarsening

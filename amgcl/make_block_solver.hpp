@@ -33,9 +33,8 @@ class make_block_solver {
                 const Matrix &A,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
-                )
+                ) : S(adapter::block_matrix<value_type>(A), prm, bprm)
         {
-            S = std::make_shared<Solver>(adapter::block_matrix<value_type>(A), prm, bprm);
         }
 
         template <class Matrix, class Vec1, class Vec2>
@@ -50,7 +49,7 @@ class make_block_solver {
             iterator_range<rhs_type const *> frng(fptr, fptr + n);
             iterator_range<rhs_type       *> xrng(xptr, xptr + n);
 
-            return (*S)(A, frng, xrng);
+            return S(A, frng, xrng);
         }
 
         template <class Vec1, class Vec2>
@@ -64,23 +63,23 @@ class make_block_solver {
             iterator_range<rhs_type const *> frng(fptr, fptr + n);
             iterator_range<rhs_type       *> xrng(xptr, xptr + n);
 
-            return (*S)(frng, xrng);
+            return S(frng, xrng);
         }
 
         std::shared_ptr<typename Precond::matrix> system_matrix_ptr() const {
-            return S->system_matrix_ptr();
+            return S.system_matrix_ptr();
         }
 
         typename Precond::matrix const& system_matrix() const {
-            return S->system_matrix();
+            return S.system_matrix();
         }
 
         friend std::ostream& operator<<(std::ostream &os, const make_block_solver &p) {
-            return os << *p.S << std::endl;
+            return os << p.S << std::endl;
         }
     private:
         typedef make_solver<Precond, IterativeSolver> Solver;
-        std::shared_ptr<Solver> S;
+        Solver S;
 };
 
 } // namespace amgcl

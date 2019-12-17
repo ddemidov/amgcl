@@ -39,6 +39,7 @@ namespace amgcl {
 namespace relaxation {
 
 /// Allows to use an amgcl smoother as standalone preconditioner.
+/** Deprecated: should be able to use any smoother directly */
 template <class Backend, template <class> class Relax>
 class as_preconditioner {
     public:
@@ -56,61 +57,27 @@ class as_preconditioner {
 
         template <class Matrix>
         as_preconditioner(
-                const Matrix &M,
+                const Matrix &A,
                 const params &prm = params(),
                 const backend_params &bprm = backend_params()
                 )
-            : prm(prm)
-        {
-            init(std::make_shared<build_matrix>(M), bprm);
-        }
+            : prm(prm), S(A, prm, bprm)
+        { }
 
-        as_preconditioner(
-                std::shared_ptr<build_matrix> M,
-                const params &prm = params(),
-                const backend_params &bprm = backend_params()
-                )
-            : prm(prm)
-        {
-            init(M, bprm);
-        }
-
-        template <class Vec1, class Vec2>
-        void apply(const Vec1 &rhs, Vec2 &&x) const {
-            S->apply(*A, rhs, x);
-        }
-
-        const matrix& system_matrix() const {
-            return *A;
-        }
-
-        std::shared_ptr<matrix> system_matrix_ptr() const {
-            return A;
+        template <class Matrix, class Vec1, class Vec2>
+        void apply(const Matrix &A, const Vec1 &rhs, Vec2 &&x) const {
+            S.apply(A, rhs, x);
         }
 
         size_t bytes() const {
-            size_t b = 0;
-
-            if (A) b += backend::bytes(*A);
-            if (S) b += backend::bytes(*S);
-
-            return b;
+            return backend::bytes(S);
         }
     private:
         params prm;
-
-        std::shared_ptr<matrix>   A;
-        std::shared_ptr<smoother> S;
-
-        void init(std::shared_ptr<build_matrix> M, const backend_params &bprm) {
-            A = Backend::copy_matrix(M, bprm);
-            S = std::make_shared<smoother>(*M, prm, bprm);
-        }
+        smoother S;
 
         friend std::ostream& operator<<(std::ostream &os, const as_preconditioner &p) {
             os << "Relaxation as preconditioner" << std::endl;
-            os << "  unknowns: " << backend::rows(p.system_matrix()) << std::endl;
-            os << "  nonzeros: " << backend::nonzeros(p.system_matrix()) << std::endl;
             os << "  memory:   " << human_readable_memory(p.bytes()) << std::endl;
 
             return os;

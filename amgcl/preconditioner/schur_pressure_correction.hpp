@@ -183,85 +183,6 @@ class schur_pressure_correction {
                 )
             : prm(prm), n(backend::rows(K)), np(0), nu(0)
         {
-            init(std::make_shared<build_matrix>(K), bprm);
-        }
-
-        schur_pressure_correction(
-                std::shared_ptr<build_matrix> K,
-                const params &prm = params(),
-                const backend_params &bprm = backend_params()
-                )
-            : prm(prm), n(backend::rows(*K)), np(0), nu(0)
-        {
-            init(K, bprm);
-        }
-
-        template <class Vec1, class Vec2>
-        void apply(const Vec1 &rhs, Vec2 &&x) const {
-            backend::spmv(1, *x2u, rhs, 0, *rhs_u);
-            backend::spmv(1, *x2p, rhs, 0, *rhs_p);
-
-            // Ai u = rhs_u
-            backend::clear(*u);
-            report("U1", (*U)(*rhs_u, *u));
-
-            // rhs_p -= Kpu u
-            backend::spmv(-1, *Kpu, *u, 1, *rhs_p);
-
-            // S p = rhs_p
-            backend::clear(*p);
-            report("P1", (*P)(*this, *rhs_p, *p));
-
-            // rhs_u -= Kup p
-            backend::spmv(-1, *Kup, *p, 1, *rhs_u);
-
-            // Ai u = rhs_u
-            backend::clear(*u);
-            report("U2", (*U)(*rhs_u, *u));
-
-            backend::clear(x);
-            backend::spmv(1, *u2x, *u, 1, x);
-            backend::spmv(1, *p2x, *p, 1, x);
-        }
-
-        std::shared_ptr<matrix> system_matrix_ptr() const {
-            return K;
-        }
-
-        const matrix& system_matrix() const {
-            return *K;
-        }
-
-        template <class Alpha, class Vec1, class Beta, class Vec2>
-        void spmv(Alpha alpha, const Vec1 &x, Beta beta, Vec2 &y) const {
-            // y = beta y + alpha S x, where S = Kpp - Kpu Kuu^-1 Kup
-            backend::spmv( alpha, P->system_matrix(), x, beta, y);
-
-            backend::spmv(1, *Kup, x, 0, *tmp);
-
-            if (prm.approx_schur) {
-                backend::vmul(1, *M, *tmp, 0, *u);
-            } else {
-                backend::clear(*u);
-                (*U)(*tmp, *u);
-            }
-
-            backend::spmv(-alpha, *Kpu, *u, 1, y);
-        }
-    private:
-        size_t n, np, nu;
-
-        std::shared_ptr<matrix> K, Kup, Kpu, x2u, x2p, u2x, p2x;
-        std::shared_ptr<vector> rhs_u, rhs_p, u, p, tmp;
-        std::shared_ptr<typename backend_type::matrix_diagonal> M;
-
-        std::shared_ptr<USolver> U;
-        std::shared_ptr<PSolver> P;
-
-        void init(const std::shared_ptr<build_matrix> &K, const backend_params &bprm)
-        {
-            this->K = backend_type::copy_matrix(K, bprm);
-
             // Extract matrix subblocks.
             auto Kuu = std::make_shared<build_matrix>();
             auto Kpu = std::make_shared<build_matrix>();
@@ -282,7 +203,7 @@ class schur_pressure_correction {
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
                 ptrdiff_t ci = idx[i];
                 char      pi = prm.pmask[i];
-                for(auto k = backend::row_begin(*K, i); k; ++k) {
+                for(auto k = backend::row_begin(K, i); k; ++k) {
                     char pj = prm.pmask[k.col()];
 
                     if (pi) {
@@ -321,7 +242,7 @@ class schur_pressure_correction {
                     up_head = Kup->ptr[ci];
                 }
 
-                for(auto k = backend::row_begin(*K, i); k; ++k) {
+                for(auto k = backend::row_begin(K, i); k; ++k) {
                     ptrdiff_t  j = k.col();
                     value_type v = k.value();
                     ptrdiff_t cj = idx[j];
@@ -437,12 +358,66 @@ class schur_pressure_correction {
             this->x2p = backend_type::copy_matrix(x2p, bprm);
             this->u2x = backend_type::copy_matrix(u2x, bprm);
             this->p2x = backend_type::copy_matrix(p2x, bprm);
+
         }
+
+        template <class Matrix, class Vec1, class Vec2>
+        void apply(const Matrix&, const Vec1 &rhs, Vec2 &&x) const {
+            backend::spmv(1, *x2u, rhs, 0, *rhs_u);
+            backend::spmv(1, *x2p, rhs, 0, *rhs_p);
+
+            // Ai u = rhs_u
+            backend::clear(*u);
+            report("U1", (*U)(*rhs_u, *u));
+
+            // rhs_p -= Kpu u
+            backend::spmv(-1, *Kpu, *u, 1, *rhs_p);
+
+            // S p = rhs_p
+            backend::clear(*p);
+            report("P1", (*P)(*this, *rhs_p, *p));
+
+            // rhs_u -= Kup p
+            backend::spmv(-1, *Kup, *p, 1, *rhs_u);
+
+            // Ai u = rhs_u
+            backend::clear(*u);
+            report("U2", (*U)(*rhs_u, *u));
+
+            backend::clear(x);
+            backend::spmv(1, *u2x, *u, 1, x);
+            backend::spmv(1, *p2x, *p, 1, x);
+        }
+
+        template <class Alpha, class Vec1, class Beta, class Vec2>
+        void spmv(Alpha alpha, const Vec1 &x, Beta beta, Vec2 &y) const {
+            // y = beta y + alpha S x, where S = Kpp - Kpu Kuu^-1 Kup
+            backend::spmv( alpha, P->system_matrix(), x, beta, y);
+
+            backend::spmv(1, *Kup, x, 0, *tmp);
+
+            if (prm.approx_schur) {
+                backend::vmul(1, *M, *tmp, 0, *u);
+            } else {
+                backend::clear(*u);
+                (*U)(*tmp, *u);
+            }
+
+            backend::spmv(-alpha, *Kpu, *u, 1, y);
+        }
+    private:
+        size_t n, np, nu;
+
+        std::shared_ptr<matrix> Kup, Kpu, x2u, x2p, u2x, p2x;
+        std::shared_ptr<vector> rhs_u, rhs_p, u, p, tmp;
+        std::shared_ptr<typename backend_type::matrix_diagonal> M;
+
+        std::shared_ptr<USolver> U;
+        std::shared_ptr<PSolver> P;
 
         friend std::ostream& operator<<(std::ostream &os, const schur_pressure_correction &p) {
             os << "Schur complement (two-stage preconditioner)" << std::endl;
             os << "  unknowns: " << p.n << "(" << p.np << ")" << std::endl;
-            os << "  nonzeros: " << backend::nonzeros(p.system_matrix()) << std::endl;
 
             return os;
         }

@@ -530,7 +530,7 @@ transpose(const distributed_matrix<Backend> &A) {
 
     // Our transposed remote part becomes remote part of someone else,
     // and the other way around.
-    std::shared_ptr<build_matrix> t_ptr;
+    build_matrix t_rem;
     {
         std::vector<ptrdiff_t> tmp_col(A_rem.col, A_rem.col + A_rem.nnz);
         C.renumber(tmp_col.size(), &tmp_col[0]);
@@ -538,11 +538,10 @@ transpose(const distributed_matrix<Backend> &A) {
         ptrdiff_t *a_rem_col = &tmp_col[0];
         std::swap(a_rem_col, A_rem.col);
 
-        t_ptr = backend::transpose(A_rem);
+        backend::transpose(A_rem, t_rem);
 
         std::swap(a_rem_col, A_rem.col);
     }
-    build_matrix &t_rem = *t_ptr;
 
     // Shift to global numbering:
     std::vector<ptrdiff_t> domain = comm.exclusive_sum(ncols);
@@ -654,8 +653,9 @@ transpose(const distributed_matrix<Backend> &A) {
 
     AMGCL_TOC("MPI Transpose");
 
-    return std::make_shared< distributed_matrix<Backend> >(
-            comm, backend::transpose(A_loc), T_ptr);
+    auto AT = std::make_shared<build_matrix>();
+    backend::transpose(A_loc, *AT);
+    return std::make_shared< distributed_matrix<Backend> >(comm, AT, T_ptr);
 }
 
 template <class Backend>

@@ -121,28 +121,23 @@ struct aggregation {
      * \param prm Coarsening parameters.
      * \returns   A tuple of prolongation and restriction operators.
      */
-    template <class Matrix>
-    std::tuple<
-        std::shared_ptr<Matrix>,
-        std::shared_ptr<Matrix>
-        >
-    transfer_operators(const Matrix &A) {
-        const size_t n = rows(A);
+    template <class MatrixA, class Matrix>
+    void transfer_operators(const MatrixA &A, Matrix &P, Matrix &R) {
+        const size_t n = backend::rows(A);
 
         AMGCL_TIC("aggregates");
         Aggregates aggr(A, prm.aggr, prm.nullspace.cols);
         AMGCL_TOC("aggregates");
 
         AMGCL_TIC("interpolation");
-        auto P = tentative_prolongation<Matrix>(
-                n, aggr.count, aggr.id, prm.nullspace, prm.aggr.block_size
-                );
+        tentative_prolongation<Matrix>(
+                n, aggr.count, aggr.id, prm.nullspace, prm.aggr.block_size, P);
         AMGCL_TOC("interpolation");
 
         if (prm.nullspace.cols > 0)
             prm.aggr.block_size = prm.nullspace.cols;
 
-        return std::make_tuple(P, transpose(*P));
+        transpose(P, R);
     }
 
     /// Creates system matrix for the coarser level.
@@ -152,10 +147,9 @@ struct aggregation {
      * \param R Restriction operator returned by transfer_operators().
      * \returns System matrix for the coarser level.
      */
-    template <class Matrix>
-    std::shared_ptr<Matrix>
-    coarse_operator(const Matrix &A, const Matrix &P, const Matrix &R) const {
-        return detail::scaled_galerkin(A, P, R, 1 / prm.over_interp);
+    template <class MatrixA, class MatrixP, class MatrixR, class Matrix>
+    void coarse_operator(const MatrixA &A, const MatrixP &P, const MatrixR &R, Matrix &RAP) const {
+        detail::scaled_galerkin(A, P, R, 1 / prm.over_interp, RAP);
     }
 };
 

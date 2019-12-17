@@ -86,9 +86,9 @@ inline void spmv(side::type pside, const Precond &P, const Matrix &A,
 
     if (pside == side::left) {
         backend::spmv(one, A, F, zero, T);
-        P.apply(T, X);
+        P.apply(A, T, X);
     } else {
-        P.apply(F, T);
+        P.apply(A, F, T);
         backend::spmv(one, A, T, zero, X);
     }
 }

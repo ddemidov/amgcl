@@ -114,41 +114,22 @@ class cpr {
                 const backend_params &bprm = backend_params()
            ) : prm(prm), n(backend::rows(K))
         {
-            init(std::make_shared<build_matrix>(K), bprm,
-                    std::integral_constant<bool, math::static_rows<value_type>::value == 1>());
+            init(K, bprm, std::integral_constant<bool, math::static_rows<value_type>::value == 1>());
         }
 
-        cpr(
-                std::shared_ptr<build_matrix> K,
-                const params &prm = params(),
-                const backend_params &bprm = backend_params()
-           ) : prm(prm), n(backend::rows(*K))
-        {
-            init(K, bprm,
-                    std::integral_constant<bool, math::static_rows<value_type>::value == 1>());
-        }
-
-        template <class Vec1, class Vec2>
-        void apply(const Vec1 &rhs, Vec2 &&x) const {
+        template <class Matrix, class Vec1, class Vec2>
+        void apply(const Matrix &A, const Vec1 &rhs, Vec2 &&x) const {
             AMGCL_TIC("sprecond");
-            S->apply(rhs, x);
+            S->apply(A, rhs, x);
             AMGCL_TOC("sprecond");
-            backend::residual(rhs, S->system_matrix(), x, *rs);
+            backend::residual(rhs, A, x, *rs);
 
             backend::spmv(1, *Fpp, *rs, 0, *rp);
             AMGCL_TIC("pprecond");
-            P->apply(*rp, *xp);
+            P->apply(*App, *rp, *xp);
             AMGCL_TOC("pprecond");
 
             backend::spmv(1, *Scatter, *xp, 1, x);
-        }
-
-        std::shared_ptr<matrix> system_matrix_ptr() const {
-            return S->system_matrix_ptr();
-        }
-
-        const matrix& system_matrix() const {
-            return S->system_matrix();
         }
 
         template <class Matrix>
@@ -158,16 +139,12 @@ class cpr {
                 const backend_params &bprm = backend_params()
               )
         {
-            auto K_ptr = std::make_shared<build_matrix>(K);
             // Update global preconditioner
-            S = std::make_shared<SPrecond>(K_ptr, prm.sprecond, bprm);
-            if(update_transfer_ops){
-              // Update transfer operator Fpp
-              update_transfer(
-                  K_ptr,
-                  bprm,
-                  std::integral_constant<bool, math::static_rows<value_type>::value == 1>()
-                );
+            S = std::make_shared<SPrecond>(K, prm.sprecond, bprm);
+            if(update_transfer_ops) {
+                // Update transfer operator Fpp
+                update_transfer(K, bprm,
+                        std::integral_constant<bool, math::static_rows<value_type>::value == 1>());
             }
         }
 
@@ -177,15 +154,16 @@ class cpr {
         std::shared_ptr<PPrecond> P;
         std::shared_ptr<SPrecond> S;
 
-        std::shared_ptr<matrix_p> Fpp, Scatter;
+        std::shared_ptr<matrix_p> App, Fpp, Scatter;
         std::shared_ptr<vector>   rs;
         std::shared_ptr<vector_p> rp, xp;
 
         // Returns pressure transfer operator fpp and (optionally)
         // partially constructed pressure system matrix App.
+        template <class Matrix>
         std::tuple<std::shared_ptr<build_matrix_p>, std::shared_ptr<build_matrix_p>>
-        first_scalar_pass(std::shared_ptr<build_matrix> K, bool get_app = true) {
-            typedef typename backend::row_iterator<build_matrix>::type row_iterator;
+        first_scalar_pass(const Matrix &K, bool get_app = true) {
+            typedef typename backend::row_iterator<Matrix>::type row_iterator;
             const int       B = prm.block_size;
             const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
 
@@ -218,7 +196,7 @@ class cpr {
 
                     k.clear();
                     for(int i = 0; i < B; ++i) {
-                        k.push_back(backend::row_begin(*K, ik + i));
+                        k.push_back(backend::row_begin(K, ik + i));
 
                         if (k.back() && k.back().col() < N) {
                             ptrdiff_t col = k.back().col() / B;
@@ -284,16 +262,17 @@ class cpr {
         }
 
         // The system matrix has scalar values
-        void init(std::shared_ptr<build_matrix> K, const backend_params bprm, std::true_type)
+        template <class Matrix>
+        void init(const Matrix &K, const backend_params bprm, std::true_type)
         {
-            typedef typename backend::row_iterator<build_matrix>::type row_iterator;
+            typedef typename backend::row_iterator<Matrix>::type row_iterator;
             const int       B = prm.block_size;
             const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
 
             np = N / B;
 
-            std::shared_ptr<build_matrix_p> fpp, App;
-            std::tie(fpp, App) = first_scalar_pass(K);
+            std::shared_ptr<build_matrix_p> fpp, app;
+            std::tie(fpp, app) = first_scalar_pass(K);
 
             auto scatter = std::make_shared<build_matrix_p>();
             scatter->set_size(n, np);
@@ -307,7 +286,7 @@ class cpr {
 #pragma omp for
                 for(ptrdiff_t ip = 0; ip < static_cast<ptrdiff_t>(np); ++ip) {
                     ptrdiff_t ik = ip * B;
-                    ptrdiff_t head = App->ptr[ip];
+                    ptrdiff_t head = app->ptr[ip];
                     bool      done = true;
                     ptrdiff_t cur_col;
 
@@ -315,7 +294,7 @@ class cpr {
 
                     k.clear();
                     for(int i = 0; i < B; ++i) {
-                        k.push_back(backend::row_begin(*K, ik + i));
+                        k.push_back(backend::row_begin(K, ik + i));
 
                         if (k.back() && k.back().col() < N) {
                             ptrdiff_t col = k.back().col() / B;
@@ -330,18 +309,18 @@ class cpr {
 
                     while (!done) {
                         ptrdiff_t    end = (cur_col + 1) * B;
-                        value_type_p app = 0;
+                        value_type_p vap = 0;
 
                         for(int i = 0; i < B; ++i) {
                             for(; k[i] && k[i].col() < end; ++k[i]) {
                                 if (k[i].col() % B == 0) {
-                                    app += d[i] * k[i].value();
+                                    vap += d[i] * k[i].value();
                                 }
                             }
                         }
 
-                        App->col[head] = cur_col;
-                        App->val[head] = app;
+                        app->col[head] = cur_col;
+                        app->val[head] = vap;
                         ++head;
 
                         // Get next column number.
@@ -374,12 +353,14 @@ class cpr {
                 scatter->ptr[i+1] = scatter->ptr[i];
 
             AMGCL_TIC("pprecond");
-            P = std::make_shared<PPrecond>(App, prm.pprecond, bprm);
+            P = std::make_shared<PPrecond>(*app, prm.pprecond, bprm);
             AMGCL_TOC("pprecond");
+
             AMGCL_TIC("sprecond");
-            S = std::make_shared<SPrecond>(K,   prm.sprecond, bprm);
+            S = std::make_shared<SPrecond>(K, prm.sprecond, bprm);
             AMGCL_TOC("sprecond");
 
+            App     = backend_type_p::copy_matrix(app, bprm);
             Fpp     = backend_type_p::copy_matrix(fpp, bprm);
             Scatter = backend_type_p::copy_matrix(scatter, bprm);
 
@@ -388,14 +369,16 @@ class cpr {
             rs = backend_type::create_vector(n, bprm);
         }
 
-        void update_transfer(std::shared_ptr<build_matrix> K, const backend_params bprm, std::true_type)
+        template <class Matrix>
+        void update_transfer(const Matrix &K, const backend_params bprm, std::true_type)
         {
             auto fpp = std::get<0>(first_scalar_pass(K, /*get_app*/false));
             Fpp = backend_type_p::copy_matrix(fpp, bprm);
         }
 
         // The system matrix has block values
-        void init(std::shared_ptr<build_matrix> K, const backend_params bprm, std::false_type)
+        template <class Matrix>
+        void init(const Matrix &K, const backend_params bprm, std::false_type)
         {
             const int       B = math::static_rows<value_type>::value;
             const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
@@ -412,10 +395,10 @@ class cpr {
             scatter->set_nonzeros(np);
             scatter->ptr[0] = 0;
 
-            auto App = std::make_shared<build_matrix_p>();
-            App->set_size(np, np, true);
-            App->set_nonzeros(K->nnz);
-            App->ptr[0] = 0;
+            auto app = std::make_shared<build_matrix_p>();
+            app->set_size(np, np, true);
+            app->set_nonzeros(K.nnz);
+            app->ptr[0] = 0;
 
 #pragma omp parallel for
             for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(np); ++i) {
@@ -429,38 +412,38 @@ class cpr {
                 scatter->col[i] = i;
                 scatter->val[i] = math::identity<value_type_p>();
 
-                ptrdiff_t row_beg = K->ptr[i];
-                ptrdiff_t row_end = K->ptr[i + 1];
-                App->ptr[i+1] = row_end;
+                ptrdiff_t row_beg = K.ptr[i];
+                ptrdiff_t row_end = K.ptr[i + 1];
+                app->ptr[i+1] = row_end;
 
                 // Extract and invert block diagonals
                 value_type_p *d = &fpp->val[i * B];
                 for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                    if (K->col[j] == i) {
-                        value_type v = math::adjoint(K->val[j]);
+                    if (K.col[j] == i) {
+                        value_type v = math::adjoint(K.val[j]);
                         invert(v.data(), d);
                         break;
                     }
                 }
 
                 for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                    value_type_p app = 0;
+                    value_type_p vap = 0;
                     for(int k = 0; k < B; ++k)
-                        app += d[k] * K->val[j](k,0);
+                        vap += d[k] * K.val[j](k,0);
 
-                    App->col[j] = K->col[j];
-                    App->val[j] = app;
+                    app->col[j] = K.col[j];
+                    app->val[j] = vap;
                 }
             }
 
             AMGCL_TIC("pprecond");
-            P = std::make_shared<PPrecond>(App, prm.pprecond, bprm);
+            P = std::make_shared<PPrecond>(*app, prm.pprecond, bprm);
             AMGCL_TOC("pprecond");
             AMGCL_TIC("sprecond");
-            S = std::make_shared<SPrecond>(K,   prm.sprecond, bprm);
+            S = std::make_shared<SPrecond>(K, prm.sprecond, bprm);
             AMGCL_TOC("sprecond");
 
-
+            App     = backend_type_p::copy_matrix(app, bprm);
             Fpp     = backend_type_p::copy_matrix(fpp, bprm);
             Scatter = backend_type_p::copy_matrix(scatter, bprm);
 
@@ -469,7 +452,8 @@ class cpr {
             rs = backend_type::create_vector(n, bprm);
         }
 
-        void update_transfer(std::shared_ptr<build_matrix> K, const backend_params bprm, std::false_type)
+        template <class Matrix>
+        void update_transfer(const Matrix &K, const backend_params bprm, std::false_type)
         {
             const int       B = math::static_rows<value_type>::value;
             const ptrdiff_t N = (prm.active_rows ? prm.active_rows : n);
@@ -490,14 +474,14 @@ class cpr {
 
                 fpp->ptr[i + 1] = ik;
 
-                ptrdiff_t row_beg = K->ptr[i];
-                ptrdiff_t row_end = K->ptr[i + 1];
+                ptrdiff_t row_beg = K.ptr[i];
+                ptrdiff_t row_end = K.ptr[i + 1];
 
                 // Extract and invert block diagonals
                 value_type_p *d = &fpp->val[i * B];
                 for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                    if (K->col[j] == i) {
-                        value_type v = math::adjoint(K->val[j]);
+                    if (K.col[j] == i) {
+                        value_type v = math::adjoint(K.val[j]);
                         invert(v.data(), d);
                         break;
                     }

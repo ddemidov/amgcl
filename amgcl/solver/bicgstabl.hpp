@@ -215,7 +215,7 @@ class bicgstabl {
 
             if (prm.pside == side::left) {
                 backend::residual(rhs, A, x, *T);
-                P.apply(*T, *B);
+                P.apply(A, *T, *B);
             } else {
                 backend::residual(rhs, A, x, *B);
             }
@@ -394,7 +394,7 @@ done:
             if (prm.pside == side::left) {
                 backend::axpby(one, *X, one, x);
             } else {
-                P.apply(*X, *T);
+                P.apply(A, *X, *T);
                 backend::axpby(one, *T, one, x);
             }
 

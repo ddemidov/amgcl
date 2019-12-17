@@ -13,6 +13,7 @@
 #include <amgcl/solver/runtime.hpp>
 #include <amgcl/preconditioner/runtime.hpp>
 #include <amgcl/make_solver.hpp>
+#include <amgcl/make_preconditioner.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 
 namespace amgcl {
@@ -63,6 +64,10 @@ struct precond {
     typedef boost::iterator_range<double*> range;
 
     virtual void apply(const vector& rhs, vector &x) const = 0;
+    template<class Matrix>
+    void apply(const Matrix&, const vector &rhs, vector &x) const {
+        apply(rhs, x);
+    }
     virtual const matrix& system_matrix() const = 0;
     virtual std::string repr() const = 0;
 
@@ -184,7 +189,7 @@ PYBIND11_MODULE(pyamgcl_ext, m) {
 
     typedef amgcl::backend::builtin<double> Backend;
 
-    typedef amg_precond<amgcl::runtime::preconditioner<Backend>> AMG;
+    typedef amg_precond<amgcl::make_preconditioner<amgcl::runtime::preconditioner<Backend>>> AMG;
     py::class_<AMG>(m, "amgcl", Precond)
         .def(py::init<py::array_t<int>, py::array_t<int>, py::array_t<double>, py::dict>());
 

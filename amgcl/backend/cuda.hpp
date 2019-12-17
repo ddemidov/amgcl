@@ -63,7 +63,7 @@ struct cuda_skyline_lu : solver::skyline_lu<T> {
 
     template <class Matrix, class Params>
     cuda_skyline_lu(const Matrix &A, const Params&)
-        : Base(*A), _rhs(backend::rows(*A)), _x(backend::rows(*A))
+        : Base(A), _rhs(backend::rows(A)), _x(backend::rows(A))
     { }
 
     template <class Vec1, class Vec2>
@@ -324,9 +324,9 @@ struct cuda {
     }
 
     /// Create direct solver for coarse level
+    template <class Matrix>
     static std::shared_ptr<direct_solver>
-    create_solver(std::shared_ptr< typename builtin<real>::matrix > A, const params &prm)
-    {
+    create_solver(const Matrix &A, const params &prm) {
         return std::make_shared<direct_solver>(A, prm);
     }
 

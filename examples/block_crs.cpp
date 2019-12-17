@@ -3,10 +3,10 @@
 #include <iterator>
 #include <algorithm>
 
-#include <amgcl/amg.hpp>
-
-#include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/backend/block_crs.hpp>
+#include <amgcl/adapter/crs_tuple.hpp>
+#include <amgcl/make_solver.hpp>
+#include <amgcl/amg.hpp>
 #include <amgcl/coarsening/aggregation.hpp>
 #include <amgcl/relaxation/spai0.hpp>
 #include <amgcl/solver/bicgstab.hpp>
@@ -20,11 +20,14 @@ int main() {
     using amgcl::prof;
 
     typedef amgcl::backend::block_crs<double> Backend;
-    typedef amgcl::amg<
-        Backend,
-        amgcl::coarsening::aggregation,
-        amgcl::relaxation::spai0
-        > AMG;
+    typedef amgcl::make_solver<
+        amgcl::amg<
+            Backend,
+            amgcl::coarsening::aggregation,
+            amgcl::relaxation::spai0
+            >,
+        amgcl::solver::bicgstab<Backend>
+        > Solver;
 
     std::vector<ptrdiff_t> ptr;
     std::vector<ptrdiff_t> col;
@@ -61,32 +64,31 @@ int main() {
     prof.toc("read");
 
     prof.tic("build");
-    AMG::params prm;
-    prm.coarsening.aggr.eps_strong = 0;
-    prm.coarsening.aggr.block_size = 4;
-    prm.npre = prm.npost = 2;
+    Solver::params prm;
+    prm.precond.coarsening.aggr.eps_strong = 0;
+    prm.precond.coarsening.aggr.block_size = 4;
+    prm.precond.npre = 2;
+    prm.precond.npost = 2;
 
     Backend::params bprm;
     bprm.block_size = 4;
 
-    AMG amg(std::tie(n, ptr, col, val), prm, bprm);
+    Solver solve(std::tie(n, ptr, col, val), prm, bprm);
     prof.toc("build");
 
-    std::cout << amg << std::endl;
+    std::cout << solve << std::endl;
 
     std::vector<double> x(n, 0);
-
-    amgcl::solver::bicgstab<AMG::backend_type> solve(n);
 
     prof.tic("solve");
     size_t iters;
     double resid;
-    std::tie(iters, resid) = solve(amg, rhs, x);
+    std::tie(iters, resid) = solve(rhs, x);
     prof.toc("solve");
 
     std::cout << "Iterations: " << iters << std::endl
               << "Error:      " << resid << std::endl
               << std::endl;
 
-    std::cout << amgcl::prof << std::endl;
+    std::cout << prof << std::endl;
 }

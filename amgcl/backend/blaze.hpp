@@ -119,10 +119,10 @@ struct blaze {
     }
 
     /// Create direct solver for coarse level
+    template <class Matrix>
     static std::shared_ptr<direct_solver>
-    create_solver(std::shared_ptr< typename builtin<real>::matrix > A, const params&)
-    {
-        return std::make_shared<direct_solver>(*A);
+    create_solver(const Matrix &A, const params&) {
+        return std::make_shared<direct_solver>(A);
     }
 
 };

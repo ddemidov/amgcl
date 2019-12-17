@@ -150,15 +150,38 @@ struct row_nonzeros_impl {
     typedef typename Matrix::ROW_NONZEROS_NOT_IMPLEMENTED type;
 };
 
+/// Row offset in nonzero elements
+/** \node Used in row_offset() */
+template <class Matrix, class Enable = void>
+struct row_offset_impl {
+    typedef typename Matrix::ROW_OFFSET_NOT_IMPLEMENTED type;
+};
+
+/// Checks if the matrix provides row offset
+template <class Matrix>
+struct provides_row_offset : std::false_type {};
+
 /// Metafunction returning the row iterator type for a matrix type.
 /**
  * \note This only has to be implemented in the backend if support for serial
  * smoothers (Gauss-Seidel or ILU0) is required.
  */
-template <class Matrix, class Enable = void>
-struct row_iterator {
+template <class Matrix, class Enable = amgcl::detail::void_t<>>
+struct row_iterator {};
+
+template <class Matrix>
+struct row_iterator<Matrix, amgcl::detail::void_t<typename Matrix::row_iterator>> {
     typedef typename Matrix::row_iterator type;
 };
+
+template <class Matrix, class Enable = amgcl::detail::void_t<>>
+struct has_row_iterator : std::false_type {};
+
+template <class Matrix>
+struct has_row_iterator<
+    Matrix,
+    amgcl::detail::void_t<typename row_iterator<Matrix>::type>
+    > : std::true_type {};
 
 /// Implementation for function returning row iterator for a matrix.
 /**
@@ -173,6 +196,7 @@ struct row_begin_impl {
         return A.row_begin(row);
     }
 };
+
 
 /// Implementation for matrix-vector product.
 /** \note Used in spmv() */
@@ -285,6 +309,12 @@ row_begin(const Matrix &matrix, size_t row) {
 template <class Matrix>
 size_t row_nonzeros(const Matrix &A, size_t row) {
     return row_nonzeros_impl<Matrix>::get(A, row);
+}
+
+/// Returns row offset in the matrix nonzero values
+template <class Matrix>
+size_t row_offset(const Matrix &A, size_t row) {
+    return row_offset_impl<Matrix>::get(A, row);
 }
 
 /// Performs matrix-vector product.

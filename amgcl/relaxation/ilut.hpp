@@ -103,17 +103,14 @@ struct ilut {
     ilut( const Matrix &A, const params &prm, const typename Backend::params &bprm)
       : prm(prm)
     {
-        const size_t n = backend::rows(A);
+        const ptrdiff_t n = backend::rows(A);
 
         size_t Lnz = 0, Unz = 0;
 
-        for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-            ptrdiff_t row_beg = A.ptr[i];
-            ptrdiff_t row_end = A.ptr[i + 1];
-
+        for(ptrdiff_t i = 0; i < n; ++i) {
             int lenL = 0, lenU = 0;
-            for(ptrdiff_t j = row_beg; j < row_end; ++j) {
-                ptrdiff_t c = A.col[j];
+            for(auto a = backend::row_begin(A, i); a; ++a) {
+                ptrdiff_t c = a.col();
                 if (c < i)
                     ++lenL;
                 else if (c > i)
@@ -134,7 +131,7 @@ struct ilut {
 
         sparse_vector w(n);
 
-        for(ptrdiff_t i = 0, Lhead = 0, Uhead = 0; i < static_cast<ptrdiff_t>(n); ++i) {
+        for(ptrdiff_t i = 0, Lhead = 0, Uhead = 0; i < n; ++i) {
             w.dia = i;
 
             int lenL = 0;

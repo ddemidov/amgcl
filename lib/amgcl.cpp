@@ -10,6 +10,7 @@
 #include <amgcl/coarsening/runtime.hpp>
 #include <amgcl/solver/runtime.hpp>
 #include <amgcl/make_solver.hpp>
+#include <amgcl/make_preconditioner.hpp>
 #include <amgcl/amg.hpp>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
@@ -28,6 +29,7 @@ typedef amgcl::backend::builtin<double>           Backend;
 typedef amgcl::amg<Backend, amgcl::runtime::coarsening::wrapper, amgcl::runtime::relaxation::wrapper> AMG;
 typedef amgcl::runtime::solver::wrapper<Backend>  ISolver;
 typedef amgcl::make_solver<AMG, ISolver>          Solver;
+typedef amgcl::make_preconditioner<AMG>           Precond;
 typedef boost::property_tree::ptree               Params;
 
 //---------------------------------------------------------------------------
@@ -76,9 +78,9 @@ amgclHandle STDCALL amgcl_precond_create(
             );
 
     if (prm)
-        return static_cast<amgclHandle>(new AMG(A, *static_cast<Params*>(prm)));
+        return static_cast<amgclHandle>(new Precond(A, *static_cast<Params*>(prm)));
     else
-        return static_cast<amgclHandle>(new AMG(A));
+        return static_cast<amgclHandle>(new Precond(A));
 }
 
 //---------------------------------------------------------------------------
@@ -100,15 +102,15 @@ amgclHandle STDCALL amgcl_precond_create_f(
             );
 
     if (prm)
-        return static_cast<amgclHandle>(new AMG(A, *static_cast<Params*>(prm)));
+        return static_cast<amgclHandle>(new Precond(A, *static_cast<Params*>(prm)));
     else
-        return static_cast<amgclHandle>(new AMG(A));
+        return static_cast<amgclHandle>(new Precond(A));
 }
 
 //---------------------------------------------------------------------------
 void STDCALL amgcl_precond_apply(amgclHandle handle, const double *rhs, double *x)
 {
-    AMG *amg = static_cast<AMG*>(handle);
+    Precond *amg = static_cast<Precond*>(handle);
 
     size_t n = amgcl::backend::rows(amg->system_matrix());
 
@@ -120,12 +122,12 @@ void STDCALL amgcl_precond_apply(amgclHandle handle, const double *rhs, double *
 
 //---------------------------------------------------------------------------
 void STDCALL amgcl_precond_report(amgclHandle handle) {
-    std::cout << *static_cast<AMG*>(handle) << std::endl;
+    std::cout << *static_cast<Precond*>(handle) << std::endl;
 }
 
 //---------------------------------------------------------------------------
 void STDCALL amgcl_precond_destroy(amgclHandle handle) {
-    delete static_cast<AMG*>(handle);
+    delete static_cast<Precond*>(handle);
 }
 
 //---------------------------------------------------------------------------
@@ -149,6 +151,12 @@ amgclHandle STDCALL amgcl_solver_create(
         return static_cast<amgclHandle>(new Solver(A));
 }
 
+struct minus_one {
+    int operator()(int i) const {
+        return i - 1;
+    }
+};
+
 //---------------------------------------------------------------------------
 amgclHandle STDCALL amgcl_solver_create_f(
         int           n,
@@ -158,8 +166,8 @@ amgclHandle STDCALL amgcl_solver_create_f(
         amgclHandle   prm
         )
 {
-    auto ptr_c = boost::make_transform_iterator(ptr, [](int i){ return i - 1; });
-    auto col_c = boost::make_transform_iterator(col, [](int i){ return i - 1; });
+    auto ptr_c = boost::make_transform_iterator(ptr, minus_one());
+    auto col_c = boost::make_transform_iterator(col, minus_one());
 
     auto A = std::make_tuple(n,
             boost::make_iterator_range(ptr_c, ptr_c + n + 1),

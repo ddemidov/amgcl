@@ -59,7 +59,7 @@ struct spai0 {
     template <class Matrix>
     spai0( const Matrix &A, const params &, const typename Backend::params &backend_prm)
     {
-        const size_t n = rows(A);
+        const size_t n = backend::rows(A);
 
         auto m = std::make_shared< backend::numa_vector<value_type> >(n, false);
 

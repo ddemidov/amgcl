@@ -193,6 +193,8 @@ struct empty_params {
 #endif
 };
 
+template <class...> using void_t = void;
+
 } // namespace detail
 
 // Iterator range

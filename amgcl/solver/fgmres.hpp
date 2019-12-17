@@ -178,7 +178,7 @@ class fgmres {
 
                     vector &v_new = *v[j+1];
 
-                    P.apply(*v[j], *z[j]);
+                    P.apply(A, *v[j], *z[j]);
                     backend::spmv(math::identity<scalar_type>(), A, *z[j],
                             math::zero<scalar_type>(), v_new);
 

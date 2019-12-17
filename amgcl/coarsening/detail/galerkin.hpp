@@ -38,12 +38,12 @@ namespace amgcl {
 namespace coarsening {
 namespace detail {
 
-template <class Matrix>
-std::shared_ptr<Matrix> galerkin(
-        const Matrix &A, const Matrix &P, const Matrix &R
-        )
+template <class MatrixA, class MatrixP, class MatrixR, class Matrix>
+void galerkin(const MatrixA &A, const MatrixP &P, const MatrixR &R, Matrix &RAP)
 {
-    return product(R, *product(A, P));
+    Matrix AP;
+    product(A, P, AP);
+    product(R, AP, RAP);
 }
 
 } // namespace detail

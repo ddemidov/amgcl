@@ -57,19 +57,18 @@ int main() {
     prof.toc("assemble");
 
 #if defined(SOLVER_BACKEND_VEXCL)
-    dBackend::matrix A_d(ctx, n, n, ptr, col, val);
-
     vex::vector<double> f(ctx, rhs);
     vex::vector<double> x(ctx, n);
     x = 0;
 #elif defined(SOLVER_BACKEND_BUILTIN)
-    auto A_d = std::tie(n, ptr, col, val);
     std::vector<double> &f = rhs;
     std::vector<double> x(n, 0.0);
 #endif
 
+    Solver::params prm;
+
     prof.tic("setup");
-    Solver S(std::tie(n, ptr, col, val), Solver::params(), bprm);
+    Solver S(std::tie(n, ptr, col, val), prm, bprm);
     prof.toc("setup");
 
     std::cout << S << std::endl;
@@ -77,7 +76,7 @@ int main() {
     int iters;
     double error;
     prof.tic("solve");
-    std::tie(iters, error) = S(A_d, f, x);
+    std::tie(iters, error) = S(f, x);
     prof.toc("solve");
 
     std::cout << "Iterations: " << iters << std::endl

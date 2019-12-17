@@ -93,19 +93,20 @@ class pointwise_aggregates {
         pointwise_aggregates(const Matrix &A, const params &prm, unsigned min_aggregate)
             : count(0)
         {
+            typedef typename backend::row_iterator<Matrix>::type row_iterator;
             typedef typename backend::value_type<Matrix>::type value_type;
             typedef typename math::scalar_of<value_type>::type scalar_type;
             if (prm.block_size == 1) {
                 plain_aggregates aggr(A, prm);
 
-                remove_small_aggregates(A.nrows, 1, min_aggregate, aggr);
+                remove_small_aggregates(backend::rows(A), 1, min_aggregate, aggr);
 
                 count = aggr.count;
                 strong_connection.swap(aggr.strong_connection);
                 id.swap(aggr.id);
             } else {
-                strong_connection.resize( nonzeros(A) );
-                id.resize( rows(A) );
+                strong_connection.resize( backend::nonzeros(A) );
+                id.resize( backend::rows(A) );
 
                 auto ap = backend::pointwise_matrix(A, prm.block_size);
                 backend::crs<scalar_type> &Ap = *ap;
@@ -119,18 +120,19 @@ class pointwise_aggregates {
 
 #pragma omp parallel
                 {
-                    std::vector<ptrdiff_t> j(prm.block_size);
-                    std::vector<ptrdiff_t> e(prm.block_size);
+                    std::vector<row_iterator> a;
+                    std::vector<ptrdiff_t>    j(prm.block_size);
 
 #pragma omp for
                     for(ptrdiff_t ip = 0; ip < static_cast<ptrdiff_t>(Ap.nrows); ++ip) {
                         ptrdiff_t ia = ip * prm.block_size;
 
+                        a.clear();
+
                         for(unsigned k = 0; k < prm.block_size; ++k, ++ia) {
                             id[ia] = prm.block_size * pw_aggr.id[ip] + k;
-
-                            j[k] = A.ptr[ia];
-                            e[k] = A.ptr[ia+1];
+                            a.push_back(backend::row_begin(A, ia));
+                            j[k] = backend::row_offset(A, ia);
                         }
 
                         for(ptrdiff_t jp = Ap.ptr[ip], ep = Ap.ptr[ip+1]; jp < ep; ++jp) {
@@ -140,15 +142,11 @@ class pointwise_aggregates {
                             ptrdiff_t col_end = (cp + 1) * prm.block_size;
 
                             for(unsigned k = 0; k < prm.block_size; ++k) {
-                                ptrdiff_t beg = j[k];
-                                ptrdiff_t end = e[k];
-
-                                while(beg < end && A.col[beg] < col_end) {
-                                    strong_connection[beg] = sp && A.col[beg] != (ia + k);
-                                    ++beg;
+                                while(a[k] && a[k].col() < col_end) {
+                                    strong_connection[j[k]] = sp && a[k].col() != (ia + k);
+                                    ++a[k];
+                                    ++j[k];
                                 }
-
-                                j[k] = beg;
                             }
                         }
                     }
