@@ -45,6 +45,15 @@ struct static_matrix {
 
     static_matrix() {}
 
+    template <class U>
+    static_matrix(std::initializer_list<U> data) {
+        auto b = buf.begin();
+        auto d = data.begin();
+
+        for(; b != buf.end() && d != data.end(); ++b, ++d)
+            *b = *d;
+    }
+
     template <typename U>
     static_matrix(const static_matrix<U,N,M> &y) {
         for(int i = 0; i < N * M; ++i)
