@@ -43,6 +43,21 @@ template <typename T, int N, int M>
 struct static_matrix {
     std::array<T, N * M> buf;
 
+    static_matrix() {}
+
+    template <typename U>
+    static_matrix(const static_matrix<U,N,M> &y) {
+        for(int i = 0; i < N * M; ++i)
+            buf[i] = y.buf[i];
+    }
+
+    template <typename U>
+    const static_matrix& operator=(const static_matrix<U,N,M> &y) {
+        for(int i = 0; i < N * M; ++i)
+            buf[i] = y.buf[i];
+        return *this;
+    }
+
     T operator()(int i, int j) const {
         return buf[i * M + j];
     }
@@ -65,13 +80,6 @@ struct static_matrix {
 
     T* data() {
         return buf.data();
-    }
-
-    template <typename U>
-    const static_matrix& operator=(const static_matrix<U,N,M> &y) {
-        for(int i = 0; i < N * M; ++i)
-            buf[i] = y.buf[i];
-        return *this;
     }
 
     template <typename U>
