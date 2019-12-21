@@ -75,16 +75,17 @@ std::tuple<size_t, double> block_solve(
         bool reorder
         )
 {
+    typedef amgcl::static_matrix<float, B, B> value_type_f;
+    typedef amgcl::backend::builtin<value_type_f> BBackend_f;
+
     typedef amgcl::static_matrix<double, B, B> value_type;
     typedef amgcl::static_matrix<double, B, 1> rhs_type;
     typedef amgcl::backend::builtin<value_type> BBackend;
 
     typedef amgcl::make_solver<
         amgcl::runtime::preconditioner<BBackend>,
-        amgcl::runtime::solver::wrapper<BBackend>
+        amgcl::runtime::solver::wrapper<BBackend_f>
         > Solver;
-
-    ;
 
     auto A = amgcl::adapter::block_matrix<value_type>(std::tie(rows, ptr, col, val));
 
