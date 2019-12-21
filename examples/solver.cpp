@@ -84,6 +84,8 @@ std::tuple<size_t, double> block_solve(
         amgcl::runtime::solver::wrapper<BBackend>
         > Solver;
 
+    ;
+
     auto A = amgcl::adapter::block_matrix<value_type>(std::tie(rows, ptr, col, val));
 
     std::tuple<size_t, double> info;
