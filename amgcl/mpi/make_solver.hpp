@@ -46,9 +46,16 @@ namespace mpi {
 
 template <
     class Precond,
-    template <class, class> class IterativeSolver
+    class IterativeSolver
     >
 class make_solver : public amgcl::detail::non_copyable {
+    static_assert(
+            backend::backends_compatible<
+                typename IterativeSolver::backend_type,
+                typename Precond::backend_type
+            >::value,
+            "Backends for preconditioner and iterative solver should be compatible"
+            );
     public:
         typedef typename Precond::backend_type backend_type;
         typedef typename Precond::matrix matrix;
@@ -57,12 +64,9 @@ class make_solver : public amgcl::detail::non_copyable {
         typedef typename backend::builtin<value_type>::matrix build_matrix;
         typedef typename math::scalar_of<value_type>::type scalar_type;
 
-        typedef IterativeSolver<backend_type, mpi::inner_product> Solver;
-
-
         struct params {
             typename Precond::params precond; ///< Preconditioner parameters.
-            typename Solver::params  solver;  ///< Iterative solver parameters.
+            typename IterativeSolver::params  solver;  ///< Iterative solver parameters.
 
             params() {}
 
@@ -136,7 +140,7 @@ class make_solver : public amgcl::detail::non_copyable {
             return P;
         }
 
-        const Solver& solver() const {
+        const IterativeSolver& solver() const {
             return S;
         }
 
@@ -165,7 +169,7 @@ class make_solver : public amgcl::detail::non_copyable {
         size_t n;
 
         Precond P;
-        Solver  S;
+        IterativeSolver  S;
 };
 
 } // namespace mpi

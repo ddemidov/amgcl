@@ -12,7 +12,6 @@
 #include <amgcl/value_type/static_matrix.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/adapter/block_matrix.hpp>
-#include <amgcl/solver/runtime.hpp>
 
 #if defined(SOLVER_BACKEND_VEXCL)
 #  include <amgcl/backend/vexcl.hpp>
@@ -29,6 +28,7 @@
 #include <amgcl/mpi/util.hpp>
 #include <amgcl/mpi/make_solver.hpp>
 #include <amgcl/mpi/preconditioner.hpp>
+#include <amgcl/mpi/solver.hpp>
 
 #include <amgcl/io/mm.hpp>
 #include <amgcl/io/binary.hpp>
@@ -256,7 +256,7 @@ void solve_block(
     typedef
         amgcl::mpi::make_solver<
             amgcl::runtime::mpi::preconditioner<Backend>,
-            amgcl::runtime::solver::wrapper
+            amgcl::runtime::mpi::solver::wrapper<Backend>
             >
         Solver;
 
@@ -347,7 +347,7 @@ void solve_scalar(
     typedef
         amgcl::mpi::make_solver<
             amgcl::runtime::mpi::preconditioner<Backend>,
-            amgcl::runtime::solver::wrapper
+            amgcl::runtime::mpi::solver::wrapper<Backend>
             >
         Solver;
 
