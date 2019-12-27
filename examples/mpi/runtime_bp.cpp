@@ -11,10 +11,10 @@
 #include <boost/scope_exit.hpp>
 
 #include <amgcl/backend/builtin.hpp>
-#include <amgcl/solver/runtime.hpp>
 #include <amgcl/preconditioner/runtime.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/mpi/make_solver.hpp>
+#include <amgcl/mpi/solver/runtime.hpp>
 #include <amgcl/mpi/block_preconditioner.hpp>
 #include <amgcl/profiler.hpp>
 
@@ -54,7 +54,7 @@ std::tuple<size_t, double> solve(
 
     typedef amgcl::mpi::make_solver<
         amgcl::mpi::block_preconditioner< Precond<Backend> >,
-        amgcl::runtime::solver::wrapper
+        amgcl::runtime::mpi::solver::wrapper<Backend>
         > Solver;
 
     const size_t n = amgcl::backend::rows(A);

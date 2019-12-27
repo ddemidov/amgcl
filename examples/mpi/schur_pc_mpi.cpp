@@ -34,7 +34,6 @@
 #include <amgcl/io/mm.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/amg.hpp>
-#include <amgcl/solver/runtime.hpp>
 #include <amgcl/coarsening/runtime.hpp>
 #include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/relaxation/as_preconditioner.hpp>
@@ -42,6 +41,7 @@
 #include <amgcl/mpi/schur_pressure_correction.hpp>
 #include <amgcl/mpi/block_preconditioner.hpp>
 #include <amgcl/mpi/subdomain_deflation.hpp>
+#include <amgcl/mpi/solver/runtime.hpp>
 #include <amgcl/mpi/direct_solver/runtime.hpp>
 #include <amgcl/profiler.hpp>
 
@@ -294,15 +294,15 @@ int main(int argc, char *argv[]) {
                     amgcl::mpi::block_preconditioner<
                         amgcl::relaxation::as_preconditioner<Backend, amgcl::runtime::relaxation::wrapper>
                         >,
-                    amgcl::runtime::solver::wrapper
+                    amgcl::runtime::mpi::solver::wrapper<Backend>
                     >,
                 amgcl::mpi::subdomain_deflation<
                     amgcl::amg<Backend, amgcl::runtime::coarsening::wrapper, amgcl::runtime::relaxation::wrapper>,
-                    amgcl::runtime::solver::wrapper,
+                    amgcl::runtime::mpi::solver::wrapper<Backend>,
                     amgcl::runtime::mpi::direct::solver<double>
                     >
                 >,
-            amgcl::runtime::solver::wrapper
+            amgcl::runtime::mpi::solver::wrapper<Backend>
             > Solver;
 
     Solver solve(world, std::tie(chunk, ptr, col, val), prm, bprm);

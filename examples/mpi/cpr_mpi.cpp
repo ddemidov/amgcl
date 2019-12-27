@@ -13,10 +13,10 @@
 #include <amgcl/mpi/amg.hpp>
 #include <amgcl/mpi/coarsening/runtime.hpp>
 #include <amgcl/mpi/relaxation/runtime.hpp>
+#include <amgcl/mpi/solver/runtime.hpp>
 #include <amgcl/mpi/relaxation/as_preconditioner.hpp>
 #include <amgcl/mpi/direct_solver/runtime.hpp>
 #include <amgcl/mpi/partition/runtime.hpp>
-#include <amgcl/solver/runtime.hpp>
 #include <amgcl/profiler.hpp>
 
 namespace amgcl {
@@ -268,7 +268,7 @@ int main(int argc, char *argv[]) {
                     amgcl::runtime::mpi::relaxation::wrapper<Backend>
                     >
                 >,
-            amgcl::runtime::solver::wrapper
+            amgcl::runtime::mpi::solver::wrapper<Backend>
             >
         Solver;
 

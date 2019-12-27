@@ -1,5 +1,5 @@
-#ifndef AMGCL_MPI_SOLVER_HPP
-#define AMGCL_MPI_SOLVER_HPP
+#ifndef AMGCL_MPI_SOLVER_RUNTIME_HPP
+#define AMGCL_MPI_SOLVER_RUNTIME_HPP
 
 /*
 The MIT License
@@ -26,7 +26,7 @@ THE SOFTWARE.
 */
 
 /**
- * \file   amgcl/mpi/solver.hpp
+ * \file   amgcl/mpi/solver/runtime.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
  * \brief  Runtime-configurable MPI wrapper around amgcl iterative solvers.
  */

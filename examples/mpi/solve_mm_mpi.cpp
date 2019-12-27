@@ -17,10 +17,10 @@
 #include <boost/property_tree/json_parser.hpp>
 
 #include <amgcl/amg.hpp>
-#include <amgcl/solver/runtime.hpp>
 #include <amgcl/coarsening/runtime.hpp>
 #include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/mpi/subdomain_deflation.hpp>
+#include <amgcl/mpi/solver/runtime.hpp>
 #include <amgcl/mpi/direct_solver/runtime.hpp>
 #include <amgcl/profiler.hpp>
 
@@ -314,7 +314,7 @@ int main(int argc, char *argv[]) {
                 amgcl::runtime::coarsening::wrapper,
                 amgcl::runtime::relaxation::wrapper
                 >,
-            amgcl::runtime::solver::wrapper,
+            amgcl::runtime::mpi::solver::wrapper<amgcl::backend::builtin<double>>,
             amgcl::runtime::mpi::direct::solver<double>
         > SDD;
 

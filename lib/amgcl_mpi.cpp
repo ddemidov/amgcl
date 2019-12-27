@@ -5,9 +5,9 @@
 #include <boost/range/iterator_range.hpp>
 
 #include <amgcl/amg.hpp>
-#include <amgcl/solver/runtime.hpp>
 #include <amgcl/coarsening/runtime.hpp>
 #include <amgcl/relaxation/runtime.hpp>
+#include <amgcl/mpi/solver/runtime.hpp>
 #include <amgcl/mpi/direct_solver/runtime.hpp>
 #include <amgcl/mpi/subdomain_deflation.hpp>
 #include <amgcl/backend/builtin.hpp>
@@ -22,7 +22,7 @@ typedef boost::property_tree::ptree                       Params;
 typedef
     amgcl::mpi::subdomain_deflation<
         amgcl::amg<Backend, amgcl::runtime::coarsening::wrapper, amgcl::runtime::relaxation::wrapper>,
-        amgcl::runtime::solver::wrapper,
+        amgcl::runtime::mpi::solver::wrapper<Backend>,
         amgcl::runtime::mpi::direct::solver<double>
     > Solver;
 

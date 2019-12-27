@@ -28,7 +28,7 @@
 #include <amgcl/mpi/util.hpp>
 #include <amgcl/mpi/make_solver.hpp>
 #include <amgcl/mpi/preconditioner.hpp>
-#include <amgcl/mpi/solver.hpp>
+#include <amgcl/mpi/solver/runtime.hpp>
 
 #include <amgcl/io/mm.hpp>
 #include <amgcl/io/binary.hpp>
