@@ -40,6 +40,7 @@ THE SOFTWARE.
 
 #include <amgcl/util.hpp>
 #include <amgcl/mpi/inner_product.hpp>
+#include <amgcl/mpi/distributed_matrix.hpp>
 
 namespace amgcl {
 namespace mpi {
@@ -57,8 +58,8 @@ class make_solver : public amgcl::detail::non_copyable {
             "Backends for preconditioner and iterative solver should be compatible"
             );
     public:
-        typedef typename Precond::backend_type backend_type;
-        typedef typename Precond::matrix matrix;
+        typedef typename IterativeSolver::backend_type backend_type;
+        typedef amgcl::mpi::distributed_matrix<backend_type> matrix;
         typedef typename backend_type::value_type value_type;
         typedef typename backend_type::params backend_params;
         typedef typename backend::builtin<value_type>::matrix build_matrix;
