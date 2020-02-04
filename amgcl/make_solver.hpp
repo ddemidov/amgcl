@@ -118,6 +118,13 @@ class make_solver : public amgcl::detail::non_copyable {
          * good preconditioner for several subsequent time steps [DeSh12]_.
          * \endrst
          */
+        template <class MatrixS, class MatrixP, class Vec1, class Vec2>
+        std::tuple<size_t, scalar_type> operator()(
+                const MatrixS &As, const MatrixP &Ap, const Vec1 &rhs, Vec2 &&x) const
+        {
+            return (*S)(As, Ap, *P, rhs, x);
+        }
+
         template <class Matrix, class Vec1, class Vec2>
         std::tuple<size_t, scalar_type> operator()(
                 const Matrix &A, const Vec1 &rhs, Vec2 &&x) const

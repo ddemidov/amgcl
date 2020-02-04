@@ -177,15 +177,15 @@ struct wrapper {
         }
     }
 
-    template <class Matrix, class Precond, class Vec1, class Vec2>
+    template <class MatrixS, class MatrixP, class Precond, class Vec1, class Vec2>
     std::tuple<size_t, scalar_type> operator()(
-            const Matrix &A, const Precond &P, const Vec1 &rhs, Vec2 &&x) const
+            const MatrixS &As, const MatrixP &Ap, const Precond &P, const Vec1 &rhs, Vec2 &&x) const
     {
         switch(s) {
 
 #define AMGCL_RUNTIME_SOLVER(type) \
             case type: \
-                return static_cast<amgcl::solver::type<Backend, InnerProduct>*>(handle)->operator()(A, P, rhs, x)
+                return static_cast<amgcl::solver::type<Backend, InnerProduct>*>(handle)->operator()(As, Ap, P, rhs, x)
 
             AMGCL_RUNTIME_SOLVER(cg);
             AMGCL_RUNTIME_SOLVER(bicgstab);
@@ -200,6 +200,13 @@ struct wrapper {
             default:
                 throw std::invalid_argument("Unsupported solver type");
         }
+    }
+
+    template <class Matrix, class Precond, class Vec1, class Vec2>
+    std::tuple<size_t, scalar_type> operator()(
+            const Matrix &A, const Precond &P, const Vec1 &rhs, Vec2 &&x) const
+    {
+        return (*this)(A, A, P, rhs, x);
     }
 
     template <class Precond, class Vec1, class Vec2>

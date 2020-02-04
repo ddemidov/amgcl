@@ -194,9 +194,9 @@ class bicgstabl {
          * that a preconditioner built for a time step will act as a reasonably
          * good preconditioner for several subsequent time steps [DeSh12]_.
          */
-        template <class Matrix, class Precond, class Vec1, class Vec2>
+        template <class MatrixS, class MatrixP, class Precond, class Vec1, class Vec2>
         std::tuple<size_t, scalar_type> operator()(
-                const Matrix &A, const Precond &P, const Vec1 &rhs, Vec2 &&x) const
+                const MatrixS &As, const MatrixP &Ap, const Precond &P, const Vec1 &rhs, Vec2 &&x) const
         {
             namespace side = preconditioner::side;
 
@@ -214,10 +214,10 @@ class bicgstabl {
             }
 
             if (prm.pside == side::left) {
-                backend::residual(rhs, A, x, *T);
-                P.apply(A, *T, *B);
+                backend::residual(rhs, As, x, *T);
+                P.apply(Ap, *T, *B);
             } else {
-                backend::residual(rhs, A, x, *B);
+                backend::residual(rhs, As, x, *B);
             }
 
             scalar_type zeta0 = norm(*B);
@@ -253,7 +253,7 @@ class bicgstabl {
                     for(int i = 0; i <= j; ++i)
                         backend::axpby(one, *R[i], -beta, *U[i]);
 
-                    preconditioner::spmv(prm.pside, P, A, *U[j], *U[j+1], *T);
+                    preconditioner::spmv(prm.pside, P, As, Ap, *U[j], *U[j+1], *T);
 
                     coef_type sigma = inner_product(*U[j+1], *Rt);
                     precondition(!math::is_zero(sigma),
@@ -265,7 +265,7 @@ class bicgstabl {
                     for(int i = 0; i <= j; ++i)
                         backend::axpby(-alpha, *U[i+1], one, *R[i]);
 
-                    preconditioner::spmv(prm.pside, P, A, *R[j], *R[j+1], *T);
+                    preconditioner::spmv(prm.pside, P, As, Ap, *R[j], *R[j+1], *T);
 
                     zeta = norm(*R[0]);
 
@@ -371,7 +371,7 @@ class bicgstabl {
                     bool update_x = zeta < prm.delta * zeta0 && zeta0 <= rnmax_computed;
 
                     if ((zeta < prm.delta * rnmax_true && zeta <= rnmax_true) || update_x) {
-                        preconditioner::spmv(prm.pside, P, A, *X, *R[0], *T);
+                        preconditioner::spmv(prm.pside, P, As, Ap, *X, *R[0], *T);
                         backend::axpby(one, *B, -one, *R[0]);
                         rnmax_true = zeta;
 
@@ -394,11 +394,18 @@ done:
             if (prm.pside == side::left) {
                 backend::axpby(one, *X, one, x);
             } else {
-                P.apply(A, *X, *T);
+                P.apply(Ap, *X, *T);
                 backend::axpby(one, *T, one, x);
             }
 
             return std::make_tuple(iter, zeta / norm_rhs);
+        }
+
+        template <class Matrix, class Precond, class Vec1, class Vec2>
+        std::tuple<size_t, scalar_type> operator()(
+                const Matrix &A, const Precond &P, const Vec1 &rhs, Vec2 &&x) const
+        {
+            return (*this)(A, A, P, rhs, x);
         }
 
         /* Computes the solution for the given right-hand side \p rhs. The

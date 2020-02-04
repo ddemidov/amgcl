@@ -74,22 +74,23 @@ inline std::istream& operator>>(std::istream &in, type &p) {
 } // namespace side
 
 // Preconditioned matrix-vector product
-template <class Precond, class Matrix, class VecF, class VecX, class VecT>
-inline void spmv(side::type pside, const Precond &P, const Matrix &A,
+template <class Precond, class MatrixS, class MatrixP, class VecF, class VecX, class VecT>
+inline void spmv(side::type pside, const Precond &P,
+        const MatrixS &As, const MatrixP &Ap,
         const VecF &F, VecX &X, VecT &T)
 {
-    typedef typename backend::value_type<Matrix>::type value;
+    typedef typename backend::value_type<MatrixS>::type value;
     typedef typename math::scalar_of<value>::type scalar;
 
     static const scalar one  = math::identity<scalar>();
     static const scalar zero = math::zero<scalar>();
 
     if (pside == side::left) {
-        backend::spmv(one, A, F, zero, T);
-        P.apply(A, T, X);
+        backend::spmv(one, As, F, zero, T);
+        P.apply(Ap, T, X);
     } else {
-        P.apply(A, F, T);
-        backend::spmv(one, A, T, zero, X);
+        P.apply(Ap, F, T);
+        backend::spmv(one, As, T, zero, X);
     }
 }
 

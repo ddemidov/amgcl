@@ -237,9 +237,10 @@ class idrs {
          * that a preconditioner built for a time step will act as a reasonably
          * good preconditioner for several subsequent time steps [DeSh12]_.
          */
-        template <class Matrix, class Precond, class Vec1, class Vec2>
+        template <class MatrixS, class MatrixP, class Precond, class Vec1, class Vec2>
         std::tuple<size_t, scalar_type> operator()(
-                Matrix  const &A,
+                MatrixS const &As,
+                MatrixP const &Ap,
                 Precond const &Prec,
                 Vec1    const &rhs,
                 Vec2          &x
@@ -257,7 +258,7 @@ class idrs {
             scalar_type eps = std::max(prm.tol * norm_rhs, prm.abstol);
 
             // Compute initial residual:
-            backend::residual(rhs, A, x, *r);
+            backend::residual(rhs, As, x, *r);
 
             scalar_type res_norm = norm(*r);
             if (res_norm <= eps) {
@@ -308,7 +309,7 @@ class idrs {
                         backend::axpby(-c[i], *G[i], one, *v);
                     }
 
-                    Prec.apply(A, *v, *t);
+                    Prec.apply(Ap, *v, *t);
 
                     // Compute new U[k]
                     backend::axpby(om, *t, c[k], *U[k]);
@@ -316,7 +317,7 @@ class idrs {
                         backend::axpby(c[i], *U[i], one, *U[k]);
 
                     // Compute new G[k], G[k] is in space G_j
-                    backend::spmv(one, A, *U[k], zero, *G[k]);
+                    backend::spmv(one, As, *U[k], zero, *G[k]);
 
                     // Bi-Orthogonalise the new basis vectors:
                     for(unsigned i = 0; i < k; ++i) {
@@ -363,8 +364,8 @@ class idrs {
                 // Now we have sufficient vectors in G_j to compute residual in G_j+1
                 // Note: r is already perpendicular to P so v = r
 
-                Prec.apply(A, *r, *v);
-                backend::spmv(one, A, *v, zero, *t);
+                Prec.apply(Ap, *r, *v);
+                backend::spmv(one, As, *v, zero, *t);
 
                 // Computation of a new omega
                 om = omega(*t, *r);
@@ -380,7 +381,7 @@ class idrs {
                 // Residual replacement?
                 if (trueres && res_norm < norm_rhs) {
                     trueres = 0;
-                    backend::residual(rhs, A, x, *r);
+                    backend::residual(rhs, As, x, *r);
                 }
 
                 // Smoothing.
@@ -399,6 +400,17 @@ class idrs {
                 backend::copy(*x_s, x);
 
             return std::make_tuple(iter, res_norm / norm_rhs);
+        }
+
+        template <class Matrix, class Precond, class Vec1, class Vec2>
+        std::tuple<size_t, scalar_type> operator()(
+                Matrix  const &A,
+                Precond const &Prec,
+                Vec1    const &rhs,
+                Vec2          &x
+                ) const
+        {
+            return (*this)(A, A, P, rhs, x);
         }
 
         /* Computes the solution for the given right-hand side \p rhs. The

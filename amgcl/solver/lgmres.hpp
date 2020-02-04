@@ -204,9 +204,10 @@ class lgmres {
          * that a preconditioner built for a time step will act as a reasonably
          * good preconditioner for several subsequent time steps [DeSh12]_.
          */
-        template <class Matrix, class Precond, class Vec1, class Vec2>
+        template <class MatrixS, class MatrixP, class Precond, class Vec1, class Vec2>
         std::tuple<size_t, scalar_type> operator()(
-                Matrix  const &A,
+                MatrixS const &As,
+                MatrixP const &Ap,
                 Precond const &P,
                 Vec1    const &rhs,
                 Vec2          &x
@@ -233,10 +234,10 @@ class lgmres {
             unsigned iter = 0, n_outer = 0;
             while(true) {
                 if (prm.pside == side::left) {
-                    backend::residual(rhs, A, x, *vs[0]);
-                    P.apply(A, *vs[0], *r);
+                    backend::residual(rhs, As, x, *vs[0]);
+                    P.apply(Ap, *vs[0], *r);
                 } else {
-                    backend::residual(rhs, A, x, *r);
+                    backend::residual(rhs, As, x, *r);
                 }
 
                 // -- Check stopping condition
@@ -292,7 +293,7 @@ class lgmres {
 
                     ws[j] = z;
 
-                    preconditioner::spmv(prm.pside, P, A, *z, v_new, *r);
+                    preconditioner::spmv(prm.pside, P, As, Ap, *z, v_new, *r);
 
                     for(unsigned k = 0; k <= j; ++k) {
                         H0(k, j) = H(k, j) = inner_product(v_new, *vs[k]);
@@ -332,7 +333,7 @@ class lgmres {
                     backend::axpby(one, dx, one, x);
                 } else {
                     vector &tmp = *ws[0];
-                    P.apply(A, dx, tmp);
+                    P.apply(Ap, dx, tmp);
                     backend::axpby(one, tmp, one, x);
                 }
 
@@ -350,6 +351,17 @@ class lgmres {
             }
 
             return std::make_tuple(iter, norm_r / norm_rhs);
+        }
+
+        template <class Matrix, class Precond, class Vec1, class Vec2>
+        std::tuple<size_t, scalar_type> operator()(
+                Matrix  const &A,
+                Precond const &P,
+                Vec1    const &rhs,
+                Vec2          &x
+                ) const
+        {
+            return (*this)(A, A, P, rhs, x);
         }
 
         /* Computes the solution for the given right-hand side \p rhs. The

@@ -159,7 +159,7 @@ struct gauss_seidel {
             !backend::has_row_iterator<Matrix>::value,
             void
         >::type
-        sweep(const Matrix &A, const VectorRHS &rhs, VectorX &x, bool fwd) const {
+        sweep(const Matrix&, const VectorRHS &rhs, VectorX &x, bool fwd) const {
             amgcl::precondition(!is_serial, "Serial sweep is not supported with this matrix!");
 
             if (fwd) {

@@ -526,7 +526,7 @@ class schur_pressure_correction {
 
             // S p = rhs_p
             backend::clear(*p);
-            report("P", (*P)(*this, *rhs_p, *p));
+            report("P", (*P)(*this, P->system_matrix(), *rhs_p, *p));
             AMGCL_TOC("solve P");
 
             // rhs_u -= Kup p

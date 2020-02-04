@@ -137,9 +137,10 @@ class fgmres {
          * that a preconditioner built for a time step will act as a reasonably
          * good preconditioner for several subsequent time steps [DeSh12]_.
          */
-        template <class Matrix, class Precond, class Vec1, class Vec2>
+        template <class MatrixS, class MatrixP, class Precond, class Vec1, class Vec2>
         std::tuple<size_t, scalar_type> operator()(
-                Matrix  const &A,
+                MatrixS const &As,
+                MatrixP const &Ap,
                 Precond const &P,
                 Vec1    const &rhs,
                 Vec2          &x
@@ -156,7 +157,7 @@ class fgmres {
 
             unsigned iter = 0;
             while(true) {
-                backend::residual(rhs, A, x, *v[0]);
+                backend::residual(rhs, As, x, *v[0]);
 
                 // -- Check stopping condition
                 if ((norm_r = norm(*v[0])) < eps || iter >= prm.maxiter)
@@ -178,8 +179,8 @@ class fgmres {
 
                     vector &v_new = *v[j+1];
 
-                    P.apply(A, *v[j], *z[j]);
-                    backend::spmv(math::identity<scalar_type>(), A, *z[j],
+                    P.apply(Ap, *v[j], *z[j]);
+                    backend::spmv(math::identity<scalar_type>(), As, *z[j],
                             math::zero<scalar_type>(), v_new);
 
                     for(unsigned k = 0; k <= j; ++k) {
@@ -216,6 +217,17 @@ class fgmres {
             }
 
             return std::make_tuple(iter, norm_r / norm_rhs);
+        }
+
+        template <class Matrix, class Precond, class Vec1, class Vec2>
+        std::tuple<size_t, scalar_type> operator()(
+                Matrix  const &A,
+                Precond const &P,
+                Vec1    const &rhs,
+                Vec2          &x
+                ) const
+        {
+            return (*this)(A, A, P, rhs, x);
         }
 
         /* Computes the solution for the given right-hand side \p rhs. The

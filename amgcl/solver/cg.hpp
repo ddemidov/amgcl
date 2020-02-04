@@ -135,14 +135,14 @@ class cg {
          * that a preconditioner built for a time step will act as a reasonably
          * good preconditioner for several subsequent time steps [DeSh12]_.
          */
-        template <class Matrix, class Precond, class Vec1, class Vec2>
+        template <class MatrixS, class MatrixP, class Precond, class Vec1, class Vec2>
         std::tuple<size_t, scalar_type> operator()(
-                const Matrix &A, const Precond &P, const Vec1 &rhs, Vec2 &&x) const
+                const MatrixS &As, const MatrixP &Ap, const Precond &P, const Vec1 &rhs, Vec2 &&x) const
         {
             static const coef_type one  = math::identity<coef_type>();
             static const coef_type zero = math::zero<coef_type>();
 
-            backend::residual(rhs, A, x, *r);
+            backend::residual(rhs, As, x, *r);
             scalar_type norm_rhs = norm(rhs);
             if (norm_rhs < amgcl::detail::eps<scalar_type>(1)) {
                 backend::clear(x);
@@ -157,7 +157,7 @@ class cg {
 
             size_t iter = 0;
             for(; iter < prm.maxiter && math::norm(res_norm) > eps; ++iter) {
-                P.apply(A, *r, *s);
+                P.apply(Ap, *r, *s);
 
                 rho2 = rho1;
                 rho1 = inner_product(*r, *s);
@@ -167,7 +167,7 @@ class cg {
                 else
                     backend::copy(*s, *p);
 
-                backend::spmv(one, A, *p, zero, *q);
+                backend::spmv(one, As, *p, zero, *q);
 
                 coef_type alpha = rho1 / inner_product(*q, *p);
 
@@ -178,6 +178,13 @@ class cg {
             }
 
             return std::make_tuple(iter, res_norm / norm_rhs);
+        }
+
+        template <class Matrix, class Precond, class Vec1, class Vec2>
+        std::tuple<size_t, scalar_type> operator()(
+                const Matrix &A, const Precond &P, const Vec1 &rhs, Vec2 &&x) const
+        {
+            return (*this)(A, A, P, rhs, x);
         }
 
         /* Computes the solution for the given right-hand side \p rhs. The

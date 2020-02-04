@@ -375,7 +375,7 @@ class schur_pressure_correction {
 
             // S p = rhs_p
             backend::clear(*p);
-            report("P1", (*P)(*this, *rhs_p, *p));
+            report("P1", (*P)(*this, P->system_matrix(), *rhs_p, *p));
 
             // rhs_u -= Kup p
             backend::spmv(-1, *Kup, *p, 1, *rhs_u);

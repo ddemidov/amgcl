@@ -37,9 +37,9 @@ class make_block_solver {
         {
         }
 
-        template <class Matrix, class Vec1, class Vec2>
+        template <class MatrixS, class MatrixP, class Vec1, class Vec2>
         std::tuple<size_t, scalar_type> operator()(
-                const Matrix &A, const Vec1 &rhs, Vec2 &&x) const
+                const MatrixS &As, const MatrixP &Ap, const Vec1 &rhs, Vec2 &&x) const
         {
             const size_t n = backend::rows(system_matrix());
 
@@ -49,7 +49,14 @@ class make_block_solver {
             iterator_range<rhs_type const *> frng(fptr, fptr + n);
             iterator_range<rhs_type       *> xrng(xptr, xptr + n);
 
-            return S(A, frng, xrng);
+            return S(As, Ap, frng, xrng);
+        }
+
+        template <class Matrix, class Vec1, class Vec2>
+        std::tuple<size_t, scalar_type> operator()(
+                const Matrix &A, const Vec1 &rhs, Vec2 &&x) const
+        {
+            return (*this)(A, A, rhs, x);
         }
 
         template <class Vec1, class Vec2>

@@ -140,9 +140,9 @@ class bicgstab {
          * that a preconditioner built for a time step will act as a reasonably
          * good preconditioner for several subsequent time steps [DeSh12]_.
          */
-        template <class Matrix, class Precond, class Vec1, class Vec2>
+        template <class MatrixS, class MatrixP, class Precond, class Vec1, class Vec2>
         std::tuple<size_t, scalar_type> operator()(
-                const Matrix &A, const Precond &P, const Vec1 &rhs, Vec2 &&x) const
+                const MatrixS &As, const MatrixP &Ap, const Precond &P, const Vec1 &rhs, Vec2 &&x) const
         {
             namespace side = preconditioner::side;
 
@@ -156,10 +156,10 @@ class bicgstab {
             }
 
             if (prm.pside == side::left) {
-                backend::residual(rhs, A, x, *rh);
-                P.apply(A, *rh, *r);
+                backend::residual(rhs, As, x, *rh);
+                P.apply(Ap, *rh, *r);
             } else {
-                backend::residual(rhs, A, x, *r);
+                backend::residual(rhs, Ap, x, *r);
             }
             backend::copy(*r, *rh);
 
@@ -186,7 +186,7 @@ class bicgstab {
                     backend::axpbypcz(one, *r, -beta * omega, *v, beta, *p);
                 }
 
-                preconditioner::spmv(prm.pside, P, A, *p, *v, *T);
+                preconditioner::spmv(prm.pside, P, As, Ap, *p, *v, *T);
 
                 alpha = rho1 / inner_product(*rh, *v);
 
@@ -199,7 +199,7 @@ class bicgstab {
                 backend::axpbypcz(one, *r, -alpha, *v, zero, *s);
 
                 if ((res = norm(*s)) > eps) {
-                    preconditioner::spmv(prm.pside, P, A, *s, *t, *T);
+                    preconditioner::spmv(prm.pside, P, As, Ap, *s, *t, *T);
 
                     omega = inner_product(*t, *s) / inner_product(*t, *t);
 
@@ -218,6 +218,13 @@ class bicgstab {
             }
 
             return std::make_tuple(iter, res / norm_rhs);
+        }
+
+        template <class Matrix, class Precond, class Vec1, class Vec2>
+        std::tuple<size_t, scalar_type> operator()(
+                const Matrix &A, const Precond &P, const Vec1 &rhs, Vec2 &&x) const
+        {
+            return (*this)(A, A, P, rhs, x);
         }
 
         /* Computes the solution for the given right-hand side \p rhs. The
