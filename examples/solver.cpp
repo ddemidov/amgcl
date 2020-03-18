@@ -409,6 +409,12 @@ int main(int argc, char *argv[]) {
          "Should only be provided together with a system matrix. "
         )
         (
+         "color",
+         po::value<string>(),
+         "Coloring of the unknows in matrix market format. "
+         "Aggregates are only formed from unknonws of the same color. "
+        )
+        (
          "binary,B",
          po::bool_switch()->default_value(false),
          "When specified, treat input files as binary instead of as MatrixMarket. "
@@ -492,6 +498,7 @@ int main(int argc, char *argv[]) {
     size_t rows, nv = 0;
     vector<ptrdiff_t> ptr, col;
     vector<double> val, rhs, null, x;
+    vector<int> color;
 
     if (vm.count("matrix")) {
         auto t = prof.scoped_tic("reading");
@@ -556,6 +563,21 @@ int main(int argc, char *argv[]) {
             prm.put("precond.coarsening.nullspace.cols", nv);
             prm.put("precond.coarsening.nullspace.rows", rows);
             prm.put("precond.coarsening.nullspace.B",    &null[0]);
+        }
+
+        if (vm.count("color")) {
+            string cfile = vm["color"].as<string>();
+            size_t n,m;
+            if (binary) {
+                io::read_dense(cfile, n, m, color);
+            } else {
+                std::tie(n, m) = io::mm_reader(cfile)(color);
+            }
+
+            precondition(n == rows && m == 1, "Color matrix has wrong size");
+
+            prm.put("precond.coarsening.aggr.color", &color[0]);
+            prm.put("precond.coarsening.aggr.nc", n);
         }
     } else {
         auto t = prof.scoped_tic("assembling");

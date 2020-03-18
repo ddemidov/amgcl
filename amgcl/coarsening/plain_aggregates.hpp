@@ -72,13 +72,30 @@ struct plain_aggregates {
          */
         float eps_strong;
 
+        /// Coloring of the unknowns (aggregates are only formed within the same color)
+        std::vector<int> color;
+
         params() : eps_strong(0.08f) {}
 
 #ifndef AMGCL_NO_BOOST
         params(const boost::property_tree::ptree &p)
             : AMGCL_PARAMS_IMPORT_VALUE(p, eps_strong)
         {
-            check_params(p, {"eps_strong", "block_size"});
+            int *c = 0;
+            c = p.get("color", c);
+
+            if (c) {
+                size_t nc = 0;
+                nc = p.get("nc", nc);
+
+                precondition(nc > 0,
+                        "Error in aggregation parameters: "
+                        "color is set, but nc is not");
+
+                color.assign(c, c + nc);
+            }
+
+            check_params(p, {"eps_strong", "block_size", "color", "nc"});
         }
 
         void get(boost::property_tree::ptree &p, const std::string &path) const {
@@ -122,6 +139,9 @@ struct plain_aggregates {
         scalar_type eps_squared = prm.eps_strong * prm.eps_strong;
 
         const size_t n = rows(A);
+        if (!prm.color.empty()) {
+            std::cout << "Have color" << std::endl;
+        }
 
         /* 1. Get strong connections */
         auto dia = diagonal(A);
@@ -133,7 +153,11 @@ struct plain_aggregates {
                 ptrdiff_t c = A.col[j];
                 value_type v = A.val[j];
 
-                strong_connection[j] = (c != i) && (eps_dia_i * (*dia)[c] < v * v);
+                bool strong = (c != i) && (eps_dia_i * (*dia)[c] < v * v);
+                if (!prm.color.empty()) {
+                    strong = strong && (prm.color[i] == prm.color[c]);
+                }
+                strong_connection[j] = strong;
             }
         }
 
