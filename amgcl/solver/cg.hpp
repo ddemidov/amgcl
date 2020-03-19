@@ -142,17 +142,18 @@ class cg {
             static const coef_type one  = math::identity<coef_type>();
             static const coef_type zero = math::zero<coef_type>();
 
-            backend::residual(rhs, A, x, *r);
             scalar_type norm_rhs = norm(rhs);
             if (norm_rhs < amgcl::detail::eps<scalar_type>(1)) {
                 backend::clear(x);
                 return std::make_tuple(0, norm_rhs);
             }
 
-            scalar_type eps  = std::max(prm.tol * norm_rhs, prm.abstol);
+            scalar_type eps = std::max(prm.tol * norm_rhs, prm.abstol);
 
             coef_type rho1 = 2 * eps * one;
             coef_type rho2 = zero;
+
+            backend::residual(rhs, A, x, *r);
             scalar_type res_norm = norm(*r);
 
             size_t iter = 0;
