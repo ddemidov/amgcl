@@ -72,9 +72,9 @@ struct ilu0< backend::cuda<real> > {
     ilu0( const Matrix &A, const params &, const typename Backend::params &bprm)
         : prm(prm), handle(bprm.cusparse_handle),
           n(backend::rows(A)), nnz(backend::nonzeros(A)),
-          ptr(A.ptr, A.ptr + n+1),
-          col(A.col, A.col + nnz),
-          val(A.val, A.val + nnz),
+          ptr(backend::ptr_data(A), backend::ptr_data(A) + n+1),
+          col(backend::col_data(A), backend::col_data(A) + nnz),
+          val(backend::val_data(A), backend::val_data(A) + nnz),
           y(n)
     {
         // Create matrix descriptors.
