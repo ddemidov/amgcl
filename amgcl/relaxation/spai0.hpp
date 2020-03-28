@@ -72,7 +72,7 @@ struct spai0 {
                 value_type v = a.value();
                 scalar_type norm_v = math::norm(v);
                 den += norm_v * norm_v;
-                if (a.col() == i) num += v;
+                if (static_cast<ptrdiff_t>(a.col()) == i) num += v;
             }
 
             (*m)[i] = math::inverse(den) * num;
