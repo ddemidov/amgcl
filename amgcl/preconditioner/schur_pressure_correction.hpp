@@ -443,6 +443,8 @@ class schur_pressure_correction {
             os << "Schur complement (two-stage preconditioner)" << std::endl;
             os << "  unknowns: " << p.n << "(" << p.np << ")" << std::endl;
             os << "  nonzeros: " << backend::nonzeros(p.system_matrix()) << std::endl;
+            os << "\n[ U ]\n" << *p.U << std::endl;
+            os << "\n[ P ]\n" << *p.P << std::endl;
 
             return os;
         }
