@@ -232,6 +232,29 @@ class schur_pressure_correction {
             return *K;
         }
 
+        size_t bytes() const {
+            size_t b = 0;
+
+            b += backend::bytes(*K);
+            b += backend::bytes(*Kup);
+            b += backend::bytes(*Kpu);
+            b += backend::bytes(*x2u);
+            b += backend::bytes(*x2p);
+            b += backend::bytes(*u2x);
+            b += backend::bytes(*p2x);
+            b += backend::bytes(*rhs_u);
+            b += backend::bytes(*rhs_p);
+            b += backend::bytes(*u);
+            b += backend::bytes(*p);
+            b += backend::bytes(*tmp);
+            b += backend::bytes(*U);
+            b += backend::bytes(*P);
+
+            if (M) b += backend::bytes(*M);
+
+            return b;
+        }
+
         template <class Alpha, class Vec1, class Beta, class Vec2>
         void spmv(Alpha alpha, const Vec1 &x, Beta beta, Vec2 &y) const {
             // y = beta y + alpha S x, where S = Kpp - Kpu Kuu^-1 Kup
@@ -441,10 +464,12 @@ class schur_pressure_correction {
 
         friend std::ostream& operator<<(std::ostream &os, const schur_pressure_correction &p) {
             os << "Schur complement (two-stage preconditioner)" << std::endl;
-            os << "  unknowns: " << p.n << "(" << p.np << ")" << std::endl;
-            os << "  nonzeros: " << backend::nonzeros(p.system_matrix()) << std::endl;
-            os << "\n[ U ]\n" << *p.U << std::endl;
-            os << "\n[ P ]\n" << *p.P << std::endl;
+            os << "  Unknowns: " << p.n << "(" << p.np << ")" << std::endl;
+            os << "  Nonzeros: " << backend::nonzeros(p.system_matrix()) << std::endl;
+            os << "  Memory:  " << human_readable_memory(p.bytes()) << std::endl;
+            os << std::endl;
+            os << "[ U ]\n" << *p.U << std::endl;
+            os << "[ P ]\n" << *p.P << std::endl;
 
             return os;
         }

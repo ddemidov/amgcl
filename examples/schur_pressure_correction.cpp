@@ -108,7 +108,7 @@ solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tre
         > solve(K, prm, bprm);
     prof.toc("setup");
 
-    std::cout << solve.precond() << std::endl;
+    std::cout << solve << std::endl;
 
     auto f = Backend::copy_vector(rhs, bprm);
     auto x = Backend::create_vector(rhs.size(), bprm);

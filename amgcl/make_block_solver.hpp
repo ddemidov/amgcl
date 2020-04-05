@@ -78,6 +78,10 @@ class make_block_solver {
         friend std::ostream& operator<<(std::ostream &os, const make_block_solver &p) {
             return os << *p.S << std::endl;
         }
+
+        size_t bytes() const {
+            return backend::bytes(*S);
+        }
     private:
         typedef make_solver<Precond, IterativeSolver> Solver;
         std::shared_ptr<Solver> S;
