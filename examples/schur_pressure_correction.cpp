@@ -24,7 +24,8 @@
 #  include <amgcl/value_type/static_matrix.hpp>
 #  include <amgcl/adapter/block_matrix.hpp>
 #  include <amgcl/make_block_solver.hpp>
-   typedef amgcl::backend::builtin<double> Backend;
+   typedef amgcl::backend::builtin<double> SBackend;
+   typedef amgcl::backend::builtin<float> Backend;
 #endif
 
 #include <amgcl/make_solver.hpp>
@@ -104,14 +105,14 @@ solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tre
     prof.tic("setup");
     amgcl::make_solver<
         amgcl::preconditioner::schur_pressure_correction<USolver, PSolver>,
-        amgcl::runtime::solver::wrapper<Backend>
+        amgcl::runtime::solver::wrapper<SBackend>
         > solve(K, prm, bprm);
     prof.toc("setup");
 
     std::cout << solve << std::endl;
 
-    auto f = Backend::copy_vector(rhs, bprm);
-    auto x = Backend::create_vector(rhs.size(), bprm);
+    auto f = SBackend::copy_vector(rhs, bprm);
+    auto x = SBackend::create_vector(rhs.size(), bprm);
     amgcl::backend::clear(*x);
 
     size_t iters;
@@ -127,7 +128,7 @@ solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tre
 
 #define AMGCL_BLOCK_PSOLVER(z, data, B)                                        \
   case B: {                                                                    \
-    typedef amgcl::backend::builtin<amgcl::static_matrix<double, B, B> >       \
+    typedef amgcl::backend::builtin<amgcl::static_matrix<float, B, B> >        \
         BBackend;                                                              \
     typedef amgcl::make_block_solver<                                          \
         amgcl::runtime::preconditioner<BBackend>,                              \
@@ -162,7 +163,7 @@ void solve_schur(int pb, const Matrix &K, const std::vector<double> &rhs, boost:
 
 #define AMGCL_BLOCK_USOLVER(z, data, B)                                        \
   case B: {                                                                    \
-    typedef amgcl::backend::builtin<amgcl::static_matrix<double, B, B> >       \
+    typedef amgcl::backend::builtin<amgcl::static_matrix<float, B, B> >        \
         BBackend;                                                              \
     typedef amgcl::make_block_solver<                                          \
         amgcl::runtime::preconditioner<BBackend>,                              \
