@@ -32,6 +32,7 @@ add_amgcl_example(cpr cpr.cpp)
 add_amgcl_example(cpr_drs cpr_drs.cpp)
 add_amgcl_example(custom_adapter custom_adapter.cpp)
 add_amgcl_example(mixed_precision mixed_precision.cpp)
+add_amgcl_example(schurpc_mixed schurpc_mixed.cpp)
 
 add_amgcl_example(ublas ublas.cpp)
 target_link_libraries(ublas ${Boost_SERIALIZATION_LIBRARY})
@@ -79,6 +80,10 @@ if (VexCL_FOUND)
     vexcl_add_executables(mixed_precision_vexcl mixed_precision.cpp)
     target_link_libraries(mixed_precision_vexcl INTERFACE amgcl_example)
     target_compile_definitions(mixed_precision_vexcl INTERFACE SOLVER_BACKEND_VEXCL)
+
+    vexcl_add_executables(schurpc_mixed_vexcl schurpc_mixed.cpp)
+    target_link_libraries(schurpc_mixed_vexcl INTERFACE amgcl_example)
+    target_compile_definitions(schurpc_mixed_vexcl INTERFACE SOLVER_BACKEND_VEXCL)
 endif()
 
 if (TARGET viennacl_target)
