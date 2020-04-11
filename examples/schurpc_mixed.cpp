@@ -109,7 +109,7 @@ solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tre
     double error;
 
     prof.tic("solve");
-    std::tie(iters, error) = solve(*f, *x);
+    std::tie(iters, error) = solve(K, *f, *x);
     prof.toc("solve");
 
     std::cout << "Iterations: " << iters << std::endl
