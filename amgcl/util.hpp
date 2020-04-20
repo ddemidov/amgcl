@@ -107,8 +107,30 @@ void precondition(const Condition &condition, const Message &message) {
 #define AMGCL_PARAMS_EXPORT_VALUE(p, path, name)                               \
     p.put(std::string(path) + #name, name)
 
+namespace detail {
+
+template <typename T>
+inline void params_export_child(
+        boost::property_tree::ptree &p,
+        const std::string &path,
+        const char *name, const T &obj)
+{
+    obj.get(p, std::string(path) + name + ".");
+}
+
+template <>
+inline void params_export_child(
+        boost::property_tree::ptree &p,
+        const std::string &path, const char *name,
+        const boost::property_tree::ptree &obj)
+{
+    p.add_child(std::string(path) + name, obj);
+}
+
+} // namespace detail
+
 #define AMGCL_PARAMS_EXPORT_CHILD(p, path, name)                               \
-    name.get(p, std::string(path) + #name + ".")
+    amgcl::detail::params_export_child(p, path, #name, name)
 
 // Missing parameter action
 #ifndef AMGCL_PARAM_MISSING
