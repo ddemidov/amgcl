@@ -94,7 +94,8 @@ class schur_pressure_correction {
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, usolver),
                   AMGCL_PARAMS_IMPORT_CHILD(p, psolver),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, approx_schur)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, approx_schur),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, adjust_p)
             {
                 size_t n = 0;
 
@@ -142,7 +143,7 @@ class schur_pressure_correction {
                             );
                 }
 
-                check_params(p, {"usolver", "psolver", "approx_schur", "pmask_size"},
+                check_params(p, {"usolver", "psolver", "approx_schur", "adjust_p", "pmask_size"},
                         {"pmask", "pmask_pattern"});
             }
 
@@ -151,6 +152,7 @@ class schur_pressure_correction {
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, usolver);
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, psolver);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, approx_schur);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, adjust_p);
             }
 #endif
         } prm;
