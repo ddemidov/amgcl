@@ -42,34 +42,9 @@ namespace amgcl { profiler<> prof; }
 using amgcl::prof;
 using amgcl::precondition;
 
-template <class USolver, class PSolver, class Matrix>
-typename std::enable_if<
-    (
-        amgcl::math::static_rows<
-            typename amgcl::preconditioner::detail::common_backend<
-                typename USolver::backend_type,
-                typename PSolver::backend_type
-            >::type::value_type
-        >::value > 1
-    ),
-    void
-    >::type
-solve_schur(const Matrix&, const std::vector<double>&, boost::property_tree::ptree&)
-{}
-
 //---------------------------------------------------------------------------
 template <class USolver, class PSolver, class Matrix>
-typename std::enable_if<
-    (
-        amgcl::math::static_rows<
-            typename amgcl::preconditioner::detail::common_backend<
-                typename USolver::backend_type,
-                typename PSolver::backend_type
-            >::type::value_type
-        >::value == 1
-    ),
-    void>::type
-solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
+void solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
 {
     typedef Backend<double> SBackend;
     SBackend::params bprm;
@@ -164,9 +139,6 @@ void solve_schur(int pb, const Matrix &K, const std::vector<double> &rhs, boost:
 template <class Matrix>
 void solve_schur(int ub, int pb, const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
 {
-    precondition(ub == 1 || pb == 1,
-            "At least one of the flow/pressure subproblems has to be scalar");
-
     switch (ub) {
         case 1:
             {

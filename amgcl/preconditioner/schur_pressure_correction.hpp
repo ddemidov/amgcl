@@ -37,37 +37,11 @@ THE SOFTWARE.
 #include <memory>
 
 #include <amgcl/backend/builtin.hpp>
+#include <amgcl/backend/detail/mixing.hpp>
 #include <amgcl/util.hpp>
 
 namespace amgcl {
 namespace preconditioner {
-
-namespace detail {
-
-// Backend for schur complement preconditioner is selected as the one with
-// lower dimensionality of its value_type.
-
-template <class B1, class B2, class Enable = void>
-struct common_backend;
-
-template <class B>
-struct common_backend<B, B> {
-    typedef B type;
-};
-
-template <class V1, class V2>
-struct common_backend< backend::builtin<V1>, backend::builtin<V2>,
-    typename std::enable_if<!std::is_same<V1, V2>::value>::type >
-{
-    typedef
-        typename std::conditional<
-            (math::static_rows<V1>::value <= math::static_rows<V2>::value),
-            backend::builtin<V1>, backend::builtin<V2>
-            >::type
-        type;
-};
-
-} // namespace detail
 
 /// Schur-complement pressure correction preconditioner
 template <class USolver, class PSolver>
@@ -81,7 +55,7 @@ class schur_pressure_correction {
             );
     public:
         typedef
-            typename detail::common_backend<
+            typename backend::detail::common_scalar_backend<
                 typename USolver::backend_type,
                 typename PSolver::backend_type
                 >::type
