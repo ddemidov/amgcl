@@ -231,9 +231,9 @@ class schur_pressure_correction {
             b += backend::bytes(*tmp);
             b += backend::bytes(*U);
             b += backend::bytes(*P);
-            b += backend::bytes(*D);
 
             if (M) b += backend::bytes(*M);
+            if (D) b += backend::bytes(*D);
 
             return b;
         }
