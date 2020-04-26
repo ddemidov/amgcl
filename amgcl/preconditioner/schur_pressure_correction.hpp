@@ -82,7 +82,13 @@ class schur_pressure_correction {
             // When false, USolver is used instead.
             bool approx_schur;
 
-            params() : approx_schur(true) {}
+            // Adjust preconditioner matrix for the P problem.
+            // That is,
+            //   use Kpp - dia(Kpu * dia(Kuu)^1 * Kup) when set,
+            //   use Kpp otherwise
+            bool adjust_p;
+
+            params() : approx_schur(false), adjust_p(true) {}
 
 #ifndef AMGCL_NO_BOOST
             params(const boost::property_tree::ptree &p)
@@ -234,7 +240,8 @@ class schur_pressure_correction {
         void spmv(Alpha alpha, const Vec1 &x, Beta beta, Vec2 &y) const {
             // y = beta y + alpha S x, where S = (Kpp + D) - Kpu Kuu^-1 Kup
             backend::spmv( alpha, P->system_matrix(), x, beta, y);
-            backend::vmul( alpha, *D, x, 1, y);
+            if (prm.adjust_p)
+                backend::vmul( alpha, *D, x, 1, y);
 
             backend::spmv(1, *Kup, x, 0, *tmp);
 
@@ -351,32 +358,36 @@ class schur_pressure_correction {
                 }
             }
 
-            // Use (Kpp - dia(Kpu * dia(Kuu)^-1 * Kup)) to setup the P
-            // preconditioner.
             auto Kuu_dia = diagonal(*Kuu, /*invert = */true);
-            auto L = std::make_shared<backend::numa_vector<value_type>>(np, false);
+
+            if (prm.adjust_p) {
+                // Use (Kpp - dia(Kpu * dia(Kuu)^-1 * Kup)) to setup the P
+                // preconditioner.
+                auto L = std::make_shared<backend::numa_vector<value_type>>(np, false);
 
 #pragma omp parallel for
-            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(np); ++i) {
-                value_type s = math::zero<value_type>();
-                for(ptrdiff_t j = Kpu->ptr[i], e = Kpu->ptr[i+1]; j < e; ++j) {
-                    ptrdiff_t  k = Kpu->col[j];
-                    value_type v = Kpu->val[j];
-                    for(ptrdiff_t jj = Kup->ptr[k], ee = Kup->ptr[k+1]; jj < ee; ++jj) {
-                        if (Kup->col[jj] == i) {
-                            s += v * (*Kuu_dia)[k] * Kup->val[jj];
+                for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(np); ++i) {
+                    value_type s = math::zero<value_type>();
+                    for(ptrdiff_t j = Kpu->ptr[i], e = Kpu->ptr[i+1]; j < e; ++j) {
+                        ptrdiff_t  k = Kpu->col[j];
+                        value_type v = Kpu->val[j];
+                        for(ptrdiff_t jj = Kup->ptr[k], ee = Kup->ptr[k+1]; jj < ee; ++jj) {
+                            if (Kup->col[jj] == i) {
+                                s += v * (*Kuu_dia)[k] * Kup->val[jj];
+                                break;
+                            }
+                        }
+                    }
+
+                    (*L)[i] = s;
+                    for(ptrdiff_t j = Kpp->ptr[i], e = Kpp->ptr[i+1]; j < e; ++j) {
+                        if (Kpp->col[j] == i) {
+                            Kpp->val[j] -= s;
                             break;
                         }
                     }
                 }
-
-                (*L)[i] = s;
-                for(ptrdiff_t j = Kpp->ptr[i], e = Kpp->ptr[i+1]; j < e; ++j) {
-                    if (Kpp->col[j] == i) {
-                        Kpp->val[j] -= s;
-                        break;
-                    }
-                }
+                D = backend_type::copy_vector(L, bprm);
             }
 
             U = std::make_shared<USolver>(*Kuu, prm.usolver, bprm);
@@ -395,8 +406,6 @@ class schur_pressure_correction {
 
             if (prm.approx_schur)
                 M = backend_type::copy_vector(Kuu_dia, bprm);
-
-            D = backend_type::copy_vector(L, bprm);
 
             // Scatter/Gather matrices
             auto x2u = std::make_shared<build_matrix>();
