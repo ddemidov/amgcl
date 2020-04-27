@@ -33,6 +33,7 @@ add_amgcl_example(cpr_drs cpr_drs.cpp)
 add_amgcl_example(custom_adapter custom_adapter.cpp)
 add_amgcl_example(mixed_precision mixed_precision.cpp)
 add_amgcl_example(schurpc_mixed schurpc_mixed.cpp)
+add_amgcl_example(uzawa uzawa.cpp)
 
 add_amgcl_example(ublas ublas.cpp)
 target_link_libraries(ublas ${Boost_SERIALIZATION_LIBRARY})
@@ -84,6 +85,10 @@ if (VexCL_FOUND)
     vexcl_add_executables(schurpc_mixed_vexcl schurpc_mixed.cpp)
     target_link_libraries(schurpc_mixed_vexcl INTERFACE amgcl_example)
     target_compile_definitions(schurpc_mixed_vexcl INTERFACE SOLVER_BACKEND_VEXCL)
+
+    vexcl_add_executables(uzawa_vexcl uzawa.cpp)
+    target_link_libraries(uzawa_vexcl INTERFACE amgcl_example)
+    target_compile_definitions(uzawa_vexcl INTERFACE SOLVER_BACKEND_VEXCL)
 endif()
 
 if (TARGET viennacl_target)
@@ -94,6 +99,10 @@ if (TARGET viennacl_target)
     add_amgcl_example(schur_pressure_correction_viennacl schur_pressure_correction.cpp)
     target_link_libraries(schur_pressure_correction_viennacl viennacl_target)
     target_compile_definitions(schur_pressure_correction_viennacl PRIVATE SOLVER_BACKEND_VIENNACL)
+
+    add_amgcl_example(uzawa_viennacl uzawa.cpp)
+    target_link_libraries(uzawa_viennacl viennacl_target)
+    target_compile_definitions(uzawa_viennacl PRIVATE SOLVER_BACKEND_VIENNACL)
 
     add_amgcl_example(cpr_drs_viennacl cpr_drs.cpp)
     target_link_libraries(cpr_drs_viennacl viennacl_target)
@@ -115,6 +124,7 @@ if (TARGET cuda_target)
 
     add_cuda_example(solver)
     add_cuda_example(schur_pressure_correction)
+    add_cuda_example(uzawa)
     add_cuda_example(cpr_drs)
 endif()
 
