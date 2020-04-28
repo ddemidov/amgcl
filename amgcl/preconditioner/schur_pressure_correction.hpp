@@ -243,12 +243,13 @@ class schur_pressure_correction {
         template <class Alpha, class Vec1, class Beta, class Vec2>
         void spmv(Alpha alpha, const Vec1 &x, Beta beta, Vec2 &y) const {
             // y = beta y + alpha S x, where S = (Kpp + D) - Kpu Kuu^-1 Kup
-            backend::spmv( alpha, P->system_matrix(), x, beta, y);
-
-            if (prm.adjust_p == 1)
+            if (prm.adjust_p == 1) {
+                backend::spmv( alpha, P->system_matrix(), x, beta, y);
                 backend::vmul( alpha, *Ld, x, 1, y);
-            else if (prm.adjust_p == 2) {
-                backend::spmv( alpha, *Lm, x, 1, y);
+            } else if (prm.adjust_p == 2) {
+                backend::spmv( alpha, *Lm, x, beta, y);
+            } else {
+                backend::spmv( alpha, P->system_matrix(), x, beta, y);
             }
 
             backend::spmv(1, *Kup, x, 0, *tmp);
@@ -397,6 +398,8 @@ class schur_pressure_correction {
                 }
                 Ld = backend_type::copy_vector(L, bprm);
             } else if (prm.adjust_p == 2) {
+                Lm = backend_type::copy_matrix(Kpp, bprm);
+
                 // Use (Kpp - Kpu * dia(Kuu)^-1 * Kup)
                 // to setup the P preconditioner.
                 build_matrix T(*Kpu);
@@ -407,10 +410,9 @@ class schur_pressure_correction {
                     }
                 }
 
-                auto L = backend::product(T, *Kup);
-                Lm = backend_type::copy_matrix(L, bprm);
-
-                Kpp = backend::sum(math::identity<value_type>(), *Kpp, -math::identity<value_type>(), *L);
+                Kpp = backend::sum(
+                        math::identity<value_type>(), *Kpp,
+                       -math::identity<value_type>(), *backend::product(T, *Kup));
             }
 
             U = std::make_shared<USolver>(*Kuu, prm.usolver, bprm);
