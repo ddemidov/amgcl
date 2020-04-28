@@ -242,7 +242,7 @@ class schur_pressure_correction {
 
         template <class Alpha, class Vec1, class Beta, class Vec2>
         void spmv(Alpha alpha, const Vec1 &x, Beta beta, Vec2 &y) const {
-            // y = beta y + alpha S x, where S = (Kpp + D) - Kpu Kuu^-1 Kup
+            // y = beta y + alpha S x, where S = Kpp - Kpu Kuu^-1 Kup
             if (prm.adjust_p == 1) {
                 backend::spmv( alpha, P->system_matrix(), x, beta, y);
                 backend::vmul( alpha, *Ld, x, 1, y);
