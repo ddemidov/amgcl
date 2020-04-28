@@ -392,6 +392,94 @@ product(const crs<Val,Col,Ptr> &A, const crs<Val,Col,Ptr> &B, bool sort = false)
     return C;
 }
 
+/// Sum of two matrices
+template <class Val, class Col, class Ptr>
+std::shared_ptr< crs<Val, Col, Ptr> >
+sum(Val alpha, const crs<Val,Col,Ptr> &A, Val beta, const crs<Val,Col,Ptr> &B, bool sort = false) {
+    typedef ptrdiff_t Idx;
+
+    auto C = std::make_shared< crs<Val,Col,Ptr> >();
+    precondition(A.nrows == B.nrows && A.ncols == B.ncols , "matrices should have same shape!");
+    C->set_size(A.nrows, A.ncols);
+
+    C->ptr[0] = 0;
+
+#pragma omp parallel
+    {
+        std::vector<ptrdiff_t> marker(C->ncols, -1);
+
+#pragma omp for
+        for(Idx i = 0; i < static_cast<Idx>(C->nrows); ++i) {
+            Idx C_cols = 0;
+
+            for(Idx j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
+                Idx c = A.col[j];
+
+                if (marker[c] != i) {
+                    marker[c]  = i;
+                    ++C_cols;
+                }
+            }
+
+            for(Idx j = B.ptr[i], e = B.ptr[i+1]; j < e; ++j) {
+                Idx c = B.col[j];
+
+                if (marker[c] != i) {
+                    marker[c]  = i;
+                    ++C_cols;
+                }
+            }
+
+            C->ptr[i + 1] = C_cols;
+        }
+    }
+
+    C->set_nonzeros(C->scan_row_sizes());
+
+#pragma omp parallel
+    {
+        std::vector<ptrdiff_t> marker(C->ncols, -1);
+
+#pragma omp for
+        for(Idx i = 0; i < static_cast<Idx>(C->nrows); ++i) {
+            Idx row_beg = C->ptr[i];
+            Idx row_end = row_beg;
+
+            for(Idx j = A.ptr[i], e = A.ptr[i+1]; j < e; ++j) {
+                Idx c = A.col[j];
+                Val v = alpha * A.val[j];
+
+                if (marker[c] < row_beg) {
+                    marker[c] = row_end;
+                    C->col[row_end] = c;
+                    C->val[row_end] = v;
+                    ++row_end;
+                } else {
+                    C->val[marker[c]] += v;
+                }
+            }
+
+            for(Idx j = B.ptr[i], e = B.ptr[i+1]; j < e; ++j) {
+                Idx c = B.col[j];
+                Val v = beta * B.val[j];
+
+                if (marker[c] < row_beg) {
+                    marker[c] = row_end;
+                    C->col[row_end] = c;
+                    C->val[row_end] = v;
+                    ++row_end;
+                } else {
+                    C->val[marker[c]] += v;
+                }
+            }
+
+            if (sort) amgcl::detail::sort_row(
+                    C->col + row_beg, C->val + row_beg, row_end - row_beg);
+        }
+    }
+
+    return C;
+}
 
 /// Scale matrix values.
 template<class Val, class Col, class Ptr, class T>
