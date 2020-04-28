@@ -1230,7 +1230,9 @@ struct vmul_impl<
     typename std::enable_if<
         is_builtin_vector<Vec1>::value &&
         is_builtin_vector<Vec2>::value &&
-        is_builtin_vector<Vec3>::value
+        is_builtin_vector<Vec3>::value &&
+        math::static_rows<typename value_type<Vec1>::type>::value == math::static_rows<typename value_type<Vec2>::type>::value &&
+        math::static_rows<typename value_type<Vec1>::type>::value == math::static_rows<typename value_type<Vec3>::type>::value
         >::type
     >
 {
@@ -1246,6 +1248,48 @@ struct vmul_impl<
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
                 z[i] = a * x[i] * y[i];
+            }
+        }
+    }
+};
+
+// Support for mixed scalar/nonscalar types
+template < class Alpha, class Vec1, class Vec2, class Beta, class Vec3 >
+struct vmul_impl<
+    Alpha, Vec1, Vec2, Beta, Vec3,
+    typename std::enable_if<
+        is_builtin_vector<Vec1>::value &&
+        is_builtin_vector<Vec2>::value &&
+        is_builtin_vector<Vec3>::value &&
+        (
+         math::static_rows<typename value_type<Vec1>::type>::value != math::static_rows<typename value_type<Vec2>::type>::value ||
+         math::static_rows<typename value_type<Vec1>::type>::value != math::static_rows<typename value_type<Vec3>::type>::value
+        )
+        >::type
+    >
+{
+    static void apply(Alpha a, const Vec1 &x, const Vec2 &y, Beta b, Vec3 &z)
+    {
+        typedef typename value_type<Vec1>::type     M_type;
+        typedef typename math::rhs_of<M_type>::type x_type;
+
+        typedef typename math::replace_scalar<x_type, typename math::scalar_of<typename value_type<Vec2>::type>::type>::type y_type;
+        typedef typename math::replace_scalar<x_type, typename math::scalar_of<typename value_type<Vec3>::type>::type>::type z_type;
+
+        const size_t n = x.size();
+
+        y_type const * yptr = reinterpret_cast<y_type const *>(&y[0]);
+        z_type       * zptr = reinterpret_cast<z_type       *>(&z[0]);
+
+        if (!math::is_zero(b)) {
+#pragma omp parallel for
+            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
+                zptr[i] = a * x[i] * yptr[i] + b * zptr[i];
+            }
+        } else {
+#pragma omp parallel for
+            for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
+                zptr[i] = a * x[i] * yptr[i];
             }
         }
     }
