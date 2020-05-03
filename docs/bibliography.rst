@@ -10,6 +10,7 @@ Bibliography
 .. [BrMH85] Brandt, A., McCormick, S., & Huge, J. (1985). Algebraic multigrid (AMG) for sparse matrix equations. Sparsity and its Applications, 257.
 .. [CaGP73] Caretto, L. S., et al. "Two calculation procedures for steady, three-dimensional flows with recirculation." Proceedings of the third international conference on numerical methods in fluid mechanics. Springer Berlin Heidelberg, 1973.
 .. [DeSh12] Demidov, D. E., and Shevchenko, D. V. "Modification of algebraic multigrid for effective GPGPU-based solution of nonstationary hydrodynamics problems." Journal of Computational Science 3.6 (2012): 460-462.
+.. [ElHS08] Elman, Howard, et al. "A taxonomy and comparison of parallel block multi-level preconditioners for the incompressible Navier–Stokes equations." Journal of Computational Physics 227.3 (2008): 1790-1808.
 .. [Fokk96] Fokkema, Diederik R. "Enhanced implementation of BiCGstab (l) for solving linear systems of equations." Universiteit Utrecht. Mathematisch Instituut, 1996.
 .. [FrVu01] Frank, Jason, and Cornelis Vuik. "On the construction of deflation-based preconditioners." SIAM Journal on Scientific Computing 23.2 (2001): 442-462.
 .. [GhKK12] P. Ghysels, P. Kłosiewicz, and W. Vanroose. "Improving the arithmetic intensity of multigrid with the help of polynomial smoothers".  Numer. Linear Algebra Appl. 2012;19:253-267. DOI: 10.1002/nla.1808.

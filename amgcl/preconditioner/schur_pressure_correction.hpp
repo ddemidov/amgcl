@@ -89,14 +89,19 @@ class schur_pressure_correction {
             //   Kpp - Kpu * dia(Kuu)^1 * Kup       when adjust_p == 2
             int adjust_p;
 
-            params() : approx_schur(false), adjust_p(0) {}
+            // Use 1/sum_j(abs(Kuu_{i,j})) instead of dia(Kuu)^-1
+            // as approximation for the Kuu^-1 (as in SIMPLEC algorithm)
+            bool simplec_dia;
+
+            params() : approx_schur(false), adjust_p(1), simplec_dia(true) {}
 
 #ifndef AMGCL_NO_BOOST
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, usolver),
                   AMGCL_PARAMS_IMPORT_CHILD(p, psolver),
                   AMGCL_PARAMS_IMPORT_VALUE(p, approx_schur),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, adjust_p)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, adjust_p),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, simplec_dia)
             {
                 size_t n = 0;
 
@@ -144,7 +149,7 @@ class schur_pressure_correction {
                             );
                 }
 
-                check_params(p, {"usolver", "psolver", "approx_schur", "adjust_p", "pmask_size"},
+                check_params(p, {"usolver", "psolver", "approx_schur", "adjust_p", "simplec_dia", "pmask_size"},
                         {"pmask", "pmask_pattern"});
             }
 
@@ -154,6 +159,7 @@ class schur_pressure_correction {
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, psolver);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, approx_schur);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, adjust_p);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, simplec_dia);
             }
 #endif
         } prm;
@@ -367,7 +373,23 @@ class schur_pressure_correction {
                 }
             }
 
-            auto Kuu_dia = diagonal(*Kuu, /*invert = */true);
+            std::shared_ptr<backend::numa_vector<value_type>> Kuu_dia;
+
+            if (prm.simplec_dia) {
+                std::cout << "simplec_dia" << std::endl;
+                Kuu_dia = std::make_shared<backend::numa_vector<value_type>>(nu);
+#pragma omp parallel for
+                for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(nu); ++i) {
+                    value_type s = math::zero<value_type>();
+                    for(ptrdiff_t j = Kuu->ptr[i], e = Kuu->ptr[i+1]; j < e; ++j) {
+                        s += math::norm(Kuu->val[j]);
+                    }
+                    (*Kuu_dia)[i] = math::inverse(s);
+                }
+            } else {
+                std::cout << "not simplec_dia" << std::endl;
+                Kuu_dia = diagonal(*Kuu, /*invert = */true);
+            }
 
             if (prm.adjust_p == 1) {
                 // Use (Kpp - dia(Kpu * dia(Kuu)^-1 * Kup))
