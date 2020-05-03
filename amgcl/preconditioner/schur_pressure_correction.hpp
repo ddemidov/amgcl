@@ -376,7 +376,6 @@ class schur_pressure_correction {
             std::shared_ptr<backend::numa_vector<value_type>> Kuu_dia;
 
             if (prm.simplec_dia) {
-                std::cout << "simplec_dia" << std::endl;
                 Kuu_dia = std::make_shared<backend::numa_vector<value_type>>(nu);
 #pragma omp parallel for
                 for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(nu); ++i) {
@@ -387,7 +386,6 @@ class schur_pressure_correction {
                     (*Kuu_dia)[i] = math::inverse(s);
                 }
             } else {
-                std::cout << "not simplec_dia" << std::endl;
                 Kuu_dia = diagonal(*Kuu, /*invert = */true);
             }
 
