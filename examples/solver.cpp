@@ -415,6 +415,11 @@ int main(int argc, char *argv[]) {
          "It is assumed the files were converted to binary format with mm2bin utility. "
         )
         (
+         "scale,s",
+         po::bool_switch()->default_value(false),
+         "Scale the matrix so that the diagonal is unit. "
+        )
+        (
          "block-size,b",
          po::value<int>()->default_value(1),
          "The block size of the system matrix. "
@@ -560,6 +565,27 @@ int main(int argc, char *argv[]) {
     } else {
         auto t = prof.scoped_tic("assembling");
         rows = sample_problem(vm["size"].as<int>(), val, col, ptr, rhs, vm["anisotropy"].as<double>());
+    }
+
+    if (vm["scale"].as<bool>()) {
+        std::vector<double> dia(rows, 1.0);
+
+        for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(rows); ++i) {
+            double d = 1.0;
+            for(ptrdiff_t j = ptr[i], e = ptr[i+1]; j < e; ++j) {
+                if (col[j] == i) {
+                    d = 1 / sqrt(val[j]);
+                }
+            }
+            if (!std::isnan(d)) dia[i] = d;
+        }
+
+        for (ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(rows); ++i) {
+            rhs[i] *= dia[i];
+            for(ptrdiff_t j = ptr[i], e = ptr[i+1]; j < e; ++j) {
+                val[j] *= dia[i] * dia[col[j]];
+            }
+        }
     }
 
     x.resize(rows, vm["initial"].as<double>());
