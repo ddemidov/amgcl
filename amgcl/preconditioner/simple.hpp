@@ -30,6 +30,10 @@ THE SOFTWARE.
  * \file   amgcl/preconditioner/simple.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
  * \brief  SIMPLE[C] preconditioning scheme.
+ *
+ * [1] Elman, Howard, et al. "A taxonomy and comparison of parallel block
+ *     multi-level preconditioners for the incompressible Navier–Stokes
+ *     equations." Journal of Computational Physics 227.3 (2008): 1790-1808.
  */
 
 #include <vector>

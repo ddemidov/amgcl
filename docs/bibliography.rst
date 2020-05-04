@@ -15,6 +15,7 @@ Bibliography
 .. [FrVu01] Frank, Jason, and Cornelis Vuik. "On the construction of deflation-based preconditioners." SIAM Journal on Scientific Computing 23.2 (2001): 442-462.
 .. [GhKK12] P. Ghysels, P. Kłosiewicz, and W. Vanroose. "Improving the arithmetic intensity of multigrid with the help of polynomial smoothers".  Numer. Linear Algebra Appl. 2012;19:253-267. DOI: 10.1002/nla.1808.
 .. [GiSo11] Van Gijzen, Martin B., and Peter Sonneveld. "Algorithm 913: An elegant IDR (s) variant that efficiently exploits biorthogonality properties." ACM Transactions on Mathematical Software (TOMS) 38.1 (2011): 5.
+.. [GmHJ15] Gmeiner, Björn, et al. "A quantitative performance analysis for Stokes solvers at the extreme scale." arXiv preprint arXiv:1511.02134 (2015).
 .. [Saad03] Saad, Yousef. Iterative methods for sparse linear systems. Siam, 2003.
 .. [SaTu08] Sala, Marzio, and Raymond S. Tuminaro. "A new Petrov-Galerkin smoothed aggregation preconditioner for nonsymmetric linear systems." SIAM Journal on Scientific Computing 31.1 (2008): 143-166.
 .. [SlDi93] Sleijpen, Gerard LG, and Diederik R. Fokkema. "BiCGstab (l) for linear equations involving unsymmetric matrices with complex spectrum." Electronic Transactions on Numerical Analysis 1.11 (1993): 2000.

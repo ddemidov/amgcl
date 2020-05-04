@@ -30,6 +30,13 @@ THE SOFTWARE.
  * \file   amgcl/preconditioner/schur_pressure_correction.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
  * \brief  Schur-complement pressure correction preconditioning scheme.
+ *
+ * [1]  Gmeiner, Björn, et al. "A quantitative performance analysis for Stokes
+ *      solvers at the extreme scale." arXiv preprint arXiv:1511.02134 (2015).
+ * [2] Vincent, C., and R. Boyer. "A preconditioned conjugate gradient
+ *     Uzawa‐type method for the solution of the Stokes problem by mixed Q1–P0
+ *     stabilized finite elements." International journal for numerical methods
+ *     in fluids 14.3 (1992): 289-298.
  */
 
 #include <vector>
