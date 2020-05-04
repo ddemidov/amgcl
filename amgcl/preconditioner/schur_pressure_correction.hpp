@@ -389,6 +389,9 @@ class schur_pressure_correction {
                 Kuu_dia = diagonal(*Kuu, /*invert = */true);
             }
 
+            this->Kup = backend_type::copy_matrix(Kup, bprm);
+            this->Kpu = backend_type::copy_matrix(Kpu, bprm);
+
             if (prm.adjust_p == 1) {
                 // Use (Kpp - dia(Kpu * dia(Kuu)^-1 * Kup))
                 // to setup the P preconditioner.
@@ -422,24 +425,21 @@ class schur_pressure_correction {
 
                 // Use (Kpp - Kpu * dia(Kuu)^-1 * Kup)
                 // to setup the P preconditioner.
-                build_matrix T(*Kpu);
 #pragma omp parallel for
-                for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(np); ++i) {
-                    for(ptrdiff_t j = T.ptr[i], e = T.ptr[i+1]; j < e; ++j) {
-                        T.val[j] *= (*Kuu_dia)[T.col[j]];
+                for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(nu); ++i) {
+                    value_type d = (*Kuu_dia)[i];
+                    for(ptrdiff_t j = Kup->ptr[i], e = Kup->ptr[i+1]; j < e; ++j) {
+                        Kup->val[j] *= d;
                     }
                 }
 
                 Kpp = backend::sum(
                         math::identity<value_type>(), *Kpp,
-                       -math::identity<value_type>(), *backend::product(T, *Kup));
+                       -math::identity<value_type>(), *backend::product(*Kpu, *Kup));
             }
 
             U = std::make_shared<USolver>(*Kuu, prm.usolver, bprm);
             P = std::make_shared<PSolver>(*Kpp, prm.psolver, bprm);
-
-            this->Kup = backend_type::copy_matrix(Kup, bprm);
-            this->Kpu = backend_type::copy_matrix(Kpu, bprm);
 
             rhs_u = backend_type::create_vector(nu, bprm);
             rhs_p = backend_type::create_vector(np, bprm);
