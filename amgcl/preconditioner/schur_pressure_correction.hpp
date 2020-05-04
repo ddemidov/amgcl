@@ -190,7 +190,7 @@ class schur_pressure_correction {
             backend::spmv(1, *x2u, rhs, 0, *rhs_u);
             backend::spmv(1, *x2p, rhs, 0, *rhs_p);
 
-            // Ai u = rhs_u
+            // Kuu u = rhs_u
             backend::clear(*u);
             report("U1", (*U)(*rhs_u, *u));
 
@@ -204,7 +204,7 @@ class schur_pressure_correction {
             // rhs_u -= Kup p
             backend::spmv(-1, *Kup, *p, 1, *rhs_u);
 
-            // Ai u = rhs_u
+            // Kuu u = rhs_u
             backend::clear(*u);
             report("U2", (*U)(*rhs_u, *u));
 
