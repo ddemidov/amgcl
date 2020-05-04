@@ -94,7 +94,9 @@ struct aggregation {
          */
         float over_interp;
 
-        params() : over_interp(1.5f) { }
+        params()
+            : over_interp(math::static_rows<typename Backend::value_type>::value == 1 ? 1.5f : 2.0f)
+        {}
 
 #ifndef AMGCL_NO_BOOST
         params(const boost::property_tree::ptree &p)
