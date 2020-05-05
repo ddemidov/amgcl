@@ -84,12 +84,21 @@ class schur_pressure_correction {
 
             std::vector<char> pmask;
 
+            // Variant of block preconditioner to use in apply()
+            // 1: schur pressure correction:
+            //      S p = fp - Kpu Kuu^-1 fu
+            //      Kuu u = fu - Kup p
+            // 2: Block triangular:
+            //      S p = fp
+            //      Kuu u = fu - Kup p
+            int type;
+
             // Approximate Kuu^-1 with inverted diagonal of Kuu during
             // construction of matrix-less Schur complement.
             // When false, USolver is used instead.
             bool approx_schur;
 
-            // Adjust preconditioner matrix for the P problem.
+            // Adjust preconditioner matrix for the Schur complement system.
             // That is, use
             //   Kpp                                when adjust_p == 0,
             //   Kpp - dia(Kpu * dia(Kuu)^1 * Kup)  when adjust_p == 1,
@@ -100,12 +109,13 @@ class schur_pressure_correction {
             // as approximation for the Kuu^-1 (as in SIMPLEC algorithm)
             bool simplec_dia;
 
-            params() : approx_schur(false), adjust_p(1), simplec_dia(true) {}
+            params() : type(1), approx_schur(false), adjust_p(1), simplec_dia(true) {}
 
 #ifndef AMGCL_NO_BOOST
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, usolver),
                   AMGCL_PARAMS_IMPORT_CHILD(p, psolver),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, type),
                   AMGCL_PARAMS_IMPORT_VALUE(p, approx_schur),
                   AMGCL_PARAMS_IMPORT_VALUE(p, adjust_p),
                   AMGCL_PARAMS_IMPORT_VALUE(p, simplec_dia)
@@ -156,7 +166,7 @@ class schur_pressure_correction {
                             );
                 }
 
-                check_params(p, {"usolver", "psolver", "approx_schur", "adjust_p", "simplec_dia", "pmask_size"},
+                check_params(p, {"usolver", "psolver", "type", "approx_schur", "adjust_p", "simplec_dia", "pmask_size"},
                         {"pmask", "pmask_pattern"});
             }
 
@@ -164,6 +174,7 @@ class schur_pressure_correction {
             {
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, usolver);
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, psolver);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, type);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, approx_schur);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, adjust_p);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, simplec_dia);
@@ -197,27 +208,62 @@ class schur_pressure_correction {
             backend::spmv(1, *x2u, rhs, 0, *rhs_u);
             backend::spmv(1, *x2p, rhs, 0, *rhs_p);
 
-            // Kuu u = rhs_u
-            backend::clear(*u);
-            report("U1", (*U)(*rhs_u, *u));
+            if (prm.type == 1) {
+                // Kuu u = rhs_u
+                backend::clear(*u);
+                report("U1", (*U)(*rhs_u, *u));
 
-            // rhs_p -= Kpu u
-            backend::spmv(-1, *Kpu, *u, 1, *rhs_p);
+                // rhs_p -= Kpu u
+                backend::spmv(-1, *Kpu, *u, 1, *rhs_p);
 
-            // S p = rhs_p
-            backend::clear(*p);
-            report("P1", (*P)(*this, *rhs_p, *p));
+                // S p = rhs_p
+                backend::clear(*p);
+                report("P1", (*P)(*this, *rhs_p, *p));
 
-            // rhs_u -= Kup p
-            backend::spmv(-1, *Kup, *p, 1, *rhs_u);
+                // rhs_u -= Kup p
+                backend::spmv(-1, *Kup, *p, 1, *rhs_u);
 
-            // Kuu u = rhs_u
-            backend::clear(*u);
-            report("U2", (*U)(*rhs_u, *u));
+                // Kuu u = rhs_u
+                backend::clear(*u);
+                report("U2", (*U)(*rhs_u, *u));
+            } else if (prm.type == 2) {
+                // S p = fp
+                backend::clear(*p);
+                report("P", (*P)(*this, *rhs_p, *p));
+
+                // Kuu u = fu - Kup p
+                backend::spmv(-1, *Kup, *p, 1, *rhs_u);
+                backend::clear(*u);
+                report("U", (*U)(*rhs_u, *u));
+            }
 
             backend::clear(x);
             backend::spmv(1, *u2x, *u, 1, x);
             backend::spmv(1, *p2x, *p, 1, x);
+        }
+
+        template <class Alpha, class Vec1, class Beta, class Vec2>
+        void spmv(Alpha alpha, const Vec1 &x, Beta beta, Vec2 &y) const {
+            // y = beta y + alpha S x, where S = Kpp - Kpu Kuu^-1 Kup
+            if (prm.adjust_p == 1) {
+                backend::spmv( alpha, P->system_matrix(), x, beta, y);
+                backend::vmul( alpha, *Ld, x, 1, y);
+            } else if (prm.adjust_p == 2) {
+                backend::spmv( alpha, *Lm, x, beta, y);
+            } else {
+                backend::spmv( alpha, P->system_matrix(), x, beta, y);
+            }
+
+            backend::spmv(1, *Kup, x, 0, *tmp);
+
+            if (prm.approx_schur) {
+                backend::vmul(1, *M, *tmp, 0, *u);
+            } else {
+                backend::clear(*u);
+                (*U)(*tmp, *u);
+            }
+
+            backend::spmv(-alpha, *Kpu, *u, 1, y);
         }
 
         std::shared_ptr<matrix> system_matrix_ptr() const {
@@ -253,29 +299,6 @@ class schur_pressure_correction {
             return b;
         }
 
-        template <class Alpha, class Vec1, class Beta, class Vec2>
-        void spmv(Alpha alpha, const Vec1 &x, Beta beta, Vec2 &y) const {
-            // y = beta y + alpha S x, where S = Kpp - Kpu Kuu^-1 Kup
-            if (prm.adjust_p == 1) {
-                backend::spmv( alpha, P->system_matrix(), x, beta, y);
-                backend::vmul( alpha, *Ld, x, 1, y);
-            } else if (prm.adjust_p == 2) {
-                backend::spmv( alpha, *Lm, x, beta, y);
-            } else {
-                backend::spmv( alpha, P->system_matrix(), x, beta, y);
-            }
-
-            backend::spmv(1, *Kup, x, 0, *tmp);
-
-            if (prm.approx_schur) {
-                backend::vmul(1, *M, *tmp, 0, *u);
-            } else {
-                backend::clear(*u);
-                (*U)(*tmp, *u);
-            }
-
-            backend::spmv(-alpha, *Kpu, *u, 1, y);
-        }
     private:
         size_t n, np, nu;
 
