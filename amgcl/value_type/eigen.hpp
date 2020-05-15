@@ -164,26 +164,6 @@ struct inverse_impl< Eigen::Matrix<T, N, N> >
 };
 
 } // namespace math
-
-namespace relaxation {
-template <class Backend> struct spai1;
-} //namespace relaxation
-
-namespace backend {
-
-template <class Backend>
-struct relaxation_is_supported<
-    Backend, relaxation::spai1,
-    typename std::enable_if<
-        std::is_base_of<
-            Eigen::MatrixBase<typename Backend::value_type>,
-            typename Backend::value_type
-            >::value
-        >::type
-    > : std::false_type
-{};
-
-} // namespace backend
 } // namespace amgcl
 
 namespace Eigen {
