@@ -330,25 +330,6 @@ struct inverse_impl< static_matrix<T, N, N> >
 
 
 } // namespace math
-
-namespace relaxation {
-template <class Backend> struct spai1;
-} //namespace relaxation
-
-namespace backend {
-
-template <class Backend>
-struct relaxation_is_supported<
-    Backend, relaxation::spai1,
-    typename std::enable_if<
-        amgcl::is_static_matrix<
-            typename Backend::value_type
-            >::value
-        >::type
-    > : std::false_type
-{};
-
-} // namespace backend
 } // namespace amgcl
 
 #endif
