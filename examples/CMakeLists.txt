@@ -41,6 +41,10 @@ if (TARGET eigen_target)
     add_amgcl_example(solver_eigen solver.cpp)
     target_link_libraries(solver_eigen eigen_target)
     target_compile_definitions(solver_eigen PRIVATE SOLVER_BACKEND_EIGEN)
+
+    add_amgcl_example(schurpc_mixed_eigen schurpc_mixed.cpp)
+    target_link_libraries(schurpc_mixed_eigen eigen_target)
+    target_compile_definitions(schurpc_mixed_eigen PRIVATE BLOCK_TYPE_EIGEN)
 endif()
 
 if (TARGET blaze_target)
