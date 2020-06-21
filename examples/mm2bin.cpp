@@ -1,17 +1,56 @@
 #include <iostream>
 #include <string>
+#include <complex>
 
 #include <boost/program_options.hpp>
 #include <amgcl/util.hpp>
+#include <amgcl/value_type/complex.hpp>
 #include <amgcl/io/mm.hpp>
 #include <amgcl/io/binary.hpp>
 
+namespace io = amgcl::io;
+namespace po = boost::program_options;
+using amgcl::precondition;
+
+//---------------------------------------------------------------------------
+template <class T>
+void convert(amgcl::io::mm_reader &ifile, const std::string &ofile) {
+    std::ofstream f(ofile, std::ios::binary);
+    precondition(f, "Failed to open output file for writing.");
+
+    if (ifile.is_sparse()) {
+        size_t rows, cols;
+        std::vector<ptrdiff_t> ptr, col;
+        std::vector<T> val;
+
+        std::tie(rows, cols) = ifile(ptr, col, val);
+
+        precondition(io::write(f, rows), "File I/O error.");
+        precondition(io::write(f, ptr),  "File I/O error.");
+        precondition(io::write(f, col),  "File I/O error.");
+        precondition(io::write(f, val),  "File I/O error.");
+
+        std::cout
+            << "Wrote " << rows << " by " << cols << " sparse matrix, "
+            << ptr.back() << " nonzeros" << std::endl;
+    } else {
+        size_t rows, cols;
+        std::vector<T> val;
+
+        std::tie(rows, cols) = ifile(val);
+
+        precondition(io::write(f, rows), "File I/O error.");
+        precondition(io::write(f, cols), "File I/O error.");
+        precondition(io::write(f, val),  "File I/O error.");
+
+        std::cout
+            << "Wrote " << rows << " by " << cols << " dense matrix"
+            << std::endl;
+    }
+}
+
+//---------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
-    namespace po = boost::program_options;
-    namespace io = amgcl::io;
-
-    using amgcl::precondition;
-
     po::options_description desc("Options");
 
     desc.add_options()
@@ -33,39 +72,11 @@ int main(int argc, char *argv[]) {
     po::notify(vm);
 
     io::mm_reader read(vm["input"].as<std::string>());
-    precondition(!read.is_complex(), "Complex matrices are not supported!");
     precondition(!read.is_integer(), "Integer matrices are not supported!");
 
-    std::ofstream f(vm["output"].as<std::string>().c_str(), std::ios::binary);
-    precondition(f, "Failed to open output file for writing.");
-
-    if (read.is_sparse()) {
-        size_t rows, cols;
-        std::vector<ptrdiff_t> ptr, col;
-        std::vector<double>    val;
-
-        std::tie(rows, cols) = read(ptr, col, val);
-
-        precondition(io::write(f, rows), "File I/O error.");
-        precondition(io::write(f, ptr),  "File I/O error.");
-        precondition(io::write(f, col),  "File I/O error.");
-        precondition(io::write(f, val),  "File I/O error.");
-
-        std::cout
-            << "Wrote " << rows << " by " << cols << " sparse matrix, "
-            << ptr.back() << " nonzeros" << std::endl;
+    if (read.is_complex()) {
+        convert<std::complex<double>>(read, vm["output"].as<std::string>());
     } else {
-        size_t rows, cols;
-        std::vector<double> val;
-
-        std::tie(rows, cols) = read(val);
-
-        precondition(io::write(f, rows), "File I/O error.");
-        precondition(io::write(f, cols), "File I/O error.");
-        precondition(io::write(f, val),  "File I/O error.");
-
-        std::cout
-            << "Wrote " << rows << " by " << cols << " dense matrix"
-            << std::endl;
+        convert<double>(read, vm["output"].as<std::string>());
     }
 }
