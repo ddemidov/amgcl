@@ -17,6 +17,7 @@
 #include <amgcl/amg.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/io/mm.hpp>
+#include <amgcl/io/binary.hpp>
 
 #include <amgcl/profiler.hpp>
 
@@ -104,6 +105,12 @@ int main(int argc, char *argv[]) {
          "Should only be provided together with a system matrix. "
         )
         (
+         "binary,B",
+         po::bool_switch()->default_value(false),
+         "When specified, treat input files as binary instead of as MatrixMarket. "
+         "It is assumed the files were converted to binary format with mm2bin utility. "
+        )
+        (
          "size,n",
          po::value<int>()->default_value(32),
          "The size of the Poisson problem to solve when no system matrix is given. "
@@ -157,16 +164,25 @@ int main(int argc, char *argv[]) {
         auto t = prof.scoped_tic("reading");
 
         string Afile = vm["matrix"].as<string>();
+        bool   binary = vm["binary"].as<bool>();
 
-        size_t cols;
-        std::tie(rows, cols) = io::mm_reader(Afile)(ptr, col, val);
-        precondition(rows == cols, "Non-square system matrix");
+        if (binary) {
+            io::read_crs(Afile, rows, ptr, col, val);
+        } else {
+            size_t cols;
+            std::tie(rows, cols) = io::mm_reader(Afile)(ptr, col, val);
+            precondition(rows == cols, "Non-square system matrix");
+        }
 
         if (vm.count("rhs")) {
             string bfile = vm["rhs"].as<string>();
 
             size_t n, m;
-            std::tie(n, m) = io::mm_reader(bfile)(rhs);
+            if (binary) {
+                io::read_dense(bfile, n, m, rhs);
+            } else {
+                std::tie(n, m) = io::mm_reader(bfile)(rhs);
+            }
 
             precondition(n == rows && m == 1, "The RHS vector has wrong size");
         } else {
@@ -177,7 +193,12 @@ int main(int argc, char *argv[]) {
             string nfile = vm["null"].as<string>();
 
             size_t m, nv;
-            std::tie(m, nv) = io::mm_reader(nfile)(null);
+
+            if (binary) {
+                io::read_dense(nfile, m, nv, null);
+            } else {
+                std::tie(m, nv) = io::mm_reader(nfile)(null);
+            }
 
             precondition(m == rows, "Near null-space vectors have wrong size");
 
