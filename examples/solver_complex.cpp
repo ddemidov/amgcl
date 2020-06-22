@@ -51,7 +51,7 @@ std::tuple<size_t, double> solve(
     Solver solve(std::tie(rows, ptr, col, val), prm, bprm);
     prof.toc("setup");
 
-    std::cout << solve.precond() << std::endl;
+    std::cout << solve << std::endl;
 
     {
         auto t = prof.scoped_tic("solve");
