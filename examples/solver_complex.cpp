@@ -5,9 +5,13 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/range/iterator_range.hpp>
+#include <boost/preprocessor/seq/for_each.hpp>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/value_type/complex.hpp>
+#include <amgcl/value_type/static_matrix.hpp>
+#include <amgcl/adapter/crs_tuple.hpp>
+#include <amgcl/adapter/block_matrix.hpp>
 
 #include <amgcl/solver/runtime.hpp>
 #include <amgcl/coarsening/runtime.hpp>
@@ -15,7 +19,6 @@
 #include <amgcl/preconditioner/runtime.hpp>
 #include <amgcl/make_solver.hpp>
 #include <amgcl/amg.hpp>
-#include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/io/mm.hpp>
 #include <amgcl/io/binary.hpp>
 
@@ -23,39 +26,47 @@
 
 #include "sample_problem.hpp"
 
+#ifndef AMGCL_BLOCK_SIZES
+#  define AMGCL_BLOCK_SIZES (2)(3)(4)
+#endif
+
 namespace amgcl { profiler<> prof; }
 using amgcl::prof;
 using amgcl::precondition;
 
 //---------------------------------------------------------------------------
-template <template <class> class Precond>
+template <class Precond, class Matrix>
 std::tuple<size_t, double> solve(
+        const Matrix &A,
         const boost::property_tree::ptree &prm,
-        size_t rows,
-        std::vector<ptrdiff_t> const &ptr,
-        std::vector<ptrdiff_t> const &col,
-        std::vector< std::complex<double> > const &val,
-        std::vector< std::complex<double> > const &rhs,
+        std::vector< std::complex<double> > const &f,
         std::vector< std::complex<double> >       &x
         )
 {
-    typedef amgcl::backend::builtin< std::complex<double> > Backend;
-    Backend::params bprm;
+    typedef typename Precond::backend_type Backend;
+
+    typedef typename amgcl::math::rhs_of<typename Backend::value_type>::type rhs_type;
+    size_t n = amgcl::backend::rows(A);
+
+    rhs_type const * fptr = reinterpret_cast<rhs_type const *>(&f[0]);
+    rhs_type       * xptr = reinterpret_cast<rhs_type       *>(&x[0]);
+    amgcl::iterator_range<rhs_type const *> frng(fptr, fptr + n);
+    amgcl::iterator_range<rhs_type       *> xrng(xptr, xptr + n);
 
     typedef amgcl::make_solver<
-        Precond<Backend>,
+        Precond,
         amgcl::runtime::solver::wrapper<Backend>
         > Solver;
 
     prof.tic("setup");
-    Solver solve(std::tie(rows, ptr, col, val), prm, bprm);
+    Solver solve(A, prm);
     prof.toc("setup");
 
     std::cout << solve << std::endl;
 
     {
         auto t = prof.scoped_tic("solve");
-        return solve(rhs, x);
+        return solve(frng, xrng);
     }
 }
 
@@ -109,6 +120,14 @@ int main(int argc, char *argv[]) {
          po::bool_switch()->default_value(false),
          "When specified, treat input files as binary instead of as MatrixMarket. "
          "It is assumed the files were converted to binary format with mm2bin utility. "
+        )
+        (
+         "block-size,b",
+         po::value<int>()->default_value(1),
+         "The block size of the system matrix. "
+         "When specified, the system matrix is assumed to have block-wise structure. "
+         "This usually is the case for problems in elasticity, structural mechanics, "
+         "for coupled systems of PDE (such as Navier-Stokes equations), etc. "
         )
         (
          "size,n",
@@ -219,8 +238,32 @@ int main(int argc, char *argv[]) {
     if (vm["single-level"].as<bool>())
         prm.put("precond.class", "relaxation");
 
-    std::tie(iters, error) = solve<amgcl::runtime::preconditioner>(
-            prm, rows, ptr, col, val, rhs, x);
+    int block_size = vm["block-size"].as<int>();
+
+#define CALL_BLOCK_SOLVER(z, data, B)                                                    \
+        case B:                                                                          \
+            {                                                                            \
+                typedef amgcl::static_matrix<std::complex<double>,B,B> value_type;       \
+                typedef amgcl::backend::builtin<value_type> Backend;                     \
+                std::tie(iters, error) = solve<amgcl::runtime::preconditioner<Backend>>( \
+                        amgcl::adapter::block_matrix<value_type>(                        \
+                            std::tie(rows, ptr, col, val)),                              \
+                        prm, rhs, x);                                                    \
+            }                                                                            \
+            break;
+
+    switch (block_size) {
+        case 1:
+            {
+                typedef amgcl::backend::builtin<std::complex<double>> Backend;
+                std::tie(iters, error) = solve<amgcl::runtime::preconditioner<Backend>>(
+                        std::tie(rows, ptr, col, val), prm, rhs, x);
+            }
+            break;
+        BOOST_PP_SEQ_FOR_EACH(CALL_BLOCK_SOLVER, ~, AMGCL_BLOCK_SIZES)
+    }
+
+#undef CALL_BLOCK_SOLVER
 
     if (vm.count("output")) {
         auto t = prof.scoped_tic("write");
