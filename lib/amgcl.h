@@ -32,7 +32,7 @@ THE SOFTWARE.
  */
 
 #ifdef WIN32
-#  define STDCALL __stdcall
+#  define STDCALL __cdecl
 #else
 #  define STDCALL
 #endif
@@ -119,6 +119,14 @@ conv_info STDCALL amgcl_solver_solve(
         amgclHandle    solver,
         double const * rhs,
         double       * x
+        );
+
+// Solve the problem for the given right-hand side.
+void STDCALL amgcl_solver_solve_f(
+        amgclHandle    solver,
+        double const * rhs,
+        double       * x,
+        conv_info    * cnv
         );
 
 // Solve the problem for the given matrix and the right-hand side.

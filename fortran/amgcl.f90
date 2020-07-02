@@ -53,8 +53,7 @@ module amgcl
             integer (c_size_t), intent(in), value :: prm
         end function
 
-        type(conv_info) &
-        function amgcl_solver_solve(solver, rhs, x) bind (C, name="amgcl_solver_solve")
+        subroutine amgcl_solver_solve_c(solver, rhs, x, cnv) bind (C, name="amgcl_solver_solve_f")
             use iso_c_binding
             integer (c_size_t), intent(in), value :: solver
             real    (c_double), intent(in)        :: rhs(*)
@@ -64,7 +63,9 @@ module amgcl
                 integer (c_int)    :: iterations;
                 real    (c_double) :: residual
             end type
-        end function
+
+            type(conv_info), intent(out) :: cnv
+        end subroutine
 
         subroutine amgcl_solver_report(solver) bind(C, name="amgcl_solver_report")
             use iso_c_binding
@@ -105,5 +106,23 @@ module amgcl
 
         call amgcl_params_sets_c(prm, name // c_null_char, val // c_null_char)
     end subroutine
+
+    type(conv_info) &
+    function amgcl_solver_solve(solver, rhs, x)
+        use iso_c_binding
+        integer (c_size_t), intent(in), value :: solver
+        real    (c_double), intent(in)        :: rhs(*)
+        real    (c_double), intent(inout)     :: x(*)
+
+        type, bind(C) :: conv_info
+            integer (c_int)    :: iterations;
+            real    (c_double) :: residual
+        end type
+
+        type(conv_info) :: cnv;
+
+        call amgcl_solver_solve_c(solver, rhs, x, cnv);
+        amgcl_solver_solve = cnv;
+    end function
 
 end module

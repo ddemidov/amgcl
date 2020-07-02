@@ -206,6 +206,17 @@ conv_info STDCALL amgcl_solver_solve(
 }
 
 //---------------------------------------------------------------------------
+void STDCALL amgcl_solver_solve_f(
+        amgclHandle handle,
+        const double *rhs,
+        double *x,
+        conv_info *cnv
+        )
+{
+    *cnv = amgcl_solver_solve(handle, rhs, x);
+}
+
+//---------------------------------------------------------------------------
 conv_info STDCALL amgcl_solver_solve_mtx(
         amgclHandle handle,
         int    const * A_ptr,

@@ -113,21 +113,21 @@ Type
 Var
     hlib: Integer;
 
-    amgcl_params_create: function: Pointer; stdcall;
+    amgcl_params_create: function: Pointer; cdecl;
 
     amgcl_params_seti: procedure(
         p:     Pointer;
         name:  PChar;
         value: Integer
-        ); stdcall;
+        ); cdecl;
 
     amgcl_params_setf: procedure(
         p:     Pointer;
         name:  PChar;
         value: Single
-        ); stdcall;
+        ); cdecl;
 
-    amgcl_params_destroy: procedure(p: Pointer); stdcall;
+    amgcl_params_destroy: procedure(p: Pointer); cdecl;
 
     amgcl_solver_create: function(
         coarsening:  TCoarsening;
@@ -138,13 +138,13 @@ Var
         ptr:         PInteger;
         col:         PInteger;
         val:         PDouble
-        ): Pointer; stdcall;
+        ): Pointer; cdecl;
 
     amgcl_solver_solve: function(
         h:   Pointer;
         rhs: PDouble;
         x:   PDouble
-        ): TConvInfo; stdcall;
+        ): TConvInfo; cdecl;
 
     amgcl_solver_solve_mtx: procedure(
         h:     Pointer;
@@ -153,9 +153,9 @@ Var
         A_val: PDouble;
         rhs:   PDouble;
         x:     PDouble
-        ); stdcall;
+        ); cdecl;
 
-    amgcl_solver_destroy: procedure(h: Pointer); stdcall;
+    amgcl_solver_destroy: procedure(h: Pointer); cdecl;
 
 constructor TParams.Create;
 begin
