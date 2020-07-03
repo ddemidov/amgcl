@@ -69,7 +69,7 @@ struct ilu0< backend::cuda<real> > {
 
     /// \copydoc amgcl::relaxation::damped_jacobi::damped_jacobi
     template <class Matrix>
-    ilu0( const Matrix &A, const params &, const typename Backend::params &bprm)
+    ilu0( const Matrix &A, const params &prm, const typename Backend::params &bprm)
         : prm(prm), handle(bprm.cusparse_handle),
           n(backend::rows(A)), nnz(backend::nonzeros(A)),
           ptr(A.ptr, A.ptr + n+1),
