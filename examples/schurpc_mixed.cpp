@@ -62,9 +62,6 @@ void solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::propert
     std::cout << ctx << std::endl;
     bprm.q = ctx;
 
-    typedef typename amgcl::math::scalar_of<typename USolver::backend_type::value_type>::type u_scalar;
-    typedef typename amgcl::math::scalar_of<typename USolver::backend_type::value_type>::type p_scalar;
-
     const int UB = amgcl::math::static_rows<typename USolver::backend_type::value_type>::value;
     const int PB = amgcl::math::static_rows<typename USolver::backend_type::value_type>::value;
 
