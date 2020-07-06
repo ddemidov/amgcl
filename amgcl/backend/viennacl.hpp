@@ -229,7 +229,7 @@ struct viennacl {
                     const index_type *col;
                     const value_type *val;
 
-                    friend class viennacl_matrix_adapter;
+                    friend struct viennacl_matrix_adapter;
             };
 
             viennacl_matrix_adapter(
