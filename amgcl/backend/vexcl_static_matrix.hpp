@@ -68,7 +68,7 @@ struct spmv_ops_impl<amgcl::static_matrix<TA,N,N>, amgcl::static_matrix<TX,N,1>>
 
     static void decl_accum_var(backend::source_generator &src, const std::string &name)
     {
-        src.new_line() << type_name<vector_value>() << " " << name << ";";
+        src.new_line() << type_name<amgcl::static_matrix<TA,N,1>>() << " " << name << ";";
         for(int i = 0; i < N; ++i) {
             src.new_line() << name << ".data[" << i << "][0] = 0;";
         }
