@@ -650,8 +650,12 @@ struct vex_scale {
     } const apply;
 };
 
+template <typename TS, typename TD, int N, class Enable = void> struct vex_convert;
+
 template <typename TS, typename TD, int N>
-struct vex_convert {
+struct vex_convert<TS, TD, N,
+    typename std::enable_if<!std::is_same<TS, TD>::value>::type>
+{
     typedef static_matrix<TS,N,1> src_vector;
     typedef static_matrix<TD,N,1> dst_vector;
 
@@ -674,6 +678,14 @@ struct vex_convert {
             src.end_function();
         }
     } const apply;
+};
+
+template <typename TS, typename TD, int N>
+struct vex_convert<TS, TD, N,
+    typename std::enable_if<std::is_same<TS, TD>::value>::type>
+{
+    template <class X>
+    static const X& apply(const X &x) { return x; }
 };
 
 template <typename TA, typename TB, int N>
