@@ -2,6 +2,7 @@ Bibliography
 ============
 
 .. [Adam98] Adams, Mark. "A parallel maximal independent set algorithm", in Proceedings 5th copper mountain conference on iterative methods, 1998.
+.. [Alex00] A. Alexandrescu, Modern C++ design: generic programming and design patterns applied, AddisonWesley, 2001.
 .. [AnCD15] Anzt, Hartwig, Edmond Chow, and Jack Dongarra. "Iterative sparse triangular solves for preconditioning." European Conference on Parallel Processing. Springer Berlin Heidelberg, 2015. 
 .. [BaJM05] Baker, A. H., Jessup, E. R., & Manteuffel, T. (2005). A technique for accelerating the convergence of restarted GMRES. SIAM Journal on Matrix Analysis and Applications, 26(4), 962-984.
 .. [Barr94] Barrett, Richard, et al. Templates for the solution of linear systems: building blocks for iterative methods. Vol. 43. Siam, 1994.
@@ -16,6 +17,7 @@ Bibliography
 .. [GhKK12] P. Ghysels, P. Kłosiewicz, and W. Vanroose. "Improving the arithmetic intensity of multigrid with the help of polynomial smoothers".  Numer. Linear Algebra Appl. 2012;19:253-267. DOI: 10.1002/nla.1808.
 .. [GiSo11] Van Gijzen, Martin B., and Peter Sonneveld. "Algorithm 913: An elegant IDR (s) variant that efficiently exploits biorthogonality properties." ACM Transactions on Mathematical Software (TOMS) 38.1 (2011): 5.
 .. [GmHJ15] Gmeiner, Björn, et al. "A quantitative performance analysis for Stokes solvers at the extreme scale." arXiv preprint arXiv:1511.02134 (2015).
+.. [Meye05] S. Meyers, Effective C++: 55 specific ways to improve your programs and designs, Pearson Education, 2005.
 .. [Saad03] Saad, Yousef. Iterative methods for sparse linear systems. Siam, 2003.
 .. [SaTu08] Sala, Marzio, and Raymond S. Tuminaro. "A new Petrov-Galerkin smoothed aggregation preconditioner for nonsymmetric linear systems." SIAM Journal on Scientific Computing 31.1 (2008): 143-166.
 .. [SlDi93] Sleijpen, Gerard LG, and Diederik R. Fokkema. "BiCGstab (l) for linear equations involving unsymmetric matrices with complex spectrum." Electronic Transactions on Numerical Analysis 1.11 (1993): 2000.

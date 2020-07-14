@@ -1,102 +1,255 @@
 Design Principles
 =================
 
-AMGCL uses the compile-time `policy-based design`_ approach, which allows users
-of the library to compose their own version of the AMG method from the provided
-components. This also allows for easily extending the library when required.
+A lot of linear solver software packages are either developed in C or Fortran,
+or provide C-compatible application programming interface (API). The low-level
+API is stable and compatible with most of the programming languages. However,
+this also has some disadvantages: the fixed interfaces usually only support the
+predefined set of cases that the developers have thought of in advance. For an
+example, BLAS specification has separate sets of functions that deal with
+single, double, complex, or double complex precision values, but it is
+impossible to work with mixed precision inputs or with user-defined or
+third-party custom types. Another common drawback of large scientific packages
+is that users have to adopt the datatypes provided by the framework in order to
+work with it, which steepens the learning curve and introduces additional
+integration costs, such as the necessity to copy the data between various
+formats.
 
-Components
-----------
+AMGCL is using modern C++ programming techniques in order to create flexible
+and efficient API. The users may easily extend the library or use it with their
+own datatypes. The following design pronciples are used throughout the code:
 
-AMGCL provides the following components:
+- *Policy-based design* [Alex00]_ of public library classes such as
+  ``amgcl::make_solver`` or ``amgcl::amg`` allows the library users to compose
+  their own customized version of the iterative solver and preconditioner from
+  the provided components and easily extend and customize the library by
+  providing their own implementation of the algorithms.
+- Preference for *free functions* as opposed to member functions [Meye05]_,
+  combined with *partial template specialization* allows to extend the library
+  operations onto user-defined datatypes and to introduce new algorithmic
+  components when required.
+- The *backend* system of the library allows expressing the algorithms such as
+  Krylov iterative solvers or multigrid relaxation methods in terms of generic
+  parallel primitives which facilitates transparent acceleration of the
+  solution phase with OpenMP, OpenCL, or CUDA technologies.
+- One level below the backends are *value types*: AMGCL supports systems with
+  scalar, complex, or block value types both in single and double precision.
+  Arithmetic operations necessary for the library work may also be extended
+  onto the user-defined types using template specialization.
 
-* **Backends** -- classes that define matrix and vector types and operations
-  necessary during the solution phase of the algorithm. When an AMG hierarchy
-  is constructed, it is moved to the specified backend. The approach enables
-  transparent acceleration of the solution phase with OpenMP_, OpenCL_, or
-  CUDA_ technologies, and also makes tight integration with user-defined data
-  structures possible.
-* **Value types** -- enable transparent solution of complex or non-scalar
-  systems. Most often, a value type is simply a ``double``, but it is possible
-  to use small statically-sized matrices as value type, which may increase
-  cache-locality, or convergence ratio, or both, when the system matrix has a
-  block structure. 
-* **Matrix adapters** -- allow AMGCL to construct a solver from some common
-  matrix formats. Internally, the CRS_ format is used, but it is easy to adapt
-  any matrix format that allows row-wise iteration over its non-zero elements.
-* **Coarsening strategies** -- various options for creating coarse systems in
-  the AMG hierarchy. A coarsening strategy takes the system matrix :math:`A` at
-  the current level, and returns prolongation operator :math:`P` and the
-  corresponding restriction operator :math:`R`.
-* **Relaxation methods** -- or smoothers, that are used on each level of the
-  AMG hierarchy during solution phase.
-* **Preconditioners** -- aside from the AMG, AMGCL implements preconditioners
-  for some common problem types. For example, there is a Schur complement
-  pressure correction preconditioner for Navie-Stokes type problems, or CPR
-  preconditioner for reservoir simulations. Also, it is possible to use single
-  level relaxation method as a preconditioner.
-* **Iterative solvers** -- Krylov subspace methods that may be combined with
-  the AMG (or other) preconditioners in order to solve the linear system.
 
-To illustrate this, here is an example of defining a solver type that
-combines a BiCGStab iterative method [Barr94]_ preconditioned with smoothed
-aggregation AMG that uses SPAI(0) (sparse approximate inverse smoother)
-[BrGr02]_ as relaxation. The solver uses the
-:cpp:class:`amgcl::backend::builtin` backend (accelerated with OpenMP), and
-double precision scalars as value type.
+Policy-based design
+-------------------
 
 .. code-block:: cpp
+    :name: lst_composition
+    :caption: Policy-based design illustration: creating customized solvers from AMGCL components
+    :linenos:
 
-    #include <amgcl/backend/builtin.hpp>
-    #include <amgcl/make_solver.hpp>
-    #include <amgcl/amg.hpp>
-    #include <amgcl/coarsening/smoothed_aggregation.hpp>
-    #include <amgcl/relaxation/spai0.hpp>
-    #include <amgcl/solver/bicgstab.hpp>
+    // CG solver preconditioned with ILU0
+    typedef amgcl::make_solver<
+        amgcl::relaxation::as_preconditioner<
+            amgcl::backend::builtin<double>,
+            amgcl::relaxation::ilu0
+            >,
+        amgcl::solver::cg<
+            amgcl::backend::builtin<double>
+            >
+        > Solver1;
 
-    typedef amgcl::backend::builtin<double> Backend;
-
+    // GMRES solver preconditioned with AMG
     typedef amgcl::make_solver<
         amgcl::amg<
-            Backend,
+            amgcl::backend::builtin<double>,
             amgcl::coarsening::smoothed_aggregation,
             amgcl::relaxation::spai0
             >,
-        amgcl::solver::bicgstab<Backend>
-        > Solver;
+        amgcl::solver::gmres<
+            amgcl::backend::builtin<double>
+            >
+        > Solver2;
 
-.. _`policy-based design`: https://en.wikipedia.org/wiki/Policy-based_design
-.. _OpenMP: https://www.openmp.org/
-.. _OpenCL: https://www.khronos.org/opencl/
-.. _CUDA: https://developer.nvidia.com/cuda-toolkit
-.. _CRS: http://netlib.org/linalg/html_templates/node91.html
+Available solvers and preconditioners in AMGCL are composed by the library user
+from the provided components. For example, the most frequently used class
+template ``amgcl::make_solver<P,S>`` binds together an iterative solver ``S``
+and a preconditioner ``P`` chosen by the user. To illustrate this,
+:numref:`lst_composition` defines a conjugate gradient iterative solver
+preconditioned with an incomplete LU decomposition with zero fill-in in lines 2
+to 10. The builtin backend (parallelized with OpenMP) with double precision is
+used both for the solver and the preconditioner. This approach allows the user
+not only to select any of the preconditioners/solvers provided by AMGCL, but
+also to use their own custom components, as long they conform to the generic
+AMGCL interface. In paticular, the preconditioner class has to provide a
+constructor that takes the system matrix, the preconditioner parameters
+(defined as a subtype of the class, see below), and the backend parameters. The
+iterative solver constructor should take the size of the system matrix, the
+solver parameters, and the backend parameters.
 
-Parameters
-----------
-
-Each component in AMGCL defines its own parameters by declaring a ``param``
-subtype. When a class wraps several subclasses, it includes parameters of its
-children into its own ``param``. For example, parameters for the
-:cpp:class:`amgcl::make_solver\<Precond, Solver>` are declared as
+This approach is used not only at the user-facing level of the library, but in
+any place where using interchangeable components makes sense.
+Lines 13 to 22 in
+:numref:`lst_composition` show the declaration of GMRES iterative solver
+preconditioned with the algebraic multigrid (AMG). Smoothed aggregation is used
+as the AMG coarsening strategy, and diagonal sparse approximate inverse is used
+on each level of the multigrid hierarchy as a smoother. Similar to the solver
+and the preconditioner, the AMG components (coarsening and relaxation) are
+specified as template parameters and may be customized by the user.
 
 .. code-block:: cpp
+    :caption: Example of parameter declaration in AMGCL components
+    :name: lst_declparams
 
-    struct params {
-        typename Precond::params precond;
-        typename Solver::params solver;
+    template <class P, class S>
+    struct make_solver {
+        struct params {
+            typename P::params precond;
+            typename S::params solver;
+        };
     };
 
-Knowing that, you can easily lookup parameter definitions and set parameters
-for individual components. For example, we can set the desired tolerance and
-maximum number of iterations for the iterative solver in the above example like
-this:
+Besides compile-time composition of the AMGCL algorithms described above, the
+library user may need to specify runtime parameters for the constructed
+algorithms.  This is done with the ``params`` structure declared by each of the
+components as its subtype. Each parameter usually has a reasonable default
+value. When a class is composed from several components, it includes the
+parameters of its dependencies into its own ``params`` struct.  This allows to
+provide a unified interface to the parameters of various AMGCL algorithms.
+:numref:`lst_declparam` shows how the parameters are declared for the
+``amgcl::make_solver<P,S>`` class. :numref:`lst_params` shows an example of how
+the parameters for the preconditioned GMRES solver from
+:numref:`lst_composition` may be specified.  Namely, the number of the GMRES
+iterations before restart is set to 50, the relative residual threshold is set
+to :math:`10^{-6}`, and the strong connectivity threshold
+:math:`\varepsilon_{str}` for the smoothed aggregation is set to
+:math:`10^{-3}`.  The rest of the parameters are left with their default
+values.
+
+   .. code-block:: cpp
+    :caption: Setting parameters for AMGCL components
+    :label: lst_params
+
+    // Set the solver parameters
+    Solver2::params prm;
+    prm.solver.M = 50;
+    prm.solver.tol = 1e-6;
+    prm.precond.coarsening.aggr.eps_strong = 1e-3;
+
+    // Instantiate the solver
+    Solver2 S(A, prm);
+
+Free functions and partial template specialization
+--------------------------------------------------
+
+Using free functions as opposed to class methods allows to decouple the library
+functionality from specific classes and enables support for third-party
+datatypes within the library [Meye05]_. Moving the implementation from the free
+function into a struct template specialization provides more control over the
+mapping between the input datatype and the specific specific version of the
+algorithm.  For example, constructors of AMGCL classes may accept an arbitrary
+datatype as input matrix, as long as the implementations of several basic
+functions supporting the datatype have been provided. Some of the free
+functions that need to be implemented are ``amgcl::backend::rows(A)``,
+``amgcl::backend::cols(A)`` (returning the number of rows and columns for the
+matrix), or ``amgcl::backend::row_begin(A,i)`` (returning iterator over the
+nonzero values for the matrix row). :numref:`lst_crs_adapter` shows an
+implementation of ``amgcl::backend::rows()`` function for the case when the
+input matrix is specified as a ``std::tuple(n,ptr,col,val)`` of matrix size
+``n``, pointer vector ``ptr`` containing row offsets into the column index and
+value vectors, and the column index and values vectors ``col`` and ``val`` for
+the nonzero matrix entries.  AMGCL provides adapters for several common input
+matrix formats, such as ``Eigen::SparseMatrix`` from Eigen_,
+``Epetra_CrsMatrix`` from Trilinos_ Epetra, and it is easy to adapt a
+user-defined datatype.
+
+.. _Eigen: http://eigen.tuxfamily.org/
+.. _Trilinos: https://trilinos.github.io/
 
 .. code-block:: cpp
+    :caption: Implementation of ``amgcl::backend::rows()`` free function for the CRS tuple
+    :name: lst_crs_adapter
 
-    Solver::params prm;
-    prm.solver.tol = 1e-3;
-    prm.solver.maxiter = 10;
-    Solver solve( std::tie(n, ptr, col, val), prm );
+    // Generic implementation of the rows() function.
+    // Works as long as the matrix type provides rows() member function.
+    template <class Matrix, class Enable = void>
+    struct rows_impl {
+        static size_t get(const Matrix &A) {
+            return A.rows();
+        }
+    };
+
+    // Returns the number of rows in a matrix.
+    template <class Matrix>
+    size_t rows(const Matrix &matrix) {
+        return rows_impl<Matrix>::get(matrix);
+    }
+
+    // Specialization of rows_impl template for a CRS tuple.
+    template < typename N, typename PRng, typename CRng, typename VRng >
+    struct rows_impl< std::tuple<N, PRng, CRng, VRng> >
+    {
+        static size_t get(const std::tuple<N, PRng, CRng, VRng> &A) {
+            return std::get<0>(A);
+        }
+    };
+
+Backends
+--------
+
+A backend in AMGCL is a class that binds datatypes like matrix and vector with
+parallel primitives like matrix-vector product, linear combination of vectors,
+or inner product computation. The backend system is implemented using the free
+functions combined with template specialization approach from the previous
+section, which decouples implementation of common parallel primitives from
+specific datatypes used in the supported backends. This allows to adopt
+third-party or user-defined datatypes for use within AMGCL without any
+modification.  For example, in order to switch to the CUDA backend in
+\cref{lst:composition}, we just need to replace
+``amgcl::backend::builtin<double>`` with ``amgcl::backend::cuda<double>``.
+
+Algorithm setup in AMGCL is performed using internal data structures. As soon
+as the setup is completed, the necessary objects (mostly matrices and vectors)
+are transferred to the backend datatypes. Solution phase of the algorithms is
+expressed in terms of the predefined parallel primitives which makes it
+possible to switch parallelization technology (such as OpenMP, CUDA, or OpenCL)
+simply by changing the backend template parameter of the algorithm. For
+example, the residual norm :math:`\epsilon = ||f - Ax||` in AMGCL is computed
+using ``amgcl::backend::residual()`` and ``amgcl::backend::inner_product()``
+primitives:
+
+   .. code-block:: cpp
+
+    backend::residual(f, A, x, r);
+    auto e = sqrt(backend::inner_product(r, r));
+    \end{lstlisting}
+
+Value types
+-----------
+
+Value type concept allows to generalize AMGCL algorithms onto complex or
+non-scalar systems. A value type defines a number of overloads for common math
+operations, and is used as a template parameter for a backend. Most often, a
+value type is simply a builtin ``double`` or ``float`` atomic value, but
+it is also possible to use small statically sized matrices when the system
+matrix has a block structure, which may decrease the setup time and the overall
+memory footprint, increase cache locality, or improve convergence
+ratio.
+
+Value types are used during both the setup and the solution phases. Common
+value type operations are defined in ``amgcl::math`` namespace, similar to how
+backend operations are defined in ``amgcl::backend``. Examples of such
+operations are ``amgcl::math::norm()`` or ``amgcl::math::adjoint()``.
+Arithmetic operations like multiplication or addition are defined as operator
+overloads.  AMGCL algorithms at the lowest level are expressed in terms of the
+value type interface, which makes it possible to switch precision of the
+algorithms, or move to complex values, simply by adjusting template parameter
+of the selected backend.
+
+The generic implementation of the value type operations also makes it possible
+to use efficient third party implementations of the block value arithmetics.
+For example, using statically sized Eigen_ matrices instead of builtin
+``amgcl::static_matrix`` as block value type may improve performance in case
+of relatively large blocks, since the Eigen_ library supports SIMD
+vectorization.
 
 Runtime interface
 -----------------
