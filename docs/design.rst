@@ -126,7 +126,7 @@ values.
 
    .. code-block:: cpp
     :caption: Setting parameters for AMGCL components
-    :label: lst_params
+    :name: lst_params
 
     // Set the solver parameters
     Solver2::params prm;

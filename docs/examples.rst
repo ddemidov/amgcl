@@ -1,10 +1,6 @@
 Examples
 ========
 
-.. toctree::
-
-    poisson
-
 Solving Poisson's equation
 --------------------------
 
