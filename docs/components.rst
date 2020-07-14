@@ -31,3 +31,7 @@ AMGCL provides the following components:
 * **Iterative solvers** -- Krylov subspace methods that may be combined with
   the AMG (or other) preconditioners in order to solve the linear system.
 
+.. _OpenMP: https://www.openmp.org/
+.. _OpenCL: https://www.khronos.org/opencl/
+.. _CUDA: https://developer.nvidia.com/cuda-toolkit
+.. _CRS: http://netlib.org/linalg/html_templates/node91.html

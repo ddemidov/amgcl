@@ -23,10 +23,6 @@ on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 sys.path.append('..')
 from git_version import git_version
 
-if on_rtd:
-    subprocess.call([sys.executable, '-m', 'pip', 'install', 'breathe==4.12'])
-    subprocess.call('doxygen', shell=True)
-
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -40,11 +36,7 @@ if on_rtd:
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['breathe', 'sphinx.ext.mathjax',
-        'matplotlib.sphinxext.plot_directive']
-
-breathe_projects = {'AMGCL' : 'xml'}
-breathe_default_project = 'AMGCL'
+extensions = ['sphinx.ext.mathjax', 'matplotlib.sphinxext.plot_directive']
 
 # Add any paths that contain templates here, relative to this directory.
 #templates_path = ['_templates']
@@ -62,7 +54,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'AMGCL'
-copyright = '2012-2018, Denis Demidov <dennis.demidov@gmail.com>'
+copyright = '2012-2020, Denis Demidov <dennis.demidov@gmail.com>'
 author = 'Denis Demidov'
 
 # The version info for the project you're documenting, acts as replacement for
