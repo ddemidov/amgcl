@@ -16,5 +16,6 @@ EXPORTS
     amgcl_solver_solve
     amgcl_solver_solve_f
     amgcl_solver_solve_mtx
+    amgcl_solver_solve_mtx_f
     amgcl_solver_destroy
     amgcl_solver_report

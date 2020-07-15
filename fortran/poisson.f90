@@ -73,6 +73,10 @@ program poisson
     cnv = amgcl_solver_solve(solver, rhs, x)
     write(*,"('Iterations:', I3, ', residual: ', E13.6)") cnv%iterations, cnv%residual
 
+    ! Solve the same problem with explicitly provided matrix.
+    cnv = amgcl_solver_solve_mtx(solver, ptr, col, val, rhs, x)
+    write(*,"('Iterations:', I3, ', residual: ', E13.6)") cnv%iterations, cnv%residual
+
     ! Destroy solver and parameter pack.
     call amgcl_solver_destroy(solver)
     call amgcl_params_destroy(params)

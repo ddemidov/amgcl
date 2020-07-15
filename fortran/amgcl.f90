@@ -3,7 +3,7 @@ module amgcl
     private
     public c_size_t, c_int, c_double, c_char, conv_info, &
         amgcl_params_create, amgcl_params_seti, amgcl_params_setf, amgcl_params_sets, amgcl_params_destroy, &
-        amgcl_solver_create, amgcl_solver_solve, amgcl_solver_report, amgcl_solver_destroy
+        amgcl_solver_create, amgcl_solver_solve, amgcl_solver_solve_mtx, amgcl_solver_report, amgcl_solver_destroy
 
     type, bind(C) :: conv_info
         integer (c_int)    :: iterations
@@ -56,6 +56,23 @@ module amgcl
         subroutine amgcl_solver_solve_c(solver, rhs, x, cnv) bind (C, name="amgcl_solver_solve_f")
             use iso_c_binding
             integer (c_size_t), intent(in), value :: solver
+            real    (c_double), intent(in)        :: rhs(*)
+            real    (c_double), intent(inout)     :: x(*)
+
+            type, bind(C) :: conv_info
+                integer (c_int)    :: iterations;
+                real    (c_double) :: residual
+            end type
+
+            type(conv_info), intent(out) :: cnv
+        end subroutine
+
+        subroutine amgcl_solver_solve_mtx_c(solver, ptr, col, val, rhs, x, cnv) bind (C, name="amgcl_solver_solve_mtx_f")
+            use iso_c_binding
+            integer (c_size_t), intent(in), value :: solver
+            integer (c_int),    intent(in)        :: ptr(*)
+            integer (c_int),    intent(in)        :: col(*)
+            real    (c_double), intent(in)        :: val(*)
             real    (c_double), intent(in)        :: rhs(*)
             real    (c_double), intent(inout)     :: x(*)
 
@@ -123,6 +140,27 @@ module amgcl
 
         call amgcl_solver_solve_c(solver, rhs, x, cnv);
         amgcl_solver_solve = cnv;
+    end function
+
+    type(conv_info) &
+    function amgcl_solver_solve_mtx(solver, ptr, col, val, rhs, x)
+        use iso_c_binding
+        integer (c_size_t), intent(in), value :: solver
+        integer (c_int),    intent(in)        :: ptr(*)
+        integer (c_int),    intent(in)        :: col(*)
+        real    (c_double), intent(in)        :: val(*)
+        real    (c_double), intent(in)        :: rhs(*)
+        real    (c_double), intent(inout)     :: x(*)
+
+        type, bind(C) :: conv_info
+            integer (c_int)    :: iterations;
+            real    (c_double) :: residual
+        end type
+
+        type(conv_info) :: cnv;
+
+        call amgcl_solver_solve_mtx_c(solver, ptr, col, val, rhs, x, cnv);
+        amgcl_solver_solve_mtx = cnv;
     end function
 
 end module

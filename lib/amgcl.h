@@ -139,6 +139,17 @@ conv_info STDCALL amgcl_solver_solve_mtx(
         double       * x
         );
 
+// Solve the problem for the given matrix and the right-hand side.
+void STDCALL amgcl_solver_solve_mtx_f(
+        amgclHandle    solver,
+        int    const * A_ptr,
+        int    const * A_col,
+        double const * A_val,
+        double const * rhs,
+        double       * x,
+        conv_info    * cnv
+        );
+
 // Printout solver structure
 void STDCALL amgcl_solver_report(amgclHandle solver);
 

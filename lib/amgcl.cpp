@@ -246,3 +246,34 @@ conv_info STDCALL amgcl_solver_solve_mtx(
 
     return cnv;
 }
+
+//---------------------------------------------------------------------------
+void STDCALL amgcl_solver_solve_mtx_f(
+        amgclHandle handle,
+        int    const * A_ptr,
+        int    const * A_col,
+        double const * A_val,
+        const double *rhs,
+        double *x,
+        conv_info *cnv
+        )
+{
+    Solver *slv = static_cast<Solver*>(handle);
+
+    size_t n = slv->size();
+
+    boost::iterator_range<double*> x_range = boost::make_iterator_range(x, x + n);
+
+    auto ptr_c = boost::make_transform_iterator(A_ptr, [](int i){ return i - 1; });
+    auto col_c = boost::make_transform_iterator(A_col, [](int i){ return i - 1; });
+
+    std::tie(cnv->iterations, cnv->residual) = (*slv)(
+            std::make_tuple(
+                n,
+                boost::make_iterator_range(ptr_c, ptr_c + n + 1),
+                boost::make_iterator_range(col_c, col_c + A_ptr[n]),
+                boost::make_iterator_range(A_val, A_val + A_ptr[n])
+                ),
+            boost::make_iterator_range(rhs, rhs + n), x_range
+            );
+}
