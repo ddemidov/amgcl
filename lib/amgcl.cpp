@@ -237,7 +237,7 @@ conv_info STDCALL amgcl_solver_solve_mtx(
     std::tie(cnv.iterations, cnv.residual) = (*slv)(
             std::make_tuple(
                 n,
-                boost::make_iterator_range(A_ptr, A_ptr + n),
+                boost::make_iterator_range(A_ptr, A_ptr + n + 1),
                 boost::make_iterator_range(A_col, A_col + A_ptr[n]),
                 boost::make_iterator_range(A_val, A_val + A_ptr[n])
                 ),
