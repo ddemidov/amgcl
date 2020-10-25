@@ -253,13 +253,26 @@ int main(int argc, char *argv[]) {
 
         size_t rows;
         std::vector<int> ptr, col;
-        std::vector<double> val;
 
         bool binary = vm["binary"].as<bool>();
 
         if (binary) {
-            amgcl::io::read_crs(ifile, rows, ptr, col, val);
+            std::ifstream f(ifile, std::ios::binary);
+            precondition(f.read((char*)&rows, sizeof(rows)), "Wrong file format?");
+            ptr.resize(rows + 1);
+            for (size_t i = 0; i <= rows; ++i) {
+                ptrdiff_t p;
+                precondition(f.read((char*)&p, sizeof(p)), "Wrong file format?");
+                ptr[i] = p;
+            }
+            col.resize(ptr.back());
+            for (ptrdiff_t i = 0; i < ptr.back(); ++i) {
+                ptrdiff_t p;
+                precondition(f.read((char*)&p, sizeof(p)), "Wrong file format?");
+                col[i] = p;
+            }
         } else {
+            std::vector<double> val;
             size_t cols;
             std::tie(rows, cols) = amgcl::io::mm_reader(ifile)(ptr, col, val);
             precondition(rows == cols, "Non-square system matrix");
