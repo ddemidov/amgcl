@@ -237,8 +237,7 @@ class schur_pressure_correction {
                 report("U", (*U)(*rhs_u, *u));
             }
 
-            backend::clear(x);
-            backend::spmv(1, *u2x, *u, 1, x);
+            backend::spmv(1, *u2x, *u, 0, x);
             backend::spmv(1, *p2x, *p, 1, x);
         }
 

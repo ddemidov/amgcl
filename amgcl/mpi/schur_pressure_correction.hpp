@@ -539,8 +539,7 @@ class schur_pressure_correction {
             AMGCL_TOC("Update U");
 
             AMGCL_TIC("merge variables");
-            backend::clear(x);
-            backend::spmv(1, *u2x, *u, 1, x);
+            backend::spmv(1, *u2x, *u, 0, x);
             backend::spmv(1, *p2x, *p, 1, x);
             AMGCL_TOC("merge variables");
         }
