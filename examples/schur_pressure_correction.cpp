@@ -296,15 +296,8 @@ int main(int argc, char *argv[]) {
                 default:
                     {
                         size_t n, m;
-
-                        if (binary) {
-                            io::read_dense(pmask, n, m, pm);
-                        } else {
-                            std::tie(n, m) = amgcl::io::mm_reader(pmask)(pm);
-                        }
-
+                        std::tie(n, m) = amgcl::io::mm_reader(pmask)(pm);
                         precondition(n == rows && m == 1, "Mask file has wrong size");
-
                         prm.put("precond.pmask", static_cast<void*>(&pm[0]));
                     }
             }
