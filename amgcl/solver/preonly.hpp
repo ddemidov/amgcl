@@ -71,8 +71,8 @@ class preonly {
         /// Preallocates necessary data structures for the system of size \p n.
         preonly(
                 size_t n,
-                const params &prm = params(),
-                const backend_params &backend_prm = backend_params(),
+                const params& = params(),
+                const backend_params& = backend_params(),
                 const InnerProduct &inner_product = InnerProduct()
           ) : n(n), inner_product(inner_product)
         { }
@@ -91,7 +91,7 @@ class preonly {
          */
         template <class Matrix, class Precond, class Vec1, class Vec2>
         std::tuple<size_t, scalar_type> operator()(
-                const Matrix &A, const Precond &P, const Vec1 &rhs, Vec2 &&x) const
+                const Matrix&, const Precond &P, const Vec1 &rhs, Vec2 &&x) const
         {
             P.apply(rhs, x);
             return std::make_tuple(0, 0);
