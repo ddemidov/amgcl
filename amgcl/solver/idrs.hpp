@@ -101,10 +101,8 @@ class idrs {
             /// Residual replacement.
             /**
              * Determines the residual replacement strategy.
-             *    If |r| > 1E3 |b| TOL/EPS) (EPS is the machine precision)
-             *    the recursively computed residual is replaced by the true residual
-             *    once |r| < |b| (to reduce the effect of large intermediate residuals
-             *    on the final accuracy).
+             * If true, the recursively computed residual is replaced by the
+             * true residual.
              * Default: No residual replacement.
              */
             bool replacement;
@@ -281,13 +279,8 @@ class idrs {
                     M(i, j) = (i == j);
             }
 
-            scalar_type eps_replace = norm_rhs / (
-                    // Number close to machine precision:
-                    1e3 * std::numeric_limits<scalar_type>::epsilon());
-
             // Main iteration loop, build G-spaces:
             size_t iter = 0;
-            bool trueres = false;
             while(iter < prm.maxiter && res_norm > eps) {
                 // New righ-hand size for small system:
                 for(unsigned i = 0; i < prm.s; ++i)
@@ -339,9 +332,6 @@ class idrs {
 
                     res_norm = norm(*r);
 
-                    if (prm.replacement && res_norm > eps_replace)
-                        trueres = true;
-
                     // Smoothing
                     if (prm.smoothing) {
                         backend::axpbypcz(one, *r_s, -one, *r, zero, *t);
@@ -373,15 +363,10 @@ class idrs {
                 backend::axpby(-om, *t, one, *r);
                 backend::axpby( om, *v, one,  x);
 
-                res_norm = norm(*r);
-                if (prm.replacement && res_norm > eps_replace)
-                    trueres = true;
-
-                // Residual replacement?
-                if (trueres && res_norm < norm_rhs) {
-                    trueres = 0;
+                if (prm.replacement) {
                     backend::residual(rhs, A, x, *r);
                 }
+                res_norm = norm(*r);
 
                 // Smoothing.
                 if (prm.smoothing) {
