@@ -50,6 +50,7 @@ THE SOFTWARE.
 #include <amgcl/solver/fgmres.hpp>
 #include <amgcl/solver/idrs.hpp>
 #include <amgcl/solver/richardson.hpp>
+#include <amgcl/solver/preonly.hpp>
 #include <amgcl/solver/detail/default_inner_product.hpp>
 
 namespace amgcl {
@@ -64,7 +65,8 @@ enum type {
     lgmres,     ///< LGMRES
     fgmres,     ///< FGMRES
     idrs,       ///< IDR(s)
-    richardson  ///< Richardson iteration
+    richardson, ///< Richardson iteration
+    preonly     ///< Only apply preconditioner once
 };
 
 inline std::ostream& operator<<(std::ostream &os, type s)
@@ -86,6 +88,8 @@ inline std::ostream& operator<<(std::ostream &os, type s)
             return os << "idrs";
         case richardson:
             return os << "richardson";
+        case preonly:
+            return os << "preonly";
         default:
             return os << "???";
     }
@@ -112,9 +116,11 @@ inline std::istream& operator>>(std::istream &in, type &s)
         s = idrs;
     else if (val == "richardson")
         s = richardson;
+    else if (val == "preonly")
+        s = preonly;
     else
         throw std::invalid_argument("Invalid solver value. Valid choices are: "
-                "cg, bicgstab, bicgstabl, gmres, lgmres, fgmres, idrs, richardson.");
+                "cg, bicgstab, bicgstabl, gmres, lgmres, fgmres, idrs, richardson, preonly.");
 
     return in;
 }
@@ -156,6 +162,7 @@ struct wrapper {
             AMGCL_RUNTIME_SOLVER(fgmres);
             AMGCL_RUNTIME_SOLVER(idrs);
             AMGCL_RUNTIME_SOLVER(richardson);
+            AMGCL_RUNTIME_SOLVER(preonly);
 
 #undef AMGCL_RUNTIME_SOLVER
 
@@ -180,6 +187,7 @@ struct wrapper {
             AMGCL_RUNTIME_SOLVER(fgmres);
             AMGCL_RUNTIME_SOLVER(idrs);
             AMGCL_RUNTIME_SOLVER(richardson);
+            AMGCL_RUNTIME_SOLVER(preonly);
 
 #undef AMGCL_RUNTIME_SOLVER
         }
@@ -203,6 +211,7 @@ struct wrapper {
             AMGCL_RUNTIME_SOLVER(fgmres);
             AMGCL_RUNTIME_SOLVER(idrs);
             AMGCL_RUNTIME_SOLVER(richardson);
+            AMGCL_RUNTIME_SOLVER(preonly);
 
 #undef AMGCL_RUNTIME_SOLVER
 
@@ -233,6 +242,7 @@ struct wrapper {
             AMGCL_RUNTIME_SOLVER(fgmres);
             AMGCL_RUNTIME_SOLVER(idrs);
             AMGCL_RUNTIME_SOLVER(richardson);
+            AMGCL_RUNTIME_SOLVER(preonly);
 
 #undef AMGCL_RUNTIME_SOLVER
 
@@ -255,7 +265,7 @@ struct wrapper {
             AMGCL_RUNTIME_SOLVER(lgmres);
             AMGCL_RUNTIME_SOLVER(fgmres);
             AMGCL_RUNTIME_SOLVER(idrs);
-            AMGCL_RUNTIME_SOLVER(richardson);
+            AMGCL_RUNTIME_SOLVER(preonly);
 
 #undef AMGCL_RUNTIME_SOLVER
 
