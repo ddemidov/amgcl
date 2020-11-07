@@ -98,21 +98,19 @@ class solver
             auto rhs = make_range(_rhs);
 
             size_t n = boost::size(rhs);
-            std::vector<double> x(n, 0.0);
+            amgcl::backend::numa_vector<double> x(n, 0.0);
+            amgcl::backend::numa_vector<double> f(rhs);
 
-            std::tie(iters, error) = (*this)(
-                    std::make_tuple(n, ptr, col, val), P,
-                    std::vector<double>(boost::begin(rhs), boost::end(rhs)), x
-                    );
+            std::tie(iters, error) = (*this)(std::make_tuple(n, ptr, col, val), P, f, x);
 
             return make_array(x.size(), x.data());
         }
 
         py::array_t<double> solve(py::array_t<double> _rhs) const {
             auto rhs = make_range(_rhs);
-            std::vector<double> x(boost::size(rhs), 0.0);
-            std::tie(iters, error) = (*this)(
-                    P, std::vector<double>(boost::begin(rhs), boost::end(rhs)), x);
+            amgcl::backend::numa_vector<double> x(boost::size(rhs), 0.0);
+            amgcl::backend::numa_vector<double> f(rhs);
+            std::tie(iters, error) = (*this)(P, f, x);
             return make_array(x.size(), x.data());
         }
 
