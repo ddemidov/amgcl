@@ -265,6 +265,7 @@ struct wrapper {
             AMGCL_RUNTIME_SOLVER(lgmres);
             AMGCL_RUNTIME_SOLVER(fgmres);
             AMGCL_RUNTIME_SOLVER(idrs);
+            AMGCL_RUNTIME_SOLVER(richardson);
             AMGCL_RUNTIME_SOLVER(preonly);
 
 #undef AMGCL_RUNTIME_SOLVER
