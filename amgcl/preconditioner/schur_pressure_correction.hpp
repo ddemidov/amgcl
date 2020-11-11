@@ -100,9 +100,9 @@ class schur_pressure_correction {
 
             // Adjust preconditioner matrix for the Schur complement system.
             // That is, use
-            //   Kpp                                when adjust_p == 0,
-            //   Kpp - dia(Kpu * dia(Kuu)^1 * Kup)  when adjust_p == 1,
-            //   Kpp - Kpu * dia(Kuu)^1 * Kup       when adjust_p == 2
+            //   Kpp                                 when adjust_p == 0,
+            //   Kpp - dia(Kpu * dia(Kuu)^-1 * Kup)  when adjust_p == 1,
+            //   Kpp - Kpu * dia(Kuu)^-1 * Kup       when adjust_p == 2
             int adjust_p;
 
             // Use 1/sum_j(abs(Kuu_{i,j})) instead of dia(Kuu)^-1
