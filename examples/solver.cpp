@@ -84,17 +84,18 @@ std::tuple<size_t, double> block_solve(
         amgcl::runtime::solver::wrapper<BBackend>
         > Solver;
 
-    auto A = amgcl::adapter::block_matrix<value_type>(std::tie(rows, ptr, col, val));
+    auto As = std::tie(rows, ptr, col, val);
+    auto Ab = amgcl::adapter::block_matrix<value_type>(As);
 
     std::tuple<size_t, double> info;
 
     if (reorder) {
         prof.tic("reorder");
-        amgcl::adapter::reorder<> perm(A);
+        amgcl::adapter::reorder<> perm(Ab);
         prof.toc("reorder");
 
         prof.tic("setup");
-        Solver solve(perm(A), prm);
+        Solver solve(perm(Ab), prm);
         prof.toc("setup");
 
         std::cout << solve << std::endl;
@@ -112,7 +113,7 @@ std::tuple<size_t, double> block_solve(
         perm.inverse(X, xptr);
     } else {
         prof.tic("setup");
-        Solver solve(A, prm);
+        Solver solve(Ab, prm);
         prof.toc("setup");
 
         std::cout << solve << std::endl;
@@ -167,17 +168,18 @@ std::tuple<size_t, double> block_solve(
     vex::scoped_program_header header(ctx,
             amgcl::backend::vexcl_static_matrix_declaration<double,B>());
 
-    auto A = amgcl::adapter::block_matrix<value_type>(std::tie(rows, ptr, col, val));
+    auto As = std::tie(rows, ptr, col, val);
+    auto Ab = amgcl::adapter::block_matrix<value_type>(As);
 
     std::tuple<size_t, double> info;
 
     if (reorder) {
         prof.tic("reorder");
-        amgcl::adapter::reorder<> perm(A);
+        amgcl::adapter::reorder<> perm(Ab);
         prof.toc("reorder");
 
         prof.tic("setup");
-        Solver solve(perm(A), prm, bprm);
+        Solver solve(perm(Ab), prm, bprm);
         prof.toc("setup");
 
         std::cout << solve << std::endl;
@@ -201,7 +203,7 @@ std::tuple<size_t, double> block_solve(
         perm.inverse(tmp, xptr);
     } else {
         prof.tic("setup");
-        Solver solve(A, prm, bprm);
+        Solver solve(Ab, prm, bprm);
         prof.toc("setup");
 
         std::cout << solve << std::endl;
