@@ -432,4 +432,4 @@ Here is the output from the compiled program::
 As we can see, the mixed precision approach shaves off about 40% from the setup
 time, and the solution time is about 80% faster than our best try with the full
 precision solver. Overall, this version of the solver is 4 times faster than
-the with the monolithic preconditioner.
+the one with the monolithic preconditioner.
