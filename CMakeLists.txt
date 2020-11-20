@@ -248,6 +248,7 @@ if (AMGCL_MASTER_PROJECT)
     if (AMGCL_BUILD_EXAMPLES)
         add_subdirectory(lib)
         add_subdirectory(examples)
+        add_subdirectory(tutorial)
 
         #----------------------------------------------------------------------------
         # Build Fortran example

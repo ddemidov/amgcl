@@ -114,7 +114,7 @@ components as its subtype. Each parameter usually has a reasonable default
 value. When a class is composed from several components, it includes the
 parameters of its dependencies into its own ``params`` struct.  This allows to
 provide a unified interface to the parameters of various AMGCL algorithms.
-:numref:`lst_declparam` shows how the parameters are declared for the
+:numref:`lst_declparams` shows how the parameters are declared for the
 ``amgcl::make_solver<P,S>`` class. :numref:`lst_params` shows an example of how
 the parameters for the preconditioned GMRES solver from
 :numref:`lst_composition` may be specified.  Namely, the number of the GMRES
@@ -124,7 +124,7 @@ to :math:`10^{-6}`, and the strong connectivity threshold
 :math:`10^{-3}`.  The rest of the parameters are left with their default
 values.
 
-   .. code-block:: cpp
+.. code-block:: cpp
     :caption: Setting parameters for AMGCL components
     :name: lst_params
 
@@ -216,11 +216,10 @@ example, the residual norm :math:`\epsilon = ||f - Ax||` in AMGCL is computed
 using ``amgcl::backend::residual()`` and ``amgcl::backend::inner_product()``
 primitives:
 
-   .. code-block:: cpp
+.. code-block:: cpp
 
     backend::residual(f, A, x, r);
     auto e = sqrt(backend::inner_product(r, r));
-    \end{lstlisting}
 
 Value types
 -----------

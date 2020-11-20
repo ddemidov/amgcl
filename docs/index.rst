@@ -75,7 +75,7 @@ Contents:
 
     amg_overview
     design
-    components
+    tutorial
     examples
     mpi
     benchmarks
