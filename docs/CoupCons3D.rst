@@ -217,7 +217,7 @@ the solution are slightly faster as well::
 
 We can also use the VexCL backend to accelerate the solution using the GPU.
 Again, this is very close to the approach described in :doc:`Serena` (see
-`tutorial/3.CoupCons3D/coupcons3d_spc.cpp`_). However, the ILU(0) relaxation is
+`tutorial/3.CoupCons3D/coupcons3d_vexcl.cpp`_). However, the ILU(0) relaxation is
 an intrinsically serial algorithm, and is not effective with the fine grained
 parallelism of the GPU. Instead, the solutions of the lower and upper parts of
 the incomplete LU decomposition in AMGCL are approximated with several Jacobi
