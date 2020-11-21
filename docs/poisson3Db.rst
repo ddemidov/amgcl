@@ -10,7 +10,7 @@ matrix has an interesting structure, presented on the figure below:
 .. _Matrix Market: https://math.nist.gov/MatrixMarket
 
 .. figure:: ../tutorial/1.poisson3Db/Poisson3D.png
-   :width: 80%
+   :width: 90%
 
    Poisson3Db matrix portrait
 

@@ -20,7 +20,7 @@ portrait is shown on the figure below.
 .. _examples/mm2bin: https://github.com/ddemidov/amgcl/blob/master/examples/mm2bin.cpp
 
 .. figure:: ../tutorial/2.Serena/Serena.png
-   :width: 80%
+   :width: 90%
    :name: serena_spy
 
    Serena matrix portrait
@@ -186,9 +186,11 @@ applications per iteration, while CG only does one.
 The problem description states that *the medium is strongly heterogeneous and
 characterized by a complex geometry consisting of alternating sequences of thin
 clay and sand layers*. This may result in high contrast between matrix
-coefficients in the neighboring rows, so lets see if scaling the matrix (so
-that it has the unit diagonal) helps with the convergence. The ``-s`` option
-tells the solver to do that::
+coefficients in the neighboring rows, which is confirmed by the plot of the
+matrix diagonal in :ref:`serena_spy`: the diagonal coefficients span more than
+10 orders of magnitude! Scaling the matrix (so that it has the unit diagonal)
+should help with the convergence. The ``-s`` option tells the solver to do
+that::
 
     $ solver -B -A Serena.bin -s \
           solver.type=cg solver.maxiter=200 \

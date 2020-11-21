@@ -1,7 +1,8 @@
 #include <vector>
 #include <iostream>
 
-#include <amgcl/backend/builtin.hpp>
+#include <amgcl/backend/vexcl.hpp>
+#include <amgcl/backend/vexcl_static_matrix.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/make_solver.hpp>
 #include <amgcl/amg.hpp>
@@ -20,6 +21,16 @@ int main(int argc, char *argv[]) {
         std::cerr << "Usage: " << argv[0] << " <matrix.mtx>" << std::endl;
         return 1;
     }
+
+    // Create VexCL context. Set the environment variable OCL_DEVICE to
+    // control which GPU to use in case multiple are available,
+    // and use single device:
+    vex::Context ctx(vex::Filter::Env && vex::Filter::Count(1));
+    std::cout << ctx << std::endl;
+
+    // Enable support for block-valued matrices in VexCL kernels:
+    vex::scoped_program_header h1(ctx, amgcl::backend::vexcl_static_matrix_declaration<double,4>());
+    vex::scoped_program_header h2(ctx, amgcl::backend::vexcl_static_matrix_declaration<float,4>());
 
     // The profiler:
     amgcl::profiler<> prof("Serena");
@@ -67,9 +78,9 @@ int main(int argc, char *argv[]) {
     typedef amgcl::static_matrix<double, 4, 1> dvec_type; // the corresponding vector value type
     typedef amgcl::static_matrix<float,  4, 4> smat_type; // matrix value type in single precision
 
-    typedef amgcl::backend::builtin<dmat_type> SBackend; // the solver backend
-    typedef amgcl::backend::builtin<smat_type> PBackend; // the preconditioner backend
-
+    typedef amgcl::backend::vexcl<dmat_type> SBackend; // the solver backend
+    typedef amgcl::backend::vexcl<smat_type> PBackend; // the preconditioner backend
+    
     typedef amgcl::make_solver<
         amgcl::amg<
             PBackend,
@@ -79,12 +90,31 @@ int main(int argc, char *argv[]) {
         amgcl::solver::bicgstab<SBackend>
         > Solver;
 
+    // Solver parameters.
+    //
+    // The ILU0 relaxation is a serial algorithm. On the GPU the solutions of
+    // the lower and upper parts of the incomplete LU decomposition are
+    // approximated with several Jacobi iterations [1].
+    //
+    // Here we set the number of iterations as small as possible without
+    // increasing the total number of iterations.
+    //
+    // [1] Chow, Edmond, and Aftab Patel. "Fine-grained parallel incomplete LU
+    //     factorization." SIAM journal on Scientific Computing 37.2 (2015):
+    //     C169-C193.
+    Solver::params prm;
+    prm.precond.relax.solve.iters = 4;
+
+    // Set the VexCL context in the backend parameters
+    SBackend::params bprm;
+    bprm.q = ctx;
+
     // Initialize the solver with the system matrix.
-    // Use the block_matrix adapter to convert the matrix into
-    // the block format on the fly:
+    // We use the block_matrix adapter to convert the matrix into the block
+    // format on the fly:
     prof.tic("setup");
     auto Ab = amgcl::adapter::block_matrix<dmat_type>(A);
-    Solver solve(Ab);
+    Solver solve(Ab, prm, bprm);
     prof.toc("setup");
 
     // Show the mini-report on the constructed solver:
@@ -95,14 +125,21 @@ int main(int argc, char *argv[]) {
     double error;
     std::vector<double> x(rows, 0.0);
 
-    // Reinterpret both the RHS and the solution vectors as block-valued:
+    // Since we are using mixed precision, we have to transfer the system matrix to the GPU:
+    prof.tic("GPU matrix");
+    auto A_gpu = SBackend::copy_matrix(
+            std::make_shared<amgcl::backend::crs<dmat_type>>(Ab), bprm);
+    prof.toc("GPU matrix");
+
+    // We reinterpret both the RHS and the solution vectors as block-valued,
+    // and copy them to the VexCL vectors:
     auto f_ptr = reinterpret_cast<dvec_type*>(f.data());
     auto x_ptr = reinterpret_cast<dvec_type*>(x.data());
-    auto F = amgcl::make_iterator_range(f_ptr, f_ptr + rows / 4);
-    auto X = amgcl::make_iterator_range(x_ptr, x_ptr + rows / 4);
+    vex::vector<dvec_type> F(ctx, rows / 4, f_ptr);
+    vex::vector<dvec_type> X(ctx, rows / 4, x_ptr);
 
     prof.tic("solve");
-    std::tie(iters, error) = solve(Ab, F, X);
+    std::tie(iters, error) = solve(*A_gpu, F, X);
     prof.toc("solve");
 
     // Output the number of iterations, the relative error,
