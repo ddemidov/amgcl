@@ -109,6 +109,18 @@ class make_solver : public amgcl::detail::non_copyable {
         {
         }
 
+        template <class Backend>
+        make_solver(
+                communicator comm, std::shared_ptr<distributed_matrix<Backend>> A,
+                const params &prm = params(),
+                const backend_params &bprm = backend_params()
+                ) :
+            prm(prm), n(A->loc_rows()),
+            P(comm, std::make_shared<matrix>(*A), prm.precond, bprm),
+            S(n, prm.solver, bprm, mpi::inner_product(comm))
+        {
+        }
+
         make_solver(
                 communicator comm, std::shared_ptr<build_matrix> A,
                 const params &prm = params(),
