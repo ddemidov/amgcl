@@ -473,7 +473,7 @@ int main(int argc, char *argv[]) {
          po::value<amgcl::runtime::mpi::partition::type>()->default_value(
 #if defined(AMGCL_HAVE_SCOTCH)
              amgcl::runtime::mpi::partition::ptscotch
-#elif defined(AMGCL_HAVE_PASTIX)
+#elif defined(AMGCL_HAVE_PARMETIS)
              amgcl::runtime::mpi::partition::parmetis
 #else
              amgcl::runtime::mpi::partition::merge
