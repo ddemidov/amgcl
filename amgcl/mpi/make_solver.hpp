@@ -119,6 +119,7 @@ class make_solver : public amgcl::detail::non_copyable {
             P(comm, std::make_shared<matrix>(*A), prm.precond, bprm),
             S(n, prm.solver, bprm, mpi::inner_product(comm))
         {
+            A->move_to_backend(bprm);
         }
 
         make_solver(
