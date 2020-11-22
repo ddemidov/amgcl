@@ -322,6 +322,27 @@ class distributed_matrix {
             n_glob_nonzeros = comm.reduce(MPI_SUM, n_loc_nonzeros);
         }
 
+        // Copy the distributed_matrix from another backend
+        template <class OtherBackend>
+        distributed_matrix(const distributed_matrix<OtherBackend> &A)
+            : a_loc(std::make_shared<build_matrix>(*A.local())),
+              a_rem(std::make_shared<build_matrix>(*A.remote()))
+        {
+            auto comm = A.comm();
+
+            C = std::make_shared<CommPattern>(comm, a_loc->ncols, a_rem->nnz, a_rem->col);
+
+            this->a_rem->ncols = C->recv.count();
+
+            n_loc_rows     = a_loc->nrows;
+            n_loc_cols     = a_loc->ncols;
+            n_loc_nonzeros = a_loc->nnz + a_rem->nnz;
+
+            n_glob_rows     = comm.reduce(MPI_SUM, n_loc_rows);
+            n_glob_cols     = comm.reduce(MPI_SUM, n_loc_cols);
+            n_glob_nonzeros = comm.reduce(MPI_SUM, n_loc_nonzeros);
+        }
+
         template <class Matrix>
         distributed_matrix(
                 communicator comm,
