@@ -131,6 +131,29 @@ MPI_Datatype datatype() {
     return datatype_impl<T>::get();
 }
 
+/// Convenience wrapper around MPI_Init/MPI_Finalize.
+struct init {
+    init(int* argc, char ***argv) {
+        MPI_Init(argc, argv);
+    }
+
+    ~init() {
+        MPI_Finalize();
+    }
+};
+
+/// Convenience wrapper around MPI_Init_threads/MPI_Finalize.
+struct init_thread {
+    init_thread(int* argc, char ***argv) {
+        int _;
+        MPI_Init_thread(argc, argv, MPI_THREAD_MULTIPLE, &_);
+    }
+
+    ~init_thread() {
+        MPI_Finalize();
+    }
+};
+
 /// Convenience wrapper around MPI_Comm.
 struct communicator {
     MPI_Comm comm;

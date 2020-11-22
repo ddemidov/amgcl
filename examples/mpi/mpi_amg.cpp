@@ -2,7 +2,6 @@
 #include <vector>
 #include <string>
 
-#include <boost/scope_exit.hpp>
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -413,12 +412,7 @@ void solve_scalar(
 
 //---------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
-    int provided;
-    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-    BOOST_SCOPE_EXIT(void) {
-        MPI_Finalize();
-    } BOOST_SCOPE_EXIT_END
-
+    amgcl::mpi::init_thread mpi(&argc, &argv);
     amgcl::mpi::communicator comm(MPI_COMM_WORLD);
 
     if (comm.rank == 0)
