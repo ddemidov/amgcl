@@ -53,7 +53,7 @@ bool read(std::ifstream &f, std::vector<T> &vec) {
     return static_cast<bool>(f.read((char*)&vec[0], sizeof(T) * vec.size()));
 }
 
-/// Get CRS matrix size a binary file.
+/// Get size of the CRS matrix stored in a binary file
 template <typename IndexType>
 IndexType crs_size(const std::string &fname) {
     std::ifstream f(fname.c_str(), std::ios::binary);
