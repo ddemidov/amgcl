@@ -59,7 +59,7 @@ class make_solver : public amgcl::detail::non_copyable {
             );
     public:
         typedef typename IterativeSolver::backend_type backend_type;
-        typedef amgcl::mpi::distributed_matrix<backend_type> matrix;
+        typedef amgcl::mpi::distributed_matrix<typename Precond::backend_type> matrix;
         typedef typename backend_type::value_type value_type;
         typedef typename backend_type::params backend_params;
         typedef typename backend::builtin<value_type>::matrix build_matrix;
