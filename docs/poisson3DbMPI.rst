@@ -36,7 +36,7 @@ The :cpp:class:`amgcl::mpi::init` is a convenience RAII wrapper for
 :cpp:func:`MPI_Init()`. It will call :cpp:func:`MPI_Finalize` in the destructor
 when its instance (``mpi``) goes out of scope at the end of the program. We
 don't have to use the wrapper, but it simply makes things easier.
-:cpp:class:`amgcl::mpi::communicator` is an equally thing wrapper for
+:cpp:class:`amgcl::mpi::communicator` is an equally thin wrapper for
 ``MPI_Comm``. :cpp:class:`amgcl::mpi::communicator` and ``MPI_Comm`` may be
 used interchangeably both with the AMGCL MPI interface and the native MPI
 functions.
@@ -56,9 +56,9 @@ chunks of rows, so that each MPI process owns approximately 25% of the matrix.
 This works well enough for a small number of processes, but as the size of the
 compute cluster grows, the simple partitioning becomes less and less efficient.
 Creating efficient partitioning is outside of AMGCL scope, but AMGCL does
-provide wrappers for such libraries as ParMETIS_ and PT-SCOTCH_.
-The difference between the naive and the optimal partitioning is demonstrated
-on the next figure:
+provide wrappers for the ParMETIS_ and PT-SCOTCH_ libraries specializing in
+this. The difference between the naive and the optimal partitioning is
+demonstrated on the next figure:
 
 .. _ParMETIS: http://glaros.dtc.umn.edu/gkhome/metis/parmetis/overview
 .. _PT-SCOTCH: https://www.labri.fr/perso/pelegrin/scotch/
@@ -70,21 +70,20 @@ on the next figure:
 The figure shows the finite-diffrence discretization of a 2D Poisson problem on
 a :math:`4\times4` grid in a unit square. The nonzero pattern of the system
 matrix is presented on the lower left plot. If the grid nodes are numbered
-row-wise, then the naive partitioning of the system matrix for the 4 MPI processes is shown on the
-upper left plot. The domains belonging to each of the MPI processes
-correspond to the continuous sets of grid node indices and are elongated along
-the X axis. This results in high MPI communication traffic, as the number of
-the interface nodes is high relative to the number of interior nodes.
-The upper right plot shows the optimal partitioning of the domain for the 4 MPI
-processes. In order to keep the rows owned by a single MPI process
-adjacent to each other (so that each MPI process owns a continuous set of rows,
-as required by AMGCL), the grid nodes have to be renumbered. The labels in the
-top left corner of each grid node show the original numbering, and the
+row-wise, then the naive partitioning of the system matrix for the 4 MPI
+processes is shown on the upper left plot. The subdomains belonging to each of
+the MPI processes correspond to the continuous ranges of grid node indices and
+are elongated along the X axis. This results in high MPI communication traffic,
+as the number of the interface nodes is high relative to the number of interior
+nodes.  The upper right plot shows the optimal partitioning of the domain for
+the 4 MPI processes. In order to keep the rows owned by a single MPI process
+adjacent to each other (so that each MPI process owns a continuous range of
+rows, as required by AMGCL), the grid nodes have to be renumbered. The labels
+in the top left corner of each grid node show the original numbering, and the
 lower-rigth labels show the new numbering. The renumbering of the matrix may be
-represented with help of the permutation matrix :math:`P`, where :math:`P_{ij}
-= 1` if the :math:`j`-th unknown in the original ordering is mapped to the
-:math:`i`-th unknown in the new ordering. The reordered system may be
-represented as
+expressed as the permutation matrix :math:`P`, where :math:`P_{ij} = 1` if the
+:math:`j`-th unknown in the original ordering is mapped to the :math:`i`-th
+unknown in the new ordering. The reordered system may be written as
 
 .. math:: P^T A P y = P^T f
 
@@ -148,11 +147,11 @@ PT-SCOTCH_ libraries in lines 79--111:
    :lineno-start: 79
 
 We determine if either ParMETIS_ or PT-SCOTCH_ is available in lines 82--87,
-and use the corresponding wrapper provided by the AMGCL. The partitioning is
-the used to compute the permutation matrix :math:`P`, which used to reorder
-both the system matrix and the RHS vector. Since the reordering may change the
-number of rows owned by each MPI process, we update the number of local rows
-stored in the ``chunk`` variable.
+and use the corresponding wrapper provided by the AMGCL. The wrapper computes
+the permutation matrix :math:`P`, which is used to reorder both the system
+matrix and the RHS vector. Since the reordering may change the number of rows
+owned by each MPI process, we update the number of local rows stored in the
+``chunk`` variable.
 
 .. literalinclude:: ../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
    :language: cpp
