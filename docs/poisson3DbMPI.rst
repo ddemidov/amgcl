@@ -7,7 +7,11 @@ approach. Lets solve the same problem using the Message Passing Interface
 (MPI), or the distributed memory approach. We already know that using the
 smoothed aggregation AMG with the simple SPAI(0) smoother is working well, so
 we may start writing the code immediately.  The following is the complete
-MPI-based implementation of the solver.  We discuss it in more details below.
+MPI-based implementation of the solver
+(`tutorial/1.poisson3Db/poisson3Db_mpi.cpp`_).  We discuss it in more details
+below.
+
+.. _tutorial/1.poisson3Db/poisson3Db_mpi.cpp: https://github.com/ddemidov/amgcl/blob/master/tutorial/1.poisson3Db/poisson3Db_mpi.cpp
 
 .. literalinclude:: ../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
    :caption: The MPI solution of the poisson3Db problem
@@ -93,13 +97,13 @@ have as much as twice fewer non-zeros compared to the naive partitioning of the
 matrix. The solution :math:`x` in the original ordering may be obtained with
 :math:`x = P y`.
 
-In lines 37--55 we read the system matrix and the RHS vector using the naive
+In lines 37--54 we read the system matrix and the RHS vector using the naive
 ordering (better ordering of the unknowns will be determined later):
 
 .. literalinclude:: ../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
    :language: cpp
    :linenos:
-   :lines: 37-55
+   :lines: 37-54
    :lineno-start: 37
 
 First, we read the total (global) number of rows in the matrix from the binary
@@ -110,27 +114,27 @@ the RHS using :cpp:func:`amgcl::io::read_crs()` and
 parameters to the functions specify the regions (in row numbers) to read. The
 column indices are kept in global numbering.
 
-In lines 63--73 we define the backend and the solver types:
+In lines 62--72 we define the backend and the solver types:
 
 .. literalinclude:: ../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
    :language: cpp
    :linenos:
-   :lines: 63-73
-   :lineno-start: 63
+   :lines: 62-72
+   :lineno-start: 62
 
 The structure of the solver is the same as in the shared memory case in the
 :doc:`poisson3Db` tutorial, but we are using the components from the
 ``amgcl::mpi`` namespace. Again, we are using the mixed-precision approach and
 the preconditioner backend is defined with a single-precision value type.
 
-In lines 75--77 we create the distributed matrix from the local strips read by
+In lines 74--76 we create the distributed matrix from the local strips read by
 each of the MPI processes:
 
 .. literalinclude:: ../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
    :language: cpp
    :linenos:
-   :lines: 75-77
-   :lineno-start: 75
+   :lines: 74-76
+   :lineno-start: 74
 
 We could directly use the tuple of the CRS arrays ``std::tie(chunk, ptr, col,
 val)`` to construct the solver (the distributed matrix would be created behind
@@ -138,15 +142,15 @@ the scenes for us), but here we need to explicitly create the matrix for a
 couple of reasons. First, since we are using the mixed-precision approach, we
 need the double-precision distributed matrix for the solution step. And second,
 the matrix will be used to repartition the system using either ParMETIS_ or
-PT-SCOTCH_ libraries in lines 79--111:
+PT-SCOTCH_ libraries in lines 78--110:
 
 .. literalinclude:: ../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
    :language: cpp
    :linenos:
-   :lines: 79-111
-   :lineno-start: 79
+   :lines: 78-110
+   :lineno-start: 78
 
-We determine if either ParMETIS_ or PT-SCOTCH_ is available in lines 82--87,
+We determine if either ParMETIS_ or PT-SCOTCH_ is available in lines 81--86,
 and use the corresponding wrapper provided by the AMGCL. The wrapper computes
 the permutation matrix :math:`P`, which is used to reorder both the system
 matrix and the RHS vector. Since the reordering may change the number of rows
@@ -156,8 +160,8 @@ owned by each MPI process, we update the number of local rows stored in the
 .. literalinclude:: ../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
    :language: cpp
    :linenos:
-   :lines: 113-129
-   :lineno-start: 113
+   :lines: 112-128
+   :lineno-start: 112
 
 At this point we are ready to initialize the solver (line 115), and solve the
 system (line 128). Here is the output of the compiled program. Note that the
@@ -200,7 +204,7 @@ not support the mixed-precision approach, we will use the VexCL_ backend, which
 allows to employ CUDA, OpenCL, or OpenMP compute devices. The source code
 (`tutorial/1.poisson3Db/poisson3Db_mpi_vexcl.cpp`_) is very similar to the
 version using the builtin backend and is shown below with the differences
-highligted.
+highlighted.
 
 .. _VexCL: https://github.com/ddemidov/vexcl
 .. _tutorial/1.poisson3Db/poisson3Db_mpi_vexcl.cpp: https://github.com/ddemidov/amgcl/blob/master/tutorial/1.poisson3Db/poisson3Db_mpi_vexcl.cpp
@@ -208,7 +212,7 @@ highligted.
 .. literalinclude:: ../tutorial/1.poisson3Db/poisson3Db_mpi_vexcl.cpp
    :language: cpp
    :linenos:
-   :emphasize-lines: 4,36-42,68,77-78,114,127-129,142-143
+   :emphasize-lines: 4,36-42,67,76-77,113,126-128,131,141-142
 
 Basically, we replace the ``builtin`` backend with the ``vexcl`` one,
 initialize the VexCL context and reference the context in the backend

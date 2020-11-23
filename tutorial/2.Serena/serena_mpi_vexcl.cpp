@@ -1,7 +1,8 @@
 #include <vector>
 #include <iostream>
 
-#include <amgcl/backend/builtin.hpp>
+#include <amgcl/backend/vexcl.hpp>
+#include <amgcl/backend/vexcl_static_matrix.hpp>
 #include <amgcl/value_type/static_matrix.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/adapter/block_matrix.hpp>
@@ -36,8 +37,22 @@ int main(int argc, char *argv[]) {
     amgcl::mpi::init mpi(&argc, &argv);
     amgcl::mpi::communicator world(MPI_COMM_WORLD);
 
+    // Create VexCL context. Use vex::Filter::Exclusive so that different MPI
+    // processes get different GPUs. Each process gets a single GPU:
+    vex::Context ctx(vex::Filter::Exclusive(vex::Filter::Env && vex::Filter::Count(1)));
+    for(int i = 0; i < world.size; ++i) {
+        // unclutter the output:
+        if (i == world.rank)
+            std::cout << world.rank << ": " << ctx.queue(0) << std::endl;
+        MPI_Barrier(world);
+    }
+
+    // Enable support for block-valued matrices in the VexCL kernels:
+    vex::scoped_program_header h1(ctx, amgcl::backend::vexcl_static_matrix_declaration<double,B>());
+    vex::scoped_program_header h2(ctx, amgcl::backend::vexcl_static_matrix_declaration<float,B>());
+
     // The profiler:
-    amgcl::profiler<> prof("Serena MPI");
+    amgcl::profiler<> prof("Serena MPI(VexCL)");
 
     prof.tic("read");
     // Get the global size of the matrix:
@@ -66,8 +81,8 @@ int main(int argc, char *argv[]) {
     typedef amgcl::static_matrix<double, B, B> dmat_type;
     typedef amgcl::static_matrix<double, B, 1> dvec_type;
     typedef amgcl::static_matrix<float,  B, B> fmat_type;
-    typedef amgcl::backend::builtin<dmat_type> DBackend;
-    typedef amgcl::backend::builtin<fmat_type> FBackend;
+    typedef amgcl::backend::vexcl<dmat_type> DBackend;
+    typedef amgcl::backend::vexcl<fmat_type> FBackend;
 
     typedef amgcl::mpi::make_solver<
         amgcl::mpi::amg<
@@ -81,6 +96,10 @@ int main(int argc, char *argv[]) {
     // Solver parameters
     Solver::params prm;
     prm.solver.maxiter = 200;
+
+    // Set the VexCL context in the backend parameters
+    DBackend::params bprm;
+    bprm.q = ctx;
 
     // We need to scale the matrix, so that it has the unit diagonal.
     // Since we only have the local rows for the matrix, and we may need the
@@ -122,7 +141,7 @@ int main(int argc, char *argv[]) {
     // the scaled RHS is equal to dia.
     // Reinterpret the pointer to dia data to get the RHS in the block format:
     auto f_ptr = reinterpret_cast<dvec_type*>(dia.data());
-    std::vector<dvec_type> rhs(f_ptr, f_ptr + chunk / B);
+    vex::vector<dvec_type> rhs(ctx, chunk / B, f_ptr);
 
     // Partition the matrix and the RHS vector.
     // If neither ParMETIS not PT-SCOTCH are not available,
@@ -146,8 +165,8 @@ int main(int argc, char *argv[]) {
         A = product(*R, *product(*A, *P));
 
         // and the RHS vector:
-        std::vector<dvec_type> new_rhs(R->loc_rows());
-        R->move_to_backend(typename DBackend::params());
+        vex::vector<dvec_type> new_rhs(ctx, R->loc_rows());
+        R->move_to_backend(bprm);
         amgcl::backend::spmv(1, *R, rhs, 0, new_rhs);
         rhs.swap(new_rhs);
 
@@ -162,7 +181,7 @@ int main(int argc, char *argv[]) {
 
     // Initialize the solver:
     prof.tic("setup");
-    Solver solve(world, A, prm);
+    Solver solve(world, A, prm, bprm);
     prof.toc("setup");
 
     // Show the mini-report on the constructed solver:
@@ -171,7 +190,8 @@ int main(int argc, char *argv[]) {
     // Solve the system with the zero initial approximation:
     int iters;
     double error;
-    std::vector<dvec_type> x(chunk, amgcl::math::zero<dvec_type>());
+    vex::vector<dvec_type> x(ctx, chunk);
+    x = amgcl::math::zero<dvec_type>();
 
     prof.tic("solve");
     std::tie(iters, error) = solve(*A, rhs, x);

@@ -362,7 +362,7 @@ contains the complete source for the solution (available at
 backend version are highlighted.
 
 .. literalinclude:: ../tutorial/2.Serena/serena_vexcl.cpp
-   :caption: The solution of the Serena problem with VexCL backend.
+   :caption: The solution of the Serena problem with the VexCL backend.
    :language: cpp
    :linenos:
    :emphasize-lines: 4-5,28-29,32-33,81-82,98-99,106,119-120,127-128,131
@@ -413,7 +413,7 @@ The output of the program is shown below::
     Iters: 162
     Error: 9.74928e-09
 
-    [Serena:          27.208 s] (100.00%)
+    [Serena (VexCL):  27.208 s] (100.00%)
     [ self:            0.180 s] (  0.66%)
     [  GPU matrix:     0.604 s] (  2.22%)
     [  read:          18.699 s] ( 68.73%)

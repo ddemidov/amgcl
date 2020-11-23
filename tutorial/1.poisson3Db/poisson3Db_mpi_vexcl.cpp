@@ -50,8 +50,7 @@ int main(int argc, char *argv[]) {
     size_t rows = amgcl::io::crs_size<size_t>(argv[1]);
     size_t cols;
 
-    // Split the matrix into approximately equal chunks of rows, so that each
-    // chunk size is still divisible by the block size.
+    // Split the matrix into approximately equal chunks of rows
     size_t chunk = (rows + world.size - 1) / world.size;
     size_t row_beg = std::min(rows, chunk * world.rank);
     size_t row_end = std::min(rows, row_beg + chunk);

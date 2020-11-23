@@ -28,12 +28,12 @@ int main(int argc, char *argv[]) {
     vex::Context ctx(vex::Filter::Env && vex::Filter::Count(1));
     std::cout << ctx << std::endl;
 
-    // Enable support for block-valued matrices in VexCL kernels:
+    // Enable support for block-valued matrices in the VexCL kernels:
     vex::scoped_program_header h1(ctx, amgcl::backend::vexcl_static_matrix_declaration<double,3>());
     vex::scoped_program_header h2(ctx, amgcl::backend::vexcl_static_matrix_declaration<float,3>());
 
     // The profiler:
-    amgcl::profiler<> prof("Serena");
+    amgcl::profiler<> prof("Serena (VexCL)");
 
     // Read the system matrix:
     size_t rows, cols;
