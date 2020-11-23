@@ -1,5 +1,5 @@
-3D fully coupled poroelastic problem
-====================================
+Fully coupled poroelastic problem
+---------------------------------
 
 This system may be downloaded from the CoupCons3D_ page (use the `Matrix
 Market`_ download option). According to the description, the system has been

@@ -21,4 +21,17 @@ if(TARGET mpi_target)
     if (TARGET Metis::metis)
         target_link_libraries(poisson3Db_mpi Metis::metis)
     endif()
+
+    if (VexCL_FOUND)
+        vexcl_add_executables(poisson3Db_mpi_vexcl poisson3Db_mpi_vexcl.cpp)
+        target_link_libraries(poisson3Db_mpi_vexcl INTERFACE amgcl mpi_target)
+
+        if (TARGET scotch_target)
+            target_link_libraries(poisson3Db_mpi_vexcl INTERFACE scotch_target)
+        endif()
+
+        if (TARGET Metis::metis)
+            target_link_libraries(poisson3Db_mpi_vexcl INTERFACE Metis::metis)
+        endif()
+    endif()
 endif()

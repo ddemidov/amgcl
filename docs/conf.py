@@ -57,6 +57,7 @@ project = 'AMGCL'
 copyright = '2012-2020, Denis Demidov <dennis.demidov@gmail.com>'
 author = 'Denis Demidov'
 numfig = True
+plot_include_source = False
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

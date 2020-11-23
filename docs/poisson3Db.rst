@@ -1,5 +1,5 @@
-3D Poisson problem
-------------------
+Poisson problem
+---------------
 
 This system may be downloaded from the poisson3Db_ page (use the `Matrix
 Market`_ download option). The system matrix has 85,623 rows and 2,374,949
@@ -296,10 +296,11 @@ solution using an NVIDIA GPU. We only need to use the
 :cpp:class:`amgcl::backend::cuda` instead of the ``builtin`` backend, and we
 also need to initialize the CUSPARSE library and pass the handle to AMGCL as
 the backend parameters. Unfortunately, we can not use the mixed precision
-approach, as CUSPARSE does not support that (we could use a VexCL_ backend
-though). The source code is very close to what we have seen above and is
-available at `tutorial/1.poisson3Db/poisson3Db_cuda.cu`_. The listing below has
-the differences highligted:
+approach, as CUSPARSE does not support that (we could use the VexCL_ backend
+though, see :doc:`poisson3DbMPI`). The source code is very close to what we
+have seen above and is available at
+`tutorial/1.poisson3Db/poisson3Db_cuda.cu`_. The listing below has the
+differences highligted:
 
 .. literalinclude:: ../tutorial/1.poisson3Db/poisson3Db_cuda.cu
    :caption: The source code for the solution of the poisson3Db problem using the CUDA backend.

@@ -166,7 +166,7 @@ The solution to the problem looks like this:
     for k in range(1,20,2):
         u -= 16/pi**3 * (sin(k*pi*(1+x)/2) / (k**3 * sinh(k * pi))
                 * (sinh(k * pi * (1 + y) / 2) + sinh(k * pi * (1 - y)/2)))
-    figure(figsize=(3,3))
+    figure(figsize=(5,5))
     imshow(u, extent=(0,1,0,1))
     show()
 

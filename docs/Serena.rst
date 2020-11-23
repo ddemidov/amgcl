@@ -1,8 +1,8 @@
-3D structural problem
----------------------
+Structural problem
+------------------
 
 This system may be downloaded from the Serena_ page (use the `Matrix Market`_
-download option). According to the description, the system represents a gas
+download option). According to the description, the system represents a 3D gas
 resevoir simulation for CO2 sequestration, and was obtained from a structural
 problem discretizing a gas reservoir with tetrahedral Finite Elements. The
 medium is strongly heterogeneous and characterized by a complex geometry
