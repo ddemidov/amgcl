@@ -114,7 +114,6 @@ partition(amgcl::mpi::communicator comm, const Matrix &Astrip,
     prof.tic("partition");
     boost::property_tree::ptree prm;
     prm.put("type", ptype);
-    prm.put("shrink_ratio", 1);
     amgcl::runtime::mpi::partition::wrapper<Backend> part(prm);
 
     auto I = part(*A, block_size);
