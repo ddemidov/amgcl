@@ -13,5 +13,7 @@ GPU backends were obtained with the NVIDIA GeForce GTX 1050 Ti GPU.
     :maxdepth: 1
 
     poisson3Db
+    poisson3DbMPI
     Serena
+    SerenaMPI
     CoupCons3D

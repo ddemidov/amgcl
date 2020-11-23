@@ -21,7 +21,7 @@
 
 //---------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
-    // The matrix and the RHS file names should be in the command line options:
+    // The command line should contain the matrix file name:
     if (argc < 3) {
         std::cerr << "Usage: " << argv[0] << " <matrix.mtx> <nu>" << std::endl;
         return 1;

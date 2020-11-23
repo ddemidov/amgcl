@@ -1,4 +1,4 @@
-3D Structural problem
+3D structural problem
 ---------------------
 
 This system may be downloaded from the Serena_ page (use the `Matrix Market`_

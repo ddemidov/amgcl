@@ -16,7 +16,7 @@
 #include <amgcl/profiler.hpp>
 
 int main(int argc, char *argv[]) {
-    // The matrix and the RHS file names should be in the command line options:
+    // The command line should contain the matrix file name:
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <matrix.mtx>" << std::endl;
         return 1;
