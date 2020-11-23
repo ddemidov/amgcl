@@ -17,7 +17,7 @@ differences are:
   to take this into account. Namely, the partitioning should not split any of
   the :math:`3\times3` blocks between MPI processes.
 - Even though the system is symmetric, the convergence of the CG solver in the
-  distributed case stalls at the relative error about :math:`10^{-6}`.
+  distributed case stalls at the relative error of about :math:`10^{-6}`.
   Switching to the BiCGStab solver helps with the convergence.
 
 The next listing is the MPI version of the Serena_ system solver
