@@ -98,7 +98,7 @@ matrix. The solution :math:`x` in the original ordering may be obtained with
 :math:`x = P y`.
 
 In lines 37--54 we read the system matrix and the RHS vector using the naive
-ordering (better ordering of the unknowns will be determined later):
+ordering (a nicer ordering of the unknowns will be determined later):
 
 .. literalinclude:: ../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
    :language: cpp
