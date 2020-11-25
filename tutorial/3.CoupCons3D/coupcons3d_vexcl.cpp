@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
     amgcl::profiler<> prof("Serena");
 
     // Read the system matrix:
-    size_t rows, cols;
+    ptrdiff_t rows, cols;
     std::vector<ptrdiff_t> ptr, col;
     std::vector<double> val;
 
@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
     // Scale the matrix so that it has the unit diagonal.
     // First, find the diagonal values:
     std::vector<double> D(rows, 1.0);
-    for(size_t i = 0; i < rows; ++i) {
+    for(ptrdiff_t i = 0; i < rows; ++i) {
         for(ptrdiff_t j = ptr[i], e = ptr[i+1]; j < e; ++j) {
             if (col[j] == i) {
                 D[i] = 1 / sqrt(val[j]);
@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Then, apply the scaling in-place:
-    for(size_t i = 0; i < rows; ++i) {
+    for(ptrdiff_t i = 0; i < rows; ++i) {
         for(ptrdiff_t j = ptr[i], e = ptr[i+1]; j < e; ++j) {
             val[j] *= D[i] * D[col[j]];
         }

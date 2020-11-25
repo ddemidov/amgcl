@@ -56,15 +56,15 @@ int main(int argc, char *argv[]) {
 
     prof.tic("read");
     // Get the global size of the matrix:
-    size_t rows = amgcl::io::crs_size<size_t>(argv[1]);
+    ptrdiff_t rows = amgcl::io::crs_size<ptrdiff_t>(argv[1]);
 
     // Split the matrix into approximately equal chunks of rows, and
     // make sure each chunk size is divisible by the block size.
-    size_t chunk = (rows + world.size - 1) / world.size;
+    ptrdiff_t chunk = (rows + world.size - 1) / world.size;
     if (chunk % B) chunk += B - chunk % B;
 
-    size_t row_beg = std::min(rows, chunk * world.rank);
-    size_t row_end = std::min(rows, row_beg + chunk);
+    ptrdiff_t row_beg = std::min(rows, chunk * world.rank);
+    ptrdiff_t row_end = std::min(rows, row_beg + chunk);
     chunk = row_end - row_beg;
 
     // Read our part of the system matrix.
@@ -110,7 +110,7 @@ int main(int argc, char *argv[]) {
     // and form the CRS arrays for a diagonal matrix.
     std::vector<double> dia(chunk, 1.0);
     std::vector<ptrdiff_t> d_ptr(chunk + 1), d_col(chunk);
-    for(size_t i = 0, I = row_beg; i < chunk; ++i, ++I) {
+    for(ptrdiff_t i = 0, I = row_beg; i < chunk; ++i, ++I) {
         d_ptr[i] = i;
         d_col[i] = I;
         for(ptrdiff_t j = ptr[i], e = ptr[i+1]; j < e; ++j) {

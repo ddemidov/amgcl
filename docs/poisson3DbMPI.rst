@@ -92,7 +92,7 @@ unknown in the new ordering. The reordered system may be written as
 .. math:: P^T A P y = P^T f
 
 The reordered matrix :math:`P^T A P` and the corresponding partitioning are
-shown on lower right plot. Note that off-diagonal blocks on each MPI process
+shown on the lower right plot. Note that off-diagonal blocks on each MPI process
 have as much as twice fewer non-zeros compared to the naive partitioning of the
 matrix. The solution :math:`x` in the original ordering may be obtained with
 :math:`x = P y`.

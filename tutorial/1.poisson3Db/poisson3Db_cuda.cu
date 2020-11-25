@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
     amgcl::profiler<> prof("poisson3Db");
 
     // Read the system matrix and the RHS:
-    size_t rows, cols;
+    ptrdiff_t rows, cols;
     std::vector<ptrdiff_t> ptr, col;
     std::vector<double> val, rhs;
 

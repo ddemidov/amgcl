@@ -47,13 +47,13 @@ int main(int argc, char *argv[]) {
     // Read the system matrix and the RHS:
     prof.tic("read");
     // Get the global size of the matrix:
-    size_t rows = amgcl::io::crs_size<size_t>(argv[1]);
-    size_t cols;
+    ptrdiff_t rows = amgcl::io::crs_size<ptrdiff_t>(argv[1]);
+    ptrdiff_t cols;
 
     // Split the matrix into approximately equal chunks of rows
-    size_t chunk = (rows + world.size - 1) / world.size;
-    size_t row_beg = std::min(rows, chunk * world.rank);
-    size_t row_end = std::min(rows, row_beg + chunk);
+    ptrdiff_t chunk = (rows + world.size - 1) / world.size;
+    ptrdiff_t row_beg = std::min(rows, chunk * world.rank);
+    ptrdiff_t row_end = std::min(rows, row_beg + chunk);
     chunk = row_end - row_beg;
 
     // Read our part of the system matrix and the RHS.

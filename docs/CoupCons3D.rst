@@ -258,7 +258,6 @@ on the CPU, and the speedup from using the GPU backend is not as prominent::
     [  solve:          0.229 s] (  1.59%)
 
 
-.. [ChPa15] Chow, Edmond, and Aftab Patel. "Fine-grained parallel incomplete LU factorization." SIAM journal on Scientific Computing 37.2 (2015): C169-C193.
 .. _tutorial/3.CoupCons3D/coupcons3d_vexcl.cpp: https://github.com/ddemidov/amgcl/blob/master/tutorial/3.CoupCons3D/coupcons3d_vexcl.cpp
 
 .. note::

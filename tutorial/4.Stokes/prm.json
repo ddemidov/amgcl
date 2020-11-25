@@ -1,0 +1,20 @@
+{
+    "solver": { "type": "cg" },
+    "precond": {
+        "pmask_size": 554496,
+        "pmask_pattern": ">456192",
+        "adjust_p": 1,
+        "simplec_dia": false,
+        "usolver": {
+            "solver": { "type": "preonly" },
+            "precond": {
+                "coarsening": { "type": "aggregation" },
+                "relax":      { "type": "ilu0" }
+            }
+        },
+        "psolver": {
+            "solver":  { "type": "preonly" },
+            "precond": { "class": "relaxation" }
+        }
+    }
+}
