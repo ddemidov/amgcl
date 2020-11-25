@@ -6,10 +6,24 @@
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/preprocessor/seq/for_each.hpp>
 
+#include <amgcl/make_solver.hpp>
+#include <amgcl/make_block_solver.hpp>
+#include <amgcl/value_type/static_matrix.hpp>
+#include <amgcl/adapter/block_matrix.hpp>
+#include <amgcl/amg.hpp>
+#include <amgcl/solver/runtime.hpp>
+#include <amgcl/coarsening/runtime.hpp>
+#include <amgcl/relaxation/runtime.hpp>
+#include <amgcl/preconditioner/schur_pressure_correction.hpp>
+#include <amgcl/preconditioner/runtime.hpp>
+#include <amgcl/adapter/crs_tuple.hpp>
+
 #if defined(SOLVER_BACKEND_VEXCL)
 #  include <amgcl/backend/vexcl.hpp>
 #  include <amgcl/backend/vexcl_static_matrix.hpp>
    template <class T> using Backend = amgcl::backend::vexcl<T>;
+   template <class T, int N, int M>
+   using BlockMatrix = amgcl::static_matrix<T, N, M>;
 #else
 #  ifndef SOLVER_BACKEND_BUILTIN
 #    define SOLVER_BACKEND_BUILTIN
@@ -20,23 +34,11 @@
      template <class T, int N, int M>
      using BlockMatrix = Eigen::Matrix<T, N, M>;
 #  else
-#    include <amgcl/value_type/static_matrix.hpp>
      template <class T, int N, int M>
      using BlockMatrix = amgcl::static_matrix<T, N, M>;
 #endif
-#  include <amgcl/adapter/block_matrix.hpp>
-#  include <amgcl/make_block_solver.hpp>
    template <class T> using Backend = amgcl::backend::builtin<T>;
 #endif
-
-#include <amgcl/make_solver.hpp>
-#include <amgcl/amg.hpp>
-#include <amgcl/solver/runtime.hpp>
-#include <amgcl/coarsening/runtime.hpp>
-#include <amgcl/relaxation/runtime.hpp>
-#include <amgcl/preconditioner/schur_pressure_correction.hpp>
-#include <amgcl/preconditioner/runtime.hpp>
-#include <amgcl/adapter/crs_tuple.hpp>
 
 #include <amgcl/io/mm.hpp>
 #include <amgcl/io/binary.hpp>
@@ -63,7 +65,7 @@ void solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::propert
     bprm.q = ctx;
 
     const int UB = amgcl::math::static_rows<typename USolver::backend_type::value_type>::value;
-    const int PB = amgcl::math::static_rows<typename USolver::backend_type::value_type>::value;
+    const int PB = amgcl::math::static_rows<typename PSolver::backend_type::value_type>::value;
 
     std::list<vex::scoped_program_header> headers;
     if (UB > 1) headers.emplace_back(ctx, amgcl::backend::vexcl_static_matrix_declaration<float,UB>());
@@ -81,6 +83,7 @@ void solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::propert
 
     std::cout << solve << std::endl;
 
+    auto A = SBackend::copy_matrix(std::make_shared<amgcl::backend::crs<double>>(K), bprm);
     auto f = SBackend::copy_vector(rhs, bprm);
     auto x = SBackend::create_vector(rhs.size(), bprm);
     amgcl::backend::clear(*x);
@@ -89,7 +92,7 @@ void solve_schur(const Matrix &K, const std::vector<double> &rhs, boost::propert
     double error;
 
     prof.tic("solve");
-    std::tie(iters, error) = solve(K, *f, *x);
+    std::tie(iters, error) = solve(*A, *f, *x);
     prof.toc("solve");
 
     std::cout << "Iterations: " << iters << std::endl
@@ -122,7 +125,7 @@ void solve_schur(int pb, const Matrix &K, const std::vector<double> &rhs, boost:
                 solve_schur<USolver, PSolver>(K, rhs, prm);
             }
             break;
-#if defined(SOLVER_BACKEND_BUILTIN)
+#if defined(SOLVER_BACKEND_BUILTIN) || defined(SOLVER_BACKEND_VEXCL)
         BOOST_PP_SEQ_FOR_EACH(AMGCL_BLOCK_PSOLVER, ~, AMGCL_BLOCK_SIZES)
 #endif
         default:
@@ -156,7 +159,7 @@ void solve_schur(int ub, int pb, const Matrix &K, const std::vector<double> &rhs
                 solve_schur<USolver>(pb, K, rhs, prm);
             }
             break;
-#if defined(SOLVER_BACKEND_BUILTIN)
+#if defined(SOLVER_BACKEND_BUILTIN) || defined(SOLVER_BACKEND_VEXCL)
         BOOST_PP_SEQ_FOR_EACH(AMGCL_BLOCK_USOLVER, ~, AMGCL_BLOCK_SIZES)
 #endif
         default:

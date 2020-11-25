@@ -1314,6 +1314,22 @@ struct copy_impl<
     }
 };
 
+template <class T, class Vector>
+struct reinterpret_impl<
+    T, Vector, typename std::enable_if<is_builtin_vector<Vector>::value>::type
+    >
+{
+    typedef amgcl::iterator_range<T*> return_type;
+
+    static return_type get(const Vector &x) {
+        typedef typename backend::value_type<Vector>::type V;
+        const size_t n = x.size() * sizeof(V) / sizeof(T);
+
+        auto ptr = reinterpret_cast<T*>(const_cast<V*>(&x[0]));
+        return amgcl::make_iterator_range(ptr, ptr + n);
+    }
+};
+
 namespace detail {
 
 template <typename V, typename C, typename P>

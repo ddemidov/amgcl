@@ -31,6 +31,7 @@ THE SOFTWARE.
  * \brief  Static matrix support for the VexCL backend.
  */
 
+#include <amgcl/backend/detail/mixing.hpp>
 #include <amgcl/backend/vexcl.hpp>
 #include <amgcl/value_type/static_matrix.hpp>
 
@@ -966,6 +967,26 @@ struct inner_product_impl<
     }
 };
 
+namespace detail {
+
+template <class V1, class V2>
+struct common_scalar_backend< backend::vexcl<V1>, backend::vexcl<V2>,
+    typename std::enable_if<
+        math::static_rows<V1>::value != 1 ||
+        math::static_rows<V2>::value != 1
+        >::type>
+{
+    typedef typename math::scalar_of<V1>::type S1;
+    typedef typename math::scalar_of<V2>::type S2;
+
+    typedef
+        typename std::conditional<
+            (sizeof(S1) > sizeof(S2)), backend::vexcl<S1>, backend::vexcl<S2>
+            >::type
+        type;
+};
+
+} // namespace detail
 } // namespace backend
 } // namespace amgcl
 

@@ -413,6 +413,17 @@ struct vmul_impl<
     }
 };
 
+template <class T, class V>
+struct reinterpret_impl<T, vex::vector<V>>
+{
+    typedef vex::vector<typename std::decay<T>::type> return_type;
+
+    static return_type get(const vex::vector<V> &x) {
+        return x.template reinterpret<typename std::decay<T>::type>();
+    }
+};
+
+
 } // namespace backend
 } // namespace amgcl
 

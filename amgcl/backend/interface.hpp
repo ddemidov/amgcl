@@ -230,6 +230,12 @@ struct vmul_impl {
     typedef typename Vector1::VMUL_NOT_IMPLEMENTED type;
 };
 
+/// Reinterpret the vector as containing the given value type
+template <class T, class Vector, class Enable = void>
+struct reinterpret_impl {
+    typedef typename T::REINTERPRET_NOT_IMPLEMENTED type;
+};
+
 /** @} */
 
 /// Returns the number of rows in a matrix.
@@ -384,6 +390,13 @@ void vmul(Alpha alpha, const Vector1 &x, const Vector2 &y, Beta beta, Vector3 &z
     AMGCL_TIC("vmul");
     vmul_impl<Alpha, Vector1, Vector2, Beta, Vector3>::apply(alpha, x, y, beta, z);
     AMGCL_TOC("vmul");
+}
+
+/// Reinterpret the vector as containing the given value type
+template <class T, class Vector>
+typename reinterpret_impl<T, typename std::decay<Vector>::type>::return_type
+reinterpret(Vector &&x) {
+    return reinterpret_impl<T, typename std::decay<Vector>::type>::get(std::forward<Vector>(x));
 }
 
 /// Is the relaxation supported by the backend?
