@@ -102,7 +102,9 @@ aggregation with ILU(0) smoothing on each level for the flow subsystem
 subsystem (``psolver``) works best. We also disable lumping of the diagonal of
 the :math:`A` matrix in the Schur complement approximation with the
 ``precond.simplec_dia=false`` option, and enable block-valued backend for the
-flow susbsystem with the ``--ub 3`` option::
+flow susbsystem with the ``--ub 3`` option. The ``-m '>456192'`` option sets
+the pressure mask pattern. It tells the solver that all unknowns starting with
+the 456192-th belong to the pressure subsystem::
 
     $ schur_pressure_correction -B -A ucube_4_A.bin -f ucube_4_b.bin -m '>456192' \
         -p solver.type=cg solver.maxiter=200 \
