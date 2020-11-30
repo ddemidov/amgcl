@@ -34,6 +34,7 @@ add_amgcl_example(custom_adapter custom_adapter.cpp)
 add_amgcl_example(mixed_precision mixed_precision.cpp)
 add_amgcl_example(schurpc_mixed schurpc_mixed.cpp)
 add_amgcl_example(deflated_solver deflated_solver.cpp)
+add_amgcl_example(ns_search ns_search.cpp)
 
 add_amgcl_example(ublas ublas.cpp)
 target_link_libraries(ublas ${Boost_SERIALIZATION_LIBRARY})
