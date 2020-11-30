@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <random>
 
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -460,6 +461,11 @@ int main(int argc, char *argv[]) {
          "Value to use as initial approximation. "
         )
         (
+         "random-initial",
+         po::bool_switch()->default_value(false),
+         "Use random initial approximation. "
+        )
+        (
          "output,o",
          po::value<string>(),
          "Output file. Will be saved in the MatrixMarket format. "
@@ -591,6 +597,11 @@ int main(int argc, char *argv[]) {
     }
 
     x.resize(rows, vm["initial"].as<double>());
+    if (vm["random-initial"].as<bool>()) {
+        std::mt19937 rng;
+        std::uniform_real_distribution<double> rnd(-1, 1);
+        for(auto &v : x) v = rnd(rng);
+    }
 
     size_t iters;
     double error;

@@ -137,10 +137,14 @@ class lgmres {
             /// Target absolute residual error.
             scalar_type abstol;
 
+            /// Ignore the trivial solution x=0 when rhs is zero.
+            //** Useful for searching for the null-space vectors of the system */
+            bool ns_search;
+
             params()
                 : M(30), K(3), always_reset(true),
                   pside(preconditioner::side::right), maxiter(100), tol(1e-8),
-                  abstol(std::numeric_limits<scalar_type>::min())
+                  abstol(std::numeric_limits<scalar_type>::min()), ns_search(false)
             { }
 
 #ifndef AMGCL_NO_BOOST
@@ -151,9 +155,10 @@ class lgmres {
                   AMGCL_PARAMS_IMPORT_VALUE(p, pside),
                   AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
                   AMGCL_PARAMS_IMPORT_VALUE(p, tol),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, abstol)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, abstol),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, ns_search)
             {
-                check_params(p, {"pside", "M", "K", "always_reset", "maxiter", "tol", "abstol"});
+                check_params(p, {"pside", "M", "K", "always_reset", "maxiter", "tol", "abstol", "ns_search"});
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
@@ -164,6 +169,7 @@ class lgmres {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, maxiter);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, tol);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, abstol);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, ns_search);
             }
 #endif
         } prm;
@@ -223,8 +229,12 @@ class lgmres {
 
             scalar_type norm_rhs = norm(rhs);
             if (norm_rhs < amgcl::detail::eps<scalar_type>(1)) {
-                backend::clear(x);
-                return std::make_tuple(0, norm_rhs);
+                if (prm.ns_search) {
+                    norm_rhs = math::identity<scalar_type>();
+                } else {
+                    backend::clear(x);
+                    return std::make_tuple(0, norm_rhs);
+                }
             }
 
             scalar_type norm_r = zero;
