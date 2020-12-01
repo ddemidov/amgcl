@@ -396,6 +396,11 @@ int main(int argc, char *argv[]) {
          "Should only be provided together with a system matrix. "
         )
         (
+         "f0",
+         po::bool_switch()->default_value(false),
+         "Use zero RHS vector."
+        )
+        (
          "null,N",
          po::value<string>(),
          "The near null-space vectors in the MatrixMarket format. "
@@ -533,7 +538,7 @@ int main(int argc, char *argv[]) {
 
             precondition(n == rows && m == 1, "The RHS vector has wrong size");
         } else {
-            rhs.resize(rows, 1.0);
+            rhs.resize(rows, vm["f0"].as<bool>() ? 0.0 : 1.0);
         }
 
         if (vm.count("null")) {
