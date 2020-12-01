@@ -124,7 +124,7 @@ int main(int argc, char *argv[]) {
     std::list<std::vector<double>> Z;
 
     {
-        auto t = prof.scoped_tic("reading");
+        auto t = prof.scoped_tic("read");
 
         string Afile  = vm["matrix"].as<string>();
         bool   binary = vm["binary"].as<bool>();
@@ -216,6 +216,7 @@ int main(int argc, char *argv[]) {
 
     prm.put("solver.ns_search", true);
 
+    prof.tic("search");
     for(int k = nv; k < numvec; ++k) {
         auto t = prof.scoped_tic(std::string("vector ") + std::to_string(k));
         std::vector<double> N;
@@ -239,7 +240,11 @@ int main(int argc, char *argv[]) {
         Solver S(A, prm);
         prof.toc("setup");
 
-        std::cout << "\n-------------------------\nSearching for vector " << k << std::endl << S << std::endl;
+        std::cout << std::endl
+                  << "-------------------------" << std::endl
+                  << "-- Searching for vector " << k << std::endl
+                  << "-------------------------" << std::endl
+                  << S << std::endl;
 
         for(auto &v : x) v = rnd(rng);
 
@@ -263,11 +268,12 @@ int main(int argc, char *argv[]) {
         for(auto &v : x) v /= nx;
         Z.push_back(x);
     }
+    prof.toc("search");
 
     // Solve the system using the near nullspace vectors:
     std::vector<double> N(numvec * rows);
     {
-        auto t = prof.scoped_tic("full solve");
+        auto t = prof.scoped_tic("apply");
 
         int j = 0;
         for(const auto &z : Z) {
@@ -285,7 +291,11 @@ int main(int argc, char *argv[]) {
         Solver S(A, prm);
         prof.toc("setup");
 
-        std::cout << "\n-------------------------\nSolving the full system:\n" << S << std::endl;
+        std::cout << std::endl
+                  << "-------------------------" << std::endl
+                  << "-- Solving the system " << std::endl
+                  << "-------------------------" << std::endl
+                  << S << std::endl;
 
         amgcl::backend::clear(x);
 
