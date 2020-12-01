@@ -21,3 +21,4 @@ GeForce GTX 1050 Ti GPU.
     SerenaMPI
     CoupCons3D
     Stokes
+    Nullspace
