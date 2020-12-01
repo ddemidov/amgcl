@@ -3,10 +3,10 @@ Using near null-space vectors
 
 Using near null-space vectors may greately improve the quality of the
 aggregation AMG preconditioner. For the elasticity or structural problems the
-near-null space vectors may computed as rigid body modes from the coordinates
-of the discretization grid nodes. In this tutorial we will use the system
-obtained by discretization of a 3D elasticity problem modeling a connecting
-rod:
+near-null space vectors may be computed as rigid body modes from the
+coordinates of the discretization grid nodes. In this tutorial we will use the
+system obtained by discretization of a 3D elasticity problem modeling a
+connecting rod:
 
 .. figure:: ../tutorial/5.Nullspace/displacements.png
    :width: 90%
@@ -14,7 +14,7 @@ rod:
 
    The connecting rod geometry with the computed displacements
 
-The problem was kindly provided by David Herrero Pérez (`@davidherreroperez
+The dataset was kindly provided by David Herrero Pérez (`@davidherreroperez
 <https://github.com/davidherreroperez>`_) in the issue `#135
 <https://github.com/ddemidov/amgcl/issues/135>`_ on Github and is
 available for download at `doi:10.5281/zenodo.4299865
