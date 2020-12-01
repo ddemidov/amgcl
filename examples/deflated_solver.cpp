@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    size_t rows, nv;
+    ptrdiff_t rows, nv;
     vector<ptrdiff_t> ptr, col;
     vector<double> val, rhs, z;
 
@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
         if (binary) {
             io::read_crs(Afile, rows, ptr, col, val);
         } else {
-            size_t cols;
+            ptrdiff_t cols;
             std::tie(rows, cols) = io::mm_reader(Afile)(ptr, col, val);
             precondition(rows == cols, "Non-square system matrix");
         }
@@ -148,7 +148,7 @@ int main(int argc, char *argv[]) {
         if (vm.count("rhs")) {
             string bfile = vm["rhs"].as<string>();
 
-            size_t n, m;
+            ptrdiff_t n, m;
 
             if (binary) {
                 io::read_dense(bfile, n, m, rhs);
@@ -163,21 +163,27 @@ int main(int argc, char *argv[]) {
 
         if (vm.count("defvec")) {
             string nfile = vm["defvec"].as<string>();
+            std::vector<double> N;
 
-            size_t m;
+            ptrdiff_t m;
 
             if (binary) {
-                io::read_dense(nfile, nv, m, z);
+                io::read_dense(nfile, m, nv, N);
             } else {
-                std::tie(nv, m) = io::mm_reader(nfile)(z);
+                std::tie(m, nv) = io::mm_reader(nfile)(N);
             }
 
             precondition(m == rows, "Deflation vectors have wrong size");
+
+            z.resize(N.size());
+            for(ptrdiff_t i = 0; i < rows; ++i)
+                for(ptrdiff_t j = 0; j < nv; ++j)
+                    z[i + j * rows] = N[i * nv + j];
         } else if (vm.count("coords")) {
             string cfile = vm["coords"].as<string>();
             std::vector<double> coo;
 
-            size_t m, ndim;
+            ptrdiff_t m, ndim;
 
             if (binary) {
                 io::read_dense(cfile, m, ndim, coo);
@@ -196,7 +202,7 @@ int main(int argc, char *argv[]) {
 
     std::vector<double> x(rows, 0);
 
-    size_t iters;
+    int    iters;
     double error;
 
     if (vm["single-level"].as<bool>())
