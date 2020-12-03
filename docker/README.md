@@ -5,5 +5,5 @@ format.
 Run solver from the docker image:
 
 ```
-$ docker run -ti -v $PWD:/data dedemidov/amgcl solver -A A.mtx -f b.mtx
+$ docker run -ti -v $PWD:/data amgcl/examples solver -A A.mtx -f b.mtx
 ```
