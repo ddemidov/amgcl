@@ -398,7 +398,7 @@ int main(int argc, char *argv[]) {
         (
          "f0",
          po::bool_switch()->default_value(false),
-         "Use zero RHS vector."
+         "Use zero RHS vector. Implies --random-initial and solver.ns_search=true"
         )
         (
          "null,N",
@@ -602,10 +602,14 @@ int main(int argc, char *argv[]) {
     }
 
     x.resize(rows, vm["initial"].as<double>());
-    if (vm["random-initial"].as<bool>()) {
+    if (vm["random-initial"].as<bool>() || vm["f0"].as<bool>()) {
         std::mt19937 rng;
         std::uniform_real_distribution<double> rnd(-1, 1);
         for(auto &v : x) v = rnd(rng);
+    }
+
+    if (vm["f0"].as<bool>()) {
+        prm.put("solver.ns_search", true);
     }
 
     size_t iters;
