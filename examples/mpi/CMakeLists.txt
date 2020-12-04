@@ -35,7 +35,7 @@ if (TARGET mpi_target)
     add_mpi_example(test_transpose      test_transpose.cpp)
     add_mpi_example(test_spmm           test_spmm.cpp)
     add_mpi_example(spmm_scaling        spmm_scaling.cpp)
-    add_mpi_example(mpi_amg             mpi_amg.cpp)
+    add_mpi_example(mpi_solver          mpi_solver.cpp)
     add_mpi_example(cpr_mpi             cpr_mpi.cpp)
 
     if (TARGET Metis::metis)
@@ -50,7 +50,7 @@ if (TARGET mpi_target)
     target_link_libraries(call_mpi_lib libamgcl_mpi)
 
     if (TARGET cuda_target)
-        foreach(example runtime_sdd runtime_sdd_3d schur_pc_mpi mpi_amg)
+        foreach(example runtime_sdd runtime_sdd_3d schur_pc_mpi mpi_solver)
             configure_file(
                 ${CMAKE_CURRENT_SOURCE_DIR}/${example}.cpp
                 ${CMAKE_CURRENT_BINARY_DIR}/${example}.cu
@@ -65,7 +65,7 @@ if (TARGET mpi_target)
     endif()
 
     if (VexCL_FOUND)
-        foreach(example runtime_sdd runtime_sdd_3d schur_pc_mpi mpi_amg)
+        foreach(example runtime_sdd runtime_sdd_3d schur_pc_mpi mpi_solver)
             vexcl_add_executables(${example}_vexcl ${example}.cpp)
             target_compile_definitions(${example}_vexcl INTERFACE SOLVER_BACKEND_VEXCL)
             target_link_libraries(${example}_vexcl INTERFACE amgcl_mpi_example)
