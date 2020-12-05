@@ -121,6 +121,15 @@ void read_crs(
     }
 }
 
+template <typename SizeT>
+void dense_size(const std::string &fname, SizeT &n, SizeT &m) {
+    std::ifstream f(fname.c_str(), std::ios::binary);
+    precondition(f, "Failed to open matrix file");
+
+    precondition(read(f, n), "File I/O error");
+    precondition(read(f, m), "File I/O error");
+}
+
 template <typename SizeT, typename Val>
 void read_dense(const std::string &fname,
         SizeT &n, SizeT &m, std::vector<Val> &v,
