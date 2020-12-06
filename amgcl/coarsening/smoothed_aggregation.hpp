@@ -231,9 +231,6 @@ struct smoothed_aggregation {
         }
         AMGCL_TOC("smoothing");
 
-        if (prm.nullspace.cols > 0)
-            prm.aggr.block_size = prm.nullspace.cols;
-
         return std::make_tuple(P, transpose(*P));
     }
 

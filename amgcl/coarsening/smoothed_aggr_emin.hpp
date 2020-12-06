@@ -161,9 +161,6 @@ struct smoothed_aggr_emin {
         auto R = restriction  (Af, dia, *P_tent, omega);
         AMGCL_TOC("interpolation");
 
-        if (prm.nullspace.cols > 0)
-            prm.aggr.block_size = prm.nullspace.cols;
-
         return std::make_tuple(P, R);
     }
 
