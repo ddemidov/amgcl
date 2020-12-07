@@ -22,3 +22,4 @@ GeForce GTX 1050 Ti GPU.
     CoupCons3D
     Stokes
     Nullspace
+    NullspaceMPI

@@ -147,7 +147,7 @@ int main(int argc, char *argv[]) {
 
         // and the RHS vector:
         std::vector<dvec_type> new_rhs(R->loc_rows());
-        R->move_to_backend(typename DBackend::params());
+        R->move_to_backend();
         amgcl::backend::spmv(1, *R, rhs, 0, new_rhs);
         rhs.swap(new_rhs);
 
