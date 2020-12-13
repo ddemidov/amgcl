@@ -81,14 +81,16 @@ class augmented_lagrangian {
 
             std::vector<char> pmask;
             value_type *W;
+            value_type gamma;
 
-            params() : W(nullptr) {}
+            params() : W(nullptr), gamma(1) {}
 
 #ifndef AMGCL_NO_BOOST
             params(const boost::property_tree::ptree &p)
                 : AMGCL_PARAMS_IMPORT_CHILD(p, usolver),
                   AMGCL_PARAMS_IMPORT_CHILD(p, psolver),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, W)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, W),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, gamma)
             {
                 size_t n = 0;
 
@@ -136,7 +138,7 @@ class augmented_lagrangian {
                             );
                 }
 
-                check_params(p, {"usolver", "psolver", "pmask_size", "W"},
+                check_params(p, {"usolver", "psolver", "pmask_size", "W", "gamma"},
                         {"pmask", "pmask_pattern"});
             }
 
@@ -145,6 +147,7 @@ class augmented_lagrangian {
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, usolver);
                 AMGCL_PARAMS_EXPORT_CHILD(p, path, psolver);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, W);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, gamma);
             }
 #endif
         } prm;
@@ -175,7 +178,6 @@ class augmented_lagrangian {
             backend::spmv(1, *x2u, rhs, 0, *rhs_u);
             backend::spmv(1, *x2p, rhs, 0, *rhs_p);
 
-            /*
             // Ag u = f_u
             backend::clear(*u);
             report("U", (*U)(*rhs_u, *u));
@@ -184,25 +186,6 @@ class augmented_lagrangian {
             backend::spmv(-1, *B, *u, 1, *rhs_p);
             backend::clear(*p);
             report("P", (*P)(*rhs_p, *p));
-            */
-
-                // Kuu u = rhs_u
-                backend::clear(*u);
-                report("U1", (*U)(*rhs_u, *u));
-
-                // rhs_p -= Kpu u
-                backend::spmv(-1, *B, *u, 1, *rhs_p);
-
-                // S p = rhs_p
-                backend::clear(*p);
-                report("P1", (*P)(*rhs_p, *p));
-
-                // rhs_u -= Kup p
-                backend::spmv(-1, *Bt, *p, 1, *rhs_u);
-
-                // Kuu u = rhs_u
-                backend::clear(*u);
-                report("U2", (*U)(*rhs_u, *u));
 
             backend::spmv(1, *u2x, *u, 0, x);
             backend::spmv(1, *p2x, *p, 1, x);
@@ -210,7 +193,6 @@ class augmented_lagrangian {
 
         template <class Alpha, class Vec1, class Beta, class Vec2>
         void spmv(Alpha alpha, const Vec1 &x, Beta beta, Vec2 &y) const {
-            std::cout << "spmv" << std::endl;
             backend::spmv(1, *x2u, x, 0, *u);
             backend::spmv(1, *x2p, x, 0, *p);
 
@@ -223,6 +205,13 @@ class augmented_lagrangian {
             backend::spmv(alpha, *p2x, *rhs_p, 1, y);
         }
 
+        template <class Vector>
+        void preprocess_rhs(Vector &rhs) const {
+            backend::spmv(1, *x2p, rhs, 0, *rhs_p);
+            backend::spmv(1, *Bs, *rhs_p, 0, *rhs_u);
+            backend::spmv(1, *u2x, *rhs_u, 1, rhs);
+        }
+
         const augmented_lagrangian& system_matrix() const {
             return *this;
         }
@@ -230,10 +219,10 @@ class augmented_lagrangian {
         size_t bytes() const {
             size_t b = 0;
 
-            //b += backend::bytes(*K);
             b += backend::bytes(*B);
-            b += backend::bytes(*Bt);
             b += backend::bytes(*C);
+            b += backend::bytes(*Bt);
+            b += backend::bytes(*Bs);
             b += backend::bytes(*x2u);
             b += backend::bytes(*x2p);
             b += backend::bytes(*u2x);
@@ -251,7 +240,7 @@ class augmented_lagrangian {
     private:
         size_t n, np, nu;
 
-        std::shared_ptr<matrix> Bt, B, C, x2u, x2p, u2x, p2x;
+        std::shared_ptr<matrix> Bt, Bs, B, C, x2u, x2p, u2x, p2x;
         std::shared_ptr<vector> rhs_u, rhs_p, u, p;
 
         std::shared_ptr<USolver> U;
@@ -263,13 +252,14 @@ class augmented_lagrangian {
             //this->K = backend_type::copy_matrix(K, bprm);
 
             // Extract matrix subblocks.
-            auto Kuu = std::make_shared<build_matrix>(); //  A + gamma * B^T  * W^-1 * B
-            auto Kpu = std::make_shared<build_matrix>(); //  B
-            auto Kup = std::make_shared<build_matrix>(); // gamma * B^T * W^-1
-            auto Kpp = std::make_shared<build_matrix>(); // -C - gamma^-1 W
+            auto Kuu = std::make_shared<build_matrix>();
+            auto Kpu = std::make_shared<build_matrix>();
+            auto Kup = std::make_shared<build_matrix>();
+            auto Kpp = std::make_shared<build_matrix>();
 
-            auto Bt = std::make_shared<build_matrix>(); // Bt
-            auto C = std::make_shared<build_matrix>(); // Bt
+            auto Bt = std::make_shared<build_matrix>();
+            auto Bs = std::make_shared<build_matrix>();
+            auto C  = std::make_shared<build_matrix>();
 
             std::vector<ptrdiff_t> idx(n);
 
@@ -278,9 +268,10 @@ class augmented_lagrangian {
 
             Kuu->set_size(nu, nu, true);
             Kup->set_size(nu, np, true);
-            Bt->set_size(nu, np, true);
             Kpu->set_size(np, nu, true);
             Kpp->set_size(np, np, true);
+
+            Bs->set_size(nu, np, true);
             C->set_size(np, np, true);
 
             value_type gamma = 0;
@@ -313,7 +304,7 @@ class augmented_lagrangian {
                     } else {
                         if (pj) {
                             ++Kup->ptr[ci+1];
-                            ++Bt->ptr[ci+1];
+                            ++Bs->ptr[ci+1];
                         } else {
                             ++Kuu->ptr[ci+1];
                         }
@@ -325,13 +316,14 @@ class augmented_lagrangian {
                     ++Kpp->ptr[ci+1];
             }
 
-            gamma = 1 / (2 * sqrt(gamma));
+            gamma = prm.gamma / (2 * sqrt(gamma));
 
             Kuu->set_nonzeros(Kuu->scan_row_sizes());
             Kup->set_nonzeros(Kup->scan_row_sizes());
-            Bt->set_nonzeros(Bt->scan_row_sizes());
             Kpu->set_nonzeros(Kpu->scan_row_sizes());
             Kpp->set_nonzeros(Kpp->scan_row_sizes());
+
+            Bs->set_nonzeros(Bs->scan_row_sizes());
             C->set_nonzeros(C->scan_row_sizes());
 
 #pragma omp parallel for
@@ -372,10 +364,10 @@ class augmented_lagrangian {
                     } else {
                         if (pj) {
                             // Pre-scale B^T
+                            Bs->col[up_head] = cj;
+                            Bs->val[up_head] = gamma * v / prm.W[cj];
                             Kup->col[up_head] = cj;
-                            Kup->val[up_head] = gamma * v / prm.W[cj];
-                            Bt->col[up_head] = cj;
-                            Bt->val[up_head] = v;
+                            Kup->val[up_head] = v;
                             ++up_head;
                         } else {
                             Kuu->col[uu_head] = cj;
@@ -400,17 +392,18 @@ class augmented_lagrangian {
 
             Kuu = backend::sum(
                     math::identity<value_type>(), *Kuu,
-                    math::identity<value_type>(), *backend::product(*Kup, *Kpu));
+                    math::identity<value_type>(), *backend::product(*Bs, *Kpu));
+            Bt = backend::sum(
+                        math::identity<value_type>(), *Kup,
+                        math::identity<value_type>(), *backend::product(*Bs, *C));
 
             U = std::make_shared<USolver>(*Kuu, prm.usolver, bprm);
             P = std::make_shared<PSolver>(*Kpp, prm.psolver, bprm);
-            B = backend_type::copy_matrix(Kpu, bprm);
-            this->C = backend_type::copy_matrix(C, bprm);
-            this->Bt = backend_type::copy_matrix(
-                    backend::sum(
-                        math::identity<value_type>(), *Bt,
-                        math::identity<value_type>(), *backend::product(*Kup, *C)),
-                    bprm);
+
+            this->B  = backend_type::copy_matrix(Kpu, bprm);
+            this->C  = backend_type::copy_matrix(C, bprm);
+            this->Bt = backend_type::copy_matrix(Bt, bprm);
+            this->Bs = backend_type::copy_matrix(Bs, bprm);
 
             rhs_u = backend_type::create_vector(nu, bprm);
             rhs_p = backend_type::create_vector(np, bprm);

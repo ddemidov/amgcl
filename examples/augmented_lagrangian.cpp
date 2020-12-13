@@ -35,7 +35,7 @@ template <class T> using Backend = amgcl::backend::builtin<T>;
 
 //---------------------------------------------------------------------------
 template <class USolver, class PSolver, class Matrix>
-void solve_al(const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
+void solve_al(const Matrix &K, std::vector<double> &rhs, boost::property_tree::ptree &prm)
 {
     Backend<double>::params bprm;
 
@@ -50,15 +50,14 @@ void solve_al(const Matrix &K, const std::vector<double> &rhs, boost::property_t
 
     std::cout << solve << std::endl;
 
-    auto f = Backend<double>::copy_vector(rhs, bprm);
-    auto x = Backend<double>::create_vector(rhs.size(), bprm);
-    amgcl::backend::clear(*x);
+    std::vector<double> x(rhs.size(), 0);
+    solve.precond().preprocess_rhs(rhs);
 
     size_t iters;
     double error;
 
     prof.tic("solve");
-    std::tie(iters, error) = solve(*f, *x);
+    std::tie(iters, error) = solve(rhs, x);
     prof.toc("solve");
 
     std::cout << "Iterations: " << iters << std::endl
@@ -77,7 +76,7 @@ void solve_al(const Matrix &K, const std::vector<double> &rhs, boost::property_t
 
 //---------------------------------------------------------------------------
 template <class USolver, class Matrix>
-void solve_al(int pb, const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
+void solve_al(int pb, const Matrix &K, std::vector<double> &rhs, boost::property_tree::ptree &prm)
 {
     switch (pb) {
         case 1:
@@ -109,7 +108,7 @@ void solve_al(int pb, const Matrix &K, const std::vector<double> &rhs, boost::pr
 
 //---------------------------------------------------------------------------
 template <class Matrix>
-void solve_al(int ub, int pb, const Matrix &K, const std::vector<double> &rhs, boost::property_tree::ptree &prm)
+void solve_al(int ub, int pb, const Matrix &K, std::vector<double> &rhs, boost::property_tree::ptree &prm)
 {
     switch (ub) {
         case 1:
