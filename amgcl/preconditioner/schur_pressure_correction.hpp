@@ -46,6 +46,7 @@ THE SOFTWARE.
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/backend/detail/mixing.hpp>
 #include <amgcl/util.hpp>
+#include <amgcl/io/mm.hpp>
 
 namespace amgcl {
 namespace preconditioner {
@@ -109,7 +110,9 @@ class schur_pressure_correction {
             // as approximation for the Kuu^-1 (as in SIMPLEC algorithm)
             bool simplec_dia;
 
-            params() : type(1), approx_schur(false), adjust_p(1), simplec_dia(true) {}
+            int debug;
+
+            params() : type(1), approx_schur(false), adjust_p(1), simplec_dia(true), debug(0) {}
 
 #ifndef AMGCL_NO_BOOST
             params(const boost::property_tree::ptree &p)
@@ -118,7 +121,8 @@ class schur_pressure_correction {
                   AMGCL_PARAMS_IMPORT_VALUE(p, type),
                   AMGCL_PARAMS_IMPORT_VALUE(p, approx_schur),
                   AMGCL_PARAMS_IMPORT_VALUE(p, adjust_p),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, simplec_dia)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, simplec_dia),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, debug)
             {
                 size_t n = 0;
 
@@ -166,7 +170,7 @@ class schur_pressure_correction {
                             );
                 }
 
-                check_params(p, {"usolver", "psolver", "type", "approx_schur", "adjust_p", "simplec_dia", "pmask_size"},
+                check_params(p, {"usolver", "psolver", "type", "approx_schur", "adjust_p", "simplec_dia", "pmask_size", "debug"},
                         {"pmask", "pmask_pattern"});
             }
 
@@ -178,6 +182,7 @@ class schur_pressure_correction {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, approx_schur);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, adjust_p);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, simplec_dia);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, debug);
             }
 #endif
         } prm;
@@ -402,6 +407,11 @@ class schur_pressure_correction {
                 }
             }
 
+            if (prm.debug >= 2) {
+                io::mm_write("Kuu.mtx", *Kuu);
+                io::mm_write("Kpp.mtx", *Kpp);
+            }
+
             std::shared_ptr<backend::numa_vector<value_type>> Kuu_dia;
 
             if (prm.simplec_dia) {
@@ -576,16 +586,12 @@ class schur_pressure_correction {
             return os;
         }
 
-#if defined(AMGCL_DEBUG)
         template <typename I, typename E>
-        static void report(const std::string &name, const std::tuple<I, E> &c) {
-            std::cout << name << " (" << std::get<0>(c) << ", " << std::get<1>(c) << ")\n";
+        void report(const std::string &name, const std::tuple<I, E> &c) const {
+            if (prm.debug >= 1) {
+                std::cout << name << " (" << std::get<0>(c) << ", " << std::get<1>(c) << ")\n";
+            }
         }
-#else
-        template <typename I, typename E>
-        static void report(const std::string&, const std::tuple<I, E>&) {
-        }
-#endif
 };
 
 } // namespace preconditioner
