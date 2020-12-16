@@ -32,6 +32,8 @@ THE SOFTWARE.
  */
 
 #include <tuple>
+#include <iostream>
+
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/solver/detail/default_inner_product.hpp>
 #include <amgcl/util.hpp>
@@ -83,10 +85,13 @@ class richardson {
             //** Useful for searching for the null-space vectors of the system */
             bool ns_search;
 
+            /// Verbose output (show iterations and error)
+            bool verbose;
+
             params()
                 : damping(1.0), maxiter(100), tol(1e-8),
                   abstol(std::numeric_limits<scalar_type>::min()),
-                  ns_search(false)
+                  ns_search(false), verbose(false)
             {}
 
 #ifndef AMGCL_NO_BOOST
@@ -95,9 +100,11 @@ class richardson {
                   AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
                   AMGCL_PARAMS_IMPORT_VALUE(p, tol),
                   AMGCL_PARAMS_IMPORT_VALUE(p, abstol),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, ns_search)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, ns_search),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, verbose)
             {
-                check_params(p, {"damping", "maxiter", "tol", "abstol", "ns_search"});
+                check_params(p, {"damping", "maxiter", "tol", "abstol",
+                        "ns_search", "verbose"});
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
@@ -106,6 +113,7 @@ class richardson {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, tol);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, abstol);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, ns_search);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, verbose);
             }
 #endif
         };
@@ -140,6 +148,8 @@ class richardson {
         {
             static const coef_type one = math::identity<coef_type>();
 
+            ios_saver ss(std::cout);
+
             scalar_type norm_rhs = norm(rhs);
             if (norm_rhs < amgcl::detail::eps<scalar_type>(1)) {
                 if (prm.ns_search) {
@@ -161,6 +171,9 @@ class richardson {
                 backend::axpby( prm.damping, *s, one,  x);
                 backend::residual(rhs, A, x, *r);
                 res_norm = norm(*r);
+
+                if (prm.verbose && iter % 5 == 0)
+                    std::cout << iter << "\t" << std::scientific << res_norm / norm_rhs << std::endl;
             }
 
             return std::make_tuple(iter, res_norm / norm_rhs);

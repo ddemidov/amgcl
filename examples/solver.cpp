@@ -401,6 +401,11 @@ int main(int argc, char *argv[]) {
          "Use zero RHS vector. Implies --random-initial and solver.ns_search=true"
         )
         (
+         "f1",
+         po::bool_switch()->default_value(false),
+         "Set RHS = Ax where x = 1"
+        )
+        (
          "null,N",
          po::value<string>(),
          "The near null-space vectors in the MatrixMarket format. "
@@ -537,6 +542,14 @@ int main(int argc, char *argv[]) {
             }
 
             precondition(n == rows && m == 1, "The RHS vector has wrong size");
+        } else if (vm["f1"].as<bool>()) {
+            rhs.resize(rows);
+            for(size_t i = 0; i < rows; ++i) {
+                double s = 0;
+                for(ptrdiff_t j = ptr[i], e = ptr[i+1]; j < e; ++j)
+                    s += val[j];
+                rhs[i] = s;
+            }
         } else {
             rhs.resize(rows, vm["f0"].as<bool>() ? 0.0 : 1.0);
         }

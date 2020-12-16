@@ -39,7 +39,7 @@ THE SOFTWARE.
 #include <type_traits>
 
 #include <amgcl/perf_counter/clock.hpp>
-
+#include <amgcl/io/ios_saver.hpp>
 
 namespace amgcl {
 
@@ -195,14 +195,8 @@ class profiler {
         void print(std::ostream &out) {
             if (stack.back() != &root)
                 out << "Warning! Profile is incomplete." << std::endl;
-
-            std::ios_base::fmtflags ff(out.flags());
-            auto fp = out.precision();
-
+            ios_saver ss(out);
             root.print(out, name, 0, root.length, root.total_width(name, 0));
-
-            out.flags(ff);
-            out.precision(fp);
         }
 
         /// Sends formatted profiling data to an output stream.

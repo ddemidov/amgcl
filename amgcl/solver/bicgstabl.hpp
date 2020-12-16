@@ -66,6 +66,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <tuple>
+#include <iostream>
 
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/solver/detail/default_inner_product.hpp>
@@ -128,10 +129,14 @@ class bicgstabl {
             //** Useful for searching for the null-space vectors of the system */
             bool ns_search;
 
+            /// Verbose output (show iterations and error)
+            bool verbose;
+
             params()
                 : L(2), delta(0), convex(true),
                   pside(preconditioner::side::right), maxiter(100), tol(1e-8),
-                  abstol(std::numeric_limits<scalar_type>::min()), ns_search(false)
+                  abstol(std::numeric_limits<scalar_type>::min()),
+                  ns_search(false), verbose(false)
             {
             }
 
@@ -144,9 +149,11 @@ class bicgstabl {
                   AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
                   AMGCL_PARAMS_IMPORT_VALUE(p, tol),
                   AMGCL_PARAMS_IMPORT_VALUE(p, abstol),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, ns_search)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, ns_search),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, verbose)
             {
-                check_params(p, {"L", "delta", "convex", "pside", "maxiter", "tol", "abstol", "ns_search"});
+                check_params(p, {"L", "delta", "convex", "pside", "maxiter",
+                        "tol", "abstol", "ns_search", "verbose"});
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
@@ -158,6 +165,7 @@ class bicgstabl {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, tol);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, abstol);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, ns_search);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, verbose);
             }
 #endif
         };
@@ -210,6 +218,8 @@ class bicgstabl {
             static const coef_type zero = math::zero<coef_type>();
 
             const int L = prm.L;
+
+            ios_saver ss(std::cout);
 
             scalar_type norm_rhs = norm(rhs);
 
@@ -398,6 +408,8 @@ class bicgstabl {
                         }
                     }
                 }
+                if (prm.verbose && iter % 5 == 0)
+                    std::cout << iter << "\t" << std::scientific << zeta / norm_rhs << std::endl;
             }
 
 done:

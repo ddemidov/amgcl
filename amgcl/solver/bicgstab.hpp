@@ -32,6 +32,8 @@ THE SOFTWARE.
  */
 
 #include <tuple>
+#include <iostream>
+
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/solver/detail/default_inner_product.hpp>
 #include <amgcl/solver/precond_side.hpp>
@@ -87,10 +89,13 @@ class bicgstab {
             //** Useful for searching for the null-space vectors of the system */
             bool ns_search;
 
+            /// Verbose output (show iterations and error)
+            bool verbose;
+
             params()
                 : pside(preconditioner::side::right), maxiter(100), tol(1e-8),
                   abstol(std::numeric_limits<scalar_type>::min()),
-                  check_after(false), ns_search(false)
+                  check_after(false), ns_search(false), verbose(false)
             {}
 
 #ifndef AMGCL_NO_BOOST
@@ -100,9 +105,11 @@ class bicgstab {
                   AMGCL_PARAMS_IMPORT_VALUE(p, tol),
                   AMGCL_PARAMS_IMPORT_VALUE(p, abstol),
                   AMGCL_PARAMS_IMPORT_VALUE(p, check_after),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, ns_search)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, ns_search),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, verbose)
             {
-                check_params(p, {"pside", "maxiter", "tol", "abstol", "check_after", "ns_search"});
+                check_params(p, {"pside", "maxiter", "tol", "abstol",
+                        "check_after", "ns_search", "verbose"});
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
@@ -112,6 +119,7 @@ class bicgstab {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, abstol);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, check_after);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, ns_search);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, verbose);
             }
 #endif
         };
@@ -154,6 +162,8 @@ class bicgstab {
 
             static const coef_type one  = math::identity<coef_type>();
             static const coef_type zero = math::zero<coef_type>();
+
+            ios_saver ss(std::cout);
 
             scalar_type norm_rhs = norm(rhs);
             if (norm_rhs < amgcl::detail::eps<scalar_type>(1)) {
@@ -225,6 +235,9 @@ class bicgstab {
 
                     res = norm(*r);
                 }
+
+                if (prm.verbose && iter % 5 == 0)
+                    std::cout << iter << "\t" << std::scientific << res / norm_rhs << std::endl;
             }
 
             return std::make_tuple(iter, res / norm_rhs);

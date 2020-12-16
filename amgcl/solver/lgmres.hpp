@@ -69,6 +69,7 @@ THE SOFTWARE.
 #include <algorithm>
 #include <cmath>
 #include <tuple>
+#include <iostream>
 
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/solver/detail/default_inner_product.hpp>
@@ -141,10 +142,14 @@ class lgmres {
             //** Useful for searching for the null-space vectors of the system */
             bool ns_search;
 
+            /// Verbose output (show iterations and error)
+            bool verbose;
+
             params()
                 : M(30), K(3), always_reset(true),
                   pside(preconditioner::side::right), maxiter(100), tol(1e-8),
-                  abstol(std::numeric_limits<scalar_type>::min()), ns_search(false)
+                  abstol(std::numeric_limits<scalar_type>::min()),
+                  ns_search(false), verbose(false)
             { }
 
 #ifndef AMGCL_NO_BOOST
@@ -156,9 +161,11 @@ class lgmres {
                   AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
                   AMGCL_PARAMS_IMPORT_VALUE(p, tol),
                   AMGCL_PARAMS_IMPORT_VALUE(p, abstol),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, ns_search)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, ns_search),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, verbose)
             {
-                check_params(p, {"pside", "M", "K", "always_reset", "maxiter", "tol", "abstol", "ns_search"});
+                check_params(p, {"pside", "M", "K", "always_reset", "maxiter",
+                        "tol", "abstol", "ns_search", "verbose"});
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
@@ -170,6 +177,7 @@ class lgmres {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, tol);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, abstol);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, ns_search);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, verbose);
             }
 #endif
         } prm;
@@ -222,6 +230,8 @@ class lgmres {
 
             static const scalar_type zero = math::zero<scalar_type>();
             static const scalar_type one  = math::identity<scalar_type>();
+
+            ios_saver ss(std::cout);
 
             if (prm.always_reset) {
                 outer_v.clear();
@@ -320,6 +330,9 @@ class lgmres {
                     detail::apply_plane_rotation(s[j], s[j+1], cs[j], sn[j]);
 
                     scalar_type inner_res = std::abs(s[j+1]);
+
+                    if (prm.verbose && iter % 5 == 0)
+                        std::cout << iter << "\t" << std::scientific << inner_res / norm_rhs << std::endl;
 
                     // Check for termination
                     ++j, ++iter;

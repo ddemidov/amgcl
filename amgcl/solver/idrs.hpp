@@ -42,6 +42,7 @@ Bi-orthogonality Properties. ACM Transactions on Mathematical Software, Vol.
 
 #include <vector>
 #include <algorithm>
+#include <iostream>
 
 #include <tuple>
 #include <random>
@@ -120,11 +121,14 @@ class idrs {
             //** Useful for searching for the null-space vectors of the system */
             bool ns_search;
 
+            /// Verbose output (show iterations and error)
+            bool verbose;
+
             params()
                 : s(4), omega(0.7), smoothing(false),
                   replacement(false), maxiter(100), tol(1e-8),
                   abstol(std::numeric_limits<scalar_type>::min()),
-                  ns_search(false)
+                  ns_search(false), verbose(false)
             { }
 
 #ifndef AMGCL_NO_BOOST
@@ -136,9 +140,11 @@ class idrs {
                   AMGCL_PARAMS_IMPORT_VALUE(p, maxiter),
                   AMGCL_PARAMS_IMPORT_VALUE(p, tol),
                   AMGCL_PARAMS_IMPORT_VALUE(p, abstol),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, ns_search)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, ns_search),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, verbose)
             {
-                check_params(p, {"s", "omega", "smoothing", "replacement", "maxiter", "tol", "abstol", "ns_search"});
+                check_params(p, {"s", "omega", "smoothing", "replacement",
+                        "maxiter", "tol", "abstol", "ns_search", "verbose"});
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
@@ -150,6 +156,7 @@ class idrs {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, tol);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, abstol);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, ns_search);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, verbose);
             }
 #endif
         } prm;
@@ -253,6 +260,8 @@ class idrs {
             static const scalar_type one = math::identity<scalar_type>();
             static const scalar_type zero = math::zero<scalar_type>();
 
+            ios_saver ss(std::cout);
+
             scalar_type norm_rhs = norm(rhs);
             if (norm_rhs < amgcl::detail::eps<scalar_type>(1)) {
                 if (prm.ns_search) {
@@ -352,6 +361,8 @@ class idrs {
                         res_norm = norm(*r_s);
                     }
 
+                    if (prm.verbose && iter % 5 == 0)
+                        std::cout << iter << "\t" << std::scientific << res_norm / norm_rhs << std::endl;
                     if (res_norm <= eps || ++iter >= prm.maxiter) break;
 
                     // New f = P'*r (first k  components are zero)

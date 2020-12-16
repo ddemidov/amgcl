@@ -49,6 +49,8 @@ THE SOFTWARE.
 #  include <boost/property_tree/ptree.hpp>
 #endif
 
+#include <amgcl/io/ios_saver.hpp>
+
 /* Performance measurement macros
  *
  * If AMGCL_PROFILING macro is defined at compilation, then AMGCL_TIC(name) and
@@ -410,14 +412,13 @@ namespace std {
 // This allows to exchange pointers through boost::property_tree::ptree.
 template <class T>
 inline istream& operator>>(istream &is, T* &ptr) {
-    std::ios_base::fmtflags ff(is.flags());
+    amgcl::ios_saver ss(is);
 
     size_t val;
     is >> std::hex >> val;
 
     ptr = reinterpret_cast<T*>(val);
 
-    is.flags(ff);
     return is;
 }
 
