@@ -130,6 +130,7 @@ void test_problem(
       , amgcl::runtime::relaxation::gauss_seidel
       , amgcl::runtime::relaxation::ilu0
       , amgcl::runtime::relaxation::iluk
+      , amgcl::runtime::relaxation::ilup
       , amgcl::runtime::relaxation::ilut
 #ifndef AMGCL_RUNTIME_DISABLE_CHEBYSHEV
       , amgcl::runtime::relaxation::chebyshev
