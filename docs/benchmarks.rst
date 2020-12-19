@@ -91,8 +91,8 @@ uses Gauss-Seidel smoother.
 
     handles = []
 
-    figure(figsize=(8,8))
-    gs = GridSpec(2,2)
+    fig,gs = subplots(2, 2, figsize=(8,8))
+    gs = gs.flatten()
 
     def set_ticks(ax, t):
         ax.set_xticks(t)
@@ -120,20 +120,19 @@ uses Gauss-Seidel smoother.
         total = setup + solve
 
         for r,dset in enumerate(('total', 'setup', 'solve', 'iters')):
-            subplot(gs[r])
+            ax = gs[r]
 
             if dset == 'iters':
-                h = semilogx(cores, eval(dset), marker='o')
-                ylim([5,25])
-                yticks([5,10,15,20,25])
+                h = ax.semilogx(cores, eval(dset), marker='o')
+                ax.set_ylim([5,25])
+                ax.set_yticks([5,10,15,20,25])
             else:
-                h = loglog(cores, eval(dset), marker='o')
-                #ylim([1e0, 1e2])
-            set_ticks(gca(), [1, 2, 4, 8, 16])
-            ylabel(names[dset])
+                h = ax.loglog(cores, eval(dset), marker='o')
+            set_ticks(ax, [1, 2, 4, 8, 16])
+            ax.set_ylabel(names[dset])
 
             if r == 0: handles.append(h[0])
-            if r >= 2: xlabel('Cores/MPI processes')
+            if r >= 2: ax.set_xlabel('Cores/MPI processes')
 
 
     for test in ('amgcl-cuda', 'cusp'):
@@ -147,16 +146,16 @@ uses Gauss-Seidel smoother.
         iters = ones_like(cores) * median(data['iters'])
 
         for r,dset in enumerate(('total', 'setup', 'solve', 'iters')):
-            subplot(gs[r])
-            h = plot(cores, eval(dset), '--')
+            ax = gs[r]
+            h = ax.plot(cores, eval(dset), '--')
             if r == 0: handles.append(h[0])
 
-    tight_layout()
+    fig.tight_layout()
 
     figlegend(handles, ['AMGCL', 'PETSC', 'Trilinos', 'AMGCL/CUDA', 'CUSP'],
             ncol=3, loc='lower center')
-    gcf().suptitle('3D Poisson problem')
-    gcf().subplots_adjust(top=0.93, bottom=0.17)
+    fig.suptitle('3D Poisson problem')
+    fig.subplots_adjust(top=0.93, bottom=0.17)
 
     show()
 
@@ -216,8 +215,8 @@ field-split approach.
 
     handles = []
 
-    figure(figsize=(8,8))
-    gs = GridSpec(2,2)
+    fig,gs = subplots(2, 2, figsize=(8,8))
+    gs = gs.flatten()
 
     def set_ticks(ax, t):
         ax.set_xticks(t)
@@ -245,17 +244,17 @@ field-split approach.
         total = setup + solve
 
         for r,dset in enumerate(('total', 'setup', 'solve', 'iters')):
-            subplot(gs[r])
+            ax = gs[r]
 
             if dset == 'iters':
-                h = semilogx(cores, eval(dset), marker='o')
+                h = ax.semilogx(cores, eval(dset), marker='o')
             else:
-                h = loglog(cores, eval(dset), marker='o')
-            set_ticks(gca(), [1, 2, 4, 8, 16])
-            ylabel(dset_names[dset])
+                h = ax.loglog(cores, eval(dset), marker='o')
+            set_ticks(ax, [1, 2, 4, 8, 16])
+            ax.set_ylabel(dset_names[dset])
 
             if r == 0: handles.append(h[0])
-            if r >= 2: xlabel('Cores/MPI processes')
+            if r >= 2: ax.set_xlabel('Cores/MPI processes')
 
 
     for test in ('amgcl-vexcl-cuda', 'amgcl-schur-cuda'):
@@ -269,19 +268,19 @@ field-split approach.
         iters = ones_like(cores) * median(data['iters'])
 
         for r,dset in enumerate(('total', 'setup', 'solve', 'iters')):
-            subplot(gs[r])
-            h = plot(cores, eval(dset), '--')
+            ax = gs[r]
+            h = ax.plot(cores, eval(dset), '--')
             if r == 0: handles.append(h[0])
 
-    tight_layout()
+    fig.tight_layout()
 
     figlegend(handles, [
         'AMGCL (block)', 'AMGCL (split)', 'PETSC (split)', 'Trilinos (block)',
         'AMGCL (block, VexCL)', 'AMGCL (split, CUDA)'
         ],
         ncol=3, loc='lower center')
-    gcf().suptitle('3D Navier-Stokes problem')
-    gcf().subplots_adjust(top=0.93, bottom=0.15)
+    fig.suptitle('3D Navier-Stokes problem')
+    fig.subplots_adjust(top=0.93, bottom=0.15)
 
     show()
 
@@ -339,62 +338,61 @@ processes.
 
     omp = unique(list(amgcl['omp']))
 
-    def set_ticks():
-        gca().set_xscale('log')
-        gca().set_xticks([1, 7, 14, 28, 28 * 4, 28 * 16, 28 * 64])
-        gca().get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
-        gca().get_xaxis().set_tick_params(which='minor', size=0)
-        gca().get_xaxis().set_tick_params(which='minor', width=0)
+    def set_ticks(ax):
+        ax.set_xscale('log')
+        ax.set_xticks([1, 7, 14, 28, 28 * 4, 28 * 16, 28 * 64])
+        ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+        ax.get_xaxis().set_tick_params(which='minor', size=0)
+        ax.get_xaxis().set_tick_params(which='minor', width=0)
 
-    figure(figsize=(8,7))
-    gs = GridSpec(2,2)
+    fig,gs = subplots(2, 2, figsize=(8,7))
     handles = []
 
-    subplot(gs[0,0])
+    ax = gs[0,0]
     for n in omp:
         I = (amgcl['omp'] == n)
-        h = loglog(n * amgcl[I]['mpi'], amgcl[I]['setup'] + amgcl[I]['solve'], 'o-')
+        h = ax.loglog(n * amgcl[I]['mpi'], amgcl[I]['setup'] + amgcl[I]['solve'], 'o-')
         handles.append(h[0])
-    h = loglog(trilinos['mpi'], trilinos['setup'] + trilinos['solve'], 's-')
+    h = ax.loglog(trilinos['mpi'], trilinos['setup'] + trilinos['solve'], 's-')
     handles.append(h[0])
-    set_ticks()
-    ylim([1e0, 1e2])
-    ylabel('Total time')
+    set_ticks(ax)
+    ax.set_ylim([1e0, 1e2])
+    ax.set_ylabel('Total time')
 
-    subplot(gs[0,1])
+    ax = gs[0,1]
     for n in omp:
         I = (amgcl['omp'] == n)
-        loglog(n * amgcl[I]['mpi'], amgcl[I]['setup'], 'o-')
-    loglog(trilinos['mpi'], trilinos['setup'], 's-')
-    set_ticks()
-    ylim([1e0, 1e2])
-    ylabel('Setup time')
+        ax.loglog(n * amgcl[I]['mpi'], amgcl[I]['setup'], 'o-')
+    ax.loglog(trilinos['mpi'], trilinos['setup'], 's-')
+    set_ticks(ax)
+    ax.set_ylim([1e0, 1e2])
+    ax.set_ylabel('Setup time')
 
-    subplot(gs[1,0])
+    ax = gs[1,0]
     for n in omp:
         I = (amgcl['omp'] == n)
-        loglog(n * amgcl[I]['mpi'], amgcl[I]['solve'], 'o-')
-    loglog(trilinos['mpi'], trilinos['solve'], 's-')
-    set_ticks()
-    ylim([1e0, 1e2])
-    ylabel('Solve time')
+        ax.loglog(n * amgcl[I]['mpi'], amgcl[I]['solve'], 'o-')
+    ax.loglog(trilinos['mpi'], trilinos['solve'], 's-')
+    set_ticks(ax)
+    ax.set_ylim([1e0, 1e2])
+    ax.set_ylabel('Solve time')
 
-    subplot(gs[1,1])
+    ax = gs[1,1]
     for n in omp:
         I = (amgcl['omp'] == n)
-        semilogx(n * amgcl[I]['mpi'], amgcl[I]['iters'], 'o-')
-    semilogx(trilinos['mpi'], trilinos['iters'], 's-')
-    ylim([0, 50])
-    set_ticks()
-    ylabel('Iterations')
+        ax.semilogx(n * amgcl[I]['mpi'], amgcl[I]['iters'], 'o-')
+    ax.semilogx(trilinos['mpi'], trilinos['iters'], 's-')
+    ax.set_ylim([0, 50])
+    set_ticks(ax)
+    ax.set_ylabel('Iterations')
 
-    tight_layout()
+    fig.tight_layout()
 
     figlegend(handles,
         ['AMGCL, omp={}'.format(n) for n in omp] + ['Trilinos'],
         ncol=2, loc='lower center')
-    gcf().suptitle('Weak scaling of the Poisson problem on the SuperMUC cluster')
-    gcf().subplots_adjust(top=0.93, bottom=0.15)
+    fig.suptitle('Weak scaling of the Poisson problem on the SuperMUC cluster')
+    fig.subplots_adjust(top=0.93, bottom=0.15)
 
     show()
 
@@ -421,69 +419,68 @@ reference on the plots with thin gray dotted lines.
 
     omp = unique(list(amgcl['omp']))
 
-    def set_ticks():
-        gca().set_xscale('log')
-        gca().set_xticks([1, 7, 14, 28, 28 * 4, 28 * 16, 28 * 64])
-        gca().get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
-        gca().get_xaxis().set_tick_params(which='minor', size=0)
-        gca().get_xaxis().set_tick_params(which='minor', width=0)
+    def set_ticks(ax):
+        ax.set_xscale('log')
+        ax.set_xticks([1, 7, 14, 28, 28 * 4, 28 * 16, 28 * 64])
+        ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+        ax.get_xaxis().set_tick_params(which='minor', size=0)
+        ax.get_xaxis().set_tick_params(which='minor', width=0)
 
-    figure(figsize=(8,7))
-    gs = GridSpec(2,2)
+    fig,gs = subplots(2, 2, figsize=(8,7))
     handles = []
 
-    subplot(gs[0,0])
+    ax = gs[0,0]
     for n in omp:
         I = (amgcl['omp'] == n)
-        h = loglog(n * amgcl[I]['mpi'], amgcl[I]['setup'] + amgcl[I]['solve'], 'o-')
+        h = ax.loglog(n * amgcl[I]['mpi'], amgcl[I]['setup'] + amgcl[I]['solve'], 'o-')
         handles.append(h[0])
-    h = loglog(trilinos['mpi'], trilinos['setup'] + trilinos['solve'], 's-')
+    h = ax.loglog(trilinos['mpi'], trilinos['setup'] + trilinos['solve'], 's-')
     handles.append(h[0])
     c = trilinos['mpi']
     t = trilinos['setup'][1] + trilinos['solve'][1]
-    h = loglog(c, t * c[1] / c, 'k:')
+    h = ax.loglog(c, t * c[1] / c, 'k:')
     handles.append(h[0])
-    set_ticks()
-    ylabel('Total time')
+    set_ticks(ax)
+    ax.set_ylabel('Total time')
 
-    subplot(gs[0,1])
+    ax = gs[0,1]
     for n in omp:
         I = (amgcl['omp'] == n)
-        loglog(n * amgcl[I]['mpi'], amgcl[I]['setup'], 'o-')
-    loglog(trilinos['mpi'], trilinos['setup'], 's-')
+        ax.loglog(n * amgcl[I]['mpi'], amgcl[I]['setup'], 'o-')
+    ax.loglog(trilinos['mpi'], trilinos['setup'], 's-')
     t = trilinos['setup'][1]
-    h = loglog(c, t * c[1] / c, 'k:')
+    h = ax.loglog(c, t * c[1] / c, 'k:')
     handles.append(h[0])
-    set_ticks()
-    ylabel('Setup time')
+    set_ticks(ax)
+    ax.set_ylabel('Setup time')
 
-    subplot(gs[1,0])
+    ax = gs[1,0]
     for n in omp:
         I = (amgcl['omp'] == n)
-        loglog(n * amgcl[I]['mpi'], amgcl[I]['solve'], 'o-')
-    loglog(trilinos['mpi'], trilinos['solve'], 's-')
+        ax.loglog(n * amgcl[I]['mpi'], amgcl[I]['solve'], 'o-')
+    ax.loglog(trilinos['mpi'], trilinos['solve'], 's-')
     t = trilinos['solve'][1]
-    h = loglog(c, t * c[1] / c, 'k:')
+    h = ax.loglog(c, t * c[1] / c, 'k:')
     handles.append(h[0])
-    set_ticks()
-    ylabel('Solve time')
+    set_ticks(ax)
+    ax.set_ylabel('Solve time')
 
-    subplot(gs[1,1])
+    ax = gs[1,1]
     for n in omp:
         I = (amgcl['omp'] == n)
-        semilogx(n * amgcl[I]['mpi'], amgcl[I]['iters'], 'o-')
-    semilogx(trilinos['mpi'], trilinos['iters'], 's-')
-    ylim([0, 30])
-    set_ticks()
-    ylabel('Iterations')
+        ax.semilogx(n * amgcl[I]['mpi'], amgcl[I]['iters'], 'o-')
+    ax.semilogx(trilinos['mpi'], trilinos['iters'], 's-')
+    ax.set_ylim([0, 30])
+    set_ticks(ax)
+    ax.set_ylabel('Iterations')
 
-    tight_layout()
+    fig.tight_layout()
 
     figlegend(handles,
         ['AMGCL, omp={}'.format(n) for n in omp] + ['Trilinos', 'Ideal'],
         ncol=3, loc='lower center')
-    gcf().suptitle('Strong scaling of the Poisson problem on the SuperMUC cluster')
-    gcf().subplots_adjust(top=0.93, bottom=0.15)
+    fig.suptitle('Strong scaling of the Poisson problem on the SuperMUC cluster')
+    fig.subplots_adjust(top=0.93, bottom=0.15)
 
     show()
 
@@ -530,8 +527,7 @@ both in the left and the right columns for convenience.
         setp(ax.get_xticklabels(), fontsize=10, rotation=30)
         setp(ax.get_yticklabels(), fontsize=10)
 
-    figure(figsize=(8,10.5))
-    gs = GridSpec(4,2)
+    fig,gs = subplots(4, 2, figsize=(8,10.5))
     handles = []
 
     for k,fname in enumerate(('dmem_data/mn4/linear_weak.dat', 'dmem_data/mn4/const_weak.dat')):
@@ -548,29 +544,29 @@ both in the left and the right columns for convenience.
             iters = array([min(d[d['mpi']==i]['iters']) for i in m])
             total = setup + solve
 
-            subplot(gs[0,k])
-            h = loglog(c, total, '.-')
-            ylim([1e1, 2e2])
+            ax = gs[0,k]
+            h = ax.loglog(c, total, '.-')
+            ax.set_ylim([1e1, 2e2])
             if k == 0: handles.append(h[0])
 
-            subplot(gs[1,k])
-            loglog(c, setup, '.-')
-            ylim([1e0, 100])
+            ax = gs[1,k]
+            ax.loglog(c, setup, '.-')
+            ax.set_ylim([1e0, 100])
 
-            subplot(gs[2,k])
-            loglog(c, solve, '.-')
-            ylim([5e0, 2e2])
+            ax = gs[2,k]
+            ax.loglog(c, solve, '.-')
+            ax.set_ylim([5e0, 2e2])
 
-            subplot(gs[3,k])
-            semilogx(c, iters, '.-')
-            ylim([0, 400])
+            ax = gs[3,k]
+            ax.semilogx(c, iters, '.-')
+            ax.set_ylim([0, 400])
 
-        subplot(gs[3,k])
-        xlabel('Number of cores (MPI * OMP)')
+        ax = gs[3,k]
+        ax.set_xlabel('Number of cores (MPI * OMP)')
 
     for i in range(4):
         for j in range(2):
-            set_ticks(subplot(gs[i,j]), [48 * 2**i for i in range(8)] + [19200])
+            set_ticks(gs[i,j], [48 * 2**i for i in range(8)] + [19200])
 
     for fname in ('dmem_data/mn4/trilinos_weak.dat', 'dmem_data/mn4/trilinos_weak_ddml.dat'):
         tri = loadtxt(fname, dtype={
@@ -578,33 +574,18 @@ both in the left and the right columns for convenience.
             'formats' : ('i4', 'i8', 'i4', 'f8', 'f8')
             })
 
-        subplot(gs[0,0])
-        handles += plot(tri['mpi'], tri['setup'] + tri['solve'], '.-')
+        handles += gs[0,0].plot(tri['mpi'], tri['setup'] + tri['solve'], '.-')
 
-        subplot(gs[1,0])
-        plot(tri['mpi'], tri['setup'], '.-')
+        gs[1,0].plot(tri['mpi'], tri['setup'], '.-')
+        gs[2,0].plot(tri['mpi'], tri['solve'], '.-')
+        gs[3,0].plot(tri['mpi'], tri['iters'], '.-')
 
-        subplot(gs[2,0])
-        plot(tri['mpi'], tri['solve'], '.-')
-
-        subplot(gs[3,0])
-        plot(tri['mpi'], tri['iters'], '.-')
-
-    subplot(gs[0,0])
-    title('Linear deflation')
-    ylabel('Total time')
-
-    subplot(gs[0,1])
-    title('Constant deflation')
-
-    subplot(gs[1,0])
-    ylabel('Setup time')
-
-    subplot(gs[2,0])
-    ylabel('Solve time')
-
-    subplot(gs[3,0])
-    ylabel('Iterations')
+    gs[0,0].set_title('Linear deflation')
+    gs[0,0].set_ylabel('Total time')
+    gs[0,1].set_title('Constant deflation')
+    gs[1,0].set_ylabel('Setup time')
+    gs[2,0].set_ylabel('Solve time')
+    gs[3,0].set_ylabel('Iterations')
 
     tight_layout()
 
@@ -612,8 +593,8 @@ both in the left and the right columns for convenience.
            ['OMP={}'.format(i) for i in (1, 4, 12, 24)] +
            ['Trilinos/ML', 'Trilinos/DD-ML'],
            ncol=3, loc='lower center')
-    gcf().suptitle('Weak scaling of the Poisson problem on the MareNostrum 4 cluster')
-    gcf().subplots_adjust(top=0.93, bottom=0.15)
+    fig.suptitle('Weak scaling of the Poisson problem on the MareNostrum 4 cluster')
+    fig.subplots_adjust(top=0.93, bottom=0.15)
 
     show()
 
@@ -727,8 +708,7 @@ Trilinos, but it shows the advantages of using CUDA technology.
         ax.get_xaxis().set_tick_params(which='minor', size=0)
         ax.get_xaxis().set_tick_params(which='minor', width=0)
 
-    figure(figsize=(8,10))
-    gs = GridSpec(4,2)
+    fig,gs = subplots(4, 2, figsize=(8,10))
     handles = []
 
     for k,fname in (
@@ -745,27 +725,27 @@ Trilinos, but it shows the advantages of using CUDA technology.
         iters = array([min(d[d['mpi']==i]['iters']) for i in m])
         total = setup + solve
 
-        ax = subplot(gs[0,k])
-        h = loglog(m, total, '.-')
-        ylim([1e0,200])
+        ax = gs[0,k]
+        h = ax.loglog(m, total, '.-')
+        ax.set_ylim([1e0,200])
         set_ticks(ax, m)
         if k == 0: handles.append(h[0])
 
-        ax = subplot(gs[1,k])
-        loglog(m, setup, '.-')
-        ylim([1e0,20])
+        ax = gs[1,k]
+        ax.loglog(m, setup, '.-')
+        ax.set_ylim([1e0,20])
         set_ticks(ax, m)
 
-        ax = subplot(gs[2,k])
-        loglog(m, solve, '.-')
-        ylim([1e0,200])
+        ax = gs[2,k]
+        ax.loglog(m, solve, '.-')
+        ax.set_ylim([1e0,200])
         set_ticks(ax, m)
 
-        ax = subplot(gs[3,k])
-        semilogx(m, iters, '.-')
-        ylim([0,160])
+        ax = gs[3,k]
+        ax.semilogx(m, iters, '.-')
+        ax.set_ylim([0,160])
         set_ticks(ax, m)
-        xlabel('Compute nodes')
+        ax.set_xlabel('Compute nodes')
 
     for fname in ('dmem_data/daint/trilinos_weak.dat',):
         tri = loadtxt(f'{os.path.dirname(sys.argv[0])}/{fname}', dtype={
@@ -774,40 +754,25 @@ Trilinos, but it shows the advantages of using CUDA technology.
             })
 
         for k in (0,1):
-            subplot(gs[0,k])
-            h = plot(tri['mpi']//12, tri['setup'] + tri['solve'], '.-')
+            h = gs[0,k].plot(tri['mpi']//12, tri['setup'] + tri['solve'], '.-')
             if k == 0: handles += h
 
-            subplot(gs[1,k])
-            plot(tri['mpi']//12, tri['setup'], '.-')
+            gs[1,k].plot(tri['mpi']//12, tri['setup'], '.-')
+            gs[2,k].plot(tri['mpi']//12, tri['solve'], '.-')
+            gs[3,k].plot(tri['mpi']//12, tri['iters'], '.-')
 
-            subplot(gs[2,k])
-            plot(tri['mpi']//12, tri['solve'], '.-')
+    gs[0,0].set_title('Linear deflation')
+    gs[0,0].set_ylabel('Total time')
+    gs[0,1].set_title('Constant deflation')
+    gs[1,0].set_ylabel('Setup time')
+    gs[2,0].set_ylabel('Solve time')
+    gs[3,0].set_ylabel('Iterations')
 
-            subplot(gs[3,k])
-            plot(tri['mpi']//12, tri['iters'], '.-')
-
-    subplot(gs[0,0])
-    title('Linear deflation')
-    ylabel('Total time')
-
-    subplot(gs[0,1])
-    title('Constant deflation')
-
-    subplot(gs[1,0])
-    ylabel('Setup time')
-
-    subplot(gs[2,0])
-    ylabel('Solve time')
-
-    subplot(gs[3,0])
-    ylabel('Iterations')
-
-    tight_layout()
+    fig.tight_layout()
 
     figlegend(handles, ('GPU', 'CPU (OMP=12)', 'Trilinos'), ncol=3, loc='lower center')
-    gcf().suptitle('Weak scaling of the Poisson problem on PizDaint cluster')
-    gcf().subplots_adjust(top=0.93, bottom=0.1)
+    fig.suptitle('Weak scaling of the Poisson problem on PizDaint cluster')
+    fig.subplots_adjust(top=0.93, bottom=0.1)
 
     show()
 
@@ -834,8 +799,7 @@ scaling is depicted for reference on the plots with thin gray dotted lines.
         ax.get_xaxis().set_tick_params(which='minor', size=0)
         ax.get_xaxis().set_tick_params(which='minor', width=0)
 
-    figure(figsize=(8,10))
-    gs = GridSpec(4,2)
+    fig,gs = subplots(4, 2, figsize=(8,10))
     handles = []
     omps = set()
 
@@ -853,38 +817,37 @@ scaling is depicted for reference on the plots with thin gray dotted lines.
             iters = array([min(d[d['mpi']==i]['iters']) for i in m])
             total = setup + solve
 
-            ax = subplot(gs[0,k])
-            h = loglog(c, total, '.-')
-            ylim([1e0, 2e2])
+            ax = gs[0,k]
+            h = ax.loglog(c, total, '.-')
+            ax.set_ylim([1e0, 2e2])
             set_ticks(ax, c)
             if k == 0: handles.append(h[0])
             ideal = total[0] * c[0] / c
             if omp == 12:
-                hi = plot(c,ideal,'k:', zorder=1, linewidth=1, alpha=0.5)
+                hi = ax.plot(c,ideal,'k:', zorder=1, linewidth=1, alpha=0.5)
 
-            ax = subplot(gs[1,k])
-            loglog(c, setup, '.-')
-            ylim([1e-1, 1e2])
+            ax = gs[1,k]
+            ax.loglog(c, setup, '.-')
+            ax.set_ylim([1e-1, 1e2])
             ideal = setup[0] * c[0] / c
             if omp == 12:
-                plot(c,ideal,'k:', zorder=1, linewidth=1, alpha=0.5)
+                ax.plot(c,ideal,'k:', zorder=1, linewidth=1, alpha=0.5)
             set_ticks(ax, c)
 
-            ax = subplot(gs[2,k])
-            loglog(c, solve, '.-')
+            ax = gs[2,k]
+            ax.loglog(c, solve, '.-')
             ideal = solve[0] * c[0] / c
             if omp == 12:
-                plot(c,ideal,'k:', zorder=1, linewidth=1, alpha=0.5)
-            ylim([1e-1, 2e2])
+                ax.plot(c,ideal,'k:', zorder=1, linewidth=1, alpha=0.5)
+            ax.set_ylim([1e-1, 2e2])
             set_ticks(ax, c)
 
-            ax = subplot(gs[3,k])
-            semilogx(c, iters, '.-')
-            ylim([0,300])
+            ax = gs[3,k]
+            ax.semilogx(c, iters, '.-')
+            ax.set_ylim([0,300])
             set_ticks(ax, c)
 
-        subplot(gs[3,k])
-        xlabel('Number of cores (MPI * OMP)')
+        gs[3,k].set_xlabel('Number of cores (MPI * OMP)')
 
     for fname in ('dmem_data/mn4/trilinos_strong.dat', 'dmem_data/mn4/trilinos_strong_ddml.dat'):
         tri = loadtxt(fname, dtype={
@@ -893,44 +856,27 @@ scaling is depicted for reference on the plots with thin gray dotted lines.
             })
 
         for k in (0,1):
-            subplot(gs[0,k])
-            h = plot(tri['mpi'], tri['setup'] + tri['solve'], '.-')
-
+            h = gs[0,k].plot(tri['mpi'], tri['setup'] + tri['solve'], '.-')
             if k == 0: handles += h
 
-            subplot(gs[1,k])
-            plot(tri['mpi'], tri['setup'], '.-')
+            gs[1,k].plot(tri['mpi'], tri['setup'], '.-')
+            gs[2,k].plot(tri['mpi'], tri['solve'], '.-')
+            gs[3,k].plot(tri['mpi'], tri['iters'], '.-')
 
-            subplot(gs[2,k])
-            plot(tri['mpi'], tri['solve'], '.-')
-
-            subplot(gs[3,k])
-            plot(tri['mpi'], tri['iters'], '.-')
-
-    subplot(gs[0,0])
-    title('Linear deflation')
-    ylabel('Total time')
-
-    subplot(gs[0,1])
-    title('Constant deflation')
-
-    subplot(gs[1,0])
-    ylabel('Setup time')
-
-    subplot(gs[2,0])
-    ylabel('Solve time')
-
-    subplot(gs[3,0])
-    ylabel('Iterations')
+    gs[0,0].set_title('Linear deflation')
+    gs[0,0].set_ylabel('Total time')
+    gs[0,1].set_title('Constant deflation')
+    gs[1,0].set_ylabel('Setup time')
+    gs[2,0].set_ylabel('Solve time')
+    gs[3,0].set_ylabel('Iterations')
 
     figlegend(handles + hi, ['OMP={}'.format(i) for i in sorted(omps)]
             + ['Trilinos/ML', 'Trilinos/DD-ML', 'Ideal scaling'],
            ncol=3, loc='lower center')
 
-    tight_layout()
-
-    gcf().suptitle('Strong scaling of the Poisson problem on the MareNostrum 4 cluster')
-    gcf().subplots_adjust(top=0.93, bottom=0.12)
+    fig.tight_layout()
+    fig.suptitle('Strong scaling of the Poisson problem on the MareNostrum 4 cluster')
+    fig.subplots_adjust(top=0.93, bottom=0.12)
 
     show()
 
@@ -1035,82 +981,81 @@ fixed-size problem, this is essentially a strong scalability test.
     omp_amg = unique(list(amgcl_amg['omp']))
     omp_sdd = unique(list(amgcl_sdd['omp']))
 
-    def set_ticks():
+    def set_ticks(ax):
         gca().set_xscale('log')
         gca().set_xticks([28, 28 * 4, 28 * 16, 28 * 64])
         gca().get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
         gca().get_xaxis().set_tick_params(which='minor', size=0)
         gca().get_xaxis().set_tick_params(which='minor', width=0)
 
-    figure(figsize=(8,7))
-    gs = GridSpec(2,2)
+    fig,gs = subplots(2, 2, figsize=(8,7))
     handles = []
 
-    subplot(gs[0,0])
+    ax = gs[0,0]
     for n in omp_amg:
         I = (amgcl_amg['omp'] == n)
-        h = loglog(n * amgcl_amg[I]['mpi'], amgcl_amg[I]['setup'] + amgcl_amg[I]['solve'], 'o-')
+        h = ax.loglog(n * amgcl_amg[I]['mpi'], amgcl_amg[I]['setup'] + amgcl_amg[I]['solve'], 'o-')
         handles.append(h[0])
     for n in omp_sdd:
         I = (amgcl_sdd['omp'] == n)
-        h = loglog(n * amgcl_sdd[I]['mpi'], amgcl_sdd[I]['setup'] + amgcl_sdd[I]['solve'], 'v:')
+        h = ax.loglog(n * amgcl_sdd[I]['mpi'], amgcl_sdd[I]['setup'] + amgcl_sdd[I]['solve'], 'v:')
         handles.append(h[0])
-    h = loglog(trilinos['mpi'], trilinos['setup'] + trilinos['solve'], 's-')
+    h = ax.loglog(trilinos['mpi'], trilinos['setup'] + trilinos['solve'], 's-')
     handles.append(h[0])
-    set_ticks()
-    ylabel('Total time')
+    set_ticks(ax)
+    ax.set_ylabel('Total time')
 
-    subplot(gs[0,1])
+    ax = gs[0,1]
     for n in omp_amg:
         I = (amgcl_amg['omp'] == n)
-        h = loglog(n * amgcl_amg[I]['mpi'], amgcl_amg[I]['setup'], 'o-')
+        h = ax.loglog(n * amgcl_amg[I]['mpi'], amgcl_amg[I]['setup'], 'o-')
         handles.append(h[0])
     for n in omp_sdd:
         I = (amgcl_sdd['omp'] == n)
-        h = loglog(n * amgcl_sdd[I]['mpi'], amgcl_sdd[I]['setup'], 'v:')
+        h = ax.loglog(n * amgcl_sdd[I]['mpi'], amgcl_sdd[I]['setup'], 'v:')
         handles.append(h[0])
-    h = loglog(trilinos['mpi'], trilinos['setup'], 's-')
+    h = ax.loglog(trilinos['mpi'], trilinos['setup'], 's-')
     handles.append(h[0])
-    set_ticks()
-    ylabel('Setup time')
+    set_ticks(ax)
+    ax.set_ylabel('Setup time')
 
-    subplot(gs[1,0])
+    ax = gs[1,0]
     for n in omp_amg:
         I = (amgcl_amg['omp'] == n)
-        h = loglog(n * amgcl_amg[I]['mpi'], amgcl_amg[I]['solve'], 'o-')
+        h = ax.loglog(n * amgcl_amg[I]['mpi'], amgcl_amg[I]['solve'], 'o-')
         handles.append(h[0])
     for n in omp_sdd:
         I = (amgcl_sdd['omp'] == n)
-        h = loglog(n * amgcl_sdd[I]['mpi'], amgcl_sdd[I]['solve'], 'v:')
+        h = ax.loglog(n * amgcl_sdd[I]['mpi'], amgcl_sdd[I]['solve'], 'v:')
         handles.append(h[0])
-    h = loglog(trilinos['mpi'], trilinos['solve'], 's-')
+    h = ax.loglog(trilinos['mpi'], trilinos['solve'], 's-')
     handles.append(h[0])
-    set_ticks()
-    ylabel('Solve time')
+    set_ticks(ax)
+    ax.set_ylabel('Solve time')
 
-    subplot(gs[1,1])
+    ax = gs[1,1]
     for n in omp_amg:
         I = (amgcl_amg['omp'] == n)
-        h = semilogx(n * amgcl_amg[I]['mpi'], amgcl_amg[I]['iters'], 'o-')
+        h = ax.semilogx(n * amgcl_amg[I]['mpi'], amgcl_amg[I]['iters'], 'o-')
         handles.append(h[0])
     for n in omp_sdd:
         I = (amgcl_sdd['omp'] == n)
-        h = semilogx(n * amgcl_sdd[I]['mpi'], amgcl_sdd[I]['iters'], 'v:')
+        h = ax.semilogx(n * amgcl_sdd[I]['mpi'], amgcl_sdd[I]['iters'], 'v:')
         handles.append(h[0])
-    h = semilogx(trilinos['mpi'], trilinos['iters'], 's-')
+    h = ax.semilogx(trilinos['mpi'], trilinos['iters'], 's-')
     handles.append(h[0])
-    set_ticks()
-    ylabel('Iterations')
+    set_ticks(ax)
+    ax.set_ylabel('Iterations')
 
-    tight_layout()
+    fig.tight_layout()
 
     figlegend(handles,
         ['AMG, omp={}'.format(n) for n in omp_amg] +
         ['SDD, omp={}'.format(n) for n in omp_sdd] +
         ['Trilinos'],
         ncol=3, loc='lower center')
-    gcf().suptitle('Strong scaling of the Navier-Stokes problem on the SuperMUC cluster')
-    gcf().subplots_adjust(top=0.93, bottom=0.2)
+    fig.suptitle('Strong scaling of the Navier-Stokes problem on the SuperMUC cluster')
+    fig.subplots_adjust(top=0.93, bottom=0.2)
 
     show()
 
@@ -1135,8 +1080,7 @@ essentially a strong scalability test.
         ax.get_xaxis().set_tick_params(which='minor', size=0)
         ax.get_xaxis().set_tick_params(which='minor', width=0)
 
-    figure(figsize=(8,6))
-    gs = GridSpec(2,2)
+    fig,gs = subplots(2, 2, figsize=(8,6))
     handles = []
 
     #--- Schur PC ---
@@ -1157,31 +1101,31 @@ essentially a strong scalability test.
         iters = array([min(d[d['mpi']==i]['iters']) for i in m])
         total = setup + solve
 
-        subplot(gs[0,0])
-        h = loglog(c, total, '.-')
-        ylim([1e0, 5e2])
+        ax = gs[0,0]
+        h = ax.loglog(c, total, '.-')
+        ax.set_ylim([1e0, 5e2])
         if omp==24:
             ideal = total[0] * c[0] / c
-            hi = plot(c, ideal, 'k:', zorder=1, linewidth=1, alpha=0.5)
+            hi = ax.plot(c, ideal, 'k:', zorder=1, linewidth=1, alpha=0.5)
         handles.append(h[0])
 
-        subplot(gs[0,1])
-        loglog(c, setup, '.-')
+        ax = gs[0,1]
+        ax.loglog(c, setup, '.-')
         if omp==24:
             ideal = setup[0] * c[0] / c
-            plot(c, ideal, 'k:', zorder=1, linewidth=1, alpha=0.5)
-        ylim([5e-2, 5e2])
+            ax.plot(c, ideal, 'k:', zorder=1, linewidth=1, alpha=0.5)
+        ax.set_ylim([5e-2, 5e2])
 
-        subplot(gs[1,0])
-        loglog(c, solve, '.-')
+        ax = gs[1,0]
+        ax.loglog(c, solve, '.-')
         if omp==24:
             ideal = solve[0] * c[0] / c
-            plot(c, ideal, 'k:', zorder=1, linewidth=1, alpha=0.5)
-        ylim([1e0, 5e2])
+            ax.plot(c, ideal, 'k:', zorder=1, linewidth=1, alpha=0.5)
+        ax.set_ylim([1e0, 5e2])
 
-        subplot(gs[1,1])
-        semilogx(c, iters, '.-')
-        ylim([0,110])
+        ax = gs[1,1]
+        ax.semilogx(c, iters, '.-')
+        ax.set_ylim([0,110])
 
     #--- Trilinos ---
     d = loadtxt('dmem_data/mn4/ns_trilinos.dat', dtype={
@@ -1196,44 +1140,33 @@ essentially a strong scalability test.
     iters = d['iters']
     total = setup + solve
 
-    ax = subplot(gs[0,0])
-    h = loglog(m, total, '.-')
+    h = gs[0,0].loglog(m, total, '.-')
     handles.append(h[0])
 
-    ax = subplot(gs[0,1])
-    loglog(m, setup, '.-')
-
-    ax = subplot(gs[1,0])
-    loglog(m, solve, '.-')
-
-    ax = subplot(gs[1,1])
-    semilogx(m, iters, '.-')
+    gs[0,1].loglog(m, setup, '.-')
+    gs[1,0].loglog(m, solve, '.-')
+    gs[1,1].semilogx(m, iters, '.-')
 
     for i in range(2):
         for j in range(2):
-            set_ticks(subplot(gs[i,j]), [96 * 2**k for k in range(7)])
+            set_ticks(gs[i,j], [96 * 2**k for k in range(7)])
 
-    subplot(gs[0,0])
-    ylabel('Total time')
+    gs[0,0].set_ylabel('Total time')
+    gs[0,1].set_ylabel('Setup time')
 
-    subplot(gs[0,1])
-    ylabel('Setup time')
+    gs[1,0].set_ylabel('Solve time')
+    gs[1,0].set_xlabel('Number of cores (MPI * OMP)')
 
-    subplot(gs[1,0])
-    ylabel('Solve time')
-    xlabel('Number of cores (MPI * OMP)')
+    gs[1,1].set_ylabel('Iterations')
+    gs[1,1].set_xlabel('Number of cores (MPI * OMP)')
 
-    subplot(gs[1,1])
-    ylabel('Iterations')
-    xlabel('Number of cores (MPI * OMP)')
-
-    tight_layout()
+    fig.tight_layout()
 
     figlegend(handles + [hi[0]], ['OMP={}'.format(i) for i in (1, 4, 12, 24)] +
             ['Trilinos', 'Ideal scaling'],
            ncol=3, loc='lower center')
-    gcf().suptitle('Strong scaling of the Navier-Stokes problem on MareNostrum 4 cluster')
-    gcf().subplots_adjust(top=0.93, bottom=0.2)
+    fig.suptitle('Strong scaling of the Navier-Stokes problem on MareNostrum 4 cluster')
+    fig.subplots_adjust(top=0.93, bottom=0.2)
 
     show()
 
