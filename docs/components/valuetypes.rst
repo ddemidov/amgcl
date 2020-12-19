@@ -26,6 +26,9 @@ For example, using statically sized Eigen_ matrices instead of the builtin
 ``amgcl::static_matrix`` as block value type may improve performance in case of
 relatively large blocks, since the Eigen_ library supports SIMD vectorization.
 
+Scalar values
+-------------
+
 All backends support ``float`` and ``double`` as value type. CPU-based backends
 (e.g. :cpp:class:`amgcl::backend::builtin<VT>`) may also use ``long double``.
 The use of non-trivial value types depends on whether the value type is
@@ -44,10 +47,10 @@ Complex values
 
 .. rubric:: Supported by backends:
 
-- :cpp:struct:`amgcl::backend::builtin`
-- :cpp:struct:`amgcl::backend::vexcl`
-- :cpp:struct:`amgcl::backend::eigen`
-- :cpp:struct:`amgcl::backend::blaze`
+- :cpp:class:`amgcl::backend::builtin`
+- :cpp:class:`amgcl::backend::vexcl`
+- :cpp:class:`amgcl::backend::eigen`
+- :cpp:class:`amgcl::backend::blaze`
 
 Statically sized matrices
 -------------------------
@@ -62,8 +65,8 @@ Statically sized matrices
 
 .. rubric:: Supported by backends:
 
-- :cpp:struct:`amgcl::backend::builtin`
-- :cpp:struct:`amgcl::backend::vexcl`
+- :cpp:class:`amgcl::backend::builtin`
+- :cpp:class:`amgcl::backend::vexcl`
 
 Eigen static matrices
 ---------------------
@@ -76,5 +79,5 @@ Eigen static matrices
 
 .. rubric:: Supported by backends:
 
-- :cpp:struct:`amgcl::backend::builtin`
-- :cpp:struct:`amgcl::backend::eigen`
+- :cpp:class:`amgcl::backend::builtin`
+- :cpp:class:`amgcl::backend::eigen`
