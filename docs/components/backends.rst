@@ -35,7 +35,7 @@ OpenMP (builtin) backend
 ------------------------
 
 
-.. cpp:struct:: template <class ValueType> \
+.. cpp:class:: template <class ValueType> \
                 amgcl::backend::builtin
 
     Include ``<amgcl/backend/builtin.hpp>``.
@@ -49,12 +49,12 @@ OpenMP (builtin) backend
     no overhead.  The backend has no parameters (the ``params`` subtype is an
     empty struct).
 
-    .. cpp:struct:: params
+    .. cpp:class:: params
 
 NVIDIA CUDA backend
 -------------------
 
-.. cpp:struct:: template <class ValueType> \
+.. cpp:class:: template <class ValueType> \
                 amgcl::backend::cuda
 
    Include ``<amgcl/backend/cuda.hpp>``.
@@ -66,7 +66,7 @@ NVIDIA CUDA backend
    `cusparseCreate()` function and pass the returned handle to AMGCL in the
    backend parameters.
 
-   .. cpp:struct:: params
+   .. cpp:class:: params
 
       .. cpp:member:: cusparseHandle_t cusparse_handle         
 
@@ -80,7 +80,7 @@ NVIDIA CUDA backend
 VexCL backend
 -------------
 
-.. cpp:struct:: template <class ValueType> \
+.. cpp:class:: template <class ValueType> \
                 amgcl::backend::vexcl
 
    Include ``<amgcl/backend/vexcl.hpp>``.
@@ -91,7 +91,7 @@ VexCL backend
    initialize the VexCL_ context and pass it to AMGCL via the backend
    parameter.
 
-   .. cpp:struct:: params
+   .. cpp:class:: params
 
       .. cpp:member:: std::vector<vex::backend::command_queue> q
 
@@ -108,7 +108,7 @@ VexCL backend
 ViennaCL backend
 ----------------
 
-.. cpp:struct:: template <class Matrix> \
+.. cpp:class:: template <class Matrix> \
                 amgcl::backend::viennacl
 
    Include ``<amgcl/backend/viennacl.hpp>``.
@@ -122,14 +122,14 @@ ViennaCL backend
    ``viannacl::compressed_matrix<T>``, ``viennacl::ell_matrix<T>``, and
    ``viennacl::hyb_matrix<T>``. The backend has no runtime parameters.
 
-   .. cpp:struct:: params
+   .. cpp:class:: params
 
 .. _ViennaCL: http://viennacl.sourceforge.net/
 
 Eigen backend
 -------------
 
-.. cpp:struct:: template <class ValueType> \
+.. cpp:class:: template <class ValueType> \
                 amgcl::backend::eigen
 
    Include ``<amgcl/backend/eigen.hpp>``.
@@ -140,14 +140,14 @@ Eigen backend
    AMGCL. AMGCL also provides an Eigen :doc:`matrix adapter <adapters>`, so
    that Eigen matrices may be transparently used with AMGCL solvers.
 
-   .. cpp:struct:: params
+   .. cpp:class:: params
 
 .. _Eigen: http://eigen.tuxfamily.org
 
 Blaze backend
 -------------
 
-.. cpp:struct:: template <class ValueType> \
+.. cpp:class:: template <class ValueType> \
                 amgcl::backend::blaze
 
    Include ``<amgcl/backend/blaze.hpp>``.
@@ -157,6 +157,6 @@ Blaze backend
    Blaze_ library, for example, to assemble the linear system to be solved with
    AMGCL.
 
-   .. cpp:struct:: params
+   .. cpp:class:: params
 
 .. _Blaze: https://bitbucket.org/blaze-lib/blaze

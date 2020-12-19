@@ -20,6 +20,7 @@ copyright = '2012-2020, Denis Demidov <dennis.demidov@gmail.com>'
 author = 'Denis Demidov'
 version = git_version()
 release = version
+master_doc = 'index'
 numfig = True
 
 # -- General configuration ---------------------------------------------------
@@ -57,6 +58,6 @@ latex_elements = {
 }
 
 latex_documents = [
-  ('index', 'AMGCL.tex', 'AMGCL Documentation',
+  (master_doc, 'AMGCL.tex', 'AMGCL Documentation',
    'Denis Demidov', 'manual'),
 ]
