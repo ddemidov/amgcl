@@ -199,11 +199,11 @@ A backend in AMGCL is a class that binds datatypes like matrix and vector with
 parallel primitives like matrix-vector product, linear combination of vectors,
 or inner product computation. The backend system is implemented using the free
 functions combined with template specialization approach from the previous
-section, which decouples implementation of common parallel primitives from
-specific datatypes used in the supported backends. This allows to adopt
+section, which decouples the implementation of common parallel primitives from
+the specific datatypes used in the supported backends. This allows to adopt
 third-party or user-defined datatypes for use within AMGCL without any
 modification.  For example, in order to switch to the CUDA backend in
-\cref{lst:composition}, we just need to replace
+:numref:`lst_composition`, we just need to replace
 ``amgcl::backend::builtin<double>`` with ``amgcl::backend::cuda<double>``.
 
 Algorithm setup in AMGCL is performed using internal data structures. As soon

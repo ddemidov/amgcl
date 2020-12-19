@@ -44,7 +44,7 @@ namespace backend {
 /// Blaze backend
 /**
  * This is a backend that uses types defined in the Blaze library
- * (https://code.google.com/p/blaze-lib).
+ * (https://bitbucket.org/blaze-lib/blaze/src).
  *
  * \param real Value type.
  * \ingroup backends
