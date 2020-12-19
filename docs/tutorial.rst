@@ -15,11 +15,11 @@ GeForce GTX 1050 Ti GPU.
 .. toctree::
     :maxdepth: 1
 
-    poisson3Db
-    poisson3DbMPI
-    Serena
-    SerenaMPI
-    CoupCons3D
-    Stokes
-    Nullspace
-    NullspaceMPI
+    tutorial/poisson3Db
+    tutorial/poisson3DbMPI
+    tutorial/Serena
+    tutorial/SerenaMPI
+    tutorial/CoupCons3D
+    tutorial/Stokes
+    tutorial/Nullspace
+    tutorial/NullspaceMPI

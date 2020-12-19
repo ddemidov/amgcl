@@ -13,7 +13,7 @@ The system matrix is non-symmetric and has 416,800 rows and 17,277,420 nonzero
 values, which corresponds to an average of 41 nonzeros per row. The matrix
 portrait is shown on the figure below.
 
-.. figure:: ../tutorial/3.CoupCons3D/CoupCons3D.png
+.. figure:: ../../tutorial/3.CoupCons3D/CoupCons3D.png
    :width: 90%
    :name: coupcons3d_spy
 
@@ -172,7 +172,7 @@ also available in `tutorial/3.CoupCons3D/coupcons3d.cpp`_. The only differences
 (highlighted in the listing) with the solution from :doc:`Serena` are the
 choices of the iterative solver and the smoother, and the block size.
 
-.. literalinclude:: ../tutorial/3.CoupCons3D/coupcons3d.cpp
+.. literalinclude:: ../../tutorial/3.CoupCons3D/coupcons3d.cpp
    :caption: The source code for the solution of the CoupCons3D problem.
    :language: cpp
    :linenos:

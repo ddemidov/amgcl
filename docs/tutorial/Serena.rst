@@ -19,7 +19,7 @@ portrait is shown on the figure below.
 .. _examples/solver: https://github.com/ddemidov/amgcl/blob/master/examples/solver.cpp
 .. _examples/mm2bin: https://github.com/ddemidov/amgcl/blob/master/examples/mm2bin.cpp
 
-.. figure:: ../tutorial/2.Serena/Serena.png
+.. figure:: ../../tutorial/2.Serena/Serena.png
    :width: 90%
    :name: serena_spy
 
@@ -273,7 +273,7 @@ precision approach in order to get as much performance as possible from the
 solution. The listing below shows the complete solution and is also available
 in `tutorial/2.Serena/serena.cpp`_.
 
-.. literalinclude:: ../tutorial/2.Serena/serena.cpp
+.. literalinclude:: ../../tutorial/2.Serena/serena.cpp
    :caption: The source code for the solution of the Serena problem.
    :language: cpp
    :linenos:
@@ -361,7 +361,7 @@ contains the complete source for the solution (available at
 `tutorial/2.Serena/serena_vexcl.cpp`_). The differences with the builtin
 backend version are highlighted.
 
-.. literalinclude:: ../tutorial/2.Serena/serena_vexcl.cpp
+.. literalinclude:: ../../tutorial/2.Serena/serena_vexcl.cpp
    :caption: The solution of the Serena problem with the VexCL backend.
    :language: cpp
    :linenos:

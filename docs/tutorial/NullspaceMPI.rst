@@ -22,7 +22,7 @@ The listing below shows the complete source code for the MPI elasticity solver
 .. _ParMETIS: http://glaros.dtc.umn.edu/gkhome/metis/parmetis/overview
 .. _PT-SCOTCH: https://www.labri.fr/perso/pelegrin/scotch/
 
-.. literalinclude:: ../tutorial/5.Nullspace/nullspace_mpi.cpp
+.. literalinclude:: ../../tutorial/5.Nullspace/nullspace_mpi.cpp
    :caption: The MPI solution of the elasticity problem
    :language: cpp
    :linenos:

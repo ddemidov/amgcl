@@ -13,7 +13,7 @@ below.
 
 .. _tutorial/1.poisson3Db/poisson3Db_mpi.cpp: https://github.com/ddemidov/amgcl/blob/master/tutorial/1.poisson3Db/poisson3Db_mpi.cpp
 
-.. literalinclude:: ../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
+.. literalinclude:: ../../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
    :caption: The MPI solution of the poisson3Db problem
    :language: cpp
    :linenos:
@@ -30,7 +30,7 @@ which is what we need for the distributed approach.
 After checking the validity of the command line parameters, we initialize the
 MPI context and communicator in lines 31--32:
 
-.. literalinclude:: ../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
+.. literalinclude:: ../../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
    :language: cpp
    :linenos:
    :lines: 31-32
@@ -50,7 +50,7 @@ simplest way to do this is presented on the following figure:
 
 .. _poisson3Db: https://sparse.tamu.edu/FEMLAB/poisson3Db
 
-.. figure:: ../tutorial/1.poisson3Db/Poisson3D_mpi.png
+.. figure:: ../../tutorial/1.poisson3Db/Poisson3D_mpi.png
    :width: 90%
 
    Poisson3Db matrix partitioned between the 4 MPI processes
@@ -100,7 +100,7 @@ matrix. The solution :math:`x` in the original ordering may be obtained with
 In lines 37--54 we read the system matrix and the RHS vector using the naive
 ordering (a nicer ordering of the unknowns will be determined later):
 
-.. literalinclude:: ../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
+.. literalinclude:: ../../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
    :language: cpp
    :linenos:
    :lines: 37-54
@@ -116,7 +116,7 @@ column indices are kept in global numbering.
 
 In lines 62--72 we define the backend and the solver types:
 
-.. literalinclude:: ../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
+.. literalinclude:: ../../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
    :language: cpp
    :linenos:
    :lines: 62-72
@@ -130,7 +130,7 @@ the preconditioner backend is defined with a single-precision value type.
 In lines 74--76 we create the distributed matrix from the local strips read by
 each of the MPI processes:
 
-.. literalinclude:: ../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
+.. literalinclude:: ../../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
    :language: cpp
    :linenos:
    :lines: 74-76
@@ -144,7 +144,7 @@ need the double-precision distributed matrix for the solution step. And second,
 the matrix will be used to repartition the system using either ParMETIS_ or
 PT-SCOTCH_ libraries in lines 78--110:
 
-.. literalinclude:: ../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
+.. literalinclude:: ../../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
    :language: cpp
    :linenos:
    :lines: 78-110
@@ -157,7 +157,7 @@ matrix and the RHS vector. Since the reordering may change the number of rows
 owned by each MPI process, we update the number of local rows stored in the
 ``chunk`` variable.
 
-.. literalinclude:: ../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
+.. literalinclude:: ../../tutorial/1.poisson3Db/poisson3Db_mpi.cpp
    :language: cpp
    :linenos:
    :lines: 112-128
@@ -209,7 +209,7 @@ highlighted.
 .. _VexCL: https://github.com/ddemidov/vexcl
 .. _tutorial/1.poisson3Db/poisson3Db_mpi_vexcl.cpp: https://github.com/ddemidov/amgcl/blob/master/tutorial/1.poisson3Db/poisson3Db_mpi_vexcl.cpp
 
-.. literalinclude:: ../tutorial/1.poisson3Db/poisson3Db_mpi_vexcl.cpp
+.. literalinclude:: ../../tutorial/1.poisson3Db/poisson3Db_mpi_vexcl.cpp
    :language: cpp
    :linenos:
    :emphasize-lines: 4,36-42,67,76-77,113,126-128,131,141-142

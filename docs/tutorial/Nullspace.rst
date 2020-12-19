@@ -8,7 +8,7 @@ coordinates of the discretization grid nodes. In this tutorial we will use the
 system obtained by discretization of a 3D elasticity problem modeling a
 connecting rod:
 
-.. figure:: ../tutorial/5.Nullspace/displacements.png
+.. figure:: ../../tutorial/5.Nullspace/displacements.png
    :width: 90%
    :name: connrod_msh
 
@@ -23,7 +23,7 @@ block structure with small :math:`3\times3` blocks, and
 has 81,657 rows and 3,171,111 nonzero values (about 39 nonzero entries per row
 on average). The matrix portrait is shown on the figure below:
 
-.. figure:: ../tutorial/5.Nullspace/matrix.png
+.. figure:: ../../tutorial/5.Nullspace/matrix.png
    :width: 90%
    :name: connrod_mtx
 
@@ -404,7 +404,7 @@ displacement components associated with the node, the coordinate file should
 have three times less rows than the system matrix). The rest of the code should
 be quite familiar.
 
-.. literalinclude:: ../tutorial/5.Nullspace/nullspace.cpp
+.. literalinclude:: ../../tutorial/5.Nullspace/nullspace.cpp
    :caption: The solution of the connecting rod problem using the near null-space vectors.
    :language: cpp
    :linenos:

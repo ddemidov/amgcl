@@ -27,7 +27,7 @@ highlight the differences between this version and the code in the
 
 .. _tutorial/2.Serena/serena_mpi.cpp: https://github.com/ddemidov/amgcl/blob/master/tutorial/2.Serena/serena_mpi.cpp
 
-.. literalinclude:: ../tutorial/2.Serena/serena_mpi.cpp
+.. literalinclude:: ../../tutorial/2.Serena/serena_mpi.cpp
    :caption: The MPI solution of the Serena problem
    :language: cpp
    :linenos:
@@ -36,7 +36,7 @@ We make sure that the paritioning takes the block structure of the matrix into
 account by keeping the number of rows in the initial naive partitioning
 divisible by 3 (here the constant ``B`` is equal to 3):
 
-.. literalinclude:: ../tutorial/2.Serena/serena_mpi.cpp
+.. literalinclude:: ../../tutorial/2.Serena/serena_mpi.cpp
    :language: cpp
    :linenos:
    :lines: 46-53
@@ -46,7 +46,7 @@ We also create all the distributed matrices using the block values, so the
 partitioning naturally is block-aware. We are using the mixed precision
 approach, so the preconditioner backend is defined with the single precision:
 
-.. literalinclude:: ../tutorial/2.Serena/serena_mpi.cpp
+.. literalinclude:: ../../tutorial/2.Serena/serena_mpi.cpp
    :language: cpp
    :linenos:
    :lines: 65-79
@@ -61,7 +61,7 @@ The scaled RHS vector :math:`f_s = D^{-1/2} f` in principle may be found using
 the :cpp:func:`amgcl::backend::spmv()` primitive, but, since the RHS vector in
 this case is simply filled with ones, the scaled RHS :math:`f_s = D^{-1/2}`.
 
-.. literalinclude:: ../tutorial/2.Serena/serena_mpi.cpp
+.. literalinclude:: ../../tutorial/2.Serena/serena_mpi.cpp
    :language: cpp
    :linenos:
    :lines: 85-125
@@ -105,7 +105,7 @@ differences with the builtin backend version are highlighted:
 
 .. _tutorial/2.Serena/serena_mpi_vexcl.cpp: https://github.com/ddemidov/amgcl/blob/master/tutorial/2.Serena/serena_mpi_vexcl.cpp
 
-.. literalinclude:: ../tutorial/2.Serena/serena_mpi_vexcl.cpp
+.. literalinclude:: ../../tutorial/2.Serena/serena_mpi_vexcl.cpp
    :caption: The MPI solution of the Serena problem using the VexCL backend
    :language: cpp
    :linenos:

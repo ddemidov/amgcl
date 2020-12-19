@@ -9,7 +9,7 @@ matrix has an interesting structure, presented on the figure below:
 .. _poisson3Db: https://sparse.tamu.edu/FEMLAB/poisson3Db
 .. _Matrix Market: https://math.nist.gov/MatrixMarket
 
-.. figure:: ../tutorial/1.poisson3Db/Poisson3D.png
+.. figure:: ../../tutorial/1.poisson3Db/Poisson3D.png
    :width: 90%
 
    Poisson3Db matrix portrait
@@ -175,7 +175,7 @@ Now that we have the feel of the problem, we can actually write some code. The
 complete source may be found in `tutorial/1.poisson3Db/poisson3Db.cpp`_ and is
 presented below:
 
-.. literalinclude:: ../tutorial/1.poisson3Db/poisson3Db.cpp
+.. literalinclude:: ../../tutorial/1.poisson3Db/poisson3Db.cpp
    :caption: The source code for the solution of the poisson3Db problem.
    :language: cpp
    :linenos:
@@ -302,7 +302,7 @@ have seen above and is available at
 `tutorial/1.poisson3Db/poisson3Db_cuda.cu`_. The listing below has the
 differences highligted:
 
-.. literalinclude:: ../tutorial/1.poisson3Db/poisson3Db_cuda.cu
+.. literalinclude:: ../../tutorial/1.poisson3Db/poisson3Db_cuda.cu
    :caption: The source code for the solution of the poisson3Db problem using the CUDA backend.
    :language: cuda
    :linenos:

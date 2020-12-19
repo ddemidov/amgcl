@@ -13,7 +13,7 @@ the figure below.
 
 .. _SuiteSparse Matrix Collection: https://sparse.tamu.edu/
 
-.. figure:: ../tutorial/4.Stokes/ucube_4.png
+.. figure:: ../../tutorial/4.Stokes/ucube_4.png
    :width: 90%
    :name: ucube_spy
 
@@ -180,7 +180,7 @@ solver (`tutorial/4.Stokes/stokes_ucube.cpp`_) which uses the mixed precision ap
 
 .. _tutorial/4.Stokes/stokes_ucube.cpp: https://github.com/ddemidov/amgcl/blob/master/tutorial/4.Stokes/stokes_ucube.cpp
 
-.. literalinclude:: ../tutorial/4.Stokes/stokes_ucube.cpp
+.. literalinclude:: ../../tutorial/4.Stokes/stokes_ucube.cpp
    :caption: The source code for the solution of the UCube(4) problem.
    :language: cpp
    :linenos:
@@ -192,7 +192,7 @@ backends used in the outer iterative solver, and in the two nested solvers.
 Note that both backends for nested solvers use single precision values, and the
 flow subsystem backend has block value type:
 
-.. literalinclude:: ../tutorial/4.Stokes/stokes_ucube.cpp
+.. literalinclude:: ../../tutorial/4.Stokes/stokes_ucube.cpp
    :language: cpp
    :linenos:
    :lines: 55-58
@@ -206,7 +206,7 @@ applies the specified preconditioner once. The flow solver is defined with
 input matrix :math:`A` to the block format during the setup and reinterprets
 the scalar RHS and solution vectors as having block values during solution:
 
-.. literalinclude:: ../tutorial/4.Stokes/stokes_ucube.cpp
+.. literalinclude:: ../../tutorial/4.Stokes/stokes_ucube.cpp
    :language: cpp
    :linenos:
    :lines: 60-79
@@ -216,7 +216,7 @@ In the solver parameters we disable lumping of the matrix :math:`A` diagonal
 for the Schur complement approimation (line 83) and fill the pressure mask to
 indicate which unknowns correspond to the pressure subsystem (lines 84--85):
 
-.. literalinclude:: ../tutorial/4.Stokes/stokes_ucube.cpp
+.. literalinclude:: ../../tutorial/4.Stokes/stokes_ucube.cpp
    :language: cpp
    :linenos:
    :lines: 81-85
@@ -298,7 +298,7 @@ we set the number of iterations to 4 (line 94).
 
 .. _tutorial/4.Stokes/stokes_ucube_vexcl.cpp: https://github.com/ddemidov/amgcl/blob/master/tutorial/4.Stokes/stokes_ucube_vexcl.cpp
 
-.. literalinclude:: ../tutorial/4.Stokes/stokes_ucube_vexcl.cpp
+.. literalinclude:: ../../tutorial/4.Stokes/stokes_ucube_vexcl.cpp
    :caption: The source code for the solution of the UCube(4) problem with the VexCL backend.
    :language: cpp
    :linenos:
