@@ -42,7 +42,7 @@ OpenMP (builtin) backend
 
     This is the bultin backend that does not have any external dependencies and
     uses OpenMP_-parallelization for its primitives. As with any backend in
-    AMGCL, it is defined with a :doc:`value type <valuetypes>` template
+    AMGCL, it is defined with a :doc:`value type <value_types>` template
     parameter, which specifies the type of the system matrix elements. The
     backend is also used internally by AMGCL during construction phase, and so
     moving the constructed datatypes (matrices and vectors) to the backend has

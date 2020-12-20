@@ -11,6 +11,6 @@ AMGCL defines the following algorithmic components:
     components/adapters
     components/iter_solvers
     components/preconditioners
-    components/coupled_solvers
     components/relaxation
     components/coarsening
+    components/coupled_solvers

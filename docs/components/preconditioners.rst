@@ -7,3 +7,23 @@ preconditioner for Navie-Stokes type problems, or CPR preconditioner for
 reservoir simulations. Also, it is possible to use single level relaxation
 method as a preconditioner.
 
+AMG
+---
+
+Schur Pressure Correction
+-------------------------
+
+Simple
+------
+
+CPR
+---
+
+CPR (DRS)
+---------
+
+Single-level relaxation
+-----------------------
+
+Dummy
+-----
