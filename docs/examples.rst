@@ -5,12 +5,12 @@ Solving Poisson's equation
 --------------------------
 
 The easiest way to solve a problem with AMGCL is to use the
-:cpp:class:`amgcl::make_solver` class. It has two
-template parameters: the first one specifies a :doc:`preconditioner
-<preconditioners>` to use, and the second chooses an :doc:`iterative solver
-<solvers>`. The class constructor takes the system matrix in one of supported
-:doc:`formats <adapters>` and parameters for the chosen algorithms and for the
-:doc:`backend <backends>`.
+:cpp:class:`amgcl::make_solver` class. It has two template parameters: the
+first one specifies a :doc:`preconditioner <components/preconditioners>` to
+use, and the second chooses an :doc:`iterative solver
+<components/iter_solvers>`.  The class constructor takes the system matrix in
+one of supported :doc:`formats <components/adapters>` and parameters for the
+chosen algorithms and for the :doc:`backend <components/backends>`.
 
 Let us consider a simple example of `Poisson's equation`_ in a unit square.
 Here is how the problem may be solved with AMGCL. We will use BiCGStab solver
@@ -103,7 +103,7 @@ into a `boost::iterator_range`_:
 
 Same applies to the right-hand side and the solution vectors. And if that is
 still not general enough, you can provide your own adapter for your matrix
-type. See :doc:`adapters` for further information on this.
+type. See :doc:`components/adapters` for further information on this.
 
 Setting parameters
 ------------------
@@ -131,8 +131,8 @@ example like this:
     Solver solve( std::tie(n, ptr, col, val), prm );
 
 Parameters may also be initialized with a `boost::property_tree::ptree`_. This
-is especially convenient when :doc:`runtime` is used, and the exact structure
-of the parameters is not known at compile time:
+is especially convenient when the runtime interface is used, and the exact
+structure of the parameters is not known at compile time:
 
 .. code-block:: cpp
 

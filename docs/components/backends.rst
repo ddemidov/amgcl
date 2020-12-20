@@ -68,6 +68,8 @@ NVIDIA CUDA backend
 
    .. cpp:class:: params
 
+      The backend parameters
+
       .. cpp:member:: cusparseHandle_t cusparse_handle         
 
          cuSPARSE_ handle created with the `cusparseCreate()`_ function.
@@ -92,6 +94,8 @@ VexCL backend
    parameter.
 
    .. cpp:class:: params
+
+      The backend parameters
 
       .. cpp:member:: std::vector<vex::backend::command_queue> q
 
@@ -124,6 +128,8 @@ ViennaCL backend
 
    .. cpp:class:: params
 
+      The backend parameters
+
 .. _ViennaCL: http://viennacl.sourceforge.net/
 
 Eigen backend
@@ -142,6 +148,8 @@ Eigen backend
 
    .. cpp:class:: params
 
+      The backend parameters
+
 .. _Eigen: http://eigen.tuxfamily.org
 
 Blaze backend
@@ -158,5 +166,7 @@ Blaze backend
    AMGCL.
 
    .. cpp:class:: params
+
+      The backend parameters
 
 .. _Blaze: https://bitbucket.org/blaze-lib/blaze

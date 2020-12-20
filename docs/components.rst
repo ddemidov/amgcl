@@ -7,10 +7,10 @@ AMGCL defines the following algorithmic components:
     :maxdepth: 2
 
     components/backends
-    components/valuetypes
+    components/value_types
     components/adapters
-    components/solvers
-    components/itersolvers
+    components/iter_solvers
     components/preconditioners
+    components/coupled_solvers
     components/relaxation
     components/coarsening
