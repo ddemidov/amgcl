@@ -16,7 +16,7 @@ All solvers provide similar interface described below:
 
 .. cpp:function:: constructor( \
                   size_t n, \
-                  const params &prm = params, \
+                  const params &prm = params(), \
                   const backend_params &bprm = backend_params())
 
    The solver constructor. Takes the size of the system to solve, the solver
