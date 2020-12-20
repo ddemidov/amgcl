@@ -110,9 +110,9 @@ class schur_pressure_correction {
             // as approximation for the Kuu^-1 (as in SIMPLEC algorithm)
             bool simplec_dia;
 
-            int debug;
+            int verbose;
 
-            params() : type(1), approx_schur(false), adjust_p(1), simplec_dia(true), debug(0) {}
+            params() : type(1), approx_schur(false), adjust_p(1), simplec_dia(true), verbose(0) {}
 
 #ifndef AMGCL_NO_BOOST
             params(const boost::property_tree::ptree &p)
@@ -122,7 +122,7 @@ class schur_pressure_correction {
                   AMGCL_PARAMS_IMPORT_VALUE(p, approx_schur),
                   AMGCL_PARAMS_IMPORT_VALUE(p, adjust_p),
                   AMGCL_PARAMS_IMPORT_VALUE(p, simplec_dia),
-                  AMGCL_PARAMS_IMPORT_VALUE(p, debug)
+                  AMGCL_PARAMS_IMPORT_VALUE(p, verbose)
             {
                 size_t n = 0;
 
@@ -170,7 +170,7 @@ class schur_pressure_correction {
                             );
                 }
 
-                check_params(p, {"usolver", "psolver", "type", "approx_schur", "adjust_p", "simplec_dia", "pmask_size", "debug"},
+                check_params(p, {"usolver", "psolver", "type", "approx_schur", "adjust_p", "simplec_dia", "pmask_size", "verbose"},
                         {"pmask", "pmask_pattern"});
             }
 
@@ -182,7 +182,7 @@ class schur_pressure_correction {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, approx_schur);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, adjust_p);
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, simplec_dia);
-                AMGCL_PARAMS_EXPORT_VALUE(p, path, debug);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, verbose);
             }
 #endif
         } prm;
@@ -407,7 +407,7 @@ class schur_pressure_correction {
                 }
             }
 
-            if (prm.debug >= 2) {
+            if (prm.verbose >= 2) {
                 io::mm_write("Kuu.mtx", *Kuu);
                 io::mm_write("Kpp.mtx", *Kpp);
             }
@@ -588,7 +588,7 @@ class schur_pressure_correction {
 
         template <typename I, typename E>
         void report(const std::string &name, const std::tuple<I, E> &c) const {
-            if (prm.debug >= 1) {
+            if (prm.verbose >= 1) {
                 std::cout << name << " (" << std::get<0>(c) << ", " << std::get<1>(c) << ")\n";
             }
         }

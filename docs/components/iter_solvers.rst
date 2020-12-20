@@ -59,7 +59,7 @@ CG
 --
 
 .. cpp:class:: template <class Backend, class InnerProduct = amgcl::detail::default_inner_product> \
-               cg
+               amgcl::solver::cg
 
    .. rubric:: Include ``<amgcl/solver/cg.hpp>``
 
@@ -107,7 +107,7 @@ BiCGStab
 --------
 
 .. cpp:class:: template <class Backend, class InnerProduct = amgcl::detail::default_inner_product> \
-               bicgstab
+               amgcl::solver::bicgstab
 
    .. rubric:: Include ``<amgcl/solver/bicgstab.hpp>``
 
@@ -163,7 +163,7 @@ BiCGStab(L)
 -----------
 
 .. cpp:class:: template <class Backend, class InnerProduct = amgcl::detail::default_inner_product> \
-               bicgstabl
+               amgcl::solver::bicgstabl
 
    .. rubric:: Include ``<amgcl/solver/bicgstabl.hpp>``
 
@@ -231,7 +231,7 @@ GMRES
 -----
 
 .. cpp:class:: template <class Backend, class InnerProduct = amgcl::detail::default_inner_product> \
-               gmres
+               amgcl::solver::gmres
 
    .. rubric:: Include ``<amgcl/solver/gmres.hpp>``
 
@@ -290,7 +290,7 @@ GMRES
 ----------------------
 
 .. cpp:class:: template <class Backend, class InnerProduct = amgcl::detail::default_inner_product> \
-               lgmres
+               amgcl::solver::lgmres
 
    .. rubric:: Include ``<amgcl/solver/lgmres.hpp>``
 
@@ -364,7 +364,7 @@ Flexible GMRES (FGMRES)
 -----------------------
 
 .. cpp:class:: template <class Backend, class InnerProduct = amgcl::detail::default_inner_product> \
-               fgmres
+               amgcl::solver::fgmres
 
    .. rubric:: Include ``<amgcl/solver/fgmres.hpp>``
 
@@ -422,7 +422,7 @@ IDR(s)
 ------
 
 .. cpp:class:: template <class Backend, class InnerProduct = amgcl::detail::default_inner_product> \
-               idrs
+               amgcl::solver::idrs
 
    .. rubric:: Include ``<amgcl/solver/idrs.hpp>``
 
@@ -498,7 +498,7 @@ Richardson iteration
 --------------------
 
 .. cpp:class:: template <class Backend, class InnerProduct = amgcl::detail::default_inner_product> \
-               richardson
+               amgcl::solver::richardson
 
    .. rubric:: Include ``<amgcl/solver/richardson.hpp>``
 
@@ -550,7 +550,7 @@ PreOnly
 -------
 
 .. cpp:class:: template <class Backend, class InnerProduct = amgcl::detail::default_inner_product> \
-               preonly
+               amgcl::solver::preonly
 
    .. rubric:: Include ``<amgcl/solver/preonly.hpp>``
 

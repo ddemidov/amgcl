@@ -4,7 +4,7 @@ Components
 AMGCL defines the following algorithmic components:
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 3
 
     components/backends
     components/value_types

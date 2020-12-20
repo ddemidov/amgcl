@@ -9,6 +9,7 @@ Bibliography
 .. [BeGL05] Benzi, Michele, Gene H. Golub, and Jörg Liesen. `Numerical solution of saddle point problems <https://doi.org/10.1017/S0962492904000212>`_. Acta numerica 14 (2005): 1-137.
 .. [BrGr02] Bröker, Oliver, and Marcus J. Grote. `Sparse approximate inverse smoothers for geometric and algebraic multigrid <https://doi.org/10.1016/S0168-9274(01)00110-6>`_. Applied numerical mathematics 41.1 (2002): 61-80.
 .. [BrMH85] Brandt, A., McCormick, S., & Huge, J. (1985). Algebraic multigrid (AMG) for sparse matrix equations. Sparsity and its Applications, 257.
+.. [BrCC15] Brown, Geoffrey L., David A. Collins, and Zhangxin Chen. "Efficient preconditioning for algebraic multigrid and red-black ordering in adaptive-implicit black-oil simulations." SPE Reservoir Simulation Symposium. Society of Petroleum Engineers, 2015.
 .. [CaGP73] Caretto, L. S., et al. `Two calculation procedures for steady, three-dimensional flows with recirculation <https://doi.org/10.1007/BFb0112677>`_. Proceedings of the third international conference on numerical methods in fluid mechanics. Springer Berlin Heidelberg, 1973.
 .. [ChPa15] Chow, Edmond, and Aftab Patel. `Fine-grained parallel incomplete LU factorization <https://doi.org/10.1137/140968896>`_. SIAM journal on Scientific Computing 37.2 (2015): C169-C193.
 .. [DeSh12] Demidov, D. E., and Shevchenko, D. V. `Modification of algebraic multigrid for effective GPGPU-based solution of nonstationary hydrodynamics problems <https://doi.org/10.1016/j.jocs.2012.08.008>`_. Journal of Computational Science 3.6 (2012): 460-462.
@@ -20,6 +21,7 @@ Bibliography
 .. [GhKK12] P. Ghysels, P. Kłosiewicz, and W. Vanroose. `Improving the arithmetic intensity of multigrid with the help of polynomial smoothers <https://doi.org/10.1002/nla.1808>`_.  Numer. Linear Algebra Appl. 2012;19:253-267.
 .. [GiSo11] Van Gijzen, Martin B., and Peter Sonneveld. `Algorithm 913: An elegant IDR (s) variant that efficiently exploits biorthogonality properties <https://doi.org/10.1145/2049662.2049667>`_. ACM Transactions on Mathematical Software (TOMS) 38.1 (2011): 5.
 .. [GmHJ15] Gmeiner, Björn, et al. `A quantitative performance study for Stokes solvers at the extreme scale <https://doi.org/10.1016/j.jocs.2016.06.006>`_. Journal of Computational Science 17 (2016): 509-521.
+.. [Grie14] Gries, Sebastian, et al. "Preconditioning for efficiently applying algebraic multigrid in fully implicit reservoir simulations." SPE Journal 19.04 (2014): 726-736.
 .. [Meye05] S. Meyers, Effective C++: 55 specific ways to improve your programs and designs, Pearson Education, 2005.
 .. [Saad03] Saad, Yousef. Iterative methods for sparse linear systems. Siam, 2003.
 .. [SaTu08] Sala, Marzio, and Raymond S. Tuminaro. `A new Petrov-Galerkin smoothed aggregation preconditioner for nonsymmetric linear systems <https://doi.org/10.1137/060659545>`_. SIAM Journal on Scientific Computing 31.1 (2008): 143-166.
