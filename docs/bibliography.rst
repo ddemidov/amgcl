@@ -30,6 +30,7 @@ Bibliography
 .. [SlDi93] Sleijpen, Gerard LG, and Diederik R. Fokkema. "BiCGstab (l) for linear equations involving unsymmetric matrices with complex spectrum." Electronic Transactions on Numerical Analysis 1.11 (1993): 2000.
 .. [Stue07] Stüben, Klaus, et al. `Algebraic multigrid methods (AMG) for the efficient solution of fully implicit formulations in reservoir simulation <https://doi.org/10.2118/105832-MS>`_. SPE Reservoir Simulation Symposium. Society of Petroleum Engineers, 2007.
 .. [Stue99] Stüben, Klaus. Algebraic multigrid (AMG): an introduction with applications. GMD-Forschungszentrum Informationstechnik, 1999.
+.. [TNVE09] Tang, J. M., Nabben, R., Vuik, C., & Erlangga, Y. A. (2009). `Comparison of two-level preconditioners derived from deflation, domain decomposition and multigrid methods <https://doi.org/10.1007/s10915-009-9272-6>`_. Journal of scientific computing, 39(3), 340-370.
 .. [TrOS01] Trottenberg, U., Oosterlee, C., and Schüller, A. Multigrid. Academic Press, London, 2001.
 .. [VaMB96] Vaněk, Petr, Jan Mandel, and Marian Brezina. `Algebraic multigrid by smoothed aggregation for second and fourth order elliptic problems. <https://doi.org/10.1007/BF02238511>`_ Computing 56.3 (1996): 179-196.
 .. [ViBo92] Vincent, C., and R. Boyer. `A preconditioned conjugate gradient Uzawa‐type method for the solution of the Stokes problem by mixed Q1–P0 stabilized finite elements <https://doi.org/10.1002/fld.1650140304>`_. International journal for numerical methods in fluids 14.3 (1992): 289-298.

@@ -24,7 +24,7 @@ Referencing
 -----------
 
 .. [Demi19] Demidov, Denis. `AMGCL: An efficient, flexible, and extensible algebraic multigrid implementation <https://doi.org/10.1134/S1995080219050056>`_. Lobachevskii Journal of Mathematics 40.5 (2019): 535-546. `pdf <https://rdcu.be/bHFsY>`_, :download:`bib <demidov19.bib>`
-.. [Demi20] D. Demidov. `AMGCL – A C++ library for efficient solution of large sparse linear systems <https://doi.org/10.1016/j.simpa.2020.100037>`_. Software Impacts, 6:100037, November 2020. :download:`bib <demidov20.bib>`
+.. [Demi20] Demidov, Denis. `AMGCL – A C++ library for efficient solution of large sparse linear systems <https://doi.org/10.1016/j.simpa.2020.100037>`_. Software Impacts, 6:100037, November 2020. :download:`bib <demidov20.bib>`
 
 Contents:
 ---------
