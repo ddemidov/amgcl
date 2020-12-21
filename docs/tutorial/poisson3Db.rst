@@ -140,8 +140,8 @@ iterations, but is more expensive to setup::
 
 On the other hand, the Chebyshev relaxation has cheap setup but its
 application is expensive as it involves multiple matrix-vector products. So,
-even it requires less iterations, the overall solution time does not improve
-that much::
+even though it requires less iterations, the overall solution time does not
+improve that much::
 
     $ solver -A poisson3Db.mtx -f poisson3Db_b.mtx precond.relax.type=chebyshev
     Solver
