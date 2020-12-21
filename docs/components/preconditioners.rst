@@ -416,7 +416,3 @@ Schur Pressure Correction
            residual achieved after each nested solve.
          - When ``verbose >= 2``, save the :math:`A` and :math:`C` submatrices as
            ``Kuu.mtx`` and ``Kpp.mtx``.
-
-SIMPLE
-------
-
