@@ -202,7 +202,7 @@ In lines 60-79 we define the solver type. The flow solver is defined in lines
 62-69, and the pressure solver -- in lines 70--77. Both are using
 :cpp:class:`amgcl::solver::preonly` as "iterative" solver, which in fact only
 applies the specified preconditioner once. The flow solver is defined with
-:cpp:class:`amgcl::make_block_preconditioner`, which automatically converts its
+:cpp:class:`amgcl::make_block_solver`, which automatically converts its
 input matrix :math:`A` to the block format during the setup and reinterprets
 the scalar RHS and solution vectors as having block values during solution:
 
