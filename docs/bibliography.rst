@@ -23,7 +23,7 @@ Bibliography
 .. [GiSo11] Van Gijzen, Martin B., and Peter Sonneveld. `Algorithm 913: An elegant IDR (s) variant that efficiently exploits biorthogonality properties <https://doi.org/10.1145/2049662.2049667>`_. ACM Transactions on Mathematical Software (TOMS) 38.1 (2011): 5.
 .. [GmHJ15] Gmeiner, Björn, et al. `A quantitative performance study for Stokes solvers at the extreme scale <https://doi.org/10.1016/j.jocs.2016.06.006>`_. Journal of Computational Science 17 (2016): 509-521.
 .. [Grie14] Gries, Sebastian, et al. `Preconditioning for efficiently applying algebraic multigrid in fully implicit reservoir simulations <https://doi.org/10.2118/163608-PA>`_. SPE Journal 19.04 (2014): 726-736.
-.. [GrHu97] Grote, Marcus J., and Thomas Huckle. `Parallel preconditioning with sparse approximate inverses <https://doi.org/10.1137/S1064827594276552>`. SIAM Journal on Scientific Computing 18.3 (1997): 838-853.
+.. [GrHu97] Grote, Marcus J., and Thomas Huckle. `Parallel preconditioning with sparse approximate inverses <https://doi.org/10.1137/S1064827594276552>`_. SIAM Journal on Scientific Computing 18.3 (1997): 838-853.
 .. [Meye05] S. Meyers, Effective C++: 55 specific ways to improve your programs and designs, Pearson Education, 2005.
 .. [MiKu03] Mittal, R. C., and A. H. Al-Kurdi. `An efficient method for constructing an ILU preconditioner for solving large sparse nonsymmetric linear systems by the GMRES method <https://doi.org/10.1016/S0898-1221(03)00154-8>`_. Computers & Mathematics with applications 45.10-11 (2003): 1757-1772.
 .. [Saad03] Saad, Yousef. Iterative methods for sparse linear systems. Siam, 2003.
@@ -32,5 +32,5 @@ Bibliography
 .. [Stue07] Stüben, Klaus, et al. `Algebraic multigrid methods (AMG) for the efficient solution of fully implicit formulations in reservoir simulation <https://doi.org/10.2118/105832-MS>`_. SPE Reservoir Simulation Symposium. Society of Petroleum Engineers, 2007.
 .. [Stue99] Stüben, Klaus. Algebraic multigrid (AMG): an introduction with applications. GMD-Forschungszentrum Informationstechnik, 1999.
 .. [TrOS01] Trottenberg, U., Oosterlee, C., and Schüller, A. Multigrid. Academic Press, London, 2001.
-.. [VaMB96] Vaněk, Petr, Jan Mandel, and Marian Brezina. "Algebraic multigrid by smoothed aggregation for second and fourth order elliptic problems." Computing 56.3 (1996): 179-196.
-.. [ViBo92] Vincent, C., and R. Boyer. "A preconditioned conjugate gradient Uzawa‐type method for the solution of the Stokes problem by mixed Q1–P0 stabilized finite elements." International journal for numerical methods in fluids 14.3 (1992): 289-298.
+.. [VaMB96] Vaněk, Petr, Jan Mandel, and Marian Brezina. `Algebraic multigrid by smoothed aggregation for second and fourth order elliptic problems. <https://doi.org/10.1007/BF02238511>`_ Computing 56.3 (1996): 179-196.
+.. [ViBo92] Vincent, C., and R. Boyer. `A preconditioned conjugate gradient Uzawa‐type method for the solution of the Stokes problem by mixed Q1–P0 stabilized finite elements <https://doi.org/10.1002/fld.1650140304>`_. International journal for numerical methods in fluids 14.3 (1992): 289-298.
