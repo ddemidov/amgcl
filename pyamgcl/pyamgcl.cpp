@@ -10,6 +10,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 
+#include <amgcl/backend/builtin.hpp>
 #include <amgcl/solver/runtime.hpp>
 #include <amgcl/preconditioner/runtime.hpp>
 #include <amgcl/make_solver.hpp>
@@ -30,16 +31,6 @@ boost::property_tree::ptree make_ptree(const py::dict &args) {
         prm.put(static_cast<std::string>(py::str(p.first)),
                 static_cast<std::string>(py::str(p.second)));
     return prm;
-}
-
-//---------------------------------------------------------------------------
-template <typename T>
-py::array_t<T> make_array(size_t n, T *ptr = nullptr) {
-    return py::array_t<T>(
-            py::buffer_info(
-                ptr, sizeof(T), py::format_descriptor<T>::value, 1, {n}, {sizeof(T)}
-                )
-            );
 }
 
 //---------------------------------------------------------------------------
@@ -72,7 +63,7 @@ struct precond {
         vector x(rhs.size(), true);
         vector f(rhs.data(), rhs.data() + rhs.size());
         this->apply(f, x);
-        return make_array(x.size(), x.data());
+        return py::array_t<double>(x.size(), x.data());
     }
 };
 
@@ -82,7 +73,9 @@ class solver
 {
     public:
         solver(const precond &P, py::dict prm)
-            : S(amgcl::backend::rows(P.system_matrix()), make_ptree(prm)), P(P)
+            : S(amgcl::backend::rows(P.system_matrix()), make_ptree(prm)), P(P),
+              x(amgcl::backend::rows(P.system_matrix())),
+              f(amgcl::backend::rows(P.system_matrix()))
         {}
 
         py::array_t<double> solve(
@@ -98,20 +91,19 @@ class solver
             auto rhs = make_range(_rhs);
 
             size_t n = boost::size(rhs);
-            amgcl::backend::numa_vector<double> x(n, 0.0);
-            amgcl::backend::numa_vector<double> f(rhs);
+            amgcl::backend::clear(x);
+            amgcl::backend::copy(rhs, f);
 
             std::tie(iters, error) = (*this)(std::make_tuple(n, ptr, col, val), P, f, x);
 
-            return make_array(x.size(), x.data());
+            return py::array_t<double>(x.size(), x.data());
         }
 
         py::array_t<double> solve(py::array_t<double> _rhs) const {
-            auto rhs = make_range(_rhs);
-            amgcl::backend::numa_vector<double> x(boost::size(rhs), 0.0);
-            amgcl::backend::numa_vector<double> f(rhs);
+            amgcl::backend::clear(x);
+            amgcl::backend::copy(make_range(_rhs), f);
             std::tie(iters, error) = (*this)(P, f, x);
-            return make_array(x.size(), x.data());
+            return py::array_t<double>(x.size(), x.data());
         }
 
         int iterations() const {
@@ -127,6 +119,7 @@ class solver
 
         const precond &P;
 
+        mutable amgcl::backend::numa_vector<double> x, f;
         mutable int    iters;
         mutable double error;
 };
