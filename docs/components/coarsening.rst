@@ -90,11 +90,11 @@ parameters:
 
    The nullspace parameters.
 
-   .. cpp:member int cols = 0
+   .. cpp:member:: int cols = 0
 
       The number of near nullspace vectors.
 
-   .. cpp:member:: std::vector<double> B;
+   .. cpp:member:: std::vector<double> B
 
       The near nullspace vectors. The vectors are represented as columns of a
       2D matrix stored in row-major order.
