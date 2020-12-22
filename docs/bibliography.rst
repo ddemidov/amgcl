@@ -6,7 +6,7 @@ Bibliography
 .. [Alex00] A. Alexandrescu, Modern C++ design: generic programming and design patterns applied, AddisonWesley, 2001.
 .. [AnCD15] Anzt, Hartwig, Edmond Chow, and Jack Dongarra. `Iterative sparse triangular solves for preconditioning <https://doi.org/10.1007/978-3-662-48096-0_50>`_. European Conference on Parallel Processing. Springer Berlin Heidelberg, 2015.
 .. [BaJM05] Baker, A. H., Jessup, E. R., & Manteuffel, T. (2005). `A technique for accelerating the convergence of restarted GMRES <https://doi.org/10.1137/S0895479803422014>`_. SIAM Journal on Matrix Analysis and Applications, 26(4), 962-984.
-.. [Barr94] Barrett, Richard, et al. Templates for the solution of linear systems: building blocks for iterative methods. Vol. 43. Siam, 1994.
+.. [Barr94] Barrett, Richard, et al. `Templates for the solution of linear systems: building blocks for iterative methods <https://www.netlib.org/templates/templates.pdf>`_. Vol. 43. Siam, 1994.
 .. [BeGL05] Benzi, Michele, Gene H. Golub, and Jörg Liesen. `Numerical solution of saddle point problems <https://doi.org/10.1017/S0962492904000212>`_. Acta numerica 14 (2005): 1-137.
 .. [BrGr02] Bröker, Oliver, and Marcus J. Grote. `Sparse approximate inverse smoothers for geometric and algebraic multigrid <https://doi.org/10.1016/S0168-9274(01)00110-6>`_. Applied numerical mathematics 41.1 (2002): 61-80.
 .. [BrMH85] Brandt, A., McCormick, S., & Huge, J. (1985). Algebraic multigrid (AMG) for sparse matrix equations. Sparsity and its Applications, 257.
