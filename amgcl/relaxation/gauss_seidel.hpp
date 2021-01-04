@@ -350,6 +350,7 @@ struct gauss_seidel {
                         // each task corresponds to a level, so we need
                         // to synchronize across threads at this point:
 #pragma omp barrier
+                        ;
                     }
                 }
             }

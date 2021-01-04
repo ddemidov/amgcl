@@ -408,6 +408,7 @@ class ilu_solve< backend::builtin<value_type> > {
                         // each task corresponds to a level, so we need
                         // to synchronize across threads at this point:
 #pragma omp barrier
+                        ;
                     }
                 }
             }
