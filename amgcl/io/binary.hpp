@@ -96,7 +96,7 @@ void read_crs(
     f.seekg(ptr_beg + row_beg * sizeof(Ptr));
     precondition(read(f, ptr), "File I/O error");
 
-    size_t nnz;
+    Ptr nnz;
     f.seekg(ptr_beg + n * sizeof(Ptr));
     precondition(read(f, nnz), "File I/O error");
 
