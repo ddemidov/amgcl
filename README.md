@@ -36,6 +36,12 @@ systems.  Software Impacts, 6:100037, November 2020.
 [doi](https://doi.org/10.1016/j.simpa.2020.100037)
 [bib](https://raw.githubusercontent.com/ddemidov/amgcl/master/docs/demidov20.bib)
 
+Demidov, Denis, Lin Mu, and Bin Wang. Accelerating linear solvers for Stokes
+problems with C++ metaprogramming. Journal of Computational Science (2020):
+101285.
+[doi](https://doi.org/10.1016/j.jocs.2020.101285)
+[bib](https://raw.githubusercontent.com/ddemidov/amgcl/master/docs/demidov-mu-wang-20.bib)
+
 ## Support
 
 * GitHub issues page: https://github.com/ddemidov/amgcl/issues

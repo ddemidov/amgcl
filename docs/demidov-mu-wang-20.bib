@@ -1,0 +1,13 @@
+@article{DEMIDOV2021101285,
+title = "Accelerating linear solvers for Stokes problems with C++ metaprogramming",
+journal = "Journal of Computational Science",
+volume = "49",
+pages = "101285",
+year = "2021",
+issn = "1877-7503",
+doi = "https://doi.org/10.1016/j.jocs.2020.101285",
+url = "http://www.sciencedirect.com/science/article/pii/S1877750320305809",
+author = "Denis Demidov and Lin Mu and Bin Wang",
+keywords = "Stokes problem, C++ metaprogramming, Algebraic multigrid, Scalability",
+abstract = "The efficient solution of large sparse saddle point systems is very important in computational fluid mechanics. The discontinuous Galerkin finite element methods have become increasingly popular for incompressible flow problems but their application is limited due to high computational cost. We describe C++ programming techniques that may help to accelerate linear solvers for such problems. The approach is based on the policy-based design pattern and partial template specialization, and is implemented in the open source AMGCL library. The efficiency is demonstrated with the example of accelerating an iterative solver of a discontinuous Galerkin finite element method for the Stokes problem. The implementation allows selecting algorithmic components of the solver by adjusting template parameters without any changes to the codebase. It is possible to switch the system matrix to use small statically sized blocks to store the nonzero values, or use a mixed precision solution, which results in up to 4 times speedup, and reduces the memory footprint of the algorithm by about 40%. We evaluate both monolithic and composite preconditioning strategies for 3 benchmark problems. The performance of the proposed solution is compared with a multithreaded direct Pardiso solver and a parallel iterative PETSc solver."
+}
