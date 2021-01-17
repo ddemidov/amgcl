@@ -53,6 +53,7 @@ add_amgcl_test(test_solver_builtin    test_solver_builtin.cpp)
 add_amgcl_test(test_solver_complex    test_solver_complex.cpp)
 add_amgcl_test(test_solver_block_crs  test_solver_block_crs.cpp)
 add_amgcl_test(test_solver_ns_builtin test_solver_ns_builtin.cpp)
+add_amgcl_test(test_io                test_io.cpp)
 
 add_amgcl_test(test_static_matrix test_static_matrix.cpp)
 target_compile_options(test_static_matrix PRIVATE
