@@ -40,6 +40,7 @@ Demidov, Denis, Lin Mu, and Bin Wang. Accelerating linear solvers for Stokes
 problems with C++ metaprogramming. Journal of Computational Science (2020):
 101285.
 [doi](https://doi.org/10.1016/j.jocs.2020.101285)
+[arxiv](https://arxiv.org/pdf/2006.06052.pdf)
 [bib](https://raw.githubusercontent.com/ddemidov/amgcl/master/docs/demidov-mu-wang-20.bib)
 
 ## Support
