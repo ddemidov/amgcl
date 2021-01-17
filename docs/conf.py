@@ -16,7 +16,7 @@ on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 # -- Project information -----------------------------------------------------
 
 project = 'AMGCL'
-copyright = '2012-2020, Denis Demidov <dennis.demidov@gmail.com>'
+copyright = '2012-2021, Denis Demidov <dennis.demidov@gmail.com>'
 author = 'Denis Demidov'
 version = git_version()
 release = version
