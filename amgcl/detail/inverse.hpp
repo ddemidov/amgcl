@@ -33,6 +33,7 @@ THE SOFTWARE.
 
 #include <vector>
 #include <algorithm>
+#include <cassert>
 #include <amgcl/util.hpp>
 #include <amgcl/value_type/interface.hpp>
 

@@ -31,6 +31,7 @@ THE SOFTWARE.
  * \brief  Distributed CPR preconditioner.
  */
 
+#include <cassert>
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
 #include <amgcl/mpi/inner_product.hpp>

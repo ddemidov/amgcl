@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <numeric>
 #include <cmath>
+#include <cassert>
 #ifdef _OPENMP
 #include <omp.h>
 #endif

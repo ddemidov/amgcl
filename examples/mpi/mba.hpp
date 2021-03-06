@@ -40,6 +40,7 @@ THE SOFTWARE.
 #include <array>
 #include <memory>
 #include <functional>
+#include <cassert>
 
 #include <boost/container/flat_map.hpp>
 #include <boost/multi_array.hpp>
