@@ -201,14 +201,14 @@ find_library(PTHREAD_LIBRARY pthread)
 find_library(BZ2_LIBRARY bz2)
 find_library(HWLOC_LIBRARY hwloc)
 
-if (Scotch_INCLUDES)
+if (Scotch_FOUND)
     add_library(scotch_target INTERFACE)
     target_include_directories(scotch_target INTERFACE ${Scotch_INCLUDES})
     target_link_libraries(scotch_target INTERFACE ${Scotch_LIBRARIES})
     target_compile_definitions(scotch_target INTERFACE AMGCL_HAVE_SCOTCH)
 endif()
 
-if (Pastix_INCLUDES AND Scotch_INCLUDES AND BLAS_FOUND AND PTHREAD_LIBRARY AND BZ2_LIBRARY)
+if (Pastix_INCLUDES AND Scotch_FOUND AND BLAS_FOUND AND PTHREAD_LIBRARY AND BZ2_LIBRARY)
     add_library(pastix_target INTERFACE)
     target_include_directories(pastix_target INTERFACE
         ${Pastix_INCLUDES}
