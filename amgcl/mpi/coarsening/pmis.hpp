@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include <tuple>
 #include <memory>
 #include <numeric>
+#include <cassert>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>

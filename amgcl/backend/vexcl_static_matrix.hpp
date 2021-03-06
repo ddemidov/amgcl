@@ -31,6 +31,7 @@ THE SOFTWARE.
  * \brief  Static matrix support for the VexCL backend.
  */
 
+#include <cassert>
 #include <amgcl/backend/detail/mixing.hpp>
 #include <amgcl/backend/vexcl.hpp>
 #include <amgcl/value_type/static_matrix.hpp>

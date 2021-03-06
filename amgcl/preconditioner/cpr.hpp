@@ -33,6 +33,7 @@ THE SOFTWARE.
 
 #include <vector>
 #include <memory>
+#include <cassert>
 
 #include <amgcl/backend/builtin.hpp>
 #include <amgcl/util.hpp>
