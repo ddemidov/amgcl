@@ -323,7 +323,8 @@ struct inverse_impl< static_matrix<T, N, N> >
 {
     static static_matrix<T, N, N> get(static_matrix<T, N, N> A) {
         std::array<T, N * N> buf;
-        detail::inverse(N, A.data(), buf.data());
+        std::array<int, N> p;
+        detail::inverse(N, A.data(), buf.data(), p.data());
         return A;
     }
 };

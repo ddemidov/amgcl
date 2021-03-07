@@ -31,10 +31,10 @@ THE SOFTWARE.
  * \brief  Inverse of a dense matrix.
  */
 
-#include <vector>
 #include <algorithm>
 #include <cassert>
 #include <numeric>
+#include <utility>
 #include <amgcl/util.hpp>
 #include <amgcl/value_type/interface.hpp>
 
@@ -42,9 +42,8 @@ namespace amgcl {
 namespace detail {
 
     template <typename value_type>
-    static void inverse(int n, value_type *A, value_type *t) {
-        std::vector<int> p(n);
-        std::iota(p.begin(), p.end(), 0);
+    static void inverse(int n, value_type *A, value_type *t, int *p) {
+        std::iota(p, p + n, 0);
 
         // Perform LU-factorization of A in-place
         for(int col = 0; col < n; ++col) {
@@ -62,7 +61,7 @@ namespace detail {
             }
             std::swap(p[col], p[pivot_i]);
             int pivot_row = p[col];
-            // We have fopund pivot element, perform Gauss elimination
+            // We have found pivot element, perform Gauss elimination
             value_type d = math::inverse(A[pivot_row*n+col]);
             assert(!math::is_zero(d));
             for (int i = col+1; i < n; ++i) {
