@@ -59,4 +59,34 @@ BOOST_AUTO_TEST_CASE( inverse ) {
             BOOST_CHECK_SMALL(c(i,j) - (i == j), 1e-8);
 }
 
+BOOST_AUTO_TEST_CASE( inverse_pivoting ) {
+    amgcl::static_matrix<double, 4, 4> a {{
+    1, -0.1, -0.028644256, 0.25684664,
+    1, -0.1, -0.025972342, 0.25663863,
+    1, -0.095699158, -0.029327056, 0.25554974,
+    1, -0.09543351, -0.026189496, 0.25796741,
+    }};
+    amgcl::static_matrix<double, 4, 4> b = amgcl::math::inverse(a);
+    amgcl::static_matrix<double, 4, 4> c = b * a;
+
+    for(int i = 0; i < 4; ++i)
+        for(int j = 0; j < 4; ++j)
+            BOOST_CHECK_SMALL(c(i,j) - (i == j), 1e-8);
+}
+
+BOOST_AUTO_TEST_CASE( inverse_pivoting_2 ) {
+    amgcl::static_matrix<double, 4, 4> a {{
+    0, 1, 0, 0,
+    0, 0, 1, 0,
+    1, 0, 0, 0,
+    0, 0, 0, 1,
+    }};
+    amgcl::static_matrix<double, 4, 4> b = amgcl::math::inverse(a);
+    amgcl::static_matrix<double, 4, 4> c = b * a;
+
+    for(int i = 0; i < 4; ++i)
+        for(int j = 0; j < 4; ++j)
+            BOOST_CHECK_SMALL(c(i,j) - (i == j), 1e-8);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
