@@ -159,7 +159,8 @@ class deflated_solver : public amgcl::detail::non_copyable {
             }
 
             std::vector<scalar_type> t(E.size());
-            detail::inverse(prm.nvec, E.data(), t.data());
+            std::vector<int> p(prm.nvec);
+            detail::inverse(prm.nvec, E.data(), t.data(), p.data());
         }
 
         /** Computes the solution for the given system matrix \p A and the
