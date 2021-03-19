@@ -42,12 +42,6 @@ namespace adapter {
 
 template <typename Ptr, typename Col, typename Val>
 std::shared_ptr< backend::crs<Val> >
-zero_copy(size_t n, const Ptr *ptr, const Col *col, const Val *val) {
-    return zero_copy(n, n, ptr, col, val);
-}
-
-template <typename Ptr, typename Col, typename Val>
-std::shared_ptr< backend::crs<Val> >
 zero_copy(size_t nrows, size_t ncols, const Ptr *ptr, const Col *col, const Val *val) {
     // Check that Ptr and Col types are binary-compatible with ptrdiff_t:
     static_assert(std::is_integral<Ptr>::value, "Unsupported Ptr type");
@@ -67,6 +61,12 @@ zero_copy(size_t nrows, size_t ncols, const Ptr *ptr, const Col *col, const Val 
     A->own_data = false;
 
     return A;
+}
+
+template <typename Ptr, typename Col, typename Val>
+std::shared_ptr< backend::crs<Val> >
+zero_copy(size_t n, const Ptr *ptr, const Col *col, const Val *val) {
+    return zero_copy(n, n, ptr, col, val);
 }
 
 } // namespace adapter
