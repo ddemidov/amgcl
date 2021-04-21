@@ -46,9 +46,6 @@ namespace perf_counter {
 
 /// Clock class.
 /**
- * Designed to interchangeable (in context of amgcl::profiler) with either
- * std::chrono or boost::chrono clocks.
- *
  * Uses omp_get_wtime() when available, std::clock() otherwise.
  */
 struct clock {
