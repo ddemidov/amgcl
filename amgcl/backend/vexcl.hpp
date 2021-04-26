@@ -302,7 +302,12 @@ struct residual_impl<
     vex::sparse::distributed<vex::sparse::matrix<Va,C,P>>,
     vex::vector<Vf>,
     vex::vector<Vx>,
-    vex::vector<Vr>
+    vex::vector<Vr>,
+    typename std::enable_if<
+        math::static_rows<Vf>::value == 1 &&
+        math::static_rows<Vx>::value == 1 &&
+        math::static_rows<Vr>::value == 1
+        >::type
     >
 {
     typedef vex::sparse::distributed<vex::sparse::matrix<Va,C,P>> matrix;
