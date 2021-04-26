@@ -782,11 +782,7 @@ template <typename Alpha, typename Beta, typename TA, typename TX, typename TY, 
 struct spmv_impl<Alpha,
     vex::sparse::distributed<vex::sparse::matrix<static_matrix<TA,B,B>, C, P>>,
     vex::vector<static_matrix<TX,B,1>>, Beta, vex::vector<static_matrix<TY,B,1>>,
-    typename std::enable_if<
-        (math::static_rows<static_matrix<TA,B,B>>::value > 1) &&
-        (math::static_rows<static_matrix<TX,B,1>>::value > 1) &&
-        (math::static_rows<static_matrix<TY,B,1>>::value > 1)
-        >::type
+    typename std::enable_if<(B > 1)>::type
     >
 {
     typedef vex::sparse::distributed<vex::sparse::matrix<static_matrix<TA,B,B>, C, P>> matrix;
@@ -856,11 +852,7 @@ struct residual_impl<
     vex::vector<static_matrix<TB,B,1>>,
     vex::vector<static_matrix<TX,B,1>>,
     vex::vector<static_matrix<TR,B,1>>,
-    typename std::enable_if<
-        (math::static_rows<static_matrix<TA,B,B>>::value > 1) &&
-        (math::static_rows<static_matrix<TX,B,1>>::value > 1) &&
-        (math::static_rows<static_matrix<TR,B,1>>::value > 1)
-        >::type
+    typename std::enable_if<(B > 1)>::type
     >
 {
     typedef vex::sparse::distributed<vex::sparse::matrix<static_matrix<TA,B,B>, C, P>> matrix;
