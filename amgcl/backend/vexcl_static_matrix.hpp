@@ -778,12 +778,18 @@ struct vex_mul {
     } const apply;
 };
 
-template <typename Alpha, typename Beta, typename TA, typename TX, typename TY, int B>
+template <typename Alpha, typename Beta, typename TA, typename TX, typename TY, int B, typename C, typename P>
 struct spmv_impl<Alpha,
-    vex::sparse::distributed<vex::sparse::matrix<static_matrix<TA,B,B>, ptrdiff_t, ptrdiff_t>>,
-    vex::vector<static_matrix<TX,B,1>>, Beta, vex::vector<static_matrix<TY,B,1>>>
+    vex::sparse::distributed<vex::sparse::matrix<static_matrix<TA,B,B>, C, P>>,
+    vex::vector<static_matrix<TX,B,1>>, Beta, vex::vector<static_matrix<TY,B,1>>,
+    typename std::enable_if<
+        (math::static_rows<static_matrix<TA,B,B>>::value > 1) &&
+        (math::static_rows<static_matrix<TX,B,1>>::value > 1) &&
+        (math::static_rows<static_matrix<TY,B,1>>::value > 1)
+        >::type
+    >
 {
-    typedef vex::sparse::distributed<vex::sparse::matrix<static_matrix<TA,B,B>, ptrdiff_t, ptrdiff_t>> matrix;
+    typedef vex::sparse::distributed<vex::sparse::matrix<static_matrix<TA,B,B>, C, P>> matrix;
     typedef vex::vector<static_matrix<TX,B,1>> vectorX;
     typedef vex::vector<static_matrix<TY,B,1>> vectorY;
 
@@ -796,9 +802,10 @@ struct spmv_impl<Alpha,
     }
 };
 
-template <typename Alpha, typename Beta, typename TA, typename TX, typename TY>
+
+template <typename Alpha, typename Beta, typename TA, typename TX, typename TY, typename C, typename P>
 struct spmv_impl<Alpha,
-    vex::sparse::distributed<vex::sparse::matrix<TA, ptrdiff_t, ptrdiff_t>>,
+    vex::sparse::distributed<vex::sparse::matrix<TA, C, P>>,
     vex::vector<TX>, Beta, vex::vector<TY>,
     typename std::enable_if<
         (math::static_rows<TA>::value == 1) && (
@@ -807,7 +814,7 @@ struct spmv_impl<Alpha,
                 )
         >::type>
 {
-    typedef vex::sparse::distributed<vex::sparse::matrix<TA, ptrdiff_t, ptrdiff_t>> matrix;
+    typedef vex::sparse::distributed<vex::sparse::matrix<TA, C, P>> matrix;
     typedef vex::vector<TX> vectorx;
     typedef vex::vector<TY> vectory;
 
@@ -819,9 +826,9 @@ struct spmv_impl<Alpha,
     }
 };
 
-template <typename Alpha, typename Beta, typename TA, typename TX, typename TY>
+template <typename Alpha, typename Beta, typename TA, typename TX, typename TY, typename C, typename P>
 struct spmv_impl<Alpha,
-    vex::sparse::distributed<vex::sparse::matrix<TA, ptrdiff_t, ptrdiff_t>>,
+    vex::sparse::distributed<vex::sparse::matrix<TA, C, P>>,
     vex::vector<TX>, Beta, vex::vector<TY>,
     typename std::enable_if<
         (math::static_rows<TA>::value > 1) && (
@@ -830,7 +837,7 @@ struct spmv_impl<Alpha,
                 )
         >::type>
 {
-    typedef vex::sparse::distributed<vex::sparse::matrix<TA, ptrdiff_t, ptrdiff_t>> matrix;
+    typedef vex::sparse::distributed<vex::sparse::matrix<TA, C, P>> matrix;
     typedef vex::vector<TX> vectorx;
     typedef vex::vector<TY> vectory;
 
@@ -843,15 +850,20 @@ struct spmv_impl<Alpha,
     }
 };
 
-template <typename TB, typename TA, typename TX, typename TR, int B>
+template <typename TB, typename TA, typename TX, typename TR, int B, typename C, typename P>
 struct residual_impl<
-    vex::sparse::distributed<vex::sparse::matrix<static_matrix<TA,B,B>, ptrdiff_t, ptrdiff_t>>,
+    vex::sparse::distributed<vex::sparse::matrix<static_matrix<TA,B,B>, C, P>>,
     vex::vector<static_matrix<TB,B,1>>,
     vex::vector<static_matrix<TX,B,1>>,
-    vex::vector<static_matrix<TR,B,1>>
+    vex::vector<static_matrix<TR,B,1>>,
+    typename std::enable_if<
+        (math::static_rows<static_matrix<TA,B,B>>::value > 1) &&
+        (math::static_rows<static_matrix<TX,B,1>>::value > 1) &&
+        (math::static_rows<static_matrix<TR,B,1>>::value > 1)
+        >::type
     >
 {
-    typedef vex::sparse::distributed<vex::sparse::matrix<static_matrix<TA,B,B>, ptrdiff_t, ptrdiff_t>> matrix;
+    typedef vex::sparse::distributed<vex::sparse::matrix<static_matrix<TA,B,B>, C, P>> matrix;
     typedef vex::vector<static_matrix<TB,B,1>> vectorB;
     typedef vex::vector<static_matrix<TX,B,1>> vectorX;
     typedef vex::vector<static_matrix<TR,B,1>> vectorR;
