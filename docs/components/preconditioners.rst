@@ -116,6 +116,21 @@ AMG
 
          The number of cycles to make as part of preconditioning.
 
+      .. cpp:member:: bool allow_rebuild = false
+
+         Keep transfer operator matrices (:math:`P` and :math:`R`) in internal
+         format to allow for quick rebuild of the hierarchy. See
+         :cpp:func:`amgcl::amg::rebuild()`.
+
+   .. cpp:function:: template <class Matrix> \
+                     void rebuild(const Matrix &A, const backend_params &bprm = backend_params())
+
+      Rebuild the hierarchy using the new system matrix.
+      Requires `allow_rebuild` to be set in parameters.
+      The transfer operators created during the initial setup are reused in
+      order to create the coarse system matrices:
+      :math:`A_c^{\text{new}} = R A^{new} P`.
+
 Single-level relaxation
 -----------------------
 
