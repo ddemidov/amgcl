@@ -126,7 +126,7 @@ AMG
                      void rebuild(const Matrix &A, const backend_params &bprm = backend_params())
 
       Rebuild the hierarchy using the new system matrix.
-      Requires `allow_rebuild` to be set in parameters.
+      Requires ``allow_rebuild`` to be set in parameters.
       The transfer operators created during the initial setup are reused in
       order to create the coarse system matrices:
       :math:`A_c^{\text{new}} = R A^{new} P`.
