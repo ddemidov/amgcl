@@ -137,7 +137,7 @@ class amg {
                 direct_coarse(true),
                 max_levels( std::numeric_limits<unsigned>::max() ),
                 npre(1), npost(1), ncycle(1), pre_cycles(1),
-                allow_rebuild(false)
+                allow_rebuild(std::is_same<matrix, build_matrix>::value)
             {}
 
 #ifndef AMGCL_NO_BOOST
