@@ -120,11 +120,13 @@ class chebyshev {
         {
             scalar_type hi, lo;
 
+            using backend::spectral_radius;
+
             if (prm.scale) {
                 M  = Backend::copy_vector( diagonal(A, /*invert*/true), backend_prm );
-                hi = backend::spectral_radius<true>(A, prm.power_iters);
+                hi = spectral_radius<true>(A, prm.power_iters);
             } else {
-                hi = backend::spectral_radius<false>(A, prm.power_iters);
+                hi = spectral_radius<false>(A, prm.power_iters);
             }
 
             lo = hi * prm.lower;
