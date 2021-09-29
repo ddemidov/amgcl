@@ -344,7 +344,7 @@ class amg {
                 return b;
             }
 
-            level() {}
+            level() : m_rows(0), m_nonzeros(0) {}
 
             level(std::shared_ptr<build_matrix> A,
                     params &prm, const backend_params &bprm)
