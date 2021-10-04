@@ -1147,8 +1147,11 @@ struct inner_product_impl<
 
         if (nt < 64) {
             sum = _sum_stat;
+            for(int i = 0; i < nt; ++i) {
+                sum[i] = math::zero<return_type>();
+            }
         } else {
-            _sum_dyna.resize(nt);
+            _sum_dyna.resize(nt, math::zero<return_type>());
             sum = _sum_dyna.data();
         }
 
