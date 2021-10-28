@@ -71,7 +71,7 @@ Block matrix
 Scaled system
 -------------
 
-.. rubric:: Include ``<amgcl/adapter/block_matrix.hpp>``
+.. rubric:: Include ``<amgcl/adapter/scaled_problem.hpp>``
 
 .. cpp:function:: template <class Backend, class Matrix> \
                   auto scaled_diagonal(const Matrix &A, const typename Backend::params &bprm = typename Backend::params())
