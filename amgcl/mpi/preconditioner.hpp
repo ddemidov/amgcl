@@ -150,6 +150,34 @@ class preconditioner {
             }
         }
 
+        template <class Matrix>
+        void rebuild(
+                const Matrix &A,
+                const backend_params &bprm = backend_params()
+                )
+        {
+            switch (_class) {
+                case precond_class::amg:
+                    {
+                        typedef
+                            amgcl::mpi::amg<
+                                Backend,
+                                amgcl::runtime::mpi::coarsening::wrapper<Backend>,
+                                amgcl::runtime::mpi::relaxation::wrapper<Backend>,
+                                amgcl::runtime::mpi::direct::solver<value_type>,
+                                amgcl::runtime::mpi::partition::wrapper<Backend>
+                                >
+                            Precond;
+
+                        static_cast<Precond*>(handle)->rebuild(A, bprm);
+                    }
+                    break;
+                default:
+                    std::cerr << "rebuild is a noop unless the preconditioner is AMG" << std::endl;
+                    return;
+            }
+        }
+
         template <class Vec1, class Vec2>
         void apply(const Vec1 &rhs, Vec2 &&x) const {
             switch(_class) {

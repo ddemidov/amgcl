@@ -154,6 +154,10 @@ class make_solver : public amgcl::detail::non_copyable {
             return P;
         }
 
+        Precond& precond() {
+            return P;
+        }
+
         const IterativeSolver& solver() const {
             return S;
         }
