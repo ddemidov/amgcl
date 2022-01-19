@@ -37,13 +37,16 @@ THE SOFTWARE.
 #include <boost/range/iterator_range.hpp>
 
 #include <amgcl/solver/skyline_lu.hpp>
+#include <amgcl/adapter/block_matrix.hpp>
+#include <amgcl/util.hpp>
+#include <amgcl/backend/builtin.hpp>
+#include <amgcl/value_type/static_matrix.hpp>
+
 #include <vexcl/vector.hpp>
 #include <vexcl/gather.hpp>
 #include <vexcl/sparse/matrix.hpp>
 #include <vexcl/sparse/distributed.hpp>
 
-#include <amgcl/util.hpp>
-#include <amgcl/backend/builtin.hpp>
 
 namespace amgcl {
 
@@ -251,6 +254,39 @@ struct vexcl {
     }
 };
 
+// Hybrid backend uses scalar matrices to build the hierarchy,
+// but stores the computed matrices in the block format.
+template <typename ScalarType, typename BlockType, class DirectSolver = solver::vexcl_skyline_lu<ScalarType> >
+struct vexcl_hybrid : public vexcl<ScalarType, DirectSolver> {
+    typedef vexcl<ScalarType, DirectSolver> Base;
+    typedef vex::sparse::distributed<
+                vex::sparse::matrix<
+                    BlockType,
+                    typename Base::index_type,
+                    typename Base::index_type
+                    >
+                > matrix;
+
+    static std::shared_ptr<matrix>
+    copy_matrix(std::shared_ptr< typename builtin<ScalarType>::matrix > As, const typename Base::params &prm)
+    {
+        precondition(!prm.context().empty(), "Empty VexCL context!");
+
+        typename builtin<BlockType>::matrix A(amgcl::adapter::block_matrix<BlockType>(*As));
+
+        const size_t n   = rows(A);
+        const size_t m   = cols(A);
+        const size_t nnz = A.ptr[n];
+
+        return std::make_shared<matrix>(prm.context(), n, m,
+                boost::make_iterator_range(A.ptr, A.ptr + n+1),
+                boost::make_iterator_range(A.col, A.col + nnz),
+                boost::make_iterator_range(A.val, A.val + nnz),
+                prm.fast_matrix_setup
+                );
+    }
+};
+
 //---------------------------------------------------------------------------
 // Backend interface implementation
 //---------------------------------------------------------------------------
@@ -304,9 +340,10 @@ struct residual_impl<
     vex::vector<Vx>,
     vex::vector<Vr>,
     typename std::enable_if<
-        math::static_rows<Vf>::value == 1 &&
-        math::static_rows<Vx>::value == 1 &&
-        math::static_rows<Vr>::value == 1
+        !is_static_matrix<Va>::value &&
+        !is_static_matrix<Vf>::value &&
+        !is_static_matrix<Vx>::value &&
+        !is_static_matrix<Vr>::value
         >::type
     >
 {

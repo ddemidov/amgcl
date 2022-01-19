@@ -9,8 +9,18 @@
 #include <boost/preprocessor/seq/for_each.hpp>
 
 
-#include <amgcl/backend/builtin_hybrid.hpp>
-#include <amgcl/value_type/static_matrix.hpp>
+#if defined(SOLVER_BACKEND_VEXCL)
+#  include <amgcl/value_type/static_matrix.hpp>
+#  include <amgcl/adapter/block_matrix.hpp>
+#  include <amgcl/backend/vexcl.hpp>
+#  include <amgcl/backend/vexcl_static_matrix.hpp>
+#else
+#  ifndef SOLVER_BACKEND_BUILTIN
+#    define SOLVER_BACKEND_BUILTIN
+#  endif
+#  include <amgcl/backend/builtin.hpp>
+#  include <amgcl/value_type/static_matrix.hpp>
+#endif
 
 #include <amgcl/relaxation/runtime.hpp>
 #include <amgcl/coarsening/runtime.hpp>
@@ -47,25 +57,50 @@ std::tuple<size_t, double> solve(
         )
 {
     typedef amgcl::static_matrix<double, B, B> block_type;
+#if defined(SOLVER_BACKEND_VEXCL)
+    typedef amgcl::backend::vexcl_hybrid<double, block_type> Backend;
+#else
     typedef amgcl::backend::builtin_hybrid<double, block_type> Backend;
+#endif
 
     typedef amgcl::make_solver<
         amgcl::runtime::preconditioner<Backend>,
         amgcl::runtime::solver::wrapper<Backend>
-            > Solver;
+        > Solver;
+
+    typename Backend::params bprm;
+
+#if defined(SOLVER_BACKEND_VEXCL)
+    vex::Context ctx(vex::Filter::Env);
+    std::cout << ctx << std::endl;
+    bprm.q = ctx;
+
+    vex::scoped_program_header header(ctx,
+            amgcl::backend::vexcl_static_matrix_declaration<double,B>());
+#endif
 
     auto A = std::tie(rows, ptr, col, val);
 
     prof.tic("setup");
-    Solver solve(A, prm);
+    Solver solve(A, prm, bprm);
     prof.toc("setup");
 
     std::cout << solve << std::endl;
 
-    {
-        auto t = prof.scoped_tic("solve");
-        return solve(rhs, x);
-    }
+    auto f_b = Backend::copy_vector(rhs, bprm);
+    auto x_b = Backend::copy_vector(x,   bprm);
+
+    prof.tic("solve");
+    auto info = solve(*f_b, *x_b);
+    prof.toc("solve");
+
+#if defined(SOLVER_BACKEND_VEXCL)
+    vex::copy(*x_b, x);
+#else
+    std::copy(&(*x_b)[0], &(*x_b)[0] + rows, &x[0]);
+#endif
+
+    return info;
 }
 
 #define AMGCL_CALL_SOLVER(z, data, B)                                          \

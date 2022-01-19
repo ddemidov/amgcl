@@ -48,6 +48,7 @@ THE SOFTWARE.
 #include <amgcl/detail/sort_row.hpp>
 #include <amgcl/detail/spgemm.hpp>
 #include <amgcl/backend/detail/matrix_ops.hpp>
+#include <amgcl/adapter/block_matrix.hpp>
 
 namespace amgcl {
 namespace backend {
@@ -992,6 +993,21 @@ struct builtin {
     static std::shared_ptr<direct_solver>
     create_solver(std::shared_ptr<matrix> A, const params&) {
         return std::make_shared<direct_solver>(*A);
+    }
+};
+
+// Hybrid backend uses scalar matrices to build the hierarchy,
+// but stores the computed matrices in the block format.
+template <typename ScalarType, typename BlockType>
+struct builtin_hybrid : public builtin<ScalarType> {
+    typedef builtin<ScalarType> Base;
+    typedef crs<BlockType, typename Base::index_type> matrix;
+    struct provides_row_iterator : std::false_type {};
+
+    static std::shared_ptr<matrix>
+    copy_matrix(std::shared_ptr<typename Base::matrix> As, const typename Base::params&)
+    {
+        return std::make_shared<matrix>(amgcl::adapter::block_matrix<BlockType>(*As));
     }
 };
 

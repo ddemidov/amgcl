@@ -76,6 +76,10 @@ if (VexCL_FOUND)
     target_link_libraries(solver_vexcl INTERFACE amgcl_example)
     target_compile_definitions(solver_vexcl INTERFACE SOLVER_BACKEND_VEXCL)
 
+    vexcl_add_executables(solver_hybrid_vexcl solver_hybrid.cpp)
+    target_link_libraries(solver_hybrid_vexcl INTERFACE amgcl_example)
+    target_compile_definitions(solver_hybrid_vexcl INTERFACE SOLVER_BACKEND_VEXCL)
+
     vexcl_add_executables(schur_pressure_correction_vexcl schur_pressure_correction.cpp)
     target_link_libraries(schur_pressure_correction_vexcl INTERFACE amgcl_example)
     target_compile_definitions(schur_pressure_correction_vexcl INTERFACE SOLVER_BACKEND_VEXCL)

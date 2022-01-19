@@ -34,7 +34,6 @@ THE SOFTWARE.
 
 #include <amgcl/backend/interface.hpp>
 #include <amgcl/backend/builtin.hpp>
-#include <amgcl/backend/builtin_hybrid.hpp>
 #include <amgcl/util.hpp>
 
 namespace amgcl {

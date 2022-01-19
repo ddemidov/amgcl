@@ -866,6 +866,39 @@ struct residual_impl<
     }
 };
 
+template <typename TB, typename TA, typename TX, typename TR, int B, typename C, typename P>
+struct residual_impl<
+    vex::sparse::distributed<vex::sparse::matrix<static_matrix<TA,B,B>, C, P>>,
+    vex::vector<TB>,
+    vex::vector<TX>,
+    vex::vector<TR>,
+    typename std::enable_if<
+        math::static_rows<TB>::value == 1 &&
+        math::static_rows<TX>::value == 1 &&
+        math::static_rows<TR>::value == 1 &&
+        (B > 1)
+        >::type
+    >
+{
+    typedef vex::sparse::distributed<vex::sparse::matrix<static_matrix<TA,B,B>, C, P>> matrix;
+    typedef vex::vector<TB> vectorB;
+    typedef vex::vector<TX> vectorX;
+    typedef vex::vector<TR> vectorR;
+
+    static void apply(const vectorB &b, const matrix &A, const vectorX &x, vectorR &r)
+    {
+        typedef static_matrix<TB,B,1> VB;
+        typedef static_matrix<TX,B,1> VX;
+        typedef static_matrix<TR,B,1> VR;
+
+        auto _b = b.template reinterpret<VB>();
+        auto _x = x.template reinterpret<VX>();
+        auto _r = r.template reinterpret<VR>();
+
+        _r = vex_convert<TB,TR,B>().apply(vex_sub<TB, TA, B>().apply(_b, A * _x));
+    }
+};
+
 template < typename Alpha, typename Beta, typename TX, typename TY, typename TZ, int B >
 struct vmul_impl<
     Alpha, vex::vector< static_matrix<TX,B,B> >,
