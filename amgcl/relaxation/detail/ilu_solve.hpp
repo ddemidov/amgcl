@@ -33,6 +33,8 @@ THE SOFTWARE.
  */
 
 #include <amgcl/backend/interface.hpp>
+#include <amgcl/backend/builtin.hpp>
+#include <amgcl/backend/builtin_hybrid.hpp>
 #include <amgcl/util.hpp>
 
 namespace amgcl {
@@ -448,7 +450,16 @@ class ilu_solve< backend::builtin<value_type> > {
             lower->solve(x);
             upper->solve(x);
         }
+};
 
+template <class ScalarType, class BlockType>
+class ilu_solve< backend::builtin_hybrid<ScalarType, BlockType> >
+    : public ilu_solve< backend::builtin<ScalarType> >
+{
+    typedef ilu_solve< backend::builtin<ScalarType> > Base;
+
+    public:
+        using Base::Base;
 };
 
 } // namespace detail
