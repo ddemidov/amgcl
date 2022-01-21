@@ -293,6 +293,15 @@ struct vexcl_hybrid : public vexcl<ScalarType, DirectSolver> {
 template <typename T1, typename T2>
 struct backends_compatible< vexcl<T1>, vexcl<T2> > : std::true_type {};
 
+template <typename T1, typename B1, typename T2, typename B2>
+struct backends_compatible< vexcl_hybrid<T1, B1>, vexcl_hybrid<T2, B2> > : std::true_type {};
+
+template <typename T1, typename T2, typename B2>
+struct backends_compatible< vexcl<T1>, vexcl_hybrid<T2, B2> > : std::true_type {};
+
+template <typename T1, typename B1, typename T2>
+struct backends_compatible< vexcl_hybrid<T1, B1>, vexcl<T2> > : std::true_type {};
+
 template < typename V, typename C, typename P >
 struct bytes_impl< vex::sparse::distributed<vex::sparse::matrix<V,C,P> > > {
     static size_t get(const vex::sparse::distributed<vex::sparse::matrix<V,C,P> > &A) {

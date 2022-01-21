@@ -1026,6 +1026,15 @@ struct is_builtin_vector< numa_vector<V> > : std::true_type {};
 template <typename T1, typename T2>
 struct backends_compatible< builtin<T1>, builtin<T2> > : std::true_type {};
 
+template <typename T1, typename B1, typename T2, typename B2>
+struct backends_compatible< builtin_hybrid<T1, B1>, builtin_hybrid<T2, B2> > : std::true_type {};
+
+template <typename T1, typename T2, typename B2>
+struct backends_compatible< builtin<T1>, builtin_hybrid<T2, B2> > : std::true_type {};
+
+template <typename T1, typename B1, typename T2>
+struct backends_compatible< builtin_hybrid<T1, B1>, builtin<T2> > : std::true_type {};
+
 template < typename V, typename C, typename P >
 struct rows_impl< crs<V, C, P> > {
     static size_t get(const crs<V, C, P> &A) {
