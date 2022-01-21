@@ -226,6 +226,7 @@ class iterator_range {
         typedef Iterator iterator;
         typedef Iterator const_iterator;
         typedef typename std::iterator_traits<Iterator>::value_type value_type;
+        typedef typename std::iterator_traits<Iterator>::reference reference;
 
         iterator_range(Iterator b, Iterator e)
             : b(b), e(e) {}
@@ -242,11 +243,7 @@ class iterator_range {
             return e;
         }
 
-        const value_type& operator[](size_t i) const {
-            return b[i];
-        }
-
-        value_type& operator[](size_t i) {
+        reference operator[](size_t i) const {
             return b[i];
         }
     private:

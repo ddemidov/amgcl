@@ -1303,25 +1303,20 @@ struct vmul_impl<
     static void apply(Alpha a, const Vec1 &x, const Vec2 &y, Beta b, Vec3 &z)
     {
         typedef typename value_type<Vec1>::type     M_type;
-        typedef typename math::rhs_of<M_type>::type x_type;
-
-        typedef typename math::replace_scalar<x_type, typename math::scalar_of<typename value_type<Vec2>::type>::type>::type y_type;
-        typedef typename math::replace_scalar<x_type, typename math::scalar_of<typename value_type<Vec3>::type>::type>::type z_type;
+        auto Y = backend::reinterpret_as_rhs<M_type>(y);
+        auto Z = backend::reinterpret_as_rhs<M_type>(z);
 
         const size_t n = x.size();
-
-        y_type const * yptr = reinterpret_cast<y_type const *>(&y[0]);
-        z_type       * zptr = reinterpret_cast<z_type       *>(&z[0]);
 
         if (!math::is_zero(b)) {
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-                zptr[i] = a * x[i] * yptr[i] + b * zptr[i];
+                Z[i] = a * x[i] * Y[i] + b * Z[i];
             }
         } else {
 #pragma omp parallel for
             for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(n); ++i) {
-                zptr[i] = a * x[i] * yptr[i];
+                Z[i] = a * x[i] * Y[i];
             }
         }
     }
@@ -1346,19 +1341,24 @@ struct copy_impl<
     }
 };
 
-template <class T, class Vector>
-struct reinterpret_impl<
-    T, Vector, typename std::enable_if<is_builtin_vector<Vector>::value>::type
+template <class MatrixValue, class Vector, bool IsConst>
+struct reinterpret_as_rhs_impl<
+    MatrixValue, Vector, IsConst,
+    typename std::enable_if<is_builtin_vector<Vector>::value>::type
     >
 {
-    typedef amgcl::iterator_range<T*> return_type;
+    typedef typename backend::value_type<Vector>::type src_type;
+    typedef typename math::scalar_of<src_type>::type scalar_type;
+    typedef typename math::rhs_of<MatrixValue>::type rhs_type;
+    typedef typename math::replace_scalar<rhs_type, scalar_type>::type dst_type;
+    typedef typename std::conditional<IsConst, const dst_type*, dst_type*>::type ptr_type;
+    typedef iterator_range<ptr_type> return_type;
 
-    static return_type get(const Vector &x) {
-        typedef typename backend::value_type<Vector>::type V;
-        const size_t n = x.size() * sizeof(V) / sizeof(T);
-
-        auto ptr = reinterpret_cast<T*>(const_cast<V*>(&x[0]));
-        return amgcl::make_iterator_range(ptr, ptr + n);
+    template <class V>
+    static return_type get(V &&x) {
+        auto ptr = reinterpret_cast<ptr_type>(&x[0]);
+        const size_t n = x.size() * sizeof(src_type) / sizeof(dst_type);
+        return make_iterator_range(ptr, ptr + n);
     }
 };
 

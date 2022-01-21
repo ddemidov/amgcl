@@ -464,13 +464,16 @@ struct vmul_impl<
     }
 };
 
-template <class T, class V>
-struct reinterpret_impl<T, vex::vector<V>>
+template <class MatrixValue, class V, bool IsConst>
+struct reinterpret_as_rhs_impl<MatrixValue, vex::vector<V>, IsConst>
 {
-    typedef vex::vector<typename std::decay<T>::type> return_type;
+    typedef typename math::scalar_of<V>::type scalar_type;
+    typedef typename math::rhs_of<MatrixValue>::type rhs_type;
+    typedef typename math::replace_scalar<rhs_type, scalar_type>::type dst_type;
+    typedef vex::vector<dst_type> return_type;
 
     static return_type get(const vex::vector<V> &x) {
-        return x.template reinterpret<typename std::decay<T>::type>();
+        return x.template reinterpret<dst_type>();
     }
 };
 
