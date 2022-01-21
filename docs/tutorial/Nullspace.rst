@@ -450,9 +450,9 @@ The output of the compiled program is shown below::
 As was noted above, using the near null-space vectors makes the preconditioner
 less memory-efficient: since the 6 rigid-body modes are used as null-space
 vectors, every fine-grid aggregate is converted to 6 unknowns on the coarser
-level. The following figure shows the structure of the system matrix on second
-level of the hierarchy, and it is obvious that the matrix has :math:`6\times6`
-block structure:
+level. The following figure shows the structure of the system matrix on the
+second level of the hierarchy, and it is obvious that the matrix has
+:math:`6\times6` block structure:
 
 .. figure:: ../../tutorial/5.Nullspace/matrix_coarse.png
    :width: 90%
@@ -472,7 +472,7 @@ constructed. This has been implemented in form of the :doc:`hybrid OpenMP and
 VexCL backends </components/backends>`.
 
 The listing below shows an example of using the hybrid OpenMP backend. The only
-difference with scalar_ code is the definition of the block value type and the
+difference with the scalar_ code is the definition of the block value type and the
 use of the hybrid backend (lines 46--49).
 
 .. literalinclude:: ../../tutorial/5.Nullspace/nullspace_hybrid.cpp
