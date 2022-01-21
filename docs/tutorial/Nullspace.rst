@@ -471,9 +471,12 @@ matrices to the block-wise storage format after the hiearchy has been
 constructed. This has been implemented in form of the :doc:`hybrid OpenMP and
 VexCL backends </components/backends>`.
 
-The listing below shows an example of using the hybrid OpenMP backend. The only
-difference with the scalar_ code is the definition of the block value type and the
-use of the hybrid backend (lines 46--49).
+The listing below shows an example of using the hybrid OpenMP backend
+(`tutorial/5.Nullspace/nullspace_hybrid.cpp`_). The only difference with the
+scalar_ code is the definition of the block value type and the use of the
+hybrid backend (lines 46--49).
+
+.. _tutorial/5.Nullspace/nullspace_hybrid.cpp: https://github.com/ddemidov/amgcl/blob/master/tutorial/5.Nullspace/nullspace_hybrid.cpp
 
 .. literalinclude:: ../../tutorial/5.Nullspace/nullspace_hybrid.cpp
    :caption: Using hybrid OpenMP backend while providing near null-space vectors.
