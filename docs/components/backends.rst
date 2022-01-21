@@ -51,6 +51,33 @@ OpenMP (builtin) backend
 
     .. cpp:class:: params
 
+OpenMP (builtin) hybrid backend
+-------------------------------
+
+
+.. cpp:class:: template <class ScalarType, class BlockType> \
+                amgcl::backend::builtin_hybrid
+
+    Include ``<amgcl/backend/builtin.hpp>``.
+
+    The hybrid builtin backend uses the scalar value type to build the
+    hierarchy in the same way the builtin backend does. But before the
+    constructed matrices are moved to the backend, they are converted to the
+    block-wise format in order to improve the solution performance. This is
+    especially helpful when a set of near null-space vectors is provided to the
+    AMG preconditioner. In this case it is impossible to use block value type
+    during the preconditioner construction, but the matrices still have
+    block-wise structure.
+
+    See :doc:`Using near null-space vectors </tutorial/Nullspace>` and issue
+    `#215 <https://github.com/ddemidov/amgcl/issues/215>`_ for more details.
+
+
+    Similar to the builtin backend, the hybrid builtin backend has no
+    parameters.
+
+    .. cpp:class:: params
+
 NVIDIA CUDA backend
 -------------------
 
@@ -108,6 +135,32 @@ VexCL backend
          GPU. This is faster, but temporarily requires more memory on the GPU.
 
 .. _VexCL: https://github.com/ddemidov/vexcl
+
+VexCL hybrid backend
+--------------------
+
+.. cpp:class:: template <class ScalarType, class BlockType> \
+                amgcl::backend::vexcl_hybrid
+
+   Include ``<amgcl/backend/vexcl.hpp>``.
+
+   The hybrid VexCL backend, similar to the hybrid OpenMP backend, uses scalar
+   value type during the method setup, and converts the constructed matrices to
+   block-wise format before moving them to the backend.
+
+   .. cpp:class:: params
+
+      The backend parameters
+
+      .. cpp:member:: std::vector<vex::backend::command_queue> q
+
+         VexCL command queues identifying the compute devices in the compute
+         context.
+
+      .. cpp:member:: bool fast_matrix_setup = true
+
+         Transform the CSR matrices into the internal VexCL format on the
+         GPU. This is faster, but temporarily requires more memory on the GPU.
 
 ViennaCL backend
 ----------------

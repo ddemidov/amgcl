@@ -132,7 +132,7 @@ coordinates on the command line::
     [  solve:       1.196 s] ( 31.78%)
 
 In the 3D case we get 6 near null-space vectors corresponding to the rigid body
-modes. Note that this makes the proeconditioner more expensive memory-wise: the
+modes. Note that this makes the preconditioner more expensive memory-wise: the
 memory footprint of the preconditioner has increased to 132M from 70M in the
 simplest case and 92M in the case using the block structure of the matrix. But
 this pays up in terms of performance: the number of iterations dropped from 197
@@ -404,6 +404,8 @@ displacement components associated with the node, the coordinate file should
 have three times less rows than the system matrix). The rest of the code should
 be quite familiar.
 
+.. _scalar:
+
 .. literalinclude:: ../../tutorial/5.Nullspace/nullspace.cpp
    :caption: The solution of the connecting rod problem using the near null-space vectors.
    :language: cpp
@@ -445,3 +447,72 @@ The output of the compiled program is shown below::
     [  setup:       0.326 s] (  8.94%)
     [  solve:       1.150 s] ( 31.48%)
 
+As was noted above, using the near null-space vectors makes the preconditioner
+less memory-efficient: since the 6 rigid-body modes are used as null-space
+vectors, every fine-grid aggregate is converted to 6 unknowns on the coarser
+level. The following figure shows the structure of the system matrix on second
+level of the hierarchy, and it is obvious that the matrix has :math:`6\times6`
+block structure:
+
+.. figure:: ../../tutorial/5.Nullspace/matrix_coarse.png
+   :width: 90%
+   :name: connrod_coarse_mtx
+
+   The nonzero portrait of the system matrix on the second level of the AMG
+   hierarchy.
+
+It should be possible to represent both the initial matrix and the matrices on
+each level of the hiearachy using the :math:`3\times3` block value type, as we
+did in the :doc:`Structural problem <Serena>` example. Unfortunaltely, AMGCL is
+not yet able to utilize near null-space vectors with block-valued backends.
+Piotr Hellstein (`@dokotor <https://github.com/dokotor>`_) suggested in GitHub
+issue `#215 <https://github.com/ddemidov/amgcl/issues/215>`_ to convert the
+matrices to the block-wise storage format after the hiearchy has been
+constructed. This has been implemented in form of the :doc:`hybrid OpenMP and
+VexCL backends </components/backends>`.
+
+The listing below shows an example of using the hybrid OpenMP backend. The only
+difference with scalar_ code is the definition of the block value type and the
+use of the hybrid backend (lines 46--49).
+
+.. literalinclude:: ../../tutorial/5.Nullspace/nullspace_hybrid.cpp
+   :caption: Using hybrid OpenMP backend while providing near null-space vectors.
+   :language: cpp
+   :linenos:
+   :emphasize-lines: 5,46-49
+
+This results in the following output. Note that the memory footprint of the
+preconditioner dropped from 98M to 41M (by 58%), and the solution time dropped
+from 1.150s to 0.707s (by 38%)::
+
+    $ ./nullspace_hybrid A.mtx b.mtx C.mtx 
+    Matrix A.mtx: 81657x81657
+    RHS b.mtx: 81657x1
+    Coords C.mtx: 27219x3
+    Solver
+    ======
+    Type:             CG
+    Unknowns:         81657
+    Memory footprint: 2.49 M
+
+    Preconditioner
+    ==============
+    Number of levels:    3
+    Operator complexity: 1.52
+    Grid complexity:     1.10
+    Memory footprint:    40.98 M
+
+    level     unknowns       nonzeros      memory
+    ---------------------------------------------
+        0        81657        3171111     31.90 M (65.77%)
+        1         7704        1640736      9.01 M (34.03%)
+        2          144           9576     61.60 K ( 0.20%)
+
+    Iters: 63
+    Error: 8.4562e-09
+
+    [Nullspace:     3.304 s] (100.00%)
+    [ self:         0.003 s] (  0.10%)
+    [  read:        2.245 s] ( 67.94%)
+    [  setup:       0.349 s] ( 10.57%)
+    [  solve:       0.707 s] ( 21.38%)
