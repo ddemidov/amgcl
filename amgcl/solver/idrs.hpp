@@ -43,7 +43,6 @@ Bi-orthogonality Properties. ACM Transactions on Mathematical Software, Vol.
 #include <vector>
 #include <algorithm>
 #include <iostream>
-#include <thread>
 
 #include <tuple>
 #include <random>
