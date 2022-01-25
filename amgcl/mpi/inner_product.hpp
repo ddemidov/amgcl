@@ -60,6 +60,10 @@ struct inner_product {
 
         return sum;
     }
+
+    int rank() const {
+        return comm.rank;
+    }
 };
 
 } // namespace mpi

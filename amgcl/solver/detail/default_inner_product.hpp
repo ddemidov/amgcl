@@ -47,6 +47,10 @@ struct default_inner_product {
     operator()(const Vec1 &x, const Vec2 &y) const {
         return backend::inner_product(x, y);
     }
+
+    int rank() const {
+        return 0;
+    }
 };
 
 } // namespace detail

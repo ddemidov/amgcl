@@ -43,6 +43,7 @@ Bi-orthogonality Properties. ACM Transactions on Mathematical Software, Vol.
 #include <vector>
 #include <algorithm>
 #include <iostream>
+#include <thread>
 
 #include <tuple>
 #include <random>
@@ -195,11 +196,7 @@ class idrs {
             {
                 std::vector<rhs_type> p(n);
 
-#ifdef MPI_VERSION
-                int pid = amgcl::mpi::communicator(MPI_COMM_WORLD).rank;
-#else
-                int pid = 0;
-#endif
+                int pid = inner_product.rank();
 
 #pragma omp parallel
                 {
