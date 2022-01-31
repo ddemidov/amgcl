@@ -45,10 +45,12 @@ class ilu_solve {
     public:
         typedef typename Backend::params backend_params;
         typedef typename Backend::value_type value_type;
+        typedef typename Backend::col_type col_type;
+        typedef typename Backend::ptr_type ptr_type;
         typedef typename Backend::matrix matrix;
         typedef typename Backend::vector vector;
         typedef typename Backend::matrix_diagonal matrix_diagonal;
-        typedef typename backend::builtin<value_type>::matrix build_matrix;
+        typedef typename backend::builtin<value_type, col_type, ptr_type>::matrix build_matrix;
         typedef typename math::scalar_of<value_type>::type scalar_type;
 
         struct params {
@@ -125,15 +127,15 @@ class ilu_solve {
         std::shared_ptr<vector> t1, t2;
 };
 
-template <class value_type>
-class ilu_solve< backend::builtin<value_type> > {
+template <class value_type, class col_type, class ptr_type>
+class ilu_solve< backend::builtin<value_type, col_type, ptr_type> > {
     public:
-        typedef backend::builtin<value_type> Backend;
+        typedef backend::builtin<value_type, col_type, ptr_type> Backend;
         typedef typename Backend::params backend_params;
         typedef typename Backend::matrix matrix;
         typedef typename Backend::vector vector;
         typedef typename Backend::matrix_diagonal matrix_diagonal;
-        typedef typename backend::builtin<value_type>::matrix build_matrix;
+        typedef typename backend::builtin<value_type, col_type, ptr_type>::matrix build_matrix;
         typedef typename Backend::rhs_type rhs_type;
         typedef typename math::scalar_of<value_type>::type scalar_type;
 

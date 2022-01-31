@@ -55,6 +55,8 @@ namespace relaxation {
 template <class Backend>
 struct ilut {
     typedef typename Backend::value_type      value_type;
+    typedef typename Backend::col_type        col_type;
+    typedef typename Backend::ptr_type        ptr_type;
     typedef typename Backend::matrix          matrix;
     typedef typename Backend::matrix_diagonal matrix_diagonal;
     typedef typename Backend::vector          vector;
@@ -212,7 +214,7 @@ struct ilut {
     }
 
     private:
-        typedef typename backend::builtin<value_type>::matrix build_matrix;
+        typedef typename backend::builtin<value_type, col_type, ptr_type>::matrix build_matrix;
         std::shared_ptr<ilu_solve> ilu;
 
         struct sparse_vector {
