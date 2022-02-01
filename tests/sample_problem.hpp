@@ -7,12 +7,12 @@
 #include <amgcl/value_type/interface.hpp>
 
 // Generates matrix for poisson problem in a unit cube.
-template <typename ValueType, typename IndexType, typename RhsType>
+template <typename ValueType, typename ColType, typename PtrType, typename RhsType>
 int sample_problem(
         ptrdiff_t               n,
         std::vector<ValueType>  &val,
-        std::vector<IndexType>  &col,
-        std::vector<IndexType>  &ptr,
+        std::vector<ColType>  &col,
+        std::vector<PtrType>  &ptr,
         std::vector<RhsType>    &rhs,
         double anisotropy = 1.0
         )
@@ -73,7 +73,7 @@ int sample_problem(
                 }
 
                 rhs.push_back( amgcl::math::constant<RhsType>(1.0) );
-                ptr.push_back( static_cast<IndexType>(col.size()) );
+                ptr.push_back( static_cast<PtrType>(col.size()) );
             }
         }
     }

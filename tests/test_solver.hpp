@@ -105,11 +105,11 @@ void test_rap(
     BOOST_CHECK_SMALL(resid, 1e-4);
 }
 
-template <class Backend, class value_type, class rhs_type>
+template <class Backend, class value_type, class col_type, class ptr_type, class rhs_type>
 void test_problem(
         size_t n,
-        std::vector<ptrdiff_t>  ptr,
-        std::vector<ptrdiff_t>  col,
+        std::vector<ptr_type>   ptr,
+        std::vector<col_type>   col,
         std::vector<value_type> val,
         std::vector<rhs_type>   rhs
         )
@@ -157,7 +157,7 @@ void test_problem(
         std::cout << "Solver: " << s << std::endl;
         try {
             test_solver<Backend>(
-                    amgcl::adapter::zero_copy(n, ptr.data(), col.data(), val.data()),
+                    amgcl::adapter::zero_copy_direct(n, ptr.data(), col.data(), val.data()),
                     y, x, s, relaxation[0], coarsening[0]
                     );
         } catch(const std::logic_error&) {}
@@ -168,7 +168,7 @@ void test_problem(
         std::cout << "Relaxation: " << r << std::endl;
         try {
             test_solver<Backend>(
-                    amgcl::adapter::zero_copy(n, ptr.data(), col.data(), val.data()),
+                    amgcl::adapter::zero_copy_direct(n, ptr.data(), col.data(), val.data()),
                     y, x, solver[0], r, coarsening[0]);
         } catch(const std::logic_error&) {}
 
@@ -176,7 +176,7 @@ void test_problem(
             std::cout << "Relaxation as preconditioner: " << r << std::endl;
 
             test_rap<Backend>(
-                    amgcl::adapter::zero_copy(n, ptr.data(), col.data(), val.data()),
+                    amgcl::adapter::zero_copy_direct(n, ptr.data(), col.data(), val.data()),
                     y, x, solver[0], r);
         } catch(const std::logic_error&) {}
     }
@@ -187,7 +187,7 @@ void test_problem(
 
         try {
             test_solver<Backend>(
-                    amgcl::adapter::zero_copy(n, ptr.data(), col.data(), val.data()),
+                    amgcl::adapter::zero_copy_direct(n, ptr.data(), col.data(), val.data()),
                     y, x, solver[0], relaxation[0], c);
         } catch(const std::logic_error&) {}
 
@@ -196,7 +196,7 @@ void test_problem(
             case amgcl::runtime::coarsening::smoothed_aggregation:
             case amgcl::runtime::coarsening::smoothed_aggr_emin:
                 test_solver<Backend>(
-                        amgcl::adapter::zero_copy(n, ptr.data(), col.data(), val.data()),
+                        amgcl::adapter::zero_copy_direct(n, ptr.data(), col.data(), val.data()),
                         y, x, solver[0], relaxation[0], c, /*test_null_space*/true);
                 break;
             default:
@@ -208,12 +208,14 @@ void test_problem(
 template <class Backend>
 void test_backend() {
     typedef typename Backend::value_type value_type;
+    typedef typename Backend::col_type col_type;
+    typedef typename Backend::ptr_type ptr_type;
     typedef typename amgcl::math::rhs_of<value_type>::type rhs_type;
 
     // Poisson 3D
     {
-        std::vector<ptrdiff_t>  ptr;
-        std::vector<ptrdiff_t>  col;
+        std::vector<ptr_type>   ptr;
+        std::vector<col_type>   col;
         std::vector<value_type> val;
         std::vector<rhs_type>   rhs;
 
@@ -225,8 +227,8 @@ void test_backend() {
     // Trivial problem
 #if !defined(SOLVER_BACKEND_VIENNACL)
     {
-        std::vector<ptrdiff_t>  ptr;
-        std::vector<ptrdiff_t>  col;
+        std::vector<ptr_type>   ptr;
+        std::vector<col_type>   col;
         std::vector<value_type> val;
         std::vector<rhs_type>   rhs;
 
