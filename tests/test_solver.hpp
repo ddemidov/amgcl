@@ -28,6 +28,7 @@ void test_solver(
         amgcl::runtime::solver::type     solver,
         amgcl::runtime::relaxation::type relaxation,
         amgcl::runtime::coarsening::type coarsening,
+        typename Backend::params const &bprm,
         bool test_null_space = false
         )
 {
@@ -52,7 +53,7 @@ void test_solver(
     amgcl::make_solver<
         amgcl::amg<Backend, amgcl::runtime::coarsening::wrapper, amgcl::runtime::relaxation::wrapper>,
         amgcl::runtime::solver::wrapper<Backend>
-        > solve(A, prm);
+        > solve(A, prm, bprm);
 
     std::cout << solve.precond() << std::endl;
 
@@ -77,7 +78,8 @@ void test_rap(
         std::shared_ptr<typename Backend::vector> const &f,
         std::shared_ptr<typename Backend::vector>       &x,
         amgcl::runtime::solver::type     solver,
-        amgcl::runtime::relaxation::type relaxation
+        amgcl::runtime::relaxation::type relaxation,
+        typename Backend::params const &bprm
         )
 {
     boost::property_tree::ptree prm;
@@ -87,7 +89,7 @@ void test_rap(
     amgcl::make_solver<
         amgcl::relaxation::as_preconditioner<Backend, amgcl::runtime::relaxation::wrapper>,
         amgcl::runtime::solver::wrapper<Backend>
-        > solve(A, prm);
+        > solve(A, prm, bprm);
 
     std::cout << "Using " << relaxation << " as preconditioner" << std::endl;
 
@@ -111,7 +113,8 @@ void test_problem(
         std::vector<ptr_type>   ptr,
         std::vector<col_type>   col,
         std::vector<value_type> val,
-        std::vector<rhs_type>   rhs
+        std::vector<rhs_type>   rhs,
+        typename Backend::params const &bprm
         )
 {
     amgcl::runtime::coarsening::type coarsening[] = {
@@ -158,7 +161,7 @@ void test_problem(
         try {
             test_solver<Backend>(
                     amgcl::adapter::zero_copy_direct(n, ptr.data(), col.data(), val.data()),
-                    y, x, s, relaxation[0], coarsening[0]
+                    y, x, s, relaxation[0], coarsening[0], bprm
                     );
         } catch(const std::logic_error&) {}
     }
@@ -169,7 +172,7 @@ void test_problem(
         try {
             test_solver<Backend>(
                     amgcl::adapter::zero_copy_direct(n, ptr.data(), col.data(), val.data()),
-                    y, x, solver[0], r, coarsening[0]);
+                    y, x, solver[0], r, coarsening[0], bprm);
         } catch(const std::logic_error&) {}
 
         try {
@@ -177,7 +180,7 @@ void test_problem(
 
             test_rap<Backend>(
                     amgcl::adapter::zero_copy_direct(n, ptr.data(), col.data(), val.data()),
-                    y, x, solver[0], r);
+                    y, x, solver[0], r, bprm);
         } catch(const std::logic_error&) {}
     }
 
@@ -188,7 +191,7 @@ void test_problem(
         try {
             test_solver<Backend>(
                     amgcl::adapter::zero_copy_direct(n, ptr.data(), col.data(), val.data()),
-                    y, x, solver[0], relaxation[0], c);
+                    y, x, solver[0], relaxation[0], c, bprm);
         } catch(const std::logic_error&) {}
 
         switch (c) {
@@ -197,7 +200,7 @@ void test_problem(
             case amgcl::runtime::coarsening::smoothed_aggr_emin:
                 test_solver<Backend>(
                         amgcl::adapter::zero_copy_direct(n, ptr.data(), col.data(), val.data()),
-                        y, x, solver[0], relaxation[0], c, /*test_null_space*/true);
+                        y, x, solver[0], relaxation[0], c, bprm, /*test_null_space*/true);
                 break;
             default:
                 break;
@@ -206,7 +209,7 @@ void test_problem(
 }
 
 template <class Backend>
-void test_backend() {
+void test_backend(typename Backend::params const &bprm = typename Backend::params()) {
     typedef typename Backend::value_type value_type;
     typedef typename Backend::col_type col_type;
     typedef typename Backend::ptr_type ptr_type;
@@ -221,7 +224,7 @@ void test_backend() {
 
         size_t n = sample_problem(32, val, col, ptr, rhs);
 
-        test_problem<Backend>(n, ptr, col, val, rhs);
+        test_problem<Backend>(n, ptr, col, val, rhs, bprm);
     }
 
     // Trivial problem
@@ -239,7 +242,7 @@ void test_backend() {
 
 	size_t n = rhs.size();
 
-        test_problem<Backend>(n, ptr, col, val, rhs);
+        test_problem<Backend>(n, ptr, col, val, rhs, bprm);
     }
 #endif
 }

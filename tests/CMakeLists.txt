@@ -81,6 +81,11 @@ if (TARGET viennacl_target)
     target_link_libraries(test_solver_viennacl viennacl_target)
 endif()
 
+if (TARGET VexCL::OpenCL)
+    add_amgcl_test(test_solver_vexcl  test_solver_vexcl.cpp)
+    target_link_libraries(test_solver_vexcl VexCL::OpenCL)
+endif()
+
 if (AMGCL_HAVE_PYTHON AND NOT WIN32)
     configure_file(
         ${CMAKE_CURRENT_SOURCE_DIR}/test_pyamgcl.py
