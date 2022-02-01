@@ -110,7 +110,7 @@ struct crs {
 #pragma omp parallel for
         for(ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(nrows); ++i) {
             ptr[i+1] = ptr_range[i+1];
-            for(ptr_type j = ptr_range[i]; j < ptr_range[i+1]; ++j) {
+            for(auto j = ptr_range[i]; j < ptr_range[i+1]; ++j) {
                 col[j] = col_range[j];
                 val[j] = val_range[j];
             }

@@ -164,7 +164,7 @@ struct ilu0 {
                 *work[c] = tl;
 
                 // Perform linear combination
-                for(ptrdiff_t k = U->ptr[c]; k < U->ptr[c+1]; ++k) {
+                for(ptrdiff_t k = U->ptr[c]; k < static_cast<ptrdiff_t>(U->ptr[c+1]); ++k) {
                     value_type *w = work[U->col[k]];
                     if (w) *w -= tl * U->val[k];
                 }

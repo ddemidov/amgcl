@@ -292,7 +292,7 @@ class ilu_solve< backend::builtin<value_type, col_type, ptr_type> > {
                 for(ptrdiff_t i = beg; i != end; i += inc) {
                     ptrdiff_t l = level[i];
 
-                    for(ptrdiff_t j = A.ptr[i]; j < A.ptr[i+1]; ++j)
+                    for(auto j = A.ptr[i]; j < A.ptr[i+1]; ++j)
                         l = std::max(l, level[A.col[j]]+1);
 
                     level[i] = l;
@@ -372,7 +372,7 @@ class ilu_solve< backend::builtin<value_type, col_type, ptr_type> > {
 
                             ord[tid].push_back(i);
 
-                            for(ptrdiff_t j = A.ptr[i]; j < A.ptr[i+1]; ++j) {
+                            for(auto j = A.ptr[i]; j < A.ptr[i+1]; ++j) {
                                 col[tid].push_back(A.col[j]);
                                 val[tid].push_back(A.val[j]);
                             }

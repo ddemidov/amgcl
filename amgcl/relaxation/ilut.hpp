@@ -159,7 +159,7 @@ struct ilut {
                 value_type wk = w[k];
 
                 if (math::norm(wk) > tol) {
-                    for(ptrdiff_t j = U->ptr[k]; j < U->ptr[k+1]; ++j)
+                    for(ptrdiff_t j = U->ptr[k]; j < static_cast<ptrdiff_t>(U->ptr[k+1]); ++j)
                         w[U->col[j]] -= wk * U->val[j];
                 }
             }
