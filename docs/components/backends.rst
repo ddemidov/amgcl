@@ -58,7 +58,7 @@ OpenMP (builtin) hybrid backend
 .. cpp:class:: template <class ScalarType, class BlockType> \
                 amgcl::backend::builtin_hybrid
 
-    Include ``<amgcl/backend/builtin.hpp>``.
+    Include ``<amgcl/backend/builtin_hybrid.hpp>``.
 
     The hybrid builtin backend uses the scalar value type to build the
     hierarchy in the same way the builtin backend does. But before the

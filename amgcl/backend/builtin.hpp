@@ -48,7 +48,6 @@ THE SOFTWARE.
 #include <amgcl/detail/sort_row.hpp>
 #include <amgcl/detail/spgemm.hpp>
 #include <amgcl/backend/detail/matrix_ops.hpp>
-#include <amgcl/adapter/block_matrix.hpp>
 
 namespace amgcl {
 namespace backend {
@@ -1000,21 +999,6 @@ struct builtin {
     }
 };
 
-// Hybrid backend uses scalar matrices to build the hierarchy,
-// but stores the computed matrices in the block format.
-template <typename ScalarType, typename BlockType, typename ColumnType = ptrdiff_t, typename PointerType = ColumnType>
-struct builtin_hybrid : public builtin<ScalarType> {
-    typedef builtin<ScalarType, ColumnType, PointerType> Base;
-    typedef crs<BlockType, ColumnType, PointerType> matrix;
-    struct provides_row_iterator : std::false_type {};
-
-    static std::shared_ptr<matrix>
-    copy_matrix(std::shared_ptr<typename Base::matrix> As, const typename Base::params&)
-    {
-        return std::make_shared<matrix>(amgcl::adapter::block_matrix<BlockType>(*As));
-    }
-};
-
 template <class T>
 struct is_builtin_vector : std::false_type {};
 
@@ -1029,15 +1013,6 @@ struct is_builtin_vector< numa_vector<V> > : std::true_type {};
 //---------------------------------------------------------------------------
 template <typename T1, typename T2>
 struct backends_compatible< builtin<T1>, builtin<T2> > : std::true_type {};
-
-template <typename T1, typename B1, typename T2, typename B2>
-struct backends_compatible< builtin_hybrid<T1, B1>, builtin_hybrid<T2, B2> > : std::true_type {};
-
-template <typename T1, typename T2, typename B2>
-struct backends_compatible< builtin<T1>, builtin_hybrid<T2, B2> > : std::true_type {};
-
-template <typename T1, typename B1, typename T2>
-struct backends_compatible< builtin_hybrid<T1, B1>, builtin<T2> > : std::true_type {};
 
 template < typename V, typename C, typename P >
 struct rows_impl< crs<V, C, P> > {

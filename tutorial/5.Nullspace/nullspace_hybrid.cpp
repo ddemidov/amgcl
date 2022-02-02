@@ -1,7 +1,7 @@
 #include <vector>
 #include <iostream>
 
-#include <amgcl/backend/builtin.hpp>
+#include <amgcl/backend/builtin_hybrid.hpp>
 #include <amgcl/value_type/static_matrix.hpp>
 #include <amgcl/adapter/crs_tuple.hpp>
 #include <amgcl/make_solver.hpp>
