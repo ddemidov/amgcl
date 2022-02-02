@@ -366,7 +366,7 @@ std::shared_ptr< crs<V,C,P> > transpose(const crs<V, C, P> &A)
             P head = T->ptr[A.col[j]]++;
 
             T->col[head] = static_cast<C>(i);
-            T->val[head] = A.val[j];
+            T->val[head] = math::adjoint(A.val[j]);
         }
     }
 
