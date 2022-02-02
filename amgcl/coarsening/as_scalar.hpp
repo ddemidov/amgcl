@@ -32,7 +32,8 @@ THE SOFTWARE.
  */
 
 #include <amgcl/adapter/block_matrix.hpp>
-#include <amgcl/backend/interface.hpp>
+#include <amgcl/backend/builtin.hpp>
+#include <amgcl/value_type/interface.hpp>
 
 namespace amgcl {
 namespace coarsening {
@@ -41,12 +42,13 @@ namespace coarsening {
 // converts it to the scalar format,
 // applies the base coarsening,
 // converts the results back to block format.
-template <class ScalarTemplate, template <class> class Coarsening>
+template <template <class> class Coarsening>
 struct as_scalar {
-    typedef Coarsening<ScalarTemplate> Base;
-
     template <class Backend>
     struct type {
+        typedef typename math::scalar_of<typename Backend::value_type>::type Scalar;
+        typedef Coarsening< backend::builtin<Scalar> > Base;
+
         typedef typename Base::params params;
         Base base;
 
