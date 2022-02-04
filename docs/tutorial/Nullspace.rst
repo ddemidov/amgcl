@@ -548,9 +548,9 @@ relaxaion.
    :emphasize-lines: 7,12-13,48-51,56-58,78,94-95,98
    :linenos:
 
-This results is presented below. Note that even though the more advanced ILU(0)
+This results are presented below. Note that even though the more advanced ILU(0)
 smoother was used, the setup time has been reduced, since ILU(0) was
-constructed using block arithmetics.
+constructed using block arithmetics.::
 
     $ ./nullspace_block A.mtx b.mtx C.mtx 
     Matrix A.mtx: 81657x81657
