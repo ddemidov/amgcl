@@ -465,11 +465,13 @@ It should be possible to represent both the initial matrix and the matrices on
 each level of the hiearachy using the :math:`3\times3` block value type, as we
 did in the :doc:`Structural problem <Serena>` example. Unfortunaltely, AMGCL is
 not yet able to utilize near null-space vectors with block-valued backends.
-Piotr Hellstein (`@dokotor <https://github.com/dokotor>`_) suggested in GitHub
-issue `#215 <https://github.com/ddemidov/amgcl/issues/215>`_ to convert the
-matrices to the block-wise storage format after the hiearchy has been
-constructed. This has been implemented in form of the :doc:`hybrid OpenMP and
-VexCL backends </components/backends>`.
+
+One possible solution to this problem, suggested by Piotr Hellstein (`@dokotor
+<https://github.com/dokotor>`_) in GitHub issue `#215
+<https://github.com/ddemidov/amgcl/issues/215>`_, is to convert the matrices to
+the block-wise storage format after the hiearchy has been constructed. This has
+been implemented in form of the :doc:`hybrid OpenMP and VexCL backends
+</components/backends>`.
 
 The listing below shows an example of using the hybrid OpenMP backend
 (`tutorial/5.Nullspace/nullspace_hybrid.cpp`_). The only difference with the
@@ -519,3 +521,65 @@ from 1.150s to 0.707s (by 38%)::
     [  read:        2.245 s] ( 67.94%)
     [  setup:       0.349 s] ( 10.57%)
     [  solve:       0.707 s] ( 21.38%)
+
+
+Another possible solution is to use a block-valued backend both for constructing
+the hierarchy and for the solution phase. In order to allow for the coarsening
+scheme to use the near null-space vectors, the
+`amgcl::coarsening::as_scalar<Coarsening>` coarsening wrapper may be used. The
+wrapper converts the input matrix to scalar format, applies the base coarsening
+strategy to the scalar matrix, and converts the computed transfer operators
+back to block format. This approach results in faster setup times, since every
+other operation besides coarsening is performed using block arithmetics.
+
+The listing below shows an example of using the `amgcl::coarsening::as_scalar`
+wrapper (`tutorial/5.Nullspace/nullspace_block.cpp`_). The system matrix is
+converted to block format in line 78 in the same way it was done in the
+`Structural problem <./Serena>` tutorial. The RHS and the solution vectors are
+reinterpreted to contain block values in lines 94-95. The SPAI0 relaxation here
+resulted in the increased number of interations, so we used the ILU(0)
+relaxaion.
+
+.. _tutorial/5.Nullspace/nullspace_block.cpp: https://github.com/ddemidov/amgcl/blob/master/tutorial/5.Nullspace/nullspace_block.cpp
+
+.. literalinclude:: ../../tutorial/5.Nullspace/nullspace_block.cpp
+   :caption: Using `amgcl::coarsening::as_scalar` coarsening wrapper with a block-valued backend.
+   :language: cpp
+   :emphasize-lines: 7,12-13,48-51,56-58,78,94-95,98
+   :linenos:
+
+This results is presented below. Note that even though the more advanced ILU(0)
+smoother was used, the setup time has been reduced, since ILU(0) was
+constructed using block arithmetics.
+
+    $ ./nullspace_block A.mtx b.mtx C.mtx 
+    Matrix A.mtx: 81657x81657
+    RHS b.mtx: 81657x1
+    Coords C.mtx: 27219x3
+    Solver
+    ======
+    Type:             CG
+    Unknowns:         27219
+    Memory footprint: 2.49 M
+
+    Preconditioner
+    ==============
+    Number of levels:    3
+    Operator complexity: 1.52
+    Grid complexity:     1.10
+    Memory footprint:    63.24 M
+
+    level     unknowns       nonzeros      memory
+    ---------------------------------------------
+        0        27219         352371     46.45 M (65.77%)
+        1         2568         182304     16.73 M (34.03%)
+        2           48           1064     60.85 K ( 0.20%)
+
+    Iters: 32
+    Error: 7.96226e-09
+
+    [Nullspace:     2.885 s] (100.00%)
+    [  read:        2.160 s] ( 74.87%)
+    [  setup:       0.249 s] (  8.64%)
+    [  solve:       0.473 s] ( 16.39%)
+

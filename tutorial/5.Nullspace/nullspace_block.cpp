@@ -89,6 +89,8 @@ int main(int argc, char *argv[]) {
     int iters;
     double error;
     std::vector<double> x(rows, 0.0);
+
+    // Reinterpret both the RHS and the solution vectors as block-valued:
     auto F = amgcl::backend::reinterpret_as_rhs<DBlock>(rhs);
     auto X = amgcl::backend::reinterpret_as_rhs<DBlock>(x);
 
