@@ -4,6 +4,9 @@ target_link_libraries(nullspace amgcl)
 add_executable(nullspace_hybrid nullspace_hybrid.cpp)
 target_link_libraries(nullspace_hybrid amgcl)
 
+add_executable(nullspace_block nullspace_block.cpp)
+target_link_libraries(nullspace_block amgcl)
+
 if (TARGET mpi_target)
     add_executable(nullspace_mpi nullspace_mpi.cpp)
     target_link_libraries(nullspace_mpi amgcl mpi_target)

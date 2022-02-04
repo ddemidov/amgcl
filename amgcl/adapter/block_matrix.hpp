@@ -193,7 +193,7 @@ unblock_matrix(const Matrix &B) {
     A->set_size(backend::rows(B) * brows, backend::cols(B) * bcols);
     A->ptr[0] = 0;
 
-    const auto nb = backend::rows(B);
+    const ptrdiff_t nb = backend::rows(B);
 
 #pragma omp for
     for (ptrdiff_t ib = 0; ib < nb; ++ib) {
