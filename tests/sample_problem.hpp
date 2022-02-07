@@ -29,7 +29,7 @@ int sample_problem(
     val.reserve(n3 * 7);
     rhs.reserve(n3);
 
-    ValueType one = amgcl::math::identity<ValueType>();
+    const auto one = amgcl::math::identity<ValueType>();
 
     double hx = 1;
     double hy = hx * anisotropy;
