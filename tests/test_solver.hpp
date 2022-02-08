@@ -39,11 +39,11 @@ void test_solver(
     prm.put("solver.type",             solver);
 
     typedef typename Backend::value_type value_type;
-    std::vector<value_type> null;
+    std::vector<double> null;
 
-    if (test_null_space) {
+    if (test_null_space && amgcl::math::static_rows<value_type>::value == 1) {
         size_t n = amgcl::backend::rows(*A);
-        null.resize(n, amgcl::math::constant<value_type>(1));
+        null.resize(n, 1.0);
 
         prm.put("precond.coarsening.nullspace.cols", 1);
         prm.put("precond.coarsening.nullspace.rows", n);
