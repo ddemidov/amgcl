@@ -34,6 +34,7 @@ THE SOFTWARE.
 
 #include <vector>
 #include <numeric>
+#include <complex>
 
 #include <type_traits>
 #include <amgcl/value_type/interface.hpp>
@@ -94,6 +95,16 @@ struct datatype_impl<long long> {
 template <>
 struct datatype_impl<unsigned long long> {
     static MPI_Datatype get() { return MPI_UNSIGNED_LONG_LONG; }
+};
+
+template <>
+struct datatype_impl< std::complex<double> > {
+    static MPI_Datatype get() { return MPI_CXX_DOUBLE_COMPLEX; }
+};
+
+template <>
+struct datatype_impl< std::complex<float> > {
+    static MPI_Datatype get() { return MPI_CXX_FLOAT_COMPLEX; }
 };
 
 template <typename T>
