@@ -193,9 +193,7 @@ struct communicator {
 
     template <typename T>
     T reduce(MPI_Op op, const T &lval) const {
-        typedef typename math::scalar_of<T>::type S;
-
-        const int elems = sizeof(T) / sizeof(S);
+        const int elems = math::static_rows<T>::value * math::static_cols<T>::value;
         T gval;
 
         MPI_Allreduce((void*)&lval, &gval, elems, datatype<T>(), op, comm);
