@@ -47,7 +47,7 @@ struct as_scalar {
     template <class Backend>
     struct type {
         typedef typename math::scalar_of<typename Backend::value_type>::type Scalar;
-        typedef Coarsening< backend::builtin<Scalar> > Base;
+        typedef Coarsening< backend::builtin<Scalar, typename Backend::col_type, typename Backend::ptr_type> > Base;
 
         typedef typename Base::params params;
         Base base;
