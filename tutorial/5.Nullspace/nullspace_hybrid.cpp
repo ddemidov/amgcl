@@ -45,8 +45,8 @@ int main(int argc, char *argv[]) {
     // Declare the solver type
     typedef amgcl::static_matrix<double, 3, 3> DBlock;
     typedef amgcl::static_matrix<float, 3, 3> FBlock;
-    typedef amgcl::backend::builtin_hybrid<double, DBlock> SBackend; // the solver backend
-    typedef amgcl::backend::builtin_hybrid<float, FBlock>  PBackend; // the preconditioner backend
+    typedef amgcl::backend::builtin_hybrid<DBlock> SBackend; // the solver backend
+    typedef amgcl::backend::builtin_hybrid<FBlock> PBackend; // the preconditioner backend
 
     typedef amgcl::make_solver<
         amgcl::amg<
