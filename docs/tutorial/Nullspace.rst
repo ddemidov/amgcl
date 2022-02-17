@@ -526,16 +526,16 @@ from 1.150s to 0.707s (by 38%)::
 Another possible solution is to use a block-valued backend both for constructing
 the hierarchy and for the solution phase. In order to allow for the coarsening
 scheme to use the near null-space vectors, the
-`amgcl::coarsening::as_scalar<Coarsening>` coarsening wrapper may be used. The
+:cpp:class:`amgcl::coarsening::as_scalar<Coarsening>` coarsening wrapper may be used. The
 wrapper converts the input matrix to scalar format, applies the base coarsening
 strategy to the scalar matrix, and converts the computed transfer operators
 back to block format. This approach results in faster setup times, since every
 other operation besides coarsening is performed using block arithmetics.
 
-The listing below shows an example of using the `amgcl::coarsening::as_scalar`
+The listing below shows an example of using the :cpp:class:`amgcl::coarsening::as_scalar`
 wrapper (`tutorial/5.Nullspace/nullspace_block.cpp`_). The system matrix is
 converted to block format in line 78 in the same way it was done in the
-`Structural problem <./Serena>` tutorial. The RHS and the solution vectors are
+:doc:`Structural problem <Serena>` tutorial. The RHS and the solution vectors are
 reinterpreted to contain block values in lines 94-95. The SPAI0 relaxation here
 resulted in the increased number of interations, so we used the ILU(0)
 relaxaion.
