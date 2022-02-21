@@ -526,7 +526,7 @@ from 1.150s to 0.707s (by 38%)::
 Another possible solution is to use a block-valued backend both for constructing
 the hierarchy and for the solution phase. In order to allow for the coarsening
 scheme to use the near null-space vectors, the
-:cpp:class:`amgcl::coarsening::as_scalar<Coarsening>` coarsening wrapper may be used. The
+:cpp:class:`amgcl::coarsening::as_scalar` coarsening wrapper may be used. The
 wrapper converts the input matrix to scalar format, applies the base coarsening
 strategy to the scalar matrix, and converts the computed transfer operators
 back to block format. This approach results in faster setup times, since every

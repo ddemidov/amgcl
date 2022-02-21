@@ -230,3 +230,22 @@ Smoothed Aggregation with Energy Minimization
       .. cpp:member:: amgcl::coarsening::nullspace_params nullspace
 
          The near nullspace parameters
+
+Block to Scalar convertor
+-------------------------
+
+.. cpp:class:: template <template <class> class Coarsening> \
+               amgcl::coarsening::as_scalar
+    
+   .. rubric:: Include ``<amgcl/coarsening/as_scalar.hpp>``
+
+   Wrapper for the specified coarsening. Converts the input matrix from block
+   to scalar format, applies the base coarsening, converts the resulting
+   transfer operators back to block format. See the
+   :doc:`/tutorial/Nullspace` tutorial.
+
+   .. cpp:class:: template <class Backend>
+                  type
+
+      The resulting coarsening class.
+

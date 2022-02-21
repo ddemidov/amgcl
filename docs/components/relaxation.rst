@@ -366,3 +366,19 @@ SPAI1
 
       The SPAI-1 has no parameters
 
+Scalar to Block convertor
+-------------------------
+
+.. cpp:class:: template <class BlockBackend, template <class> class Relax> \
+               amgcl::relaxation::as_block
+    
+   .. rubric:: Include ``<amgcl/relaxation/as_block.hpp>``
+
+   Wrapper for the specified relaxation. Converts the input matrix from scalar
+   to block format before constructing an amgcl smoother. See the
+   :doc:`/tutorial/Nullspace` tutorial.
+
+   .. cpp:class:: template <class Backend>
+                  type
+
+      The resulting relaxation class.
