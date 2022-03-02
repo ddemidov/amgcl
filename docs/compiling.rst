@@ -1,5 +1,5 @@
-Compiling AMGCL tests and examples
-==================================
+Compilation issues
+==================
 
 AMGCL is a header-only library, so one does not need to compile it in order to
 use the library. However, there are some dependencies coming with the library:
