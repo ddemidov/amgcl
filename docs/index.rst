@@ -39,4 +39,5 @@ Contents:
     tutorial
     examples
     benchmarks
+    compiling
     bibliography
