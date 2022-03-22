@@ -174,7 +174,7 @@ endif()
 #----------------------------------------------------------------------------
 # Find MPI
 #----------------------------------------------------------------------------
-find_package(MPI)
+find_package(MPI 3.0)
 if (MPI_CXX_FOUND)
     # Need this to comply with CMP004 policy:
     string(STRIP "${MPI_CXX_LINK_FLAGS}" MPI_CXX_LINK_FLAGS)
