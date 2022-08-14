@@ -28,7 +28,7 @@ if (WIN32)
     set(Boost_USE_STATIC_LIBS ON)
 endif ()
 
-find_package(Boost REQUIRED COMPONENTS
+find_package(Boost COMPONENTS
     program_options
     serialization
     unit_test_framework
@@ -48,9 +48,11 @@ target_compile_features(amgcl INTERFACE
     cxx_static_assert
 )
 
-target_include_directories(amgcl SYSTEM INTERFACE
-    ${Boost_INCLUDE_DIRS}
-    )
+if (Boost_FOUND)
+    target_include_directories(amgcl SYSTEM INTERFACE
+        ${Boost_INCLUDE_DIRS}
+        )
+endif()
 
 target_include_directories(amgcl INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
@@ -117,7 +119,9 @@ endif()
 #----------------------------------------------------------------------------
 # Find VexCL
 #----------------------------------------------------------------------------
-find_package(VexCL QUIET)
+if (Boost_FOUND)
+    find_package(VexCL QUIET)
+endif()
 
 #----------------------------------------------------------------------------
 # Find ViennaCL
@@ -226,8 +230,11 @@ if (Pastix_INCLUDES AND Scotch_FOUND AND BLAS_FOUND AND PTHREAD_LIBRARY AND BZ2_
 endif()
 
 if (AMGCL_MASTER_PROJECT)
-    option(AMGCL_BUILD_TESTS    OFF)
-    option(AMGCL_BUILD_EXAMPLES OFF)
+    if (Boost_FOUND)
+        option(AMGCL_BUILD_TESTS    OFF)
+        option(AMGCL_BUILD_EXAMPLES OFF)
+    endif()
+
     option(AMGCL_DISABLE_RARE_COMPONENTS OFF)
 
     if(AMGCL_DISABLE_RARE_COMPONENTS)
