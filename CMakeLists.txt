@@ -52,6 +52,8 @@ if (Boost_FOUND)
     target_include_directories(amgcl SYSTEM INTERFACE
         ${Boost_INCLUDE_DIRS}
         )
+else()
+    target_compile_definitions(amgcl INTERFACE AMGCL_NO_BOOST)
 endif()
 
 target_include_directories(amgcl INTERFACE
