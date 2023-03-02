@@ -1,0 +1,6 @@
+FROM nvidia/cuda:10.2-devel-ubuntu18.04
+RUN apt update && apt install -y git cmake libboost-test-dev libboost-program-options-dev libboost-serialization-dev
+RUN apt update && apt install -y \
+    git \
+    cmake cmake-curses-gui \
+    libboost-test-dev libboost-program-options-dev libboost-serialization-dev
