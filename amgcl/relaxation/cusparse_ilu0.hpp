@@ -77,7 +77,7 @@ struct ilu0< backend::cuda<real> > {
           val(A.val, A.val + nnz),
           y(n)
     {
-        // LU decomposiotion
+        // LU decomposition
         std::shared_ptr<std::remove_pointer<cusparseMatDescr_t>::type> descr_M;
         std::shared_ptr<std::remove_pointer<csrilu02Info_t>::type> info_M;
 
@@ -154,6 +154,7 @@ struct ilu0< backend::cuda<real> > {
         }
 
         // Triangular solvers
+#if CUDART_VERSION >= 11000
         const real alpha = 1;
         thrust::device_vector<value_type> t(n);
 
@@ -301,6 +302,107 @@ struct ilu0< backend::cuda<real> > {
                         )
                     );
         }
+#else  // CUDART_VERSION >= 11000
+        {
+            cusparseMatDescr_t descr;
+
+            AMGCL_CALL_CUDA( cusparseCreateMatDescr(&descr) );
+            AMGCL_CALL_CUDA( cusparseSetMatIndexBase(descr, CUSPARSE_INDEX_BASE_ZERO) );
+            AMGCL_CALL_CUDA( cusparseSetMatType(descr, CUSPARSE_MATRIX_TYPE_GENERAL) );
+            AMGCL_CALL_CUDA( cusparseSetMatFillMode(descr, CUSPARSE_FILL_MODE_LOWER) );
+            AMGCL_CALL_CUDA( cusparseSetMatDiagType(descr, CUSPARSE_DIAG_TYPE_UNIT) );
+
+            descr_L.reset(descr, backend::detail::cuda_deleter());
+        }
+        {
+            cusparseMatDescr_t descr;
+
+            AMGCL_CALL_CUDA( cusparseCreateMatDescr(&descr) );
+            AMGCL_CALL_CUDA( cusparseSetMatIndexBase(descr, CUSPARSE_INDEX_BASE_ZERO) );
+            AMGCL_CALL_CUDA( cusparseSetMatType(descr, CUSPARSE_MATRIX_TYPE_GENERAL) );
+            AMGCL_CALL_CUDA( cusparseSetMatFillMode(descr, CUSPARSE_FILL_MODE_UPPER) );
+            AMGCL_CALL_CUDA( cusparseSetMatDiagType(descr, CUSPARSE_DIAG_TYPE_NON_UNIT) );
+
+            descr_U.reset(descr, backend::detail::cuda_deleter());
+        }
+
+        // Create info structures.
+        {
+            csrsv2Info_t info;
+            AMGCL_CALL_CUDA( cusparseCreateCsrsv2Info(&info) );
+            info_L.reset(info, backend::detail::cuda_deleter());
+        }
+        {
+            csrsv2Info_t info;
+            AMGCL_CALL_CUDA( cusparseCreateCsrsv2Info(&info) );
+            info_U.reset(info, backend::detail::cuda_deleter());
+        }
+
+        // Allocate scratch buffer.
+        {
+            int buf_size_L;
+            int buf_size_U;
+
+            AMGCL_CALL_CUDA(
+                    cusparseXcsrsv2_bufferSize(
+                        handle,
+                        CUSPARSE_OPERATION_NON_TRANSPOSE,
+                        n,
+                        nnz,
+                        descr_L.get(),
+                        thrust::raw_pointer_cast(&val[0]),
+                        thrust::raw_pointer_cast(&ptr[0]),
+                        thrust::raw_pointer_cast(&col[0]),
+                        info_L.get(), &buf_size_L
+                        )
+                    );
+            AMGCL_CALL_CUDA(
+                    cusparseXcsrsv2_bufferSize(
+                        handle,
+                        CUSPARSE_OPERATION_NON_TRANSPOSE,
+                        n,
+                        nnz,
+                        descr_U.get(),
+                        thrust::raw_pointer_cast(&val[0]),
+                        thrust::raw_pointer_cast(&ptr[0]),
+                        thrust::raw_pointer_cast(&col[0]),
+                        info_U.get(), &buf_size_U
+                        )
+                    );
+
+            buf.resize( std::max(buf_size_L, buf_size_U) );
+        }
+
+        AMGCL_CALL_CUDA(
+                cusparseXcsrsv2_analysis(
+                    handle,
+                    CUSPARSE_OPERATION_NON_TRANSPOSE,
+                    n,
+                    nnz,
+                    descr_L.get(),
+                    thrust::raw_pointer_cast(&val[0]),
+                    thrust::raw_pointer_cast(&ptr[0]),
+                    thrust::raw_pointer_cast(&col[0]),
+                    info_L.get(), CUSPARSE_SOLVE_POLICY_USE_LEVEL,
+                    thrust::raw_pointer_cast(&buf[0])
+                    )
+                );
+
+        AMGCL_CALL_CUDA(
+                cusparseXcsrsv2_analysis(
+                    handle,
+                    CUSPARSE_OPERATION_NON_TRANSPOSE,
+                    n,
+                    nnz,
+                    descr_U.get(),
+                    thrust::raw_pointer_cast(&val[0]),
+                    thrust::raw_pointer_cast(&ptr[0]),
+                    thrust::raw_pointer_cast(&col[0]),
+                    info_U.get(), CUSPARSE_SOLVE_POLICY_USE_LEVEL,
+                    thrust::raw_pointer_cast(&buf[0])
+                    )
+                );
+#endif // CUDART_VERSION >= 11000
     }
 
     /// \copydoc amgcl::relaxation::damped_jacobi::apply_pre
@@ -339,28 +441,39 @@ struct ilu0< backend::cuda<real> > {
             backend::bytes(col) +
             backend::bytes(val) +
             backend::bytes(y) +
+#if CUDART_VERSION >= 11000
             backend::bytes(bufL) +
-            backend::bytes(bufU);
+            backend::bytes(bufU)
+#else
+            backend::bytes(buf)
+#endif
+            ;
     }
 
     private:
         cusparseHandle_t handle;
         int n, nnz;
 
-        std::shared_ptr<std::remove_pointer<cusparseSpMatDescr_t>::type> descr_L, descr_U;
-        std::shared_ptr<std::remove_pointer<cusparseDnVecDescr_t>::type> descr_y;
-        std::shared_ptr<std::remove_pointer<cusparseSpSVDescr_t>::type>  descr_SL, descr_SU;
-
         thrust::device_vector<int> ptr, col;
         thrust::device_vector<value_type> val;
         mutable thrust::device_vector<value_type> y;
-        mutable thrust::device_vector<char> bufL, bufU;
 
+#if CUDART_VERSION >= 11000
+        std::shared_ptr<std::remove_pointer<cusparseSpMatDescr_t>::type> descr_L, descr_U;
+        std::shared_ptr<std::remove_pointer<cusparseSpSVDescr_t>::type>  descr_SL, descr_SU;
+        std::shared_ptr<std::remove_pointer<cusparseDnVecDescr_t>::type> descr_y;
+        mutable thrust::device_vector<char> bufL, bufU;
+#else
+        std::shared_ptr<std::remove_pointer<cusparseMatDescr_t>::type> descr_L, descr_U;
+        std::shared_ptr<std::remove_pointer<csrsv2Info_t>::type>  info_L, info_U;
+        mutable thrust::device_vector<char> buf;
+#endif
 
         template <class VectorX>
         void solve(VectorX &x) const {
             value_type alpha = 1;
 
+#if CUDART_VERSION >= 11000
             std::shared_ptr<std::remove_pointer<cusparseDnVecDescr_t>::type> descr_x(
                     backend::detail::cuda_vector_description(x),
                     backend::detail::cuda_deleter()
@@ -395,6 +508,47 @@ struct ilu0< backend::cuda<real> > {
                         descr_SU.get()
                         )
                     );
+#else  // CUDART_VERSION >= 11000
+            // Solve L * y = x
+            AMGCL_CALL_CUDA(
+                    cusparseXcsrsv2_solve(
+                        handle,
+                        CUSPARSE_OPERATION_NON_TRANSPOSE,
+                        n,
+                        nnz,
+                        &alpha,
+                        descr_L.get(),
+                        thrust::raw_pointer_cast(&val[0]),
+                        thrust::raw_pointer_cast(&ptr[0]),
+                        thrust::raw_pointer_cast(&col[0]),
+                        info_L.get(),
+                        thrust::raw_pointer_cast(&x[0]),
+                        thrust::raw_pointer_cast(&y[0]),
+                        CUSPARSE_SOLVE_POLICY_USE_LEVEL,
+                        thrust::raw_pointer_cast(&buf[0])
+                        )
+                    );
+
+            // Solve U * x = y
+            AMGCL_CALL_CUDA(
+                    cusparseXcsrsv2_solve(
+                        handle,
+                        CUSPARSE_OPERATION_NON_TRANSPOSE,
+                        n,
+                        nnz,
+                        &alpha,
+                        descr_U.get(),
+                        thrust::raw_pointer_cast(&val[0]),
+                        thrust::raw_pointer_cast(&ptr[0]),
+                        thrust::raw_pointer_cast(&col[0]),
+                        info_U.get(),
+                        thrust::raw_pointer_cast(&y[0]),
+                        thrust::raw_pointer_cast(&x[0]),
+                        CUSPARSE_SOLVE_POLICY_USE_LEVEL,
+                        thrust::raw_pointer_cast(&buf[0])
+                        )
+                    );
+#endif // CUDART_VERSION >= 11000
         }
 
         static cusparseStatus_t cusparseXcsrilu02_bufferSize(
@@ -428,7 +582,6 @@ struct ilu0< backend::cuda<real> > {
                 handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA,
                 csrSortedColIndA, info, pBufferSizeInBytes);
         }
-
 
         static cusparseStatus_t cusparseXcsrilu02_analysis(
                 cusparseHandle_t handle,
@@ -500,6 +653,128 @@ struct ilu0< backend::cuda<real> > {
                     csrSortedValA_valM, csrSortedRowPtrA, csrSortedColIndA,
                     info, policy, pBuffer);
         }
+
+#if CUDART_VERSION < 11000
+        static cusparseStatus_t cusparseXcsrsv2_bufferSize(
+                cusparseHandle_t handle,
+                cusparseOperation_t transA,
+                int m,
+                int nnz,
+                const cusparseMatDescr_t descrA,
+                double *csrSortedValA,
+                const int *csrSortedRowPtrA,
+                const int *csrSortedColIndA,
+                csrsv2Info_t info,
+                int *pBufferSizeInBytes
+                )
+        {
+            return cusparseDcsrsv2_bufferSize(
+                handle, transA, m, nnz, descrA, csrSortedValA,
+                csrSortedRowPtrA, csrSortedColIndA, info, pBufferSizeInBytes);
+        }
+
+        static cusparseStatus_t cusparseXcsrsv2_bufferSize(
+                cusparseHandle_t handle,
+                cusparseOperation_t transA,
+                int m,
+                int nnz,
+                const cusparseMatDescr_t descrA,
+                float *csrSortedValA,
+                const int *csrSortedRowPtrA,
+                const int *csrSortedColIndA,
+                csrsv2Info_t info,
+                int *pBufferSizeInBytes
+                )
+        {
+            return cusparseScsrsv2_bufferSize(
+                handle, transA, m, nnz, descrA, csrSortedValA,
+                csrSortedRowPtrA, csrSortedColIndA, info, pBufferSizeInBytes);
+        }
+
+        static cusparseStatus_t cusparseXcsrsv2_analysis(
+                cusparseHandle_t handle,
+                cusparseOperation_t transA,
+                int m,
+                int nnz,
+                const cusparseMatDescr_t descrA,
+                const double *csrSortedValA,
+                const int *csrSortedRowPtrA,
+                const int *csrSortedColIndA,
+                csrsv2Info_t info,
+                cusparseSolvePolicy_t policy,
+                void *pBuffer
+                )
+        {
+            return cusparseDcsrsv2_analysis(
+                    handle, transA, m, nnz, descrA, csrSortedValA,
+                    csrSortedRowPtrA, csrSortedColIndA, info, policy, pBuffer);
+        }
+
+        static cusparseStatus_t cusparseXcsrsv2_analysis(
+                cusparseHandle_t handle,
+                cusparseOperation_t transA,
+                int m,
+                int nnz,
+                const cusparseMatDescr_t descrA,
+                const float *csrSortedValA,
+                const int *csrSortedRowPtrA,
+                const int *csrSortedColIndA,
+                csrsv2Info_t info,
+                cusparseSolvePolicy_t policy,
+                void *pBuffer
+                )
+        {
+            return cusparseScsrsv2_analysis(
+                    handle, transA, m, nnz, descrA, csrSortedValA,
+                    csrSortedRowPtrA, csrSortedColIndA, info, policy, pBuffer);
+        }
+
+        static cusparseStatus_t cusparseXcsrsv2_solve(
+                cusparseHandle_t handle,
+                cusparseOperation_t transA,
+                int m,
+                int nnz,
+                const double *alpha,
+                const cusparseMatDescr_t descrA,
+                const double *csrSortedValA,
+                const int *csrSortedRowPtrA,
+                const int *csrSortedColIndA,
+                csrsv2Info_t info,
+                const double *f,
+                double *x,
+                cusparseSolvePolicy_t policy,
+                void *pBuffer
+                )
+        {
+            return cusparseDcsrsv2_solve(
+                    handle, transA, m,
+                    nnz, alpha, descrA, csrSortedValA, csrSortedRowPtrA,
+                    csrSortedColIndA, info, f, x, policy, pBuffer);
+        }
+
+        static cusparseStatus_t cusparseXcsrsv2_solve(
+                cusparseHandle_t handle,
+                cusparseOperation_t transA,
+                int m,
+                int nnz,
+                const float *alpha,
+                const cusparseMatDescr_t descrA,
+                const float *csrSortedValA,
+                const int *csrSortedRowPtrA,
+                const int *csrSortedColIndA,
+                csrsv2Info_t info,
+                const float *f,
+                float *x,
+                cusparseSolvePolicy_t policy,
+                void *pBuffer
+                )
+        {
+            return cusparseScsrsv2_solve(
+                    handle, transA, m,
+                    nnz, alpha, descrA, csrSortedValA, csrSortedRowPtrA,
+                    csrSortedColIndA, info, f, x, policy, pBuffer);
+        }
+#endif // CUDART_VERSION < 11000
 };
 
 } // namespace relaxation

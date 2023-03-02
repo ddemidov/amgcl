@@ -1,0 +1,5 @@
+FROM nvidia/cuda:12.0.1-devel-ubuntu22.04
+RUN apt update && apt install -y \
+    git \
+    cmake cmake-curses-gui \
+    libboost-test-dev libboost-program-options-dev libboost-serialization-dev

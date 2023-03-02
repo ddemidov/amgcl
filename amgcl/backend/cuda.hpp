@@ -118,17 +118,27 @@ struct cuda_deleter {
         AMGCL_CALL_CUDA( cusparseDestroyDnVec(handle) );
     }
 
+    void operator()(cudaEvent_t handle) {
+        AMGCL_CALL_CUDA( cudaEventDestroy(handle) );
+    }
+
     void operator()(csrilu02Info_t handle) {
         AMGCL_CALL_CUDA( cusparseDestroyCsrilu02Info(handle) );
     }
 
+#if CUDART_VERSION >= 11000
     void operator()(cusparseSpSVDescr_t handle) {
         AMGCL_CALL_CUDA( cusparseSpSV_destroyDescr(handle) );
     }
-
-    void operator()(cudaEvent_t handle) {
-        AMGCL_CALL_CUDA( cudaEventDestroy(handle) );
+#else
+    void operator()(cusparseHybMat_t handle) {
+        AMGCL_CALL_CUDA( cusparseDestroyHybMat(handle) );
     }
+
+    void operator()(csrsv2Info_t handle) {
+        AMGCL_CALL_CUDA( cusparseDestroyCsrsv2Info(handle) );
+    }
+#endif
 };
 
 
@@ -140,6 +150,7 @@ cudaDataType cuda_datatype() {
         return CUDA_R_64F;
 }
 
+#if CUDART_VERSION >= 11000
 template <typename real>
 cusparseDnVecDescr_t cuda_vector_description(thrust::device_vector<real> &x) {
     cusparseDnVecDescr_t desc;
@@ -196,10 +207,11 @@ cusparseSpMatDescr_t cuda_matrix_description(
             );
     return desc;
 }
-
+#endif // CUDART_VERSION >= 11000
 
 } // namespace detail
 
+#if CUDART_VERSION >= 11000
 /// CUSPARSE matrix in CSR format.
 template <typename real>
 class cuda_matrix {
@@ -295,6 +307,135 @@ class cuda_matrix {
 
 };
 
+#else  // CUDART_VERSION >= 11000
+
+/// CUSPARSE matrix in Hyb format.
+template <typename real>
+class cuda_matrix {
+    public:
+        typedef real value_type;
+
+        cuda_matrix(
+                size_t n, size_t m,
+                const ptrdiff_t *ptr,
+                const ptrdiff_t *col,
+                const real      *val,
+                cusparseHandle_t handle
+                )
+            : nrows(n), ncols(m), nnz(ptr[n]), handle( handle ),
+              desc  ( create_description(), backend::detail::cuda_deleter() ),
+              mat   ( create_matrix(),      backend::detail::cuda_deleter() )
+        {
+            fill_matrix(n, m, ptr, col, val);
+        }
+
+        void spmv(
+                real alpha, thrust::device_vector<real> const &x,
+                real beta,  thrust::device_vector<real>       &y
+            ) const
+        {
+            spmv(alpha, x, beta, y, std::integral_constant<bool, sizeof(real) == sizeof(double)>());
+        }
+
+        void spmv(
+                real alpha, thrust::device_vector<real> const &x,
+                real beta,  thrust::device_vector<real>       &y,
+                std::false_type
+            ) const
+        {
+            AMGCL_CALL_CUDA(
+                    cusparseShybmv(handle, CUSPARSE_OPERATION_NON_TRANSPOSE,
+                        &alpha, desc.get(), mat.get(),
+                        thrust::raw_pointer_cast(&x[0]), &beta,
+                        thrust::raw_pointer_cast(&y[0])
+                        )
+                    );
+        }
+
+        void spmv(
+                real alpha, thrust::device_vector<real> const &x,
+                real beta,  thrust::device_vector<real>       &y,
+                std::true_type
+            ) const
+        {
+            AMGCL_CALL_CUDA(
+                    cusparseDhybmv(handle, CUSPARSE_OPERATION_NON_TRANSPOSE,
+                        &alpha, desc.get(), mat.get(),
+                        thrust::raw_pointer_cast(&x[0]), &beta,
+                        thrust::raw_pointer_cast(&y[0])
+                        )
+                    );
+        }
+
+        size_t rows()     const { return nrows; }
+        size_t cols()     const { return ncols; }
+        size_t nonzeros() const { return nnz;   }
+        size_t bytes()    const {
+            return
+                sizeof(int)  * (nrows + 1) +
+                sizeof(int)  * nnz +
+                sizeof(real) * nnz;
+        }
+    private:
+        size_t nrows, ncols, nnz;
+
+        cusparseHandle_t handle;
+
+        std::shared_ptr<std::remove_pointer<cusparseMatDescr_t>::type> desc;
+        std::shared_ptr<std::remove_pointer<cusparseHybMat_t>::type>   mat;
+
+        static cusparseMatDescr_t create_description() {
+            cusparseMatDescr_t desc;
+            AMGCL_CALL_CUDA( cusparseCreateMatDescr(&desc) );
+            AMGCL_CALL_CUDA( cusparseSetMatType(desc, CUSPARSE_MATRIX_TYPE_GENERAL) );
+            AMGCL_CALL_CUDA( cusparseSetMatIndexBase(desc, CUSPARSE_INDEX_BASE_ZERO) );
+            return desc;
+        }
+
+        static cusparseHybMat_t create_matrix() {
+            cusparseHybMat_t mat;
+            AMGCL_CALL_CUDA( cusparseCreateHybMat(&mat) );
+            return mat;
+        }
+
+        void fill_matrix(size_t n, size_t m,
+                const ptrdiff_t *ptr, const ptrdiff_t *col, const float *val
+                )
+        {
+            thrust::device_vector<int>   p(ptr, ptr + n + 1);
+            thrust::device_vector<int>   c(col, col + ptr[n]);
+            thrust::device_vector<float> v(val, val + ptr[n]);
+
+            AMGCL_CALL_CUDA(
+                    cusparseScsr2hyb(handle, n, m, desc.get(),
+                        thrust::raw_pointer_cast(&v[0]),
+                        thrust::raw_pointer_cast(&p[0]),
+                        thrust::raw_pointer_cast(&c[0]),
+                        mat.get(), 0, CUSPARSE_HYB_PARTITION_AUTO
+                        )
+                    );
+        }
+
+        void fill_matrix(size_t n, size_t m,
+                const ptrdiff_t *ptr, const ptrdiff_t *col, const double *val
+                )
+        {
+            thrust::device_vector<int>    p(ptr, ptr + n + 1);
+            thrust::device_vector<int>    c(col, col + ptr[n]);
+            thrust::device_vector<double> v(val, val + ptr[n]);
+
+            AMGCL_CALL_CUDA(
+                    cusparseDcsr2hyb(handle, n, m, desc.get(),
+                        thrust::raw_pointer_cast(&v[0]),
+                        thrust::raw_pointer_cast(&p[0]),
+                        thrust::raw_pointer_cast(&c[0]),
+                        mat.get(), 0, CUSPARSE_HYB_PARTITION_AUTO
+                        )
+                    );
+        }
+};
+
+#endif // CUDART_VERSION >= 11000
 /// CUDA backend.
 /**
  * Uses CUSPARSE for matrix operations and Thrust for vector operations.
