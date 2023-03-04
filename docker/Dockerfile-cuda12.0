@@ -1,5 +1,21 @@
 FROM nvidia/cuda:12.0.1-devel-ubuntu22.04
+
 RUN apt update && apt install -y \
     git \
     cmake cmake-curses-gui \
     libboost-test-dev libboost-program-options-dev libboost-serialization-dev
+
+WORKDIR /amgcl
+
+COPY amgcl amgcl
+COPY cmake cmake
+COPY docs docs
+COPY fortran fortran
+COPY examples examples
+COPY lib lib
+COPY pyamgcl pyamgcl
+COPY tests tests
+COPY tutorial tutorial
+COPY CMakeLists.txt .
+
+RUN cmake -Bbuild -DAMGCL_BUILD_EXAMPLES=ON -DCUDA_TARGET_ARCH=Pascal
