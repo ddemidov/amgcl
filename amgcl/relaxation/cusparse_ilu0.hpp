@@ -46,7 +46,7 @@ template <class Backend> struct ilu0;
 template <typename real>
 struct ilu0< backend::cuda<real> > {
     typedef real value_type;
-    typedef backend::cuda<double> Backend;
+    typedef backend::cuda<real> Backend;
 
     struct params {
         /// Damping factor.
