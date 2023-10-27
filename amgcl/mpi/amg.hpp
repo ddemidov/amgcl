@@ -410,7 +410,7 @@ class amg {
             }
 
             AMGCL_TIC("move to backend");
-            this->A->move_to_backend(bprm);
+            this->A->move_to_backend(bprm, prm.allow_rebuild);
             AMGCL_TOC("move to backend");
         }
 
