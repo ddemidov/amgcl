@@ -83,7 +83,7 @@ That's it! Vector ``x`` contains the solution of our problem now.
 Input formats
 -------------
 
-We used STL vectors to store the matrix components in the above axample. This
+We used STL vectors to store the matrix components in the above example. This
 may seem too restrictive if you want to use AMGCL with your own types.  But the
 `crs_tuple` adapter will take anything that the Boost.Range_ library recognizes
 as a random access range. For example, you can wrap raw pointers to your data
