@@ -210,10 +210,12 @@ class amg {
                     );
 
             AMGCL_TIC("rebuild");
+            this->A = A;
             Coarsening C(prm.coarsening);
             for(auto &level : levels) {
                 A = level.rebuild(A, C, prm, bprm);
             }
+            this->A->move_to_backend(bprm);
             AMGCL_TOC("rebuild");
         }
 
