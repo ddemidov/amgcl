@@ -251,6 +251,8 @@ void solve_block(
     typedef amgcl::backend::vexcl<val_type> Backend;
 #endif
 
+    typedef amgcl::mpi::distributed_matrix<Backend> DMatrix;
+
     typedef
         amgcl::mpi::make_solver<
             amgcl::runtime::mpi::preconditioner<Backend>,
@@ -279,24 +281,53 @@ void solve_block(
     vex::vector<rhs_type> rhs(ctx, chunk / B, reinterpret_cast<const rhs_type*>(&f[0]));
 #endif
 
-    prof.tic("setup");
-    std::shared_ptr<Solver> solve;
-    if (ptype) {
-        auto A = partition<Backend>(comm,
-                amgcl::adapter::block_matrix<val_type>(std::tie(chunk, ptr, col, val)),
-                rhs, bprm, ptype, prm.get("precond.coarsening.aggr.block_size", 1));
+    auto get_distributed_matrix = [&](){
+        auto t = prof.scoped_tic("distributed matrix");
 
+        std::shared_ptr<DMatrix> A;
+
+        if (ptype) {
+            A = partition<Backend>(comm,
+                    amgcl::adapter::block_matrix<val_type>(std::tie(chunk, ptr, col, val)),
+                    rhs, bprm, ptype, prm.get("precond.coarsening.aggr.block_size", 1));
+            chunk = A->loc_rows();
+        } else {
+            A = std::make_shared<DMatrix>(
+                comm,
+                amgcl::adapter::block_matrix<val_type>(std::tie(chunk, ptr, col, val))
+            );
+        }
+
+        return A;
+    };
+
+    std::shared_ptr<DMatrix> A;
+    std::shared_ptr<Solver> solve;
+
+    {
+        auto t = prof.scoped_tic("setup");
+        A = get_distributed_matrix();
         solve = std::make_shared<Solver>(comm, A, prm, bprm);
-        chunk = A->loc_rows();
-    } else {
-        solve = std::make_shared<Solver>(comm,
-                amgcl::adapter::block_matrix<val_type>(std::tie(chunk, ptr, col, val)),
-                prm, bprm);
     }
-    prof.toc("setup");
 
     if (comm.rank == 0) {
         std::cout << *solve << std::endl;
+    }
+
+    if (prm.get("precond.allow_rebuild", false)) {
+        if (comm.rank == 0) {
+            std::cout << "Rebuilding the preconditioner..." << std::endl;
+        }
+
+        {
+            auto t = prof.scoped_tic("rebuild");
+            A = get_distributed_matrix();
+            solve->precond().rebuild(A);
+        }
+
+        if (comm.rank == 0) {
+            std::cout << *solve << std::endl;
+        }
     }
 
 #if defined(SOLVER_BACKEND_BUILTIN)
@@ -342,6 +373,8 @@ void solve_scalar(
     typedef amgcl::backend::cuda<double> Backend;
 #endif
 
+    typedef amgcl::mpi::distributed_matrix<Backend> DMatrix;
+
     typedef
         amgcl::mpi::make_solver<
             amgcl::runtime::mpi::preconditioner<Backend>,
@@ -367,22 +400,49 @@ void solve_scalar(
     thrust::device_vector<double> rhs(f);
 #endif
 
-    prof.tic("setup");
-    std::shared_ptr<Solver> solve;
-    if (ptype) {
-        auto A = partition<Backend>(comm,
-                std::tie(chunk, ptr, col, val), rhs, bprm, ptype,
-                prm.get("precond.coarsening.aggr.block_size", 1));
+    auto get_distributed_matrix = [&](){
+        auto t = prof.scoped_tic("distributed matrix");
+        std::shared_ptr<DMatrix> A;
 
+        if (ptype) {
+            A = partition<Backend>(comm,
+                    std::tie(chunk, ptr, col, val), rhs, bprm, ptype,
+                    prm.get("precond.coarsening.aggr.block_size", 1));
+            chunk = A->loc_rows();
+        } else {
+            A = std::make_shared<DMatrix>(comm, std::tie(chunk, ptr, col, val));
+        }
+
+        return A;
+    };
+
+    std::shared_ptr<DMatrix> A;
+    std::shared_ptr<Solver> solve;
+
+    {
+        auto t = prof.scoped_tic("setup");
+        A = get_distributed_matrix();
         solve = std::make_shared<Solver>(comm, A, prm, bprm);
-        chunk = A->loc_rows();
-    } else {
-        solve = std::make_shared<Solver>(comm, std::tie(chunk, ptr, col, val), prm, bprm);
     }
-    prof.toc("setup");
 
     if (comm.rank == 0) {
         std::cout << *solve << std::endl;
+    }
+
+    if (prm.get("precond.allow_rebuild", false)) {
+        if (comm.rank == 0) {
+            std::cout << "Rebuilding the preconditioner..." << std::endl;
+        }
+
+        {
+            auto t = prof.scoped_tic("rebuild");
+            A = get_distributed_matrix();
+            solve->precond().rebuild(A);
+        }
+
+        if (comm.rank == 0) {
+            std::cout << *solve << std::endl;
+        }
     }
 
 #if defined(SOLVER_BACKEND_BUILTIN)
@@ -491,6 +551,11 @@ int main(int argc, char *argv[]) {
          "  -p solver.tol=1e-3\n"
          "  -p precond.coarse_enough=300"
         )
+        (
+         "test-rebuild",
+         po::bool_switch()->default_value(false),
+         "When specified, try to rebuild the solver before solving. "
+        )
         ;
 
     po::positional_options_description p;
@@ -582,6 +647,10 @@ int main(int argc, char *argv[]) {
                 vm["size"].as<ptrdiff_t>(),
                 block_size * aggr_block, ptr, col, val, rhs);
         prof.toc("assemble");
+    }
+
+    if (vm["test-rebuild"].as<bool>()) {
+        prm.put("precond.allow_rebuild", true);
     }
 
     switch(block_size) {
