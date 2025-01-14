@@ -61,7 +61,16 @@ class TestPyAMGCL(unittest.TestCase):
         for rtype in ('spai0', 'ilu0'):
             P = amg.amgcl(A, prm={'relax.type': rtype})
             # Solve
-            x,info = bicgstab(A, rhs, M=P, tol=1e-3)
+            #
+            # The scipy devs changed their API in a non-backwards-compatible way: "tol" was removed in favor of "rtol":
+            #   https://docs.scipy.org/doc/scipy-1.15.0/reference/generated/scipy.sparse.linalg.bicgstab.html
+            #
+            # The docs aren't clear about how to preserve the old behavior. I
+            # try the old method, and if that fails, I try the new method
+            try:
+                x,info = bicgstab(A, rhs, M=P, tol=1e-3)
+            except TypeError:
+                x,info = bicgstab(A, rhs, M=P, rtol=1e-3)
             self.assertTrue(info == 0)
 
             # Check residual
