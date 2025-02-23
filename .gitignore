@@ -11,3 +11,4 @@ __pycache__
 .pydevproject
 .sync.ffs_db
 *.bundle
+.cache
