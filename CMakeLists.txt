@@ -6,7 +6,7 @@ endif()
 
 project(AMGCL)
 
-if (NOT (CMAKE_VERSION LESS 3.3))
+if (CMAKE_VERSION LESS 3.3)
     cmake_policy(SET CMP0058 OLD)
 endif()
 
