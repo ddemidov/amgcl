@@ -1,14 +1,10 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.5)
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Build type")
     message(STATUS "No build type selected, default to ${CMAKE_BUILD_TYPE}")
 endif()
 
 project(AMGCL)
-
-if (NOT (CMAKE_VERSION LESS 3.3))
-    cmake_policy(SET CMP0058 OLD)
-endif()
 
 set(AMGCL_MASTER_PROJECT OFF)
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
