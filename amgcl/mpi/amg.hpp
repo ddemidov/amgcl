@@ -196,6 +196,16 @@ class amg {
             rebuild(std::make_shared<matrix>(comm, M, backend::rows(M)), bprm);
         }
 
+        template <class OtherBackend>
+        typename std::enable_if<!std::is_same<Backend, OtherBackend>::value, void>::type
+        rebuild(
+                std::shared_ptr<distributed_matrix<OtherBackend>> A,
+                const backend_params &bprm = backend_params()
+        )
+        {
+            return rebuild(std::make_shared<matrix>(*A), bprm);
+        }
+
         void rebuild(
                 std::shared_ptr<matrix> A,
                 const backend_params &bprm = backend_params()
