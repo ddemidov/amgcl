@@ -11,6 +11,8 @@ source:
 build:
   number: 0
   skip: True  # [win]
+  script_env:
+    - GIT_DESCRIBE_TAG
 
 requirements:
   build:
