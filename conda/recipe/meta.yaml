@@ -1,0 +1,47 @@
+{% set raw_git_tag = environ['GIT_DESCRIBE_TAG'] %}
+{% set version = raw_git_tag[1:] if (raw_git_tag and raw_git_tag.startswith('v')) else raw_git_tag %}
+
+package:
+  name: amgcl
+  version: {{ version }}
+
+source:
+  path: ../..
+
+build:
+  number: 0
+  skip: True  # [win]
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - cmake
+  host:
+    - boost-cpp
+  run:
+    - boost-cpp
+
+test:
+  requires:
+    - cmake
+  commands:
+    - test -f "$PREFIX/share/amgcl/cmake/amgcl-config.cmake"
+    - test -f "$PREFIX/include/amgcl/amg.hpp"
+    - |
+      TEST_DIR="$(mktemp -d)/amgcl-find-test"
+      mkdir -p "$TEST_DIR"
+      printf '%s\n' \
+        'cmake_minimum_required(VERSION 3.5)' \
+        'project(amgcl_find_package_test LANGUAGES CXX)' \
+        'find_package(amgcl REQUIRED)' > "$TEST_DIR/CMakeLists.txt"
+      cmake -S "$TEST_DIR" -B "$TEST_DIR/build"
+
+about:
+  home: https://github.com/OpFlow-dev/amgcl
+  license: MIT
+  license_file: LICENSE.md
+  summary: AMGCL is a header-only C++ library for solving sparse linear systems.
+  description: |
+    C++ library for Algebraic Multigrid with CMake package exports.
+    This recipe installs headers and CMake package configuration.
