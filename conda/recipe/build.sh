@@ -10,7 +10,7 @@ if [ -z "${GIT_DESCRIBE_TAG:-}" ]; then
   exit 1
 fi
 
-cmake -S "$SRC_DIR" \
+cmake -S "${SRC_DIR:-${PWD}}" \
     -B "$BUILD_DIR" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="$PREFIX" \

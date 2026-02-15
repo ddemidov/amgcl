@@ -32,10 +32,12 @@ jobs:
 
       - name: Resolve release tag
         id: resolve_tag
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${{ github.event.release.tag_name }}"
+          TAG="$RELEASE_TAG"
           if [ -z "$TAG" ]; then
             echo "No tag on release event."
             exit 1
@@ -58,10 +60,10 @@ jobs:
           conda build --test "$PKG_FILE" -c local
 
       - name: Upload package to Anaconda
-        if: github.event_name == 'release'
         env:
           ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_API_TOKEN }}
           ANACONDA_ORG: ${{ secrets.ANACONDA_ORG }}
+          GIT_DESCRIBE_TAG: ${{ steps.resolve_tag.outputs.tag }}
         shell: bash -el {0}
         run: |
           set -euo pipefail
