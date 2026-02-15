@@ -42,6 +42,14 @@ jobs:
           git fetch --tags --force
           TAG="$(git tag --sort=-creatordate | head -n 1 || true)"
           if [ -z "$TAG" ]; then
+            REMOTE_REPO="${{ github.event.repository.full_name }}"
+            if [ -n "${{ github.event.repository.parent.full_name }}" ]; then
+              REMOTE_REPO="${{ github.event.repository.parent.full_name }}"
+            fi
+            TAG="$(git ls-remote --tags --refs --sort='v:refname' "https://github.com/$REMOTE_REPO.git" \
+                  refs/tags/* | awk '{print $2}' | sed 's#refs/tags/##' | head -n 1)"
+          fi
+          if [ -z "$TAG" ]; then
             echo "No git tag found. At least one tag is required for recipe versioning."
             exit 1
           fi
