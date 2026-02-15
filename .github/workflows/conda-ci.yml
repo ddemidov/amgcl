@@ -39,7 +39,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+          git fetch --tags --force
+          TAG="$(git tag --sort=-creatordate | head -n 1 || true)"
           if [ -z "$TAG" ]; then
             echo "No git tag found. At least one tag is required for recipe versioning."
             exit 1
