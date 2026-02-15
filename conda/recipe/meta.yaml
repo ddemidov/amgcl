@@ -39,7 +39,7 @@ test:
       cmake -S "$TEST_DIR" -B "$TEST_DIR/build"
 
 about:
-  home: https://github.com/ddemidov/amgcl
+  home: https://github.com/OpFlow-dev/amgcl
   license: MIT
   summary: AMGCL is a header-only C++ library for solving sparse linear systems.
   description: |
