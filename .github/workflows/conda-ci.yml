@@ -32,7 +32,7 @@ jobs:
       - name: Install conda build tools
         shell: bash -el {0}
         run: |
-          mamba install -y -n base conda-build anaconda-client
+          conda install -y -n base conda-build anaconda-client
 
       - name: Resolve release tag
         id: resolve_tag
