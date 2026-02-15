@@ -68,7 +68,7 @@ jobs:
         run: |
           set -euo pipefail
           PKG_FILE="$(conda build --output conda/recipe)"
-          ANACONDA_ORG="${ANACONDA_ORG:-OpflowDev}"
+          ANACONDA_ORG="${ANACONDA_ORG:-OpFlow-dev}"
           if [ -z "${ANACONDA_API_TOKEN:-}" ]; then
             echo "Missing ANACONDA_API_TOKEN secret."
             exit 1
