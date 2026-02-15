@@ -2,7 +2,9 @@
 set -euxo pipefail
 
 if [ -z "${GIT_DESCRIBE_TAG:-}" ]; then
-  GIT_DESCRIBE_TAG="$(git -C "${SRC_DIR:-$(pwd)}" describe --tags --abbrev=0)"
+  echo "ERROR: GIT_DESCRIBE_TAG is not set. Set it to the current release tag (e.g. v1.4.5)." >&2
+  echo "Run: export GIT_DESCRIBE_TAG=\"$(git -C \"${SRC_DIR:-$(pwd)}\" describe --tags --abbrev=0)\"" >&2
+  exit 1
 fi
 export GIT_DESCRIBE_TAG
 

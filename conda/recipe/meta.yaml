@@ -1,9 +1,9 @@
-{% set raw_git_tag = environ.get('GIT_DESCRIBE_TAG') %}
+{% set raw_git_tag = environ['GIT_DESCRIBE_TAG'] %}
 {% set version = raw_git_tag[1:] if (raw_git_tag and raw_git_tag.startswith('v')) else raw_git_tag %}
 
 package:
   name: amgcl
-  version: {{ version if version else "0.0.0" }}
+  version: {{ version }}
 
 source:
   path: ../..
