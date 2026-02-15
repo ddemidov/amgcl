@@ -1,0 +1,74 @@
+name: Conda Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  release-conda:
+    name: Build and upload conda package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+          use-mamba: true
+
+      - name: Install conda build tools
+        shell: bash -el {0}
+        run: |
+          mamba install -y -n base conda-build anaconda-client
+
+      - name: Resolve release tag
+        id: resolve_tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.release.tag_name }}"
+          if [ -z "$TAG" ]; then
+            echo "No tag on release event."
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Build conda package
+        env:
+          GIT_DESCRIBE_TAG: ${{ steps.resolve_tag.outputs.tag }}
+        shell: bash -el {0}
+        run: |
+          conda build conda/recipe --no-test
+
+      - name: Test built package
+        env:
+          GIT_DESCRIBE_TAG: ${{ steps.resolve_tag.outputs.tag }}
+        shell: bash -el {0}
+        run: |
+          PKG_FILE="$(conda build --output conda/recipe)"
+          conda build --test "$PKG_FILE" -c local
+
+      - name: Upload package to Anaconda
+        if: github.event_name == 'release'
+        env:
+          ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_API_TOKEN }}
+          ANACONDA_ORG: ${{ secrets.ANACONDA_ORG }}
+        shell: bash -el {0}
+        run: |
+          set -euo pipefail
+          PKG_FILE="$(conda build --output conda/recipe)"
+          ANACONDA_ORG="${ANACONDA_ORG:-OpflowDev}"
+          if [ -z "${ANACONDA_API_TOKEN:-}" ]; then
+            echo "Missing ANACONDA_API_TOKEN secret."
+            exit 1
+          fi
+          anaconda upload -u "$ANACONDA_ORG" "$PKG_FILE"

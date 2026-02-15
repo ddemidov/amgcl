@@ -1,0 +1,62 @@
+name: Conda CI
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+jobs:
+  build-conda:
+    name: Build conda package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+          use-mamba: true
+
+      - name: Install conda build tools
+        shell: bash -el {0}
+        run: |
+          mamba install -y -n base conda-build anaconda-client
+
+      - name: Resolve release tag
+        id: resolve_tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+          if [ -z "$TAG" ]; then
+            echo "No git tag found. At least one tag is required for recipe versioning."
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Build conda package
+        env:
+          GIT_DESCRIBE_TAG: ${{ steps.resolve_tag.outputs.tag }}
+        shell: bash -el {0}
+        run: |
+          conda build conda/recipe --no-test
+
+      - name: Test built package
+        env:
+          GIT_DESCRIBE_TAG: ${{ steps.resolve_tag.outputs.tag }}
+        shell: bash -el {0}
+        run: |
+          PKG_FILE="$(conda build --output conda/recipe)"
+          conda build --test "$PKG_FILE" -c local
