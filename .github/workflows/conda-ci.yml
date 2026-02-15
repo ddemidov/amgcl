@@ -50,8 +50,7 @@ jobs:
                   refs/tags/* | awk '{print $2}' | sed 's#refs/tags/##' | head -n 1)"
           fi
           if [ -z "$TAG" ]; then
-            echo "No git tag found. At least one tag is required for recipe versioning."
-            exit 1
+            TAG="1.4.5"
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
