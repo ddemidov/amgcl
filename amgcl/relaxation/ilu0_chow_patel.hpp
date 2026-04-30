@@ -331,7 +331,7 @@ struct ilu0_chow_patel {
                     // Guard against zero pivot (broken factorization).
                     value_type pivot = Udiag[j];
                     if (math::norm(pivot) < std::numeric_limits<scalar_type>::epsilon() * math::norm(math::identity<value_type>()))
-                        pivot = math::identity<value_type>() * std::numeric_limits<scalar_type>::epsilon();
+                        pivot = std::numeric_limits<scalar_type>::epsilon() * math::identity<value_type>();
                     Lval[jj] = (a_L[jj] - s) * math::inverse(pivot);
                 }
             }
@@ -426,7 +426,7 @@ struct ilu0_chow_patel {
             // Guard against zero pivot before storing D = inv(pivot).
             value_type pivot = a_ii * Udiag[i];
             if (math::norm(pivot) < std::numeric_limits<scalar_type>::epsilon() * math::norm(math::identity<value_type>()))
-                pivot = math::identity<value_type>() * std::numeric_limits<scalar_type>::epsilon();
+                pivot = std::numeric_limits<scalar_type>::epsilon() * math::identity<value_type>();
             (*D_out)[i] = math::inverse(pivot);
         }
 
