@@ -49,6 +49,7 @@ THE SOFTWARE.
 
 #include <vector>
 #include <cmath>
+#include <limits>
 #include <algorithm>
 
 #ifdef _OPENMP
@@ -327,7 +328,11 @@ struct ilu0_chow_patel {
                         else { s += Lval[lp] * Ucval[up]; ++lp; ++up; }
                     }
 
-                    Lval[jj] = (a_L[jj] - s) * math::inverse(Udiag[j]);
+                    // Guard against zero pivot (broken factorization).
+                    value_type pivot = Udiag[j];
+                    if (math::norm(pivot) < std::numeric_limits<scalar_type>::epsilon() * math::norm(math::identity<value_type>()))
+                        pivot = math::identity<value_type>() * std::numeric_limits<scalar_type>::epsilon();
+                    Lval[jj] = (a_L[jj] - s) * math::inverse(pivot);
                 }
             }
 
@@ -418,7 +423,11 @@ struct ilu0_chow_patel {
             }
             U_out->ptr[i + 1] = Uptr[i + 1];
 
-            (*D_out)[i] = math::inverse(a_ii * Udiag[i]);
+            // Guard against zero pivot before storing D = inv(pivot).
+            value_type pivot = a_ii * Udiag[i];
+            if (math::norm(pivot) < std::numeric_limits<scalar_type>::epsilon() * math::norm(math::identity<value_type>()))
+                pivot = math::identity<value_type>() * std::numeric_limits<scalar_type>::epsilon();
+            (*D_out)[i] = math::inverse(pivot);
         }
 
         ilu = std::make_shared<ilu_solve>(L_out, U_out, D_out, prm.solve, bprm);
