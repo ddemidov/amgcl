@@ -27,7 +27,7 @@ THE SOFTWARE.
 
 /**
  * \file   amgcl/relaxation/ilu0_chow_patel.hpp
- * \author Denis Demidov <dennis.demidov@gmail.com>
+ * \author Vicente Mataix Ferrandiz <vicente.mataix-ferrandiz@siemens.com>
  * \brief  Fine-grained parallel ILU(0) factorization.
  *
  * Parallel ILU(0) factorization based on the iterative algorithm described in:
