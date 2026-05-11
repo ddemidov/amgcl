@@ -17,7 +17,10 @@ if (NOT (Metis_INCLUDE_DIRS AND Metis_LIBRARIES))
         PATH_SUFFIXES lib
         )
 
-    set(Metis_LIBRARIES "${PARMETIS_LIBRARY};${METIS_LIBRARY}")
+    set(Metis_LIBRARIES "${METIS_LIBRARY}")
+    if(PARMETIS_LIBRARY)
+        list(APPEND Metis_LIBRARIES "${PARMETIS_LIBRARY}")
+    endif()
 endif()
 
 include(FindPackageHandleStandardArgs)
