@@ -248,24 +248,44 @@ class cuda_matrix {
                     backend::detail::cuda_deleter()
                     );
 
-            size_t buf_size;
-            AMGCL_CALL_CUDA(
-                    cusparseSpMV_bufferSize(
-                        handle,
-                        CUSPARSE_OPERATION_NON_TRANSPOSE,
-                        &alpha,
-                        desc.get(),
-                        xdesc.get(),
-                        &beta,
-                        ydesc.get(),
-                        detail::cuda_datatype<real>(),
-                        CUSPARSE_SPMV_CSR_ALG1,
-                        &buf_size
-                        )
-                    );
+            if (!ready_for_spmv) {
+                size_t buf_size;
 
-            if (buf.size() < buf_size)
-                buf.resize(buf_size);
+                AMGCL_CALL_CUDA(
+                        cusparseSpMV_bufferSize(
+                            handle,
+                            CUSPARSE_OPERATION_NON_TRANSPOSE,
+                            &alpha,
+                            desc.get(),
+                            xdesc.get(),
+                            &beta,
+                            ydesc.get(),
+                            detail::cuda_datatype<real>(),
+                            CUSPARSE_SPMV_CSR_ALG1,
+                            &buf_size
+                            )
+                        );
+
+                if (buf.size() < buf_size)
+                    buf.resize(buf_size);
+
+                AMGCL_CALL_CUDA(
+                        cusparseSpMV_preprocess(
+                            handle,
+                            CUSPARSE_OPERATION_NON_TRANSPOSE,
+                            &alpha,
+                            desc.get(),
+                            xdesc.get(),
+                            &beta,
+                            ydesc.get(),
+                            detail::cuda_datatype<real>(),
+                            CUSPARSE_SPMV_CSR_ALG1,
+                            thrust::raw_pointer_cast(&buf[0])
+                            )
+                        );
+
+                ready_for_spmv = true;
+            }
 
             AMGCL_CALL_CUDA(
                     cusparseSpMV(
@@ -304,6 +324,7 @@ class cuda_matrix {
         thrust::device_vector<real> val;
 
         mutable thrust::device_vector<char> buf;
+        mutable bool ready_for_spmv = false;
 
 };
 
