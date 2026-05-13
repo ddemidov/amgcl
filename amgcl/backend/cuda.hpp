@@ -45,6 +45,8 @@ THE SOFTWARE.
 #include <thrust/scatter.h>
 #include <thrust/for_each.h>
 #include <thrust/inner_product.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/tuple.h>
 #include <cusparse_v2.h>
 
 namespace amgcl {
@@ -269,6 +271,7 @@ class cuda_matrix {
                 if (buf.size() < buf_size)
                     buf.resize(buf_size);
 
+#if CUDART_VERSION >= 12040
                 AMGCL_CALL_CUDA(
                         cusparseSpMV_preprocess(
                             handle,
@@ -283,6 +286,7 @@ class cuda_matrix {
                             thrust::raw_pointer_cast(&buf[0])
                             )
                         );
+#endif
 
                 ready_for_spmv = true;
             }
