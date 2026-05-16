@@ -659,7 +659,7 @@ class MBA {
                 double fill = psi->fill_ratio();
 
                 for(; (lev < max_levels) && (res > eps) && (fill > min_fill); ++lev) {
-                    grid = grid * 2ul - 1ul;
+                    grid = grid * (size_t)(2) - (size_t)(1);
 
                     auto f = std::make_shared<dense_lattice>(
                             cmin, cmax, grid, coo_begin, coo_end, val.begin());
@@ -676,7 +676,7 @@ class MBA {
 
             // Create sparse tail of the hierrchy.
             for(; (lev < max_levels) && (res > eps); ++lev) {
-                grid = grid * 2ul - 1ul;
+                grid = grid * (size_t)(2) - (size_t)(1);
 
                 cl.push_back(std::make_shared<sparse_lattice>(
                         cmin, cmax, grid, coo_begin, coo_end, val.begin()));

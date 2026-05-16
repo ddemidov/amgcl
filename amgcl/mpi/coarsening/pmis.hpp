@@ -441,7 +441,16 @@ struct pmis {
 
         // 2. Apply PMIS algorithm to the symbolic square.
         ptrdiff_t n_undone = 0;
-        std::vector<ptrdiff_t> rem_state(Sp.recv.count(), pmis::undone);
+
+        // _undone is needed to solve a linker error on i386:
+        //   https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1020834
+        // Doing it this way resolves "pmis::undone" to the "undone" variable in
+        // this class at compile time. Skipping _undone, and passing
+        // pmis::undone directily into the std::vector constructor generates an
+        // "undone" symbol reference that is never resolved. I don't know why,
+        // but this fix is good
+        const ptrdiff_t _undone = pmis::undone;
+        std::vector<ptrdiff_t> rem_state(Sp.recv.count(), _undone);
         std::vector<int>       rem_owner(Sp.recv.count(), -1);
         std::vector<ptrdiff_t> send_state(Sp.send.count());
         std::vector<int>       send_owner(Sp.send.count());
