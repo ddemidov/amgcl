@@ -106,6 +106,35 @@ NVIDIA CUDA backend
 .. _nvcc: https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html
 .. _cusparseCreate(): https://docs.nvidia.com/cuda/cusparse/index.html#cusparseCreate
 
+AMD HIP backend
+---------------
+
+.. cpp:class:: template <class ValueType> \
+                amgcl::backend::hip
+
+   Include ``<amgcl/backend/hip.hpp>``.
+
+   The backend uses the AMD ROCm_/HIP_ technology for the parallelization of its
+   primitives on AMD GPUs. It depends on the rocThrust_ and hipSPARSE_ libraries
+   (the HIP analogues of Thrust and cuSPARSE), and the code using the backend has
+   to be compiled with AMD's hipcc_ compiler. The user needs to initialize the
+   hipSPARSE_ library with a call to the `hipsparseCreate()` function and pass the
+   returned handle to AMGCL in the backend parameters.
+
+   .. cpp:class:: params
+
+      The backend parameters
+
+      .. cpp:member:: hipsparseHandle_t hipsparse_handle
+
+         hipSPARSE_ handle created with the `hipsparseCreate()` function.
+
+.. _ROCm: https://rocm.docs.amd.com/
+.. _HIP: https://rocm.docs.amd.com/projects/HIP/
+.. _rocThrust: https://rocm.docs.amd.com/projects/rocThrust/
+.. _hipSPARSE: https://rocm.docs.amd.com/projects/hipSPARSE/
+.. _hipcc: https://rocm.docs.amd.com/projects/HIPCC/
+
 VexCL backend
 -------------
 
