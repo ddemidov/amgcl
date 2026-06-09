@@ -5,6 +5,7 @@
 The MIT License
 
 Copyright (c) 2012-2022 Denis Demidov <dennis.demidov@gmail.com>
+Copyright (c) 2026 Advanced Micro Devices, Inc.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +29,7 @@ THE SOFTWARE.
 /**
  * \file   amgcl/relaxation/rocsparse_ilu0.hpp
  * \author Denis Demidov <dennis.demidov@gmail.com>
+ * \author Jeff Daily <jeff.daily@amd.com>
  * \brief  Implementation of ILU0 smoother for the ROCm/HIP backend.
  *
  * AMD GPU mirror of relaxation/cusparse_ilu0.hpp. Uses hipSPARSE (the
