@@ -174,6 +174,29 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
 endif()
 
 #----------------------------------------------------------------------------
+# Find HIP (ROCm/AMD GPU backend)
+#----------------------------------------------------------------------------
+option(USE_HIP "Build the ROCm/HIP backend (hipSPARSE + rocThrust)" OFF)
+if (USE_HIP)
+    # Do not hardcode the arch: a literal here would override
+    # -DCMAKE_HIP_ARCHITECTURES and force every target arch to edit this
+    # file to build. Default the arch only when unset.
+    if (NOT DEFINED CMAKE_HIP_ARCHITECTURES OR CMAKE_HIP_ARCHITECTURES STREQUAL "")
+        set(CMAKE_HIP_ARCHITECTURES "gfx90a")
+    endif()
+
+    enable_language(HIP)
+
+    find_package(hipsparse REQUIRED)
+    find_package(rocsparse REQUIRED)
+
+    add_library(hip_target INTERFACE)
+    target_link_libraries(hip_target INTERFACE amgcl roc::hipsparse roc::rocsparse)
+    # rocThrust/rocPRIM/hipCUB hard-#error below C++17.
+    target_compile_features(hip_target INTERFACE cxx_std_17)
+endif()
+
+#----------------------------------------------------------------------------
 # Find MPI
 #----------------------------------------------------------------------------
 find_package(MPI 3.0)

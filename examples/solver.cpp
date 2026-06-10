@@ -22,6 +22,10 @@
 #  include <amgcl/backend/cuda.hpp>
 #  include <amgcl/relaxation/cusparse_ilu0.hpp>
    typedef amgcl::backend::cuda<double> Backend;
+#elif defined(SOLVER_BACKEND_HIP)
+#  include <amgcl/backend/hip.hpp>
+#  include <amgcl/relaxation/rocsparse_ilu0.hpp>
+   typedef amgcl::backend::hip<double> Backend;
 #elif defined(SOLVER_BACKEND_EIGEN)
 #  include <amgcl/backend/eigen.hpp>
    typedef amgcl::backend::eigen<double> Backend;
@@ -258,6 +262,16 @@ std::tuple<size_t, double> scalar_solve(
         cudaGetDeviceProperties(&prop, dev);
         std::cout << prop.name << std::endl << std::endl;
     }
+#elif defined(SOLVER_BACKEND_HIP)
+    hipsparseCreate(&bprm.hipsparse_handle);
+    {
+        int dev;
+        hipGetDevice(&dev);
+
+        hipDeviceProp_t prop;
+        hipGetDeviceProperties(&prop, dev);
+        std::cout << prop.name << std::endl << std::endl;
+    }
 #endif
 
     typedef amgcl::make_solver<
@@ -294,7 +308,7 @@ std::tuple<size_t, double> scalar_solve(
         vex::copy(*x_b, tmp);
 #elif defined(SOLVER_BACKEND_VIENNACL)
         viennacl::fast_copy(*x_b, tmp);
-#elif defined(SOLVER_BACKEND_CUDA)
+#elif defined(SOLVER_BACKEND_CUDA) || defined(SOLVER_BACKEND_HIP)
         thrust::copy(x_b->begin(), x_b->end(), tmp.begin());
 #else
         std::copy(&(*x_b)[0], &(*x_b)[0] + rows, &tmp[0]);
@@ -319,7 +333,7 @@ std::tuple<size_t, double> scalar_solve(
         vex::copy(*x_b, x);
 #elif defined(SOLVER_BACKEND_VIENNACL)
         viennacl::fast_copy(*x_b, x);
-#elif defined(SOLVER_BACKEND_CUDA)
+#elif defined(SOLVER_BACKEND_CUDA) || defined(SOLVER_BACKEND_HIP)
         thrust::copy(x_b->begin(), x_b->end(), x.begin());
 #else
         std::copy(&(*x_b)[0], &(*x_b)[0] + rows, &x[0]);

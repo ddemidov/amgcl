@@ -124,4 +124,23 @@ if (TARGET cuda_target)
     add_cuda_example(cpr_drs)
 endif()
 
+if (TARGET hip_target)
+    function(add_hip_example example)
+        configure_file(
+            ${CMAKE_CURRENT_SOURCE_DIR}/${example}.cpp
+            ${CMAKE_CURRENT_BINARY_DIR}/${example}.hip
+            COPYONLY
+            )
+
+        set_source_files_properties(
+            ${CMAKE_CURRENT_BINARY_DIR}/${example}.hip PROPERTIES LANGUAGE HIP)
+
+        add_executable(${example}_hip ${CMAKE_CURRENT_BINARY_DIR}/${example}.hip)
+        target_compile_definitions(${example}_hip PRIVATE SOLVER_BACKEND_HIP)
+        target_link_libraries(${example}_hip amgcl_example hip_target)
+    endfunction()
+
+    add_hip_example(solver)
+endif()
+
 add_subdirectory(mpi)
