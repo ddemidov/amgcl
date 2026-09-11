@@ -57,9 +57,8 @@ if (TARGET mpi_target)
                 ${CMAKE_CURRENT_BINARY_DIR}/${example}.cu
                 COPYONLY
                 )
-            cuda_add_executable(${example}_cuda
-                ${CMAKE_CURRENT_BINARY_DIR}/${example}.cu
-                OPTIONS -DSOLVER_BACKEND_CUDA)
+            add_executable(${example}_cuda ${CMAKE_CURRENT_BINARY_DIR}/${example}.cu)
+            target_compile_definitions(${example}_cuda PRIVATE SOLVER_BACKEND_CUDA)
             target_include_directories(${example}_cuda PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
             target_link_libraries(${example}_cuda amgcl_example cuda_target mpi_target)
         endforeach()

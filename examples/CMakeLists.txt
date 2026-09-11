@@ -114,8 +114,8 @@ if (TARGET cuda_target)
             COPYONLY
             )
 
-        cuda_add_executable(${example}_cuda ${CMAKE_CURRENT_BINARY_DIR}/${example}.cu
-            OPTIONS -DSOLVER_BACKEND_CUDA)
+        add_executable(${example}_cuda ${CMAKE_CURRENT_BINARY_DIR}/${example}.cu)
+        target_compile_definitions(${example}_cuda PRIVATE SOLVER_BACKEND_CUDA)
         target_link_libraries(${example}_cuda amgcl_example cuda_target)
     endfunction()
 

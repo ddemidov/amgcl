@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Build type")
     message(STATUS "No build type selected, default to ${CMAKE_BUILD_TYPE}")
@@ -23,6 +23,10 @@ option(Boost_USE_STATIC_LIBS "Use static versions of Boost libraries" OFF)
 if (WIN32)
     set(Boost_USE_STATIC_LIBS ON)
 endif ()
+
+if(POLICY CMP0167)
+    cmake_policy(SET CMP0167 NEW)
+endif()
 
 find_package(Boost COMPONENTS
     program_options
@@ -152,24 +156,28 @@ endif()
 # Find CUDA
 #----------------------------------------------------------------------------
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    find_package(CUDA)
-    if (CUDA_FOUND)
-        set(CUDA_TARGET_ARCH "Kepler Maxwell Pascal" CACHE STRING "Target architecture(s) for CUDA")
-        cuda_select_nvcc_arch_flags(CUDA_ARCH_FLAGS ${CUDA_TARGET_ARCH})
+    include(CheckLanguage)
+    check_language(CUDA)
+    if(CMAKE_CUDA_COMPILER)
+        enable_language(CUDA)
+        find_package(CUDAToolkit)
+        if(CUDAToolkit_FOUND)
+            set(CUDA_TARGET_ARCH "50;60;70" CACHE STRING "Target architecture(s) for CUDA")
+            set(CMAKE_CUDA_ARCHITECTURES "${CUDA_TARGET_ARCH}")
 
-        if (OPENMP_FOUND)
-            list(APPEND CUDA_NVCC_FLAGS -Xcompiler ${OpenMP_CXX_FLAGS})
+            if (OPENMP_FOUND)
+                string(APPEND CMAKE_CUDA_FLAGS " -Xcompiler=${OpenMP_CXX_FLAGS}")
+            endif()
+
+            if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+                string(APPEND CMAKE_CUDA_FLAGS " -Wno-deprecated-gpu-targets")
+                string(APPEND CMAKE_CUDA_FLAGS " -Xcompiler=-fPIC")
+                string(APPEND CMAKE_CUDA_FLAGS " -Xcompiler=-Wno-vla")
+            endif()
+
+            add_library(cuda_target INTERFACE)
+            target_link_libraries(cuda_target INTERFACE CUDA::cusparse)
         endif()
-
-        if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-	    list(APPEND CUDA_NVCC_FLAGS
-                ${CUDA_ARCH_FLAGS} -Wno-deprecated-gpu-targets)
-
-            list(APPEND CUDA_NVCC_FLAGS -Xcompiler -fPIC -Xcompiler -Wno-vla)
-        endif()
-
-        add_library(cuda_target INTERFACE)
-        target_link_libraries(cuda_target INTERFACE ${CUDA_cusparse_LIBRARY})
     endif()
 endif()
 
