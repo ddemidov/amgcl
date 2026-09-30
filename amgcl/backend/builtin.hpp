@@ -381,6 +381,12 @@ std::shared_ptr< crs<Val, Col, Ptr> >
 product(const crs<Val,Col,Ptr> &A, const crs<Val,Col,Ptr> &B, bool sort = false) {
     auto C = std::make_shared< crs<Val,Col,Ptr> >();
 
+#ifdef AMGCL_DETERMINISTIC_REDUCTIONS
+    // spgemm_saad and spgemm_rmerge do not agree bit-for-bit with each other,
+    // so choosing between them based on omp_get_max_threads() makes the result
+    // depend on the thread count. Always use spgemm_saad instead.
+    spgemm_saad(A, B, *C, sort);
+#else
 #ifdef _OPENMP
     int nt = omp_get_max_threads();
 #else
@@ -392,6 +398,7 @@ product(const crs<Val,Col,Ptr> &A, const crs<Val,Col,Ptr> &B, bool sort = false)
     } else {
         spgemm_saad(A, B, *C, sort);
     }
+#endif
 
     return C;
 }
@@ -1109,6 +1116,63 @@ struct inner_product_impl<
 
     typedef typename math::inner_product_impl<V>::return_type return_type;
 
+#ifdef AMGCL_DETERMINISTIC_REDUCTIONS
+    // The default implementation combines per-thread partial sums (and takes
+    // a separate serial path with one thread), so the result depends on the
+    // number of threads. Here the vector is split into fixed-size blocks, each
+    // summed with Kahan compensation, and the block sums are combined in order,
+    // so the result depends only on the vector size.
+    static constexpr ptrdiff_t deterministic_block_size = 4096;
+
+    static return_type get(const Vec1 &x, const Vec2 &y) {
+        return deterministic(x, y);
+    }
+
+    static return_type kahan_block_sum(const Vec1 &x, const Vec2 &y, ptrdiff_t begin, ptrdiff_t end) {
+        return_type s = math::zero<return_type>();
+        return_type c = math::zero<return_type>();
+
+        for(ptrdiff_t i = begin; i < end; ++i) {
+            return_type d = math::inner_product(x[i], y[i]) - c;
+            return_type t = s + d;
+            c = (t - s) - d;
+            s = t;
+        }
+
+        return s;
+    }
+
+    static return_type deterministic(const Vec1 &x, const Vec2 &y) {
+        const ptrdiff_t n = static_cast<ptrdiff_t>(x.size());
+        const ptrdiff_t num_blocks = (n + deterministic_block_size - 1) / deterministic_block_size;
+
+        if (num_blocks <= 1) {
+            return kahan_block_sum(x, y, 0, n);
+        }
+
+        std::vector<return_type> block_sums(static_cast<size_t>(num_blocks));
+
+#pragma omp parallel for
+        for(ptrdiff_t block = 0; block < num_blocks; ++block) {
+            ptrdiff_t begin = block * deterministic_block_size;
+            ptrdiff_t end   = (std::min)(begin + deterministic_block_size, n);
+            block_sums[static_cast<size_t>(block)] = kahan_block_sum(x, y, begin, end);
+        }
+
+        // Combine the block sums in order, with Kahan compensation as above.
+        return_type s = math::zero<return_type>();
+        return_type c = math::zero<return_type>();
+
+        for(ptrdiff_t block = 0; block < num_blocks; ++block) {
+            return_type d = block_sums[static_cast<size_t>(block)] - c;
+            return_type t = s + d;
+            c = (t - s) - d;
+            s = t;
+        }
+
+        return s;
+    }
+#else
     static return_type get(const Vec1 &x, const Vec2 &y) {
 #ifdef _OPENMP
         if (omp_get_max_threads() > 1) {
@@ -1179,6 +1243,7 @@ struct inner_product_impl<
 
         return std::accumulate(sum, sum + nt, math::zero<return_type>());
     }
+#endif
 #endif
 };
 
