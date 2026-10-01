@@ -15,6 +15,16 @@ use the library. However, there are some dependencies coming with the library:
    C++ compilers, so that should not be a problem. One just has to remember to
    enable the OpenMP support during the compilation of the project that uses
    AMGCL.
+
+   With OpenMP, the reductions in the :cpp:class:`amgcl::backend::builtin`
+   backend (``inner_product`` and the sparse matrix product used to build the
+   coarse levels) may give results that differ in the last bits for different
+   numbers of threads. Define the preprocessor macro
+   ``AMGCL_DETERMINISTIC_REDUCTIONS`` to make them independent of the thread
+   count: ``inner_product`` then sums in fixed-size blocks combined in order,
+   and the matrix product always uses ``spgemm_saad`` instead of switching to
+   ``spgemm_rmerge`` above 16 threads, which may be slower on machines with
+   many cores. The macro is not defined by default.
 3. Each of the AMGCL backends brings its own set of dependencies. For example,
    the :cpp:class:`amgcl::backend::vexcl` backend depends on the header-only
    VexCL_ library, which in turn depends on some Boost libraries and either on

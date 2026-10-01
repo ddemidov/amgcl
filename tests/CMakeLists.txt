@@ -55,6 +55,10 @@ add_amgcl_test(test_solver_block_crs  test_solver_block_crs.cpp)
 add_amgcl_test(test_solver_ns_builtin test_solver_ns_builtin.cpp)
 add_amgcl_test(test_io                test_io.cpp)
 
+# The macro is defined for this target only; all other tests use the default path.
+add_amgcl_test(test_deterministic_reductions test_deterministic_reductions.cpp)
+target_compile_definitions(test_deterministic_reductions PRIVATE AMGCL_DETERMINISTIC_REDUCTIONS)
+
 add_amgcl_test(test_static_matrix test_static_matrix.cpp)
 target_compile_options(test_static_matrix PRIVATE
     $<$<CXX_COMPILER_ID:GNU>:-std=c++0x>
