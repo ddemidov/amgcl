@@ -292,6 +292,9 @@ struct ruge_stuben {
 
                 if (math::norm(a_min) < eps) {
                     cf[i] = 'F';
+                    // no strong connections; S.val is read for every entry below
+                    for(Ptr j = A.ptr[i], e = A.ptr[i + 1]; j < e; ++j)
+                        S.val[j] = false;
                     continue;
                 }
 
