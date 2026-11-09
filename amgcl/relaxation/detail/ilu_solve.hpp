@@ -215,6 +215,9 @@ class ilu_solve< backend::builtin<value_type, col_type, ptr_type> > {
             if (lower) b += lower->bytes();
             if (upper) b += upper->bytes();
 
+            if(t1) b += backend::bytes(*t1);
+            if(t2) b += backend::bytes(*t2);
+
             return b;
         }
 
