@@ -1,0 +1,112 @@
+name: CUDA examples (simulated H100)
+
+# Optional, non-required check. The hosted runners have no GPU, so this builds
+# the CUDA backend examples and runs them on a simulated NVIDIA H100
+# (https://github.com/pantheongpu/pantheonsim). A simulator cannot reproduce
+# hardware-specific behaviour or timing, so it complements real-GPU testing and
+# does not replace it.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'amgcl/backend/cuda.hpp'
+      - 'amgcl/relaxation/cusparse_ilu0.hpp'
+      - 'amgcl/solver/skyline_lu.hpp'
+      - 'examples/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/gpu-sim.yml'
+
+concurrency:
+  group: gpu-sim-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  cuda-sim:
+    name: CUDA backend examples on a simulated H100
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # library-path is disabled so that the toolkit's cuSPARSE is the one
+      # the examples link against and load.
+      - name: Set up the simulated GPU and CUDA toolkit
+        uses: pantheongpu/setup-pantheonsim@ca87fe3143b29166822b923d6050945c5179408c # v0.1.5
+        with:
+          gpu: nvidia/h100
+          cuda-toolkit: "13.0"
+          library-path: 'false'
+
+      - name: Install Boost and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libboost-program-options-dev libboost-serialization-dev libboost-test-dev ninja-build
+
+      # CUDA_TARGET_ARCH is the project's own switch for the CUDA architectures
+      # (it overrides CMAKE_CUDA_ARCHITECTURES). Plain 90 embeds PTX, which the
+      # simulator runs. The simulator needs a shared CUDA runtime.
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH=/usr/local/cuda-13.0 \
+            -DCUDA_TARGET_ARCH=90 \
+            -DCMAKE_CUDA_RUNTIME_LIBRARY=Shared \
+            -DAMGCL_BUILD_EXAMPLES=ON
+
+      - name: Build
+        run: cmake --build build -j3 --target solver_cuda schur_pressure_correction_cuda cpr_drs_cuda
+
+      - name: Solver example (built-in Poisson problem)
+        working-directory: build
+        run: |
+          vgpu run ./examples/solver_cuda -n 32
+          vgpu run ./examples/solver_cuda -n 32 -p solver.type=cg
+          vgpu run ./examples/solver_cuda -n 32 -p precond.relax.type=ilu0
+          vgpu run ./examples/solver_cuda -n 32 -p solver.type=gmres -p precond.relax.type=ilu0
+          vgpu run ./examples/solver_cuda -n 32 -p solver.type=bicgstabl -p precond.relax.type=damped_jacobi
+          vgpu run ./examples/solver_cuda -n 32 -p solver.type=idrs -p precond.relax.type=iluk
+
+      # The two coupled-system examples need input files, so a small
+      # two-unknowns-per-node system (2D grid, 4608 unknowns) is generated.
+      - name: Coupled-system examples
+        working-directory: build
+        run: |
+          python3 - <<'PY'
+          n = 48
+          N = n * n
+          ent = []
+          for i in range(n):
+              for j in range(n):
+                  k = i * n + j
+                  for a in range(2):
+                      ent.append((2 * k + a, 2 * k + a, 4.5))
+                  ent.append((2 * k, 2 * k + 1, 0.3))
+                  ent.append((2 * k + 1, 2 * k, 0.3))
+                  for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                      ii, jj = i + di, j + dj
+                      if 0 <= ii < n and 0 <= jj < n:
+                          kk = ii * n + jj
+                          for a in range(2):
+                              ent.append((2 * k + a, 2 * kk + a, -1.0))
+          ent.sort()
+          with open("A.mtx", "w") as f:
+              f.write("%%MatrixMarket matrix coordinate real general\n")
+              f.write("%d %d %d\n" % (2 * N, 2 * N, len(ent)))
+              for r, c, v in ent:
+                  f.write("%d %d %.6f\n" % (r + 1, c + 1, v))
+          with open("b.mtx", "w") as f:
+              f.write("%%MatrixMarket matrix array real general\n")
+              f.write("%d 1\n" % (2 * N))
+              f.write("1.0\n" * (2 * N))
+          PY
+          vgpu run ./examples/cpr_drs_cuda -A A.mtx -f b.mtx -b 2 -p solver.type=gmres
+          vgpu run ./examples/cpr_drs_cuda -A A.mtx -f b.mtx -b 2 -p solver.type=gmres -p precond.sprecond.type=ilu0
+          vgpu run ./examples/schur_pressure_correction_cuda -A A.mtx -f b.mtx -m %0:2
