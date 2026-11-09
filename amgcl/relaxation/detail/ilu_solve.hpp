@@ -144,17 +144,27 @@ class ilu_solve< backend::builtin<value_type, col_type, ptr_type> > {
             /// Use serial version of the algorithm
             bool serial;
 
-            params() : serial(num_threads() < 4) {}
+            /// Number of Jacobi iterations.
+            unsigned    iters;
+
+            /// Damping factor.
+            scalar_type damping;
+
+            params() : serial(num_threads() < 4), iters(0), damping(0.72) {}
 
 #ifndef AMGCL_NO_BOOST
             params(const boost::property_tree::ptree &p)
-                : AMGCL_PARAMS_IMPORT_VALUE(p, serial)
+                : AMGCL_PARAMS_IMPORT_VALUE(p, serial),
+                  AMGCL_PARAMS_IMPORT_VALUE(p, iters)
+                , AMGCL_PARAMS_IMPORT_VALUE(p, damping)
             {
-                check_params(p, {"serial"});
+                check_params(p, {"serial", "iters", "damping"});
             }
 
             void get(boost::property_tree::ptree &p, const std::string &path) const {
                 AMGCL_PARAMS_EXPORT_VALUE(p, path, serial);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, iters);
+                AMGCL_PARAMS_EXPORT_VALUE(p, path, damping);
             }
 #endif
         } prm;
@@ -164,21 +174,35 @@ class ilu_solve< backend::builtin<value_type, col_type, ptr_type> > {
                 std::shared_ptr<build_matrix> U,
                 std::shared_ptr<backend::numa_vector<value_type> > D,
                 const params &prm = params(),
-                const backend_params& = backend_params()
+                const backend_params& bprm = backend_params()
                 ) : prm(prm)
         {
-            if (prm.serial)
-                serial_init(L, U, D);
+            if(prm.iters == 0)
+            {
+                if (prm.serial)
+                    serial_init(L, U, D);
+                else
+                    parallel_init(L, U, D);
+            }
             else
-                parallel_init(L, U, D);
+            {
+                serial_init(L, U, D);
+                t1 = Backend::create_vector(backend::rows(*L), bprm);
+                t2 = Backend::create_vector(backend::rows(*L), bprm);
+            }
         }
 
         template <class Vector>
         void solve(Vector &x) {
-            if (prm.serial)
-                serial_solve(x);
+            if(prm.iters == 0)
+            {
+                if (prm.serial)
+                    serial_solve(x);
+                else
+                    parallel_solve(x);
+            }
             else
-                parallel_solve(x);
+                solve_jacobi(x);
         }
 
         size_t bytes() const {
@@ -190,6 +214,9 @@ class ilu_solve< backend::builtin<value_type, col_type, ptr_type> > {
 
             if (lower) b += lower->bytes();
             if (upper) b += upper->bytes();
+
+            if(t1) b += backend::bytes(*t1);
+            if(t2) b += backend::bytes(*t2);
 
             return b;
         }
@@ -216,6 +243,8 @@ class ilu_solve< backend::builtin<value_type, col_type, ptr_type> > {
         std::shared_ptr<matrix>          L;
         std::shared_ptr<matrix>          U;
         std::shared_ptr<matrix_diagonal> D;
+
+        std::shared_ptr<vector> t1, t2;
 
         void serial_init(
                 std::shared_ptr<build_matrix>    L,
@@ -433,6 +462,24 @@ class ilu_solve< backend::builtin<value_type, col_type, ptr_type> > {
                 return b;
             }
         };
+
+        template <class Vector>
+        void solve_jacobi(Vector &x) {
+            vector *y0 = t1.get();
+            vector *y1 = t2.get();
+
+            backend::axpby(prm.damping, x, 0.0, *y0);
+            for(unsigned i = 0; i < prm.iters; ++i) {
+                backend::residual(x, *L, *y0, *y1);
+                backend::axpby(prm.damping, *y1, (1-prm.damping), *y0);
+            }
+
+            backend::vmul(prm.damping, *D, *y0, 0.0, x);
+            for(unsigned i = 0; i < prm.iters; ++i) {
+                backend::residual(*y0, *U, x, *y1);
+                backend::vmul(prm.damping, *D, *y1, (1-prm.damping), x);
+            }
+        }
 
         std::shared_ptr< sptr_solve<true > > lower;
         std::shared_ptr< sptr_solve<false> > upper;
