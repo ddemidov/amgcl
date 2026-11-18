@@ -87,7 +87,7 @@ struct static_cols< Eigen::Matrix<T, N, M> > : std::integral_constant<int, M> {}
 template <typename T, int N, int M>
 struct adjoint_impl< Eigen::Matrix<T, N, M> >
 {
-    typedef typename Eigen::Matrix<T, N, M>::AdjointReturnType return_type;
+    typedef Eigen::Matrix<T, M, N> return_type;
 
     static return_type get(const Eigen::Matrix<T, N, M> &x) {
         return x.adjoint();
